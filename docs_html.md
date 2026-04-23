@@ -1,389 +1,399 @@
 # Документация ELMA BPM — список страниц
 
-Всего страниц: 385
+Всего страниц: 395
 
-- https://elma-3-4.elma365.ru/help4/elma-bpm.html
-- https://elma-3-4.elma365.ru/help4/work-in-system.html
-- https://elma-3-4.elma365.ru/help4/sign-in.html
-- https://elma-3-4.elma365.ru/help4/sign-in-login-password.html
-- https://elma-3-4.elma365.ru/help4/sign-in-certificate.html
-- https://elma-3-4.elma365.ru/help4/sign-in-token.html
-- https://elma-3-4.elma365.ru/help4/trusted-devices.html
-- https://elma-3-4.elma365.ru/help4/trusted-certificates-signing.html
-- https://elma-3-4.elma365.ru/help4/user-profile.html
-- https://elma-3-4.elma365.ru/help4/system-main-page.html
-- https://elma-3-4.elma365.ru/help4/main-page-settings.html
-- https://elma-3-4.elma365.ru/help4/portlet-settings.html
-- https://elma-3-4.elma365.ru/help4/messages.html
-- https://elma-3-4.elma365.ru/help4/create-message.html
-- https://elma-3-4.elma365.ru/help4/message-page.html
-- https://elma-3-4.elma365.ru/help4/message-settings.html
-- https://elma-3-4.elma365.ru/help4/public-channels.html
-- https://elma-3-4.elma365.ru/help4/customer-relationship-management.html
-- https://elma-3-4.elma365.ru/help4/contractors.html
-- https://elma-3-4.elma365.ru/help4/contractor-creating.html
-- https://elma-3-4.elma365.ru/help4/create-address-using-fias.html
-- https://elma-3-4.elma365.ru/help4/company-duplicate-checking.html
-- https://elma-3-4.elma365.ru/help4/contractor-page.html
-- https://elma-3-4.elma365.ru/help4/contacts.html
-- https://elma-3-4.elma365.ru/help4/contact-page.html
-- https://elma-3-4.elma365.ru/help4/leads.html
-- https://elma-3-4.elma365.ru/help4/lead-creating.html
-- https://elma-3-4.elma365.ru/help4/lead-page.html
-- https://elma-3-4.elma365.ru/help4/lead-converting.html
-- https://elma-3-4.elma365.ru/help4/importing-contractors-and-leads.html
-- https://elma-3-4.elma365.ru/help4/relationships.html
-- https://elma-3-4.elma365.ru/help4/payments.html
-- https://elma-3-4.elma365.ru/help4/deals.html
-- https://elma-3-4.elma365.ru/help4/create-deal.html
-- https://elma-3-4.elma365.ru/help4/deal-page.html
-- https://elma-3-4.elma365.ru/help4/sales-funnel.html
-- https://elma-3-4.elma365.ru/help4/marketing.html
-- https://elma-3-4.elma365.ru/help4/group-marketing-activities.html
-- https://elma-3-4.elma365.ru/help4/marketing-activity.html
-- https://elma-3-4.elma365.ru/help4/marketing-event.html
-- https://elma-3-4.elma365.ru/help4/activity-calendar.html
-- https://elma-3-4.elma365.ru/help4/statistics.html
-- https://elma-3-4.elma365.ru/help4/marketing-object-archive.html
-- https://elma-3-4.elma365.ru/help4/access-permissions.html
-- https://elma-3-4.elma365.ru/help4/tasks.html
-- https://elma-3-4.elma365.ru/help4/create-task.html
-- https://elma-3-4.elma365.ru/help4/task-page.html
-- https://elma-3-4.elma365.ru/help4/task-statuses.html
-- https://elma-3-4.elma365.ru/help4/task-list.html
-- https://elma-3-4.elma365.ru/help4/periodic-task.html
-- https://elma-3-4.elma365.ru/help4/process-task.html
-- https://elma-3-4.elma365.ru/help4/task-actions.html
-- https://elma-3-4.elma365.ru/help4/approve-task.html
-- https://elma-3-4.elma365.ru/help4/complete-task.html
-- https://elma-3-4.elma365.ru/help4/task-control.html
-- https://elma-3-4.elma365.ru/help4/task-subscription.html
-- https://elma-3-4.elma365.ru/help4/task-scheduling.html
-- https://elma-3-4.elma365.ru/help4/task-search.html
-- https://elma-3-4.elma365.ru/help4/task-time-report.html
-- https://elma-3-4.elma365.ru/help4/time-report.html
-- https://elma-3-4.elma365.ru/help4/reports.html
-- https://elma-3-4.elma365.ru/help4/creating-time-report.html
-- https://elma-3-4.elma365.ru/help4/approval-time-report.html
-- https://elma-3-4.elma365.ru/help4/time-report-page.html
-- https://elma-3-4.elma365.ru/help4/time-reports-search.html
-- https://elma-3-4.elma365.ru/help4/company.html
-- https://elma-3-4.elma365.ru/help4/calendar.html
-- https://elma-3-4.elma365.ru/help4/create-event.html
-- https://elma-3-4.elma365.ru/help4/event-page.html
-- https://elma-3-4.elma365.ru/help4/periodic-event.html
-- https://elma-3-4.elma365.ru/help4/event-actions.html
-- https://elma-3-4.elma365.ru/help4/common-other-users-calendars.html
-- https://elma-3-4.elma365.ru/help4/set-reminder-events-tasks.html
-- https://elma-3-4.elma365.ru/help4/calendar-interface.html
-- https://elma-3-4.elma365.ru/help4/calendar-view-display-modes.html
-- https://elma-3-4.elma365.ru/help4/calendar-export.html
-- https://elma-3-4.elma365.ru/help4/synchronize-external-calendar.html
-- https://elma-3-4.elma365.ru/help4/user-processes.html
-- https://elma-3-4.elma365.ru/help4/start-business-process.html
-- https://elma-3-4.elma365.ru/help4/process-instance-page.html
-- https://elma-3-4.elma365.ru/help4/change-process-instance-version.html
-- https://elma-3-4.elma365.ru/help4/process-monitor-page.html
-- https://elma-3-4.elma365.ru/help4/process-map.html
-- https://elma-3-4.elma365.ru/help4/my-processes.html
-- https://elma-3-4.elma365.ru/help4/process-monitor.html
-- https://elma-3-4.elma365.ru/help4/process-improvement.html
-- https://elma-3-4.elma365.ru/help4/view-process-improvements.html
-- https://elma-3-4.elma365.ru/help4/business-process-policies.html
-- https://elma-3-4.elma365.ru/help4/process-documentation.html
-- https://elma-3-4.elma365.ru/help4/execution-queue.html
-- https://elma-3-4.elma365.ru/help4/change-process-version.html
-- https://elma-3-4.elma365.ru/help4/documents.html
-- https://elma-3-4.elma365.ru/help4/document-storage.html
-- https://elma-3-4.elma365.ru/help4/user-folders.html
-- https://elma-3-4.elma365.ru/help4/filter-folder.html
-- https://elma-3-4.elma365.ru/help4/action-folder.html
-- https://elma-3-4.elma365.ru/help4/group-actions-folders.html
-- https://elma-3-4.elma365.ru/help4/create-electronic-document.html
-- https://elma-3-4.elma365.ru/help4/document-page.html
-- https://elma-3-4.elma365.ru/help4/document-versions.html
-- https://elma-3-4.elma365.ru/help4/managing-versions-via-elma-agent.html
-- https://elma-3-4.elma365.ru/help4/preview-document-version.html
-- https://elma-3-4.elma365.ru/help4/documents-links.html
-- https://elma-3-4.elma365.ru/help4/history-documents.html
-- https://elma-3-4.elma365.ru/help4/access-documents-folders.html
-- https://elma-3-4.elma365.ru/help4/access-to-folders.html
-- https://elma-3-4.elma365.ru/help4/access-electronic-document.html
-- https://elma-3-4.elma365.ru/help4/document-subscriptions.html
-- https://elma-3-4.elma365.ru/help4/links-to-documents-folders.html
-- https://elma-3-4.elma365.ru/help4/convert-document.html
-- https://elma-3-4.elma365.ru/help4/search-document.html
-- https://elma-3-4.elma365.ru/help4/archive-documents.html
-- https://elma-3-4.elma365.ru/help4/web-document.html
-- https://elma-3-4.elma365.ru/help4/html-editor.html
-- https://elma-3-4.elma365.ru/help4/user-objects.html
-- https://elma-3-4.elma365.ru/help4/starting-process-object-page.html
-- https://elma-3-4.elma365.ru/help4/hierarchical-object.html
-- https://elma-3-4.elma365.ru/help4/system-reports.html
-- https://elma-3-4.elma365.ru/help4/aggregate-report.html
-- https://elma-3-4.elma365.ru/help4/report-on-document-task-compliance.html
-- https://elma-3-4.elma365.ru/help4/report-on-activity.html
-- https://elma-3-4.elma365.ru/help4/report-on-schedule-compliance.html
-- https://elma-3-4.elma365.ru/help4/list-category-records.html
-- https://elma-3-4.elma365.ru/help4/saving-report-to-web-document.html
-- https://elma-3-4.elma365.ru/help4/business-rules.html
-- https://elma-3-4.elma365.ru/help4/create-business-rule.html
-- https://elma-3-4.elma365.ru/help4/business-rule-page.html
-- https://elma-3-4.elma365.ru/help4/send-business-rule-for-approval.html
-- https://elma-3-4.elma365.ru/help4/actions-with-business-rules.html
-- https://elma-3-4.elma365.ru/help4/business-rule-task.html
-- https://elma-3-4.elma365.ru/help4/global-variables.html
-- https://elma-3-4.elma365.ru/help4/create-global-variable.html
-- https://elma-3-4.elma365.ru/help4/global-variable-page.html
-- https://elma-3-4.elma365.ru/help4/ask-question-and-answer.html
-- https://elma-3-4.elma365.ru/help4/selecting-elements.html
-- https://elma-3-4.elma365.ru/help4/selecting-users.html
-- https://elma-3-4.elma365.ru/help4/selecting-folders.html
-- https://elma-3-4.elma365.ru/help4/selecting-object-for-access.html
-- https://elma-3-4.elma365.ru/help4/data-table.html
-- https://elma-3-4.elma365.ru/help4/file.html
-- https://elma-3-4.elma365.ru/help4/history-panel.html
-- https://elma-3-4.elma365.ru/help4/search-in-system.html
-- https://elma-3-4.elma365.ru/help4/eql-search.html
-- https://elma-3-4.elma365.ru/help4/eql-query-syntax.html
-- https://elma-3-4.elma365.ru/help4/sms-notifications.html
-- https://elma-3-4.elma365.ru/help4/rich-email.html
-- https://elma-3-4.elma365.ru/help4/data-export-vcard.html
-- https://elma-3-4.elma365.ru/help4/displaying-block-properties.html
-- https://elma-3-4.elma365.ru/help4/designer.html
-- https://elma-3-4.elma365.ru/help4/orgstructure.html
-- https://elma-3-4.elma365.ru/help4/processes.html
-- https://elma-3-4.elma365.ru/help4/process-modeling.html
-- https://elma-3-4.elma365.ru/help4/process-page.html
-- https://elma-3-4.elma365.ru/help4/elements-for-modeling.html
-- https://elma-3-4.elma365.ru/help4/swimlanes.html
-- https://elma-3-4.elma365.ru/help4/events.html
-- https://elma-3-4.elma365.ru/help4/operations.html
-- https://elma-3-4.elma365.ru/help4/task.html
-- https://elma-3-4.elma365.ru/help4/business-rule.html
-- https://elma-3-4.elma365.ru/help4/script.html
-- https://elma-3-4.elma365.ru/help4/manual-execution.html
-- https://elma-3-4.elma365.ru/help4/notification.html
-- https://elma-3-4.elma365.ru/help4/send-wait-message.html
-- https://elma-3-4.elma365.ru/help4/message-type.html
-- https://elma-3-4.elma365.ru/help4/operation-markers.html
-- https://elma-3-4.elma365.ru/help4/transition.html
-- https://elma-3-4.elma365.ru/help4/setup-escalation.html
-- https://elma-3-4.elma365.ru/help4/sub-processes.html
-- https://elma-3-4.elma365.ru/help4/process-rpa.html
-- https://elma-3-4.elma365.ru/help4/sluices.html
-- https://elma-3-4.elma365.ru/help4/artifacts-associations.html
-- https://elma-3-4.elma365.ru/help4/creating-editing-object-item.html
-- https://elma-3-4.elma365.ru/help4/change-process-instance-status.html
-- https://elma-3-4.elma365.ru/help4/form-file-preview-activity.html
-- https://elma-3-4.elma365.ru/help4/move-document-activity.html
-- https://elma-3-4.elma365.ru/help4/change-permissions-access-the-document-activity.html
-- https://elma-3-4.elma365.ru/help4/document-generation.html
-- https://elma-3-4.elma365.ru/help4/process-context.html
-- https://elma-3-4.elma365.ru/help4/actions-context-variables.html
-- https://elma-3-4.elma365.ru/help4/context-variable-card.html
-- https://elma-3-4.elma365.ru/help4/key-variable.html
-- https://elma-3-4.elma365.ru/help4/responsibility-matrix.html
-- https://elma-3-4.elma365.ru/help4/metrics-and-kpis.html
-- https://elma-3-4.elma365.ru/help4/process-forms.html
-- https://elma-3-4.elma365.ru/help4/%D1%80rocess-scripts.html
-- https://elma-3-4.elma365.ru/help4/script-editor.html
-- https://elma-3-4.elma365.ru/help4/script-syntax-check.html
-- https://elma-3-4.elma365.ru/help4/script-emulation.html
-- https://elma-3-4.elma365.ru/help4/process-setting.html
-- https://elma-3-4.elma365.ru/help4/version-history.html
-- https://elma-3-4.elma365.ru/help4/process-instance-statuses.html
-- https://elma-3-4.elma365.ru/help4/process-policy.html
-- https://elma-3-4.elma365.ru/help4/process-common-settings.html
-- https://elma-3-4.elma365.ru/help4/checking-business-process.html
-- https://elma-3-4.elma365.ru/help4/process-debugging.html
-- https://elma-3-4.elma365.ru/help4/documentation.html
-- https://elma-3-4.elma365.ru/help4/publishing-business-process.html
-- https://elma-3-4.elma365.ru/help4/object-model.html
-- https://elma-3-4.elma365.ru/help4/data-types.html
-- https://elma-3-4.elma365.ru/help4/simple-data-types.html
-- https://elma-3-4.elma365.ru/help4/type-string.html
-- https://elma-3-4.elma365.ru/help4/type-text.html
-- https://elma-3-4.elma365.ru/help4/type-html-markup.html
-- https://elma-3-4.elma365.ru/help4/type-integer.html
-- https://elma-3-4.elma365.ru/help4/type-fraction.html
-- https://elma-3-4.elma365.ru/help4/type-date-time.html
-- https://elma-3-4.elma365.ru/help4/type-timespan.html
-- https://elma-3-4.elma365.ru/help4/type-yes-no.html
-- https://elma-3-4.elma365.ru/help4/type-drop-down-list.html
-- https://elma-3-4.elma365.ru/help4/type-money.html
-- https://elma-3-4.elma365.ru/help4/type-working-time-interval.html
-- https://elma-3-4.elma365.ru/help4/type-script-execution-error.html
-- https://elma-3-4.elma365.ru/help4/type-url.html
-- https://elma-3-4.elma365.ru/help4/type-action.html
-- https://elma-3-4.elma365.ru/help4/platform-objects-types.html
-- https://elma-3-4.elma365.ru/help4/all-objects-group.html
-- https://elma-3-4.elma365.ru/help4/documents-group.html
-- https://elma-3-4.elma365.ru/help4/projects-group.html
-- https://elma-3-4.elma365.ru/help4/record-cards-group.html
-- https://elma-3-4.elma365.ru/help4/enumerations-group.html
-- https://elma-3-4.elma365.ru/help4/system-data-types.html
-- https://elma-3-4.elma365.ru/help4/object.html
-- https://elma-3-4.elma365.ru/help4/create-object.html
-- https://elma-3-4.elma365.ru/help4/object-page.html
-- https://elma-3-4.elma365.ru/help4/common-tab.html
-- https://elma-3-4.elma365.ru/help4/properties-tab.html
-- https://elma-3-4.elma365.ru/help4/additional-tab.html
-- https://elma-3-4.elma365.ru/help4/table-tab.html
-- https://elma-3-4.elma365.ru/help4/object-forms-views-tab.html
-- https://elma-3-4.elma365.ru/help4/filter-tab.html
-- https://elma-3-4.elma365.ru/help4/ibject-filter-example.html
-- https://elma-3-4.elma365.ru/help4/additional-code-tab.html
-- https://elma-3-4.elma365.ru/help4/actions-tab.html
-- https://elma-3-4.elma365.ru/help4/processes-tab.html
-- https://elma-3-4.elma365.ru/help4/actions-with-objects.html
-- https://elma-3-4.elma365.ru/help4/object-properties.html
-- https://elma-3-4.elma365.ru/help4/create-object-property.html
-- https://elma-3-4.elma365.ru/help4/name-property.html
-- https://elma-3-4.elma365.ru/help4/object-type-property.html
-- https://elma-3-4.elma365.ru/help4/block-type-property.html
-- https://elma-3-4.elma365.ru/help4/properties-by-default.html
-- https://elma-3-4.elma365.ru/help4/actions-with-object-properties.html
-- https://elma-3-4.elma365.ru/help4/link-types.html
-- https://elma-3-4.elma365.ru/help4/object-inheritance.html
-- https://elma-3-4.elma365.ru/help4/objects.html
-- https://elma-3-4.elma365.ru/help4/enumeration.html
-- https://elma-3-4.elma365.ru/help4/create-enumeration.html
-- https://elma-3-4.elma365.ru/help4/create-enumeration-value.html
-- https://elma-3-4.elma365.ru/help4/object-enumeration-groups.html
-- https://elma-3-4.elma365.ru/help4/namespace.html
-- https://elma-3-4.elma365.ru/help4/integrations.html
-- https://elma-3-4.elma365.ru/help4/create-integration-module.html
-- https://elma-3-4.elma365.ru/help4/save-and-publish-module.html
-- https://elma-3-4.elma365.ru/help4/integration-modules-in-processes.html
-- https://elma-3-4.elma365.ru/help4/scripts.html
-- https://elma-3-4.elma365.ru/help4/message-queues.html
-- https://elma-3-4.elma365.ru/help4/message-queues-in-processes.html
-- https://elma-3-4.elma365.ru/help4/interfaces.html
-- https://elma-3-4.elma365.ru/help4/form-builder.html
-- https://elma-3-4.elma365.ru/help4/properties.html
-- https://elma-3-4.elma365.ru/help4/create-form-property.html
-- https://elma-3-4.elma365.ru/help4/property-settings.html
-- https://elma-3-4.elma365.ru/help4/property-parts-adding.html
-- https://elma-3-4.elma365.ru/help4/form-settings.html
-- https://elma-3-4.elma365.ru/help4/pages-portlets-and-user-components.html
-- https://elma-3-4.elma365.ru/help4/page-portlet-user-component-modeling.html
-- https://elma-3-4.elma365.ru/help4/page-portlet-user-component-settings.html
-- https://elma-3-4.elma365.ru/help4/actions.html
-- https://elma-3-4.elma365.ru/help4/user-defined-list.html
-- https://elma-3-4.elma365.ru/help4/component-types.html
-- https://elma-3-4.elma365.ru/help4/column.html
-- https://elma-3-4.elma365.ru/help4/column-displaying-property-of-object.html
-- https://elma-3-4.elma365.ru/help4/property-string.html
-- https://elma-3-4.elma365.ru/help4/area-for-inserting-component.html
-- https://elma-3-4.elma365.ru/help4/row-layout.html
-- https://elma-3-4.elma365.ru/help4/card.html
-- https://elma-3-4.elma365.ru/help4/panel.html
-- https://elma-3-4.elma365.ru/help4/dynamic-list.html
-- https://elma-3-4.elma365.ru/help4/tabs.html
-- https://elma-3-4.elma365.ru/help4/menu-with-form.html
-- https://elma-3-4.elma365.ru/help4/info-block.html
-- https://elma-3-4.elma365.ru/help4/text.html
-- https://elma-3-4.elma365.ru/help4/button.html
-- https://elma-3-4.elma365.ru/help4/image.html
-- https://elma-3-4.elma365.ru/help4/slide-out-panel.html
-- https://elma-3-4.elma365.ru/help4/modal-window.html
-- https://elma-3-4.elma365.ru/help4/tooltip.html
-- https://elma-3-4.elma365.ru/help4/input-group.html
-- https://elma-3-4.elma365.ru/help4/counter.html
-- https://elma-3-4.elma365.ru/help4/linked-objects-list.html
-- https://elma-3-4.elma365.ru/help4/table.html
-- https://elma-3-4.elma365.ru/help4/steps.html
-- https://elma-3-4.elma365.ru/help4/message-console.html
-- https://elma-3-4.elma365.ru/help4/tree.html
-- https://elma-3-4.elma365.ru/help4/separator.html
-- https://elma-3-4.elma365.ru/help4/toolbar.html
-- https://elma-3-4.elma365.ru/help4/line-chart.html
-- https://elma-3-4.elma365.ru/help4/pie-chart.html
-- https://elma-3-4.elma365.ru/help4/form-validation-result.html
-- https://elma-3-4.elma365.ru/help4/object-form.html
-- https://elma-3-4.elma365.ru/help4/tree-structure.html
-- https://elma-3-4.elma365.ru/help4/dragging.html
-- https://elma-3-4.elma365.ru/help4/scoring-panel.html
-- https://elma-3-4.elma365.ru/help4/container-for-default-properties.html
-- https://elma-3-4.elma365.ru/help4/data-transfer-objects.html
-- https://elma-3-4.elma365.ru/help4/global-data-transfer-objects.html
-- https://elma-3-4.elma365.ru/help4/global-data-transfer-object-settings.html
-- https://elma-3-4.elma365.ru/help4/data-transfer-object-type-property.html
-- https://elma-3-4.elma365.ru/help4/internal-data-transfer-objects.html
-- https://elma-3-4.elma365.ru/help4/function-and-formula-using.html
-- https://elma-3-4.elma365.ru/help4/formula-use-case.html
-- https://elma-3-4.elma365.ru/help4/public-client-services.html
-- https://elma-3-4.elma365.ru/help4/apps.html
-- https://elma-3-4.elma365.ru/help4/create-app.html
-- https://elma-3-4.elma365.ru/help4/app-actions.html
-- https://elma-3-4.elma365.ru/help4/configuration-export-import.html
-- https://elma-3-4.elma365.ru/help4/export-configuration.html
-- https://elma-3-4.elma365.ru/help4/import-configuration.html
-- https://elma-3-4.elma365.ru/help4/external-sources.html
-- https://elma-3-4.elma365.ru/help4/external-source-connecting.html
-- https://elma-3-4.elma365.ru/help4/get-data-from-external-source.html
-- https://elma-3-4.elma365.ru/help4/publishing.html
-- https://elma-3-4.elma365.ru/help4/system-administration.html
-- https://elma-3-4.elma365.ru/help4/elma-standard-system-requirements.html
-- https://elma-3-4.elma365.ru/help4/elma-enterprise-system-requirements.html
-- https://elma-3-4.elma365.ru/help4/installing.html
-- https://elma-3-4.elma365.ru/help4/updating.html
-- https://elma-3-4.elma365.ru/help4/authentication-settings.html
-- https://elma-3-4.elma365.ru/help4/admin-certificate.html
-- https://elma-3-4.elma365.ru/help4/admin-token.html
-- https://elma-3-4.elma365.ru/help4/single-sign-on.html
-- https://elma-3-4.elma365.ru/help4/import-users-from-ldap.html
-- https://elma-3-4.elma365.ru/help4/assigning-user-to-position.html
-- https://elma-3-4.elma365.ru/help4/assigning-substitutions.html
-- https://elma-3-4.elma365.ru/help4/user-lock.html
-- https://elma-3-4.elma365.ru/help4/users-authorization-sessions.html
-- https://elma-3-4.elma365.ru/help4/global-access-settings.html
-- https://elma-3-4.elma365.ru/help4/global-scoring-settings.html
-- https://elma-3-4.elma365.ru/help4/system-settings.html
-- https://elma-3-4.elma365.ru/help4/general-settings.html
-- https://elma-3-4.elma365.ru/help4/process-tasks.html
-- https://elma-3-4.elma365.ru/help4/admin-process-monitor.html
-- https://elma-3-4.elma365.ru/help4/security.html
-- https://elma-3-4.elma365.ru/help4/ldap-integration.html
-- https://elma-3-4.elma365.ru/help4/server-restart-scheduler.html
-- https://elma-3-4.elma365.ru/help4/admin-time-report.html
-- https://elma-3-4.elma365.ru/help4/outgoing-mail.html
-- https://elma-3-4.elma365.ru/help4/admin-sms-notifications.html
-- https://elma-3-4.elma365.ru/help4/integration-with-elma-rpa.html
-- https://elma-3-4.elma365.ru/help4/admin-tasks.html
-- https://elma-3-4.elma365.ru/help4/admin-calendar.html
-- https://elma-3-4.elma365.ru/help4/generating-preview.html
-- https://elma-3-4.elma365.ru/help4/working-with-customers.html
-- https://elma-3-4.elma365.ru/help4/email-header-prefixes.html
-- https://elma-3-4.elma365.ru/help4/administration-import-configuration.html
-- https://elma-3-4.elma365.ru/help4/admin-objects.html
-- https://elma-3-4.elma365.ru/help4/system-diagnostics-settings.html
-- https://elma-3-4.elma365.ru/help4/diagnostic-tools.html
-- https://elma-3-4.elma365.ru/help4/portal-settings.html
-- https://elma-3-4.elma365.ru/help4/admin-interfaces.html
-- https://elma-3-4.elma365.ru/help4/interface-actions.html
-- https://elma-3-4.elma365.ru/help4/visual-interface-editor.html
-- https://elma-3-4.elma365.ru/help4/menu-settings.html
-- https://elma-3-4.elma365.ru/help4/main-page-setting.html
-- https://elma-3-4.elma365.ru/help4/admin-toolbar.html
-- https://elma-3-4.elma365.ru/help4/pages.html
-- https://elma-3-4.elma365.ru/help4/portlet-page.html
-- https://elma-3-4.elma365.ru/help4/text-page.html
-- https://elma-3-4.elma365.ru/help4/role-page.html
-- https://elma-3-4.elma365.ru/help4/color-schemes.html
-- https://elma-3-4.elma365.ru/help4/admin-portlets.html
-- https://elma-3-4.elma365.ru/help4/action-register.html
-- https://elma-3-4.elma365.ru/help4/access-to-business-processes.html
-- https://elma-3-4.elma365.ru/help4/full-text-search-settings.html
-- https://elma-3-4.elma365.ru/help4/indexation.html
-- https://elma-3-4.elma365.ru/help4/integration-settings.html
-- https://elma-3-4.elma365.ru/help4/lead-and-contractor-categories.html
-- https://elma-3-4.elma365.ru/help4/category-assigning-rules.html
-- https://elma-3-4.elma365.ru/help4/access-to-fields-and-properties.html
-- https://elma-3-4.elma365.ru/help4/fias-address-provider-settings.html
-- https://elma-3-4.elma365.ru/help4/business-rule-settings.html
-- https://elma-3-4.elma365.ru/help4/using-spa-in-elma.html
-- https://elma-3-4.elma365.ru/help4/translata-system.html
-- https://elma-3-4.elma365.ru/help4/translata-system-interface.html
-- https://elma-3-4.elma365.ru/help4/translata-configuration-files.html
+- [ELMA BPM](https://elma-3-4.elma365.ru/help4/elma-bpm.html)
+- [Работа в системе](https://elma-3-4.elma365.ru/help4/work-in-system.html)
+  - [Вход в систему](https://elma-3-4.elma365.ru/help4/sign-in.html)
+    - [Вход с помощью логина и пароля](https://elma-3-4.elma365.ru/help4/sign-in-login-password.html)
+    - [Вход по сертификату](https://elma-3-4.elma365.ru/help4/sign-in-certificate.html)
+    - [Вход с помощью токена](https://elma-3-4.elma365.ru/help4/sign-in-token.html)
+    - [Доверенные устройства](https://elma-3-4.elma365.ru/help4/trusted-devices.html)
+    - [Доверенные сертификаты для подписания](https://elma-3-4.elma365.ru/help4/trusted-certificates-signing.html)
+  - [Профиль пользователя](https://elma-3-4.elma365.ru/help4/user-profile.html)
+  - [Главная страница системы](https://elma-3-4.elma365.ru/help4/system-main-page.html)
+  - [Настройки главной страницы](https://elma-3-4.elma365.ru/help4/main-page-settings.html)
+  - [Настройки портлетов](https://elma-3-4.elma365.ru/help4/portlet-settings.html)
+  - [Сообщения](https://elma-3-4.elma365.ru/help4/messages.html)
+    - [Создание сообщения](https://elma-3-4.elma365.ru/help4/create-message.html)
+    - [Страница сообщения](https://elma-3-4.elma365.ru/help4/message-page.html)
+    - [Настройки ленты сообщений](https://elma-3-4.elma365.ru/help4/message-settings.html)
+    - [Информационные каналы](https://elma-3-4.elma365.ru/help4/public-channels.html)
+  - [Клиенты](https://elma-3-4.elma365.ru/help4/customer-relationship-management.html)
+    - [Контрагенты](https://elma-3-4.elma365.ru/help4/contractors.html)
+      - [Создание контрагента](https://elma-3-4.elma365.ru/help4/contractor-creating.html)
+      - [Создание адреса контрагента с помощью базы данных ФИАС (Россия)](https://elma-3-4.elma365.ru/help4/create-address-using-fias.html)
+      - [Проверка юридического лица на дубли](https://elma-3-4.elma365.ru/help4/company-duplicate-checking.html)
+      - [Карточка контрагента](https://elma-3-4.elma365.ru/help4/contractor-page.html)
+    - [Контакты](https://elma-3-4.elma365.ru/help4/contacts.html)
+      - [Карточка контакта](https://elma-3-4.elma365.ru/help4/contact-page.html)
+    - [Возможности](https://elma-3-4.elma365.ru/help4/leads.html)
+      - [Создание возможности](https://elma-3-4.elma365.ru/help4/lead-creating.html)
+      - [Карточка возможности](https://elma-3-4.elma365.ru/help4/lead-page.html)
+      - [Конвертация возможности](https://elma-3-4.elma365.ru/help4/lead-converting.html)
+    - [Импорт контрагентов и возможностей](https://elma-3-4.elma365.ru/help4/importing-contractors-and-leads.html)
+    - [Взаимоотношения](https://elma-3-4.elma365.ru/help4/relationships.html)
+    - [План поступлений](https://elma-3-4.elma365.ru/help4/payments.html)
+    - [Сделки](https://elma-3-4.elma365.ru/help4/deals.html)
+      - [Создание сделки](https://elma-3-4.elma365.ru/help4/create-deal.html)
+      - [Карточка сделки](https://elma-3-4.elma365.ru/help4/deal-page.html)
+    - [Воронки продаж](https://elma-3-4.elma365.ru/help4/sales-funnel.html)
+    - [Маркетинг](https://elma-3-4.elma365.ru/help4/marketing.html)
+      - [Группа маркетинговых мероприятий](https://elma-3-4.elma365.ru/help4/group-marketing-activities.html)
+      - [Маркетинговое мероприятие](https://elma-3-4.elma365.ru/help4/marketing-activity.html)
+      - [Маркетинговое воздействие](https://elma-3-4.elma365.ru/help4/marketing-event.html)
+      - [Календарь мероприятий](https://elma-3-4.elma365.ru/help4/activity-calendar.html)
+      - [Статистика](https://elma-3-4.elma365.ru/help4/statistics.html)
+      - [Архив маркетинговых объектов](https://elma-3-4.elma365.ru/help4/marketing-object-archive.html)
+      - [Права доступа](https://elma-3-4.elma365.ru/help4/access-permissions.html)
+  - [Задачи](https://elma-3-4.elma365.ru/help4/tasks.html)
+    - [Создание задачи](https://elma-3-4.elma365.ru/help4/create-task.html)
+    - [Страница задачи](https://elma-3-4.elma365.ru/help4/task-page.html)
+    - [Статусы задачи](https://elma-3-4.elma365.ru/help4/task-statuses.html)
+    - [Список задач](https://elma-3-4.elma365.ru/help4/task-list.html)
+    - [Типы задач](https://elma-3-4.elma365.ru/help4/javascript:void(0);)
+      - [Периодическая задача](https://elma-3-4.elma365.ru/help4/periodic-task.html)
+      - [Задача по процессу](https://elma-3-4.elma365.ru/help4/process-task.html)
+    - [Действия с задачей](https://elma-3-4.elma365.ru/help4/task-actions.html)
+      - [Согласование задачи](https://elma-3-4.elma365.ru/help4/approve-task.html)
+      - [Выполнение задачи](https://elma-3-4.elma365.ru/help4/complete-task.html)
+      - [Контроль задачи](https://elma-3-4.elma365.ru/help4/task-control.html)
+      - [Подписка на задачу](https://elma-3-4.elma365.ru/help4/task-subscription.html)
+      - [Планирование задач в календаре](https://elma-3-4.elma365.ru/help4/task-scheduling.html)
+      - [Поиск задач](https://elma-3-4.elma365.ru/help4/task-search.html)
+      - [Добавление трудозатрат по задаче](https://elma-3-4.elma365.ru/help4/task-time-report.html)
+  - [Трудозатраты](https://elma-3-4.elma365.ru/help4/time-report.html)
+    - [Отчеты](https://elma-3-4.elma365.ru/help4/reports.html)
+    - [Создание отчета о трудозатратах](https://elma-3-4.elma365.ru/help4/creating-time-report.html)
+    - [Согласование](https://elma-3-4.elma365.ru/help4/approval-time-report.html)
+    - [Страница трудозатраты](https://elma-3-4.elma365.ru/help4/time-report-page.html)
+    - [Поиск трудозатрат](https://elma-3-4.elma365.ru/help4/time-reports-search.html)
+  - [Компания](https://elma-3-4.elma365.ru/help4/company.html)
+  - [Календарь](https://elma-3-4.elma365.ru/help4/calendar.html)
+    - [Создание события](https://elma-3-4.elma365.ru/help4/create-event.html)
+    - [Страница события](https://elma-3-4.elma365.ru/help4/event-page.html)
+    - [Периодическое событие](https://elma-3-4.elma365.ru/help4/periodic-event.html)
+    - [Действия с событием](https://elma-3-4.elma365.ru/help4/event-actions.html)
+    - [Общие календари и календари других сотрудников](https://elma-3-4.elma365.ru/help4/common-other-users-calendars.html)
+    - [Установка напоминания о событии или задаче](https://elma-3-4.elma365.ru/help4/set-reminder-events-tasks.html)
+    - [Интерфейс календаря](https://elma-3-4.elma365.ru/help4/calendar-interface.html)
+    - [Режимы просмотра и отображения календаря](https://elma-3-4.elma365.ru/help4/calendar-view-display-modes.html)
+    - [Экспорт календаря](https://elma-3-4.elma365.ru/help4/calendar-export.html)
+    - [Синхронизация с внешними календарями](https://elma-3-4.elma365.ru/help4/synchronize-external-calendar.html)
+  - [Процессы](https://elma-3-4.elma365.ru/help4/user-processes.html)
+    - [Запуск бизнес-процесса](https://elma-3-4.elma365.ru/help4/start-business-process.html)
+    - [Страница экземпляра процесса](https://elma-3-4.elma365.ru/help4/process-instance-page.html)
+    - [Изменение версии экземпляра процесса](https://elma-3-4.elma365.ru/help4/change-process-instance-version.html)
+    - [Страница монитора процесса](https://elma-3-4.elma365.ru/help4/process-monitor-page.html)
+    - [Карта процесса](https://elma-3-4.elma365.ru/help4/process-map.html)
+    - [Мои процессы](https://elma-3-4.elma365.ru/help4/my-processes.html)
+    - [Монитор процессов](https://elma-3-4.elma365.ru/help4/process-monitor.html)
+    - [Улучшение процессов](https://elma-3-4.elma365.ru/help4/process-improvement.html)
+      - [Просмотр улучшений процессов](https://elma-3-4.elma365.ru/help4/view-process-improvements.html)
+    - [Регламент процесса](https://elma-3-4.elma365.ru/help4/business-process-policies.html)
+    - [Документирование процессов](https://elma-3-4.elma365.ru/help4/process-documentation.html)
+    - [Очередь исполнения](https://elma-3-4.elma365.ru/help4/execution-queue.html)
+    - [Смена версии процесса](https://elma-3-4.elma365.ru/help4/change-process-version.html)
+  - [Документы](https://elma-3-4.elma365.ru/help4/documents.html)
+    - [Хранилище документов](https://elma-3-4.elma365.ru/help4/document-storage.html)
+    - [Папки](https://elma-3-4.elma365.ru/help4/user-folders.html)
+      - [Папка-фильтр](https://elma-3-4.elma365.ru/help4/filter-folder.html)
+      - [Папка-действие](https://elma-3-4.elma365.ru/help4/action-folder.html)
+      - [Групповые операции в папках](https://elma-3-4.elma365.ru/help4/group-actions-folders.html)
+    - [Создание электронного документа](https://elma-3-4.elma365.ru/help4/create-electronic-document.html)
+    - [Карточка документа](https://elma-3-4.elma365.ru/help4/document-page.html)
+      - [Версии электронного документа](https://elma-3-4.elma365.ru/help4/document-versions.html)
+      - [Работа с версиями через ELMA Агент](https://elma-3-4.elma365.ru/help4/managing-versions-via-elma-agent.html)
+      - [Предпросмотр документа](https://elma-3-4.elma365.ru/help4/preview-document-version.html)
+      - [Связи с другими документами](https://elma-3-4.elma365.ru/help4/documents-links.html)
+      - [История документа](https://elma-3-4.elma365.ru/help4/history-documents.html)
+    - [Доступ к документам и папкам](https://elma-3-4.elma365.ru/help4/access-documents-folders.html)
+      - [Доступ к папкам](https://elma-3-4.elma365.ru/help4/access-to-folders.html)
+      - [Доступ к электронному документу](https://elma-3-4.elma365.ru/help4/access-electronic-document.html)
+    - [Подписка на документ](https://elma-3-4.elma365.ru/help4/document-subscriptions.html)
+    - [Ссылки на документы и папки](https://elma-3-4.elma365.ru/help4/links-to-documents-folders.html)
+    - [Конвертация документов](https://elma-3-4.elma365.ru/help4/convert-document.html)
+    - [Поиск документов](https://elma-3-4.elma365.ru/help4/search-document.html)
+    - [Архив документов](https://elma-3-4.elma365.ru/help4/archive-documents.html)
+    - [Веб-документ](https://elma-3-4.elma365.ru/help4/web-document.html)
+    - [HTML-редактор](https://elma-3-4.elma365.ru/help4/html-editor.html)
+  - [Справочники](https://elma-3-4.elma365.ru/help4/user-objects.html)
+    - [Запуск процесса со страницы справочника](https://elma-3-4.elma365.ru/help4/starting-process-object-page.html)
+    - [Иерархический справочник](https://elma-3-4.elma365.ru/help4/hierarchical-object.html)
+  - [Отчеты](https://elma-3-4.elma365.ru/help4/system-reports.html)
+    - [Агрегированный отчет по исполнительской дисциплине](https://elma-3-4.elma365.ru/help4/aggregate-report.html)
+    - [Контроль исполнения работ по документу](https://elma-3-4.elma365.ru/help4/report-on-document-task-compliance.html)
+    - [Отчет о деятельности](https://elma-3-4.elma365.ru/help4/report-on-activity.html)
+    - [Отчет по исполнительской дисциплине](https://elma-3-4.elma365.ru/help4/report-on-schedule-compliance.html)
+    - [Перечень документов дела](https://elma-3-4.elma365.ru/help4/list-category-records.html)
+    - [Сохранение отчета в веб-документ](https://elma-3-4.elma365.ru/help4/saving-report-to-web-document.html)
+  - [Бизнес-правила](https://elma-3-4.elma365.ru/help4/business-rules.html)
+    - [Создание бизнес-правила](https://elma-3-4.elma365.ru/help4/create-business-rule.html)
+    - [Карточка бизнес-правила](https://elma-3-4.elma365.ru/help4/business-rule-page.html)
+    - [Согласование версии бизнес-правила](https://elma-3-4.elma365.ru/help4/send-business-rule-for-approval.html)
+    - [Действия с бизнес-правилами](https://elma-3-4.elma365.ru/help4/actions-with-business-rules.html)
+    - [Задача исполнения бизнес-правила](https://elma-3-4.elma365.ru/help4/business-rule-task.html)
+    - [Глобальные переменные](https://elma-3-4.elma365.ru/help4/global-variables.html)
+      - [Создание глобальной переменной](https://elma-3-4.elma365.ru/help4/create-global-variable.html)
+      - [Карточка глобальной переменной](https://elma-3-4.elma365.ru/help4/global-variable-page.html)
+  - [Стандартные элементы интерфейса](https://elma-3-4.elma365.ru/help4/javascript:void(0);)
+    - [Вопрос-Ответ](https://elma-3-4.elma365.ru/help4/ask-question-and-answer.html)
+    - [Выбор элементов](https://elma-3-4.elma365.ru/help4/selecting-elements.html)
+    - [Выбор пользователей](https://elma-3-4.elma365.ru/help4/selecting-users.html)
+    - [Выбор папок](https://elma-3-4.elma365.ru/help4/selecting-folders.html)
+    - [Выбор объектов для назначения прав доступа](https://elma-3-4.elma365.ru/help4/selecting-object-for-access.html)
+    - [Таблица данных](https://elma-3-4.elma365.ru/help4/data-table.html)
+    - [Файл](https://elma-3-4.elma365.ru/help4/file.html)
+    - [Панель истории действий](https://elma-3-4.elma365.ru/help4/history-panel.html)
+  - [Поиск в системе](https://elma-3-4.elma365.ru/help4/search-in-system.html)
+  - [EQL-поиск](https://elma-3-4.elma365.ru/help4/eql-search.html)
+    - [Синтаксис EQL-запроса](https://elma-3-4.elma365.ru/help4/eql-query-syntax.html)
+  - [SMS-уведомления](https://elma-3-4.elma365.ru/help4/sms-notifications.html)
+  - [Оповещения в формате Rich email](https://elma-3-4.elma365.ru/help4/rich-email.html)
+  - [Экcпорт данных в формате vCard](https://elma-3-4.elma365.ru/help4/data-export-vcard.html)
+  - [Отображение свойства объекта типа «Блок»](https://elma-3-4.elma365.ru/help4/displaying-block-properties.html)
+- [Дизайнер ELMA](https://elma-3-4.elma365.ru/help4/designer.html)
+  - [Оргструктура](https://elma-3-4.elma365.ru/help4/orgstructure.html)
+  - [Бизнес-процессы](https://elma-3-4.elma365.ru/help4/processes.html)
+    - [Моделирование процессов](https://elma-3-4.elma365.ru/help4/process-modeling.html)
+    - [Страница процесса](https://elma-3-4.elma365.ru/help4/process-page.html)
+    - [Элементы для моделирования](https://elma-3-4.elma365.ru/help4/elements-for-modeling.html)
+      - [Зоны ответственности](https://elma-3-4.elma365.ru/help4/swimlanes.html)
+      - [События](https://elma-3-4.elma365.ru/help4/events.html)
+      - [Операции](https://elma-3-4.elma365.ru/help4/operations.html)
+        - [Пользовательская задача](https://elma-3-4.elma365.ru/help4/task.html)
+        - [Бизнес-правило](https://elma-3-4.elma365.ru/help4/business-rule.html)
+        - [Сценарий](https://elma-3-4.elma365.ru/help4/script.html)
+        - [Ручное выполнение](https://elma-3-4.elma365.ru/help4/manual-execution.html)
+        - [Оповещение](https://elma-3-4.elma365.ru/help4/notification.html)
+        - [Отправка и ожидание сообщения](https://elma-3-4.elma365.ru/help4/send-wait-message.html)
+          - [Типы сообщений](https://elma-3-4.elma365.ru/help4/message-type.html)
+        - [Маркеры операций](https://elma-3-4.elma365.ru/help4/operation-markers.html)
+      - [Переходы](https://elma-3-4.elma365.ru/help4/transition.html)
+        - [Настройка эскалации](https://elma-3-4.elma365.ru/help4/setup-escalation.html)
+      - [Подпроцессы](https://elma-3-4.elma365.ru/help4/sub-processes.html)
+      - [Процессы RPA](https://elma-3-4.elma365.ru/help4/process-rpa.html)
+      - [Шлюзы](https://elma-3-4.elma365.ru/help4/sluices.html)
+      - [Артефакты и ассоциации](https://elma-3-4.elma365.ru/help4/artifacts-associations.html)
+      - [Создание и редактирование записи справочника](https://elma-3-4.elma365.ru/help4/creating-editing-object-item.html)
+      - [Смена статуса экземпляра процесса](https://elma-3-4.elma365.ru/help4/change-process-instance-status.html)
+      - [Документооборот](https://elma-3-4.elma365.ru/help4/javascript:void(0);)
+        - [Сформировать предпросмотр для файла](https://elma-3-4.elma365.ru/help4/form-file-preview-activity.html)
+        - [Перемещение документа](https://elma-3-4.elma365.ru/help4/move-document-activity.html)
+        - [Изменение прав доступа к документу](https://elma-3-4.elma365.ru/help4/change-permissions-access-the-document-activity.html)
+        - [Генерация документа](https://elma-3-4.elma365.ru/help4/document-generation.html)
+    - [Контекст](https://elma-3-4.elma365.ru/help4/process-context.html)
+      - [Действия с контекстными переменными](https://elma-3-4.elma365.ru/help4/actions-context-variables.html)
+      - [Карточка контекстной переменной](https://elma-3-4.elma365.ru/help4/context-variable-card.html)
+      - [Ключевая переменная](https://elma-3-4.elma365.ru/help4/key-variable.html)
+    - [Матрица ответственности](https://elma-3-4.elma365.ru/help4/responsibility-matrix.html)
+    - [Метрики и показатели](https://elma-3-4.elma365.ru/help4/metrics-and-kpis.html)
+    - [Формы процесса](https://elma-3-4.elma365.ru/help4/process-forms.html)
+    - [Сценарии процесса](https://elma-3-4.elma365.ru/help4/%D1%80rocess-scripts.html)
+      - [Редактор сценариев](https://elma-3-4.elma365.ru/help4/script-editor.html)
+      - [Синтаксическая проверка сценария](https://elma-3-4.elma365.ru/help4/script-syntax-check.html)
+      - [Эмуляция сценария](https://elma-3-4.elma365.ru/help4/script-emulation.html)
+    - [Настройки процесса](https://elma-3-4.elma365.ru/help4/process-setting.html)
+    - [История версий](https://elma-3-4.elma365.ru/help4/version-history.html)
+    - [Статусы экземпляра процесса](https://elma-3-4.elma365.ru/help4/process-instance-statuses.html)
+    - [Регламент](https://elma-3-4.elma365.ru/help4/process-policy.html)
+    - [Общие настройки процессов](https://elma-3-4.elma365.ru/help4/process-common-settings.html)
+    - [Проверка корректности процесса](https://elma-3-4.elma365.ru/help4/checking-business-process.html)
+    - [Отладка процесса](https://elma-3-4.elma365.ru/help4/process-debugging.html)
+    - [Документация](https://elma-3-4.elma365.ru/help4/documentation.html)
+    - [Публикация процесса](https://elma-3-4.elma365.ru/help4/publishing-business-process.html)
+  - [Объектная модель](https://elma-3-4.elma365.ru/help4/object-model.html)
+    - [Типы данных](https://elma-3-4.elma365.ru/help4/data-types.html)
+      - [Группа типов «Простые»](https://elma-3-4.elma365.ru/help4/simple-data-types.html)
+        - [Строка](https://elma-3-4.elma365.ru/help4/type-string.html)
+        - [Текст](https://elma-3-4.elma365.ru/help4/type-text.html)
+        - [HTML-разметка](https://elma-3-4.elma365.ru/help4/type-html-markup.html)
+        - [Целое число](https://elma-3-4.elma365.ru/help4/type-integer.html)
+        - [Дробное число](https://elma-3-4.elma365.ru/help4/type-fraction.html)
+        - [Дата / Время](https://elma-3-4.elma365.ru/help4/type-date-time.html)
+        - [Временной интервал](https://elma-3-4.elma365.ru/help4/type-timespan.html)
+        - [Да / Нет](https://elma-3-4.elma365.ru/help4/type-yes-no.html)
+        - [Выпадающий список](https://elma-3-4.elma365.ru/help4/type-drop-down-list.html)
+        - [Деньги](https://elma-3-4.elma365.ru/help4/type-money.html)
+        - [Интервал рабочего времени](https://elma-3-4.elma365.ru/help4/type-working-time-interval.html)
+        - [Ошибка выполнения сценария](https://elma-3-4.elma365.ru/help4/type-script-execution-error.html)
+        - [URL](https://elma-3-4.elma365.ru/help4/type-url.html)
+        - [Действие](https://elma-3-4.elma365.ru/help4/type-action.html)
+      - [Группа типов «Объекты платформы»](https://elma-3-4.elma365.ru/help4/platform-objects-types.html)
+      - [Группа типов «Все объекты»](https://elma-3-4.elma365.ru/help4/all-objects-group.html)
+      - [Группа типов «Документы»](https://elma-3-4.elma365.ru/help4/documents-group.html)
+      - [Группа типов «Проекты»](https://elma-3-4.elma365.ru/help4/projects-group.html)
+      - [Группа типов «Регистрационные карточки»](https://elma-3-4.elma365.ru/help4/record-cards-group.html)
+      - [Группа типов «Перечисления»](https://elma-3-4.elma365.ru/help4/enumerations-group.html)
+      - [Группа типов «Системные»](https://elma-3-4.elma365.ru/help4/system-data-types.html)
+    - [Объект](https://elma-3-4.elma365.ru/help4/object.html)
+      - [Создание объекта](https://elma-3-4.elma365.ru/help4/create-object.html)
+      - [Карточка объекта](https://elma-3-4.elma365.ru/help4/object-page.html)
+        - [Вкладка «Общие»](https://elma-3-4.elma365.ru/help4/common-tab.html)
+        - [Вкладка «Свойства»](https://elma-3-4.elma365.ru/help4/properties-tab.html)
+        - [Вкладка «Дополнительные»](https://elma-3-4.elma365.ru/help4/additional-tab.html)
+        - [Вкладка «Таблица»](https://elma-3-4.elma365.ru/help4/table-tab.html)
+        - [Вкладка «Формы (Представления)»](https://elma-3-4.elma365.ru/help4/object-forms-views-tab.html)
+        - [Вкладка «Фильтр»](https://elma-3-4.elma365.ru/help4/filter-tab.html)
+          - [Пример использования фильтра объекта](https://elma-3-4.elma365.ru/help4/ibject-filter-example.html)
+        - [Вкладка «Дополнительный код»](https://elma-3-4.elma365.ru/help4/additional-code-tab.html)
+        - [Вкладка «Действия»](https://elma-3-4.elma365.ru/help4/actions-tab.html)
+        - [Вкладка «Процессы»](https://elma-3-4.elma365.ru/help4/processes-tab.html)
+      - [Действия с объектами](https://elma-3-4.elma365.ru/help4/actions-with-objects.html)
+      - [Свойства объекта](https://elma-3-4.elma365.ru/help4/object-properties.html)
+        - [Создание свойства объекта](https://elma-3-4.elma365.ru/help4/create-object-property.html)
+        - [Свойство-наименование](https://elma-3-4.elma365.ru/help4/name-property.html)
+        - [Свойство типа «Объект»](https://elma-3-4.elma365.ru/help4/object-type-property.html)
+        - [Свойство типа «Блок»](https://elma-3-4.elma365.ru/help4/block-type-property.html)
+        - [Свойства по умолчанию](https://elma-3-4.elma365.ru/help4/properties-by-default.html)
+        - [Действия со свойствами объекта](https://elma-3-4.elma365.ru/help4/actions-with-object-properties.html)
+      - [Типы связи](https://elma-3-4.elma365.ru/help4/link-types.html)
+      - [Наследование объектов](https://elma-3-4.elma365.ru/help4/object-inheritance.html)
+      - [Справочники](https://elma-3-4.elma365.ru/help4/objects.html)
+    - [Перечисление](https://elma-3-4.elma365.ru/help4/enumeration.html)
+      - [Создание перечисления](https://elma-3-4.elma365.ru/help4/create-enumeration.html)
+      - [Создание значения перечисления](https://elma-3-4.elma365.ru/help4/create-enumeration-value.html)
+    - [Группы объектов и перечислений](https://elma-3-4.elma365.ru/help4/object-enumeration-groups.html)
+    - [Пространство имен](https://elma-3-4.elma365.ru/help4/namespace.html)
+  - [Интеграции](https://elma-3-4.elma365.ru/help4/integrations.html)
+    - [Создание модуля интеграции](https://elma-3-4.elma365.ru/help4/create-integration-module.html)
+    - [Сохранение и публикация модуля](https://elma-3-4.elma365.ru/help4/save-and-publish-module.html)
+    - [Работа с модулями интеграции в процессах](https://elma-3-4.elma365.ru/help4/integration-modules-in-processes.html)
+  - [Сценарии](https://elma-3-4.elma365.ru/help4/scripts.html)
+  - [Очереди сообщений](https://elma-3-4.elma365.ru/help4/message-queues.html)
+    - [Работа с очередями сообщений в процессах](https://elma-3-4.elma365.ru/help4/message-queues-in-processes.html)
+  - [Интерфейсы](https://elma-3-4.elma365.ru/help4/interfaces.html)
+    - [Конструктор форм](https://elma-3-4.elma365.ru/help4/form-builder.html)
+      - [Свойства](https://elma-3-4.elma365.ru/help4/properties.html)
+      - [Создание свойства формы](https://elma-3-4.elma365.ru/help4/create-form-property.html)
+      - [Настройки свойства](https://elma-3-4.elma365.ru/help4/property-settings.html)
+      - [Добавление на форму частей свойства](https://elma-3-4.elma365.ru/help4/property-parts-adding.html)
+      - [Настройки формы](https://elma-3-4.elma365.ru/help4/form-settings.html)
+    - [Страницы, портлеты и пользовательские компоненты](https://elma-3-4.elma365.ru/help4/pages-portlets-and-user-components.html)
+      - [Моделирование](https://elma-3-4.elma365.ru/help4/page-portlet-user-component-modeling.html)
+      - [Настройки](https://elma-3-4.elma365.ru/help4/page-portlet-user-component-settings.html)
+      - [Действия с пользовательским компонентом](https://elma-3-4.elma365.ru/help4/actions.html)
+      - [Пользовательский список](https://elma-3-4.elma365.ru/help4/user-defined-list.html)
+    - [Типы компонентов](https://elma-3-4.elma365.ru/help4/component-types.html)
+      - [Основные](https://elma-3-4.elma365.ru/help4/javascript:void(0);)
+        - [Колонка](https://elma-3-4.elma365.ru/help4/column.html)
+          - [Колонка, отображающая свойство объекта](https://elma-3-4.elma365.ru/help4/column-displaying-property-of-object.html)
+        - [Строка свойства](https://elma-3-4.elma365.ru/help4/property-string.html)
+        - [Область для вставки компонента](https://elma-3-4.elma365.ru/help4/area-for-inserting-component.html)
+        - [Размещение в строку](https://elma-3-4.elma365.ru/help4/row-layout.html)
+        - [Карточка](https://elma-3-4.elma365.ru/help4/card.html)
+        - [Панель](https://elma-3-4.elma365.ru/help4/panel.html)
+        - [Динамический список](https://elma-3-4.elma365.ru/help4/dynamic-list.html)
+        - [Вкладки](https://elma-3-4.elma365.ru/help4/tabs.html)
+        - [Меню с формой](https://elma-3-4.elma365.ru/help4/menu-with-form.html)
+        - [Информационный блок](https://elma-3-4.elma365.ru/help4/info-block.html)
+        - [Текст](https://elma-3-4.elma365.ru/help4/text.html)
+        - [Кнопка](https://elma-3-4.elma365.ru/help4/button.html)
+        - [Изображение](https://elma-3-4.elma365.ru/help4/image.html)
+        - [Выдвижная панель](https://elma-3-4.elma365.ru/help4/slide-out-panel.html)
+        - [Модальное окно](https://elma-3-4.elma365.ru/help4/modal-window.html)
+        - [Окно с подсказкой](https://elma-3-4.elma365.ru/help4/tooltip.html)
+        - [Группа ввода](https://elma-3-4.elma365.ru/help4/input-group.html)
+        - [Счетчик](https://elma-3-4.elma365.ru/help4/counter.html)
+        - [Список связанных объектов](https://elma-3-4.elma365.ru/help4/linked-objects-list.html)
+        - [Таблица](https://elma-3-4.elma365.ru/help4/table.html)
+        - [Шаги](https://elma-3-4.elma365.ru/help4/steps.html)
+        - [Информационная консоль](https://elma-3-4.elma365.ru/help4/message-console.html)
+        - [Дерево](https://elma-3-4.elma365.ru/help4/tree.html)
+        - [Разделитель](https://elma-3-4.elma365.ru/help4/separator.html)
+      - [Панель инструментов](https://elma-3-4.elma365.ru/help4/toolbar.html)
+      - [Диаграммы](https://elma-3-4.elma365.ru/help4/javascript:void(0);)
+        - [Линейная диаграмма](https://elma-3-4.elma365.ru/help4/line-chart.html)
+        - [Круговая диаграмма](https://elma-3-4.elma365.ru/help4/pie-chart.html)
+      - [Дополнительные](https://elma-3-4.elma365.ru/help4/javascript:void(0);)
+        - [Результат валидации формы](https://elma-3-4.elma365.ru/help4/form-validation-result.html)
+        - [Форма объекта](https://elma-3-4.elma365.ru/help4/object-form.html)
+        - [Древовидная структура](https://elma-3-4.elma365.ru/help4/tree-structure.html)
+        - [Перетаскивание](https://elma-3-4.elma365.ru/help4/dragging.html)
+        - [Панель скоринга](https://elma-3-4.elma365.ru/help4/scoring-panel.html)
+        - [Контейнер для свойств по умолчанию](https://elma-3-4.elma365.ru/help4/container-for-default-properties.html)
+    - [Структуры обмена данными](https://elma-3-4.elma365.ru/help4/data-transfer-objects.html)
+      - [Глобальные структуры обмена данными](https://elma-3-4.elma365.ru/help4/global-data-transfer-objects.html)
+      - [Настройки глобальной структуры обмена данными](https://elma-3-4.elma365.ru/help4/global-data-transfer-object-settings.html)
+      - [Свойство типа «Структура обмена данными»](https://elma-3-4.elma365.ru/help4/data-transfer-object-type-property.html)
+      - [Внутренние структуры обмена данными](https://elma-3-4.elma365.ru/help4/internal-data-transfer-objects.html)
+    - [Использование свойств, функций и формул](https://elma-3-4.elma365.ru/help4/function-and-formula-using.html)
+    - [Примеры использования формулы](https://elma-3-4.elma365.ru/help4/formula-use-case.html)
+    - [Публичные клиентские сервисы](https://elma-3-4.elma365.ru/help4/public-client-services.html)
+  - [Приложения](https://elma-3-4.elma365.ru/help4/apps.html)
+    - [Создание приложений](https://elma-3-4.elma365.ru/help4/create-app.html)
+    - [Действия с приложением](https://elma-3-4.elma365.ru/help4/app-actions.html)
+  - [Экспорт и импорт конфигурации](https://elma-3-4.elma365.ru/help4/configuration-export-import.html)
+    - [Экспорт конфигурации](https://elma-3-4.elma365.ru/help4/export-configuration.html)
+    - [Импорт конфигурации](https://elma-3-4.elma365.ru/help4/import-configuration.html)
+  - [Внешние источники](https://elma-3-4.elma365.ru/help4/external-sources.html)
+    - [Подключение к внешнему источнику](https://elma-3-4.elma365.ru/help4/external-source-connecting.html)
+    - [Получение данных из внешнего источника](https://elma-3-4.elma365.ru/help4/get-data-from-external-source.html)
+  - [Публикация](https://elma-3-4.elma365.ru/help4/publishing.html)
+- [Администрирование системы](https://elma-3-4.elma365.ru/help4/system-administration.html)
+  - [Системные требования](https://elma-3-4.elma365.ru/help4/javascript:void(0);)
+    - [Системные требования для ELMA Standard](https://elma-3-4.elma365.ru/help4/elma-standard-system-requirements.html)
+    - [Системные требования для ELMA Enterprise](https://elma-3-4.elma365.ru/help4/elma-enterprise-system-requirements.html)
+  - [Установка ELMA4](https://elma-3-4.elma365.ru/help4/installing.html)
+  - [Обновление ELMA4](https://elma-3-4.elma365.ru/help4/updating.html)
+  - [Настройки авторизации](https://elma-3-4.elma365.ru/help4/authentication-settings.html)
+    - [Вход по сертификату](https://elma-3-4.elma365.ru/help4/admin-certificate.html)
+    - [Вход с помощью токена](https://elma-3-4.elma365.ru/help4/admin-token.html)
+    - [Настройка сквозной авторизации](https://elma-3-4.elma365.ru/help4/single-sign-on.html)
+  - [Пользователи](https://elma-3-4.elma365.ru/help4/javascript:void(0);)
+    - [Импорт пользователей из LDAP](https://elma-3-4.elma365.ru/help4/import-users-from-ldap.html)
+    - [Назначение пользователя на должность](https://elma-3-4.elma365.ru/help4/assigning-user-to-position.html)
+    - [Назначение замещения](https://elma-3-4.elma365.ru/help4/assigning-substitutions.html)
+    - [Блокировка пользователя](https://elma-3-4.elma365.ru/help4/user-lock.html)
+    - [Сессии авторизации пользователей](https://elma-3-4.elma365.ru/help4/users-authorization-sessions.html)
+  - [Глобальные настройки доступа](https://elma-3-4.elma365.ru/help4/global-access-settings.html)
+  - [Глобальные настройки скоринга](https://elma-3-4.elma365.ru/help4/global-scoring-settings.html)
+  - [Настройки системы](https://elma-3-4.elma365.ru/help4/system-settings.html)
+    - [Общие настройки](https://elma-3-4.elma365.ru/help4/general-settings.html)
+    - [Задачи по бизнес-процессам](https://elma-3-4.elma365.ru/help4/process-tasks.html)
+    - [Монитор процессов](https://elma-3-4.elma365.ru/help4/admin-process-monitor.html)
+    - [Безопасность](https://elma-3-4.elma365.ru/help4/security.html)
+    - [Внешние модули авторизации](https://elma-3-4.elma365.ru/help4/ldap-integration.html)
+    - [Планировщик перезапуска сервера](https://elma-3-4.elma365.ru/help4/server-restart-scheduler.html)
+    - [Трудозатраты](https://elma-3-4.elma365.ru/help4/admin-time-report.html)
+    - [Исходящая почта](https://elma-3-4.elma365.ru/help4/outgoing-mail.html)
+    - [SMS уведомления](https://elma-3-4.elma365.ru/help4/admin-sms-notifications.html)
+    - [Интеграция с системой RPA](https://elma-3-4.elma365.ru/help4/integration-with-elma-rpa.html)
+    - [Задачи](https://elma-3-4.elma365.ru/help4/admin-tasks.html)
+    - [Календарь](https://elma-3-4.elma365.ru/help4/admin-calendar.html)
+    - [Формирование предпросмотра](https://elma-3-4.elma365.ru/help4/generating-preview.html)
+    - [Работа с клиентами](https://elma-3-4.elma365.ru/help4/working-with-customers.html)
+    - [Префиксы заголовков для электронных писем](https://elma-3-4.elma365.ru/help4/email-header-prefixes.html)
+  - [Импорт конфигурации](https://elma-3-4.elma365.ru/help4/administration-import-configuration.html)
+  - [Доступ к справочникам](https://elma-3-4.elma365.ru/help4/admin-objects.html)
+  - [Диагностика системы](https://elma-3-4.elma365.ru/help4/javascript:void(0);)
+    - [Настройки диагностики системы](https://elma-3-4.elma365.ru/help4/system-diagnostics-settings.html)
+    - [Инструменты диагностики](https://elma-3-4.elma365.ru/help4/diagnostic-tools.html)
+  - [Настройки портала](https://elma-3-4.elma365.ru/help4/portal-settings.html)
+    - [Интерфейсы](https://elma-3-4.elma365.ru/help4/admin-interfaces.html)
+      - [Действия с интерфейсом](https://elma-3-4.elma365.ru/help4/interface-actions.html)
+      - [Визуальный редактор интерфейса](https://elma-3-4.elma365.ru/help4/visual-interface-editor.html)
+      - [Настройки меню](https://elma-3-4.elma365.ru/help4/menu-settings.html)
+      - [Настройка списка главных страниц](https://elma-3-4.elma365.ru/help4/main-page-setting.html)
+      - [Панель инструментов](https://elma-3-4.elma365.ru/help4/admin-toolbar.html)
+    - [Страницы](https://elma-3-4.elma365.ru/help4/pages.html)
+      - [Портлетная страница](https://elma-3-4.elma365.ru/help4/portlet-page.html)
+      - [Текстовая страница](https://elma-3-4.elma365.ru/help4/text-page.html)
+      - [Ролевая страница](https://elma-3-4.elma365.ru/help4/role-page.html)
+    - [Цветовые схемы](https://elma-3-4.elma365.ru/help4/color-schemes.html)
+    - [Портлеты](https://elma-3-4.elma365.ru/help4/admin-portlets.html)
+    - [Реестр действий](https://elma-3-4.elma365.ru/help4/action-register.html)
+  - [Права доступа к модулю «Бизнес-процессы»](https://elma-3-4.elma365.ru/help4/access-to-business-processes.html)
+  - [Настройки полнотекстового поиска](https://elma-3-4.elma365.ru/help4/full-text-search-settings.html)
+    - [Индексирование](https://elma-3-4.elma365.ru/help4/indexation.html)
+  - [Настройки интеграций](https://elma-3-4.elma365.ru/help4/integration-settings.html)
+  - [Клиенты](https://elma-3-4.elma365.ru/help4/javascript:void(0);)
+    - [Категории контрагентов и возможностей](https://elma-3-4.elma365.ru/help4/lead-and-contractor-categories.html)
+    - [Правила назначения категорий](https://elma-3-4.elma365.ru/help4/category-assigning-rules.html)
+    - [Права доступа к полям и свойствам](https://elma-3-4.elma365.ru/help4/access-to-fields-and-properties.html)
+    - [Настройка провайдера адресов ФИАС (Россия)](https://elma-3-4.elma365.ru/help4/fias-address-provider-settings.html)
+  - [Настройки бизнес-правил](https://elma-3-4.elma365.ru/help4/business-rule-settings.html)
+  - [Использование SPA в ELMA4](https://elma-3-4.elma365.ru/help4/using-spa-in-elma.html)
+  - [Перевод языка системы](https://elma-3-4.elma365.ru/help4/translata-system.html)
+    - [Перевод интерфейса системы](https://elma-3-4.elma365.ru/help4/translata-system-interface.html)
+    - [Перевод файлов конфигурации](https://elma-3-4.elma365.ru/help4/translata-configuration-files.html)
