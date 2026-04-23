@@ -11,9 +11,7 @@ on:
 
 jobs:
     copilot-setup-steps:
-        # Укажите метку вашего self-hosted runner.
-        # Замените "self-hosted" на название/метку, которую вы задали при регистрации runner.
-        runs-on: self-hosted
+        runs-on: ubuntu-latest
 
         permissions:
             contents: read
