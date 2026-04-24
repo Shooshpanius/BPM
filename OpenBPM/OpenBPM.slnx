@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="OpenBPM/openbpm.client/openbpm.client.esproj">
+    <Build />
+    <Deploy />
+  </Project>
+  <Project Path="OpenBPM/OpenBPM.Server/OpenBPM.Server.csproj" Id="4171a032-4fdf-4d5a-b864-3a846ff75b94" />
+</Solution>

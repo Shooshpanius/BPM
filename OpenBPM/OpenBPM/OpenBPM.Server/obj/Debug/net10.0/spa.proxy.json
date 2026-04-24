@@ -1,0 +1,10 @@
+{
+"SpaProxyServer": {
+"ServerUrl": "https://localhost:54959",
+"RedirectUrl": "",
+"LaunchCommand": "npm run dev",
+"WorkingDirectory": "C:\\Users\\zaiaa\\source\\repos\\Shooshpanius\\BPM\\OpenBPM\\OpenBPM\\OpenBPM.Server\\..\\openbpm.client",
+"MaxTimeoutInSeconds": "120",
+"KeepRunning": "false"
+}
+}
