@@ -1,5 +1,17 @@
 # Open BPM — Клиентская часть (Frontend)
 
+<div align="center">
+
+[![GitHub Stars](https://img.shields.io/github/stars/Shooshpanius/BPM?style=flat-square&logo=github&label=Stars&cacheSeconds=3600)](https://github.com/Shooshpanius/BPM/stargazers)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue?style=flat-square)](../../../../LICENSE)
+
+![React](https://img.shields.io/badge/React_19-61DAFB?style=flat-square&logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite_8-646CFF?style=flat-square&logo=vite&logoColor=white)
+![ESLint](https://img.shields.io/badge/ESLint_10-4B32C3?style=flat-square&logo=eslint&logoColor=white)
+
+</div>
+
 SPA-приложение на **React 19 + TypeScript**, собираемое с помощью **Vite**.  
 Взаимодействует с серверной частью через REST API и SignalR.
 

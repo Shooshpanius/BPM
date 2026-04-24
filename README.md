@@ -1,5 +1,20 @@
 # Open BPM
 
+<div align="center">
+
+[![GitHub Stars](https://img.shields.io/github/stars/Shooshpanius/BPM?style=flat-square&logo=github&label=Stars&cacheSeconds=3600)](https://github.com/Shooshpanius/BPM/stargazers)
+[![GitHub Forks](https://img.shields.io/github/forks/Shooshpanius/BPM?style=flat-square&logo=github&label=Forks&cacheSeconds=3600)](https://github.com/Shooshpanius/BPM/forks)
+[![GitHub Issues](https://img.shields.io/github/issues/Shooshpanius/BPM?style=flat-square&logo=github&label=Issues)](https://github.com/Shooshpanius/BPM/issues)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue?style=flat-square)](LICENSE)
+
+![.NET](https://img.shields.io/badge/.NET_10-512BD4?style=flat-square&logo=dotnet&logoColor=white)
+![React](https://img.shields.io/badge/React_19-61DAFB?style=flat-square&logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)
+![SignalR](https://img.shields.io/badge/SignalR-512BD4?style=flat-square&logo=dotnet&logoColor=white)
+![JWT](https://img.shields.io/badge/JWT-000000?style=flat-square&logo=jsonwebtokens&logoColor=white)
+
+</div>
+
 **Open BPM** — корпоративная система управления бизнес-процессами (Business Process Management).  
 Система предназначена для моделирования, автоматизации и мониторинга бизнес-процессов предприятия.
 
