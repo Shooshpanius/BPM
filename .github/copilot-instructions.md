@@ -5,6 +5,21 @@
 Это корпоративная BPM-система (Business Process Management), название Open BPM.
 Система управляет бизнес-процессами, задачами, документами, пользователями и организационной структурой.
 
+## Структура решения
+
+Решение Visual Studio расположено в каталоге `OpenBPM/` репозитория:
+
+```
+OpenBPM/
+├── OpenBPM.slnx                         # Файл решения Visual Studio
+└── OpenBPM/
+    ├── OpenBPM.Server/                  # Серверная часть (Backend, C# ASP.NET Core)
+    └── openbpm.client/                  # Клиентская часть (Frontend, React + TypeScript)
+```
+
+- **Бэкенд** (`OpenBPM/OpenBPM/OpenBPM.Server/`) — Web API на C# ASP.NET Core.
+- **Фронтенд** (`OpenBPM/OpenBPM/openbpm.client/`) — SPA на React + TypeScript (сборщик Vite).
+
 ## Стек технологий
 
 | Слой | Технология |
