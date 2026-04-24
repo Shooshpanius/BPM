@@ -1,5 +1,18 @@
 # Open BPM — Серверная часть (Backend)
 
+<div align="center">
+
+[![GitHub Stars](https://img.shields.io/github/stars/Shooshpanius/BPM?style=flat-square&logo=github&label=Stars&cacheSeconds=3600)](https://github.com/Shooshpanius/BPM/stargazers)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue?style=flat-square)](../../../../LICENSE)
+
+![.NET](https://img.shields.io/badge/.NET_10-512BD4?style=flat-square&logo=dotnet&logoColor=white)
+![SignalR](https://img.shields.io/badge/SignalR-512BD4?style=flat-square&logo=dotnet&logoColor=white)
+![JWT](https://img.shields.io/badge/JWT-000000?style=flat-square&logo=jsonwebtokens&logoColor=white)
+![Swagger](https://img.shields.io/badge/Swagger-85EA2D?style=flat-square&logo=swagger&logoColor=black)
+![Serilog](https://img.shields.io/badge/Serilog-CC2936?style=flat-square&logo=serilog&logoColor=white)
+
+</div>
+
 Web API на **C# ASP.NET Core (.NET 10)**.  
 Предоставляет REST API для клиентского SPA, а также realtime-уведомления через **SignalR**.
 
