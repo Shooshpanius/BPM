@@ -1,73 +1,99 @@
-# React + TypeScript + Vite
+# Open BPM — Клиентская часть (Frontend)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+SPA-приложение на **React 19 + TypeScript**, собираемое с помощью **Vite**.  
+Взаимодействует с серверной частью через REST API и SignalR.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Стек технологий
 
-## React Compiler
+| Инструмент | Версия | Назначение |
+|------------|--------|-----------|
+| React | 19 | UI-фреймворк |
+| TypeScript | ~6.0 | Статическая типизация |
+| Vite | 8 | Сборщик и dev-сервер |
+| ESLint | 10 | Линтер кода |
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## Структура каталогов
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```
+openbpm.client/
+├── public/               # Статические файлы (favicon и т.п.)
+├── src/
+│   ├── api/              # Сервисные функции для обращения к REST API
+│   ├── assets/           # Изображения, иконки и прочие ресурсы
+│   ├── components/       # Переиспользуемые UI-компоненты
+│   ├── pages/            # Страницы приложения (роутинг)
+│   ├── hooks/            # Кастомные React-хуки
+│   ├── store/            # Глобальное состояние (Zustand / Context)
+│   ├── utils/            # Вспомогательные функции
+│   ├── App.tsx           # Корневой компонент
+│   └── main.tsx          # Точка входа
+├── index.html
+├── vite.config.ts        # Конфигурация Vite (proxy → ASP.NET Core)
+├── tsconfig.json
+├── eslint.config.js
+└── package.json
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+---
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Быстрый старт
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Требования
+
+- [Node.js 20+](https://nodejs.org/) и npm
+- Запущенный бэкенд (`OpenBPM.Server`) — для работы API-прокси
+
+### Установка зависимостей
+
+```bash
+cd OpenBPM/OpenBPM/openbpm.client
+npm install
 ```
+
+### Запуск в режиме разработки
+
+```bash
+npm run dev
+```
+
+Dev-сервер запустится на `https://localhost:54959`.  
+Все запросы к API проксируются на ASP.NET Core backend.
+
+> **Примечание:** При первом запуске Vite автоматически создаёт HTTPS-сертификат разработчика через `dotnet dev-certs`.
+
+### Сборка для production
+
+```bash
+npm run build
+```
+
+Артефакты будут помещены в папку `dist/`.
+
+### Линтинг
+
+```bash
+npm run lint
+```
+
+---
+
+## Соглашения по разработке
+
+- Компоненты — **функциональные**, с хуками; никаких классовых компонентов.
+- Серверные данные — **TanStack Query (React Query)**; UI-состояние — **Zustand / Context**.
+- Стили — **CSS Modules** или **Tailwind CSS**; inline-стили использовать только в крайних случаях.
+- Именование файлов: `PascalCase` для компонентов (`UserProfile.tsx`), `camelCase` для утилит (`formatDate.ts`).
+- Типизация: всегда явно типизировать props и возвращаемые значения; избегать `any`.
+- API-запросы — через сервисные файлы в `src/api/` с использованием `axios` или обёртки над `fetch`.
+
+---
+
+## Связанные ресурсы
+
+- [Документация проекта (корневой README)](../../../../README.md)
+- [Бэкенд (OpenBPM.Server)](../OpenBPM.Server/README.md)
+- [Функциональные требования](../../../../todo.md)
