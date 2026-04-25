@@ -44,7 +44,10 @@ openbpm.client/
 │   ├── App.tsx           # Корневой компонент
 │   └── main.tsx          # Точка входа
 ├── index.html
-├── vite.config.ts        # Конфигурация Vite (proxy → ASP.NET Core)
+├── vite.config.ts        # Конфигурация Vite (proxy → ASP.NET Core, для разработки)
+├── vite.config.prod.ts   # Конфигурация Vite для production-сборки (Docker)
+├── nginx.conf            # Конфигурация Nginx для раздачи SPA в Docker
+├── Dockerfile            # Многоэтапная сборка: Node.js (build) → Nginx (runtime)
 ├── tsconfig.json
 ├── eslint.config.js
 └── package.json
@@ -84,6 +87,37 @@ npm run build
 ```
 
 Артефакты будут помещены в папку `dist/`.
+
+> При сборке в Docker используется `vite.config.prod.ts` — конфигурация без dev-server настроек  
+> (HTTPS-сертификаты, SPA Proxy), которые требуют наличия `dotnet dev-certs`.
+
+### Запуск в Docker
+
+Клиент поставляется с многоэтапным `Dockerfile` (сборка на `node:lts-alpine`, runtime на `nginx:stable-alpine`).  
+Рекомендуемый способ развёртывания — через **Docker Compose** из корня репозитория (см. [корневой README](../../../../README.md)).
+
+```bash
+# Сборка образа вручную (из каталога openbpm.client/)
+docker build -t openbpm-client .
+
+# Запуск контейнера
+docker run -p 80:80 openbpm-client
+```
+
+> Nginx раздаёт статику SPA и перенаправляет все пути на `index.html` (client-side routing).
+
+---
+
+## Переменные окружения
+
+Клиент читает переменные с префиксом `BPM_C_` во время **сборки** (не в runtime).  
+В коде они доступны как `import.meta.env.BPM_C_*`.
+
+| Переменная | Описание | Значение по умолчанию |
+|------------|----------|-----------------------|
+| `BPM_C_PORT` | Порт клиента на хост-машине (в docker-compose) | `80` |
+
+Полный список переменных — в [`OpenBPM/.env.example`](../../../.env.example).
 
 ### Линтинг
 
