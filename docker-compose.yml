@@ -28,7 +28,7 @@ services:
       dockerfile: CoreBPM.Server/Dockerfile
     restart: unless-stopped
     depends_on:
-      db:
+      bpm_db:
         condition: service_healthy
     environment:
       ASPNETCORE_ENVIRONMENT: Production
@@ -36,7 +36,7 @@ services:
       # Строка подключения к БД (BPM_S_ → ConnectionStrings:DefaultConnection)
       # Требует добавления builder.Configuration.AddEnvironmentVariables("BPM_S_") в Program.cs
       BPM_S_ConnectionStrings__DefaultConnection: >-
-        Host=db;Port=5432;Database=${BPM_S_DB_NAME:-corebpm};
+        Host=bpm_db;Port=5432;Database=${BPM_S_DB_NAME:-corebpm};
         Username=${BPM_S_DB_USER:-corebpm};
         Password=${BPM_S_DB_PASSWORD}
     expose:
