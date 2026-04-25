@@ -47,10 +47,10 @@ services:
     build:
       context: ./CoreBPM/corebpm.client
       dockerfile: Dockerfile
-      args:
-        # Переменные сборки Vite (доступны в приложении как import.meta.env.BPM_C_*)
-        # Добавляйте переменные BPM_C_ при необходимости, например:
-        # BPM_C_SOME_FEATURE_FLAG: "true"
+      # Переменные сборки Vite (доступны в приложении как import.meta.env.BPM_C_*)
+      # Добавляйте переменные BPM_C_ при необходимости, например:
+      # args:
+      #   BPM_C_SOME_FEATURE_FLAG: "true"
     restart: unless-stopped
     depends_on:
       - server
