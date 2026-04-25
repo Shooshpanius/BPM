@@ -113,7 +113,7 @@ docker run -p 8080:8080 \
 | `BPM_S_Jwt__AccessTokenExpirationMinutes` | `Jwt:AccessTokenExpirationMinutes` | Время жизни access-токена (мин) |
 | `BPM_S_Jwt__RefreshTokenExpirationDays` | `Jwt:RefreshTokenExpirationDays` | Время жизни refresh-токена (дней) |
 
-Полный список переменных — в [`CoreBPM/.env.example`](../../../.env.example).
+Полный список переменных — в [`/.env.example`](../../../../.env.example).
 
 ---
 

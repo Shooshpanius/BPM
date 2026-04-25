@@ -22,7 +22,7 @@ services:
   # ---------------------------------------------------------------------------
   server:
     build:
-      context: ./CoreBPM
+      context: ./CoreBPM/CoreBPM
       dockerfile: CoreBPM.Server/Dockerfile
     restart: unless-stopped
     depends_on:
@@ -45,7 +45,7 @@ services:
   # ---------------------------------------------------------------------------
   client:
     build:
-      context: ./CoreBPM/corebpm.client
+      context: ./CoreBPM/CoreBPM/corebpm.client
       dockerfile: Dockerfile
       # Переменные сборки Vite (доступны в приложении как import.meta.env.BPM_C_*)
       # Добавляйте переменные BPM_C_ при необходимости, например:
