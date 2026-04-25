@@ -20,7 +20,7 @@ services:
   # ---------------------------------------------------------------------------
   # Backend (ASP.NET Core Web API)
   # ---------------------------------------------------------------------------
-  server:
+  bpm_server:
     build:
       context: ./CoreBPM/CoreBPM
       dockerfile: CoreBPM.Server/Dockerfile
@@ -43,7 +43,7 @@ services:
   # ---------------------------------------------------------------------------
   # Frontend (React SPA, раздаётся Nginx)
   # ---------------------------------------------------------------------------
-  client:
+  bpm_client:
     build:
       context: ./CoreBPM/CoreBPM/corebpm.client
       dockerfile: Dockerfile
@@ -53,7 +53,7 @@ services:
       #   BPM_C_SOME_FEATURE_FLAG: "true"
     restart: unless-stopped
     depends_on:
-      - server
+      - bpm_server
     ports:
       - "${BPM_C_PORT:-80}:80"
 
