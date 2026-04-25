@@ -77,9 +77,9 @@
 BPM/
 ├── README.md                          # Этот файл — общая информация о проекте
 ├── todo.md                            # Функциональные требования (источник правды)
+├── .env.example                       # Шаблон переменных окружения
+├── docker-compose.yml                 # Docker Compose — запуск всей системы одной командой
 └── CoreBPM/
-    ├── .env.example                   # Шаблон переменных окружения
-    ├── docker-compose.yml             # Docker Compose — запуск всей системы одной командой
     ├── CoreBPM.slnx                   # Файл решения Visual Studio
     └── CoreBPM/
         ├── .dockerignore
@@ -125,7 +125,7 @@ dotnet run
 ```bash
 # Клонирование репозитория
 git clone https://github.com/Shooshpanius/BPM.git
-cd BPM/CoreBPM
+cd BPM
 
 # Создание файла с переменными окружения (обязательно!)
 cp .env.example .env
@@ -173,8 +173,8 @@ docker compose down -v
 | Документ | Описание |
 |----------|----------|
 | [Функциональные требования](todo.md) | Полный список требований к системе |
-| [Шаблон переменных окружения](CoreBPM/.env.example) | Переменные окружения для настройки системы |
-| [Docker Compose](CoreBPM/docker-compose.yml) | Конфигурация для развёртывания через Docker |
+| [Шаблон переменных окружения](.env.example) | Переменные окружения для настройки системы |
+| [Docker Compose](docker-compose.yml) | Конфигурация для развёртывания через Docker |
 | [Бэкенд (Server)](CoreBPM/CoreBPM/CoreBPM.Server/README.md) | Настройка и разработка серверной части |
 | [Фронтенд (Client)](CoreBPM/CoreBPM/corebpm.client/README.md) | Настройка и разработка клиентской части |
 
