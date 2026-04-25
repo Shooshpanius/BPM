@@ -80,6 +80,41 @@ dotnet build
 dotnet publish -c Release -o ./publish
 ```
 
+### Запуск в Docker
+
+Бэкенд поставляется с многоэтапным `Dockerfile` (сборка на `dotnet/sdk:10.0`, runtime на `dotnet/aspnet:10.0`).  
+Рекомендуемый способ развёртывания — через **Docker Compose** из корня репозитория (см. [корневой README](../../../../README.md)).
+
+```bash
+# Сборка образа вручную (из каталога OpenBPM/OpenBPM/)
+docker build -f OpenBPM.Server/Dockerfile -t openbpm-server .
+
+# Запуск контейнера
+docker run -p 8080:8080 \
+  -e ASPNETCORE_ENVIRONMENT=Production \
+  -e BPM_S_ConnectionStrings__DefaultConnection="Host=localhost;..." \
+  openbpm-server
+```
+
+> Порт `8080` — рекомендуемый порт ASP.NET Core в контейнерах (без TLS, за reverse proxy).
+
+---
+
+## Переменные окружения
+
+Бэкенд читает переменные с префиксом `BPM_S_` (настраивается через `AddEnvironmentVariables("BPM_S_")` в `Program.cs`).  
+После удаления префикса имя переменной маппируется на конфигурацию ASP.NET Core (разделитель `__` → `:`).
+
+| Переменная | Конфигурационный ключ | Описание |
+|------------|----------------------|----------|
+| `BPM_S_DB_PASSWORD` | — | Пароль PostgreSQL (используется в строке подключения) |
+| `BPM_S_ConnectionStrings__DefaultConnection` | `ConnectionStrings:DefaultConnection` | Полная строка подключения к БД |
+| `BPM_S_Jwt__Secret` | `Jwt:Secret` | Секрет для подписи JWT |
+| `BPM_S_Jwt__AccessTokenExpirationMinutes` | `Jwt:AccessTokenExpirationMinutes` | Время жизни access-токена (мин) |
+| `BPM_S_Jwt__RefreshTokenExpirationDays` | `Jwt:RefreshTokenExpirationDays` | Время жизни refresh-токена (дней) |
+
+Полный список переменных — в [`OpenBPM/.env.example`](../../../.env.example).
+
 ---
 
 ## API

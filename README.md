@@ -12,6 +12,7 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)
 ![SignalR](https://img.shields.io/badge/SignalR-512BD4?style=flat-square&logo=dotnet&logoColor=white)
 ![JWT](https://img.shields.io/badge/JWT-000000?style=flat-square&logo=jsonwebtokens&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white)
 
 </div>
 
@@ -52,11 +53,18 @@ BPM/
 ├── README.md                          # Этот файл — общая информация о проекте
 ├── todo.md                            # Функциональные требования (источник правды)
 └── OpenBPM/
+    ├── .env.example                   # Шаблон переменных окружения
+    ├── docker-compose.yml             # Docker Compose — запуск всей системы одной командой
     ├── OpenBPM.slnx                   # Файл решения Visual Studio
     └── OpenBPM/
+        ├── .dockerignore
         ├── OpenBPM.Server/            # Серверная часть (Backend, C# ASP.NET Core)
+        │   ├── Dockerfile             # Образ для production-сборки бэкенда
         │   └── README.md              # → Документация бэкенда
         └── openbpm.client/            # Клиентская часть (Frontend, React + TypeScript)
+            ├── Dockerfile             # Образ для production-сборки фронтенда (Nginx)
+            ├── nginx.conf             # Конфигурация Nginx для раздачи SPA
+            ├── vite.config.prod.ts    # Конфигурация Vite для production-сборки
             └── README.md              # → Документация фронтенда
 ```
 
@@ -83,6 +91,56 @@ dotnet run
 
 Приложение будет доступно по адресу: `https://localhost:54959`
 
+### Запуск через Docker Compose
+
+Для production-окружения и быстрого развёртывания используйте Docker Compose.
+
+**Требования:** [Docker](https://docs.docker.com/get-docker/) и [Docker Compose](https://docs.docker.com/compose/install/).
+
+```bash
+# Клонирование репозитория
+git clone https://github.com/Shooshpanius/BPM.git
+cd BPM/OpenBPM
+
+# Создание файла с переменными окружения (обязательно!)
+cp .env.example .env
+# Отредактируйте .env: задайте BPM_S_DB_PASSWORD и BPM_S_Jwt__Secret
+
+# Сборка образов и запуск всех сервисов
+docker compose up --build -d
+```
+
+После запуска:
+- **Фронтенд** доступен на `http://localhost:80` (порт задаётся через `BPM_C_PORT` в `.env`)
+- **Бэкенд API** доступен внутри сети Docker по адресу `http://server:8080`
+
+```bash
+# Остановка сервисов
+docker compose down
+
+# Остановка с удалением данных БД
+docker compose down -v
+```
+
+---
+
+## Конфигурация (переменные окружения)
+
+Все настройки хранятся в файле `.env` (создаётся из `.env.example`).
+
+| Переменная | Описание | Значение по умолчанию |
+|------------|----------|-----------------------|
+| `BPM_S_DB_PASSWORD` | Пароль базы данных PostgreSQL | *(обязательно задать)* |
+| `BPM_S_DB_NAME` | Имя базы данных | `openbpm` |
+| `BPM_S_DB_USER` | Пользователь базы данных | `openbpm` |
+| `BPM_S_Jwt__Secret` | Секрет для подписи JWT | *(обязательно задать)* |
+| `BPM_S_Jwt__AccessTokenExpirationMinutes` | Время жизни access-токена (мин) | `15` |
+| `BPM_S_Jwt__RefreshTokenExpirationDays` | Время жизни refresh-токена (дней) | `7` |
+| `BPM_C_PORT` | Порт клиента на хост-машине | `80` |
+
+> **Соглашение об именовании:** переменные `BPM_S_*` — для бэкенда (ASP.NET Core),  
+> переменные `BPM_C_*` — для фронтенда (Vite/React, доступны как `import.meta.env.BPM_C_*`).
+
 ---
 
 ## Документация
@@ -90,6 +148,8 @@ dotnet run
 | Документ | Описание |
 |----------|----------|
 | [Функциональные требования](todo.md) | Полный список требований к системе |
+| [Шаблон переменных окружения](OpenBPM/.env.example) | Переменные окружения для настройки системы |
+| [Docker Compose](OpenBPM/docker-compose.yml) | Конфигурация для развёртывания через Docker |
 | [Бэкенд (Server)](OpenBPM/OpenBPM/OpenBPM.Server/README.md) | Настройка и разработка серверной части |
 | [Фронтенд (Client)](OpenBPM/OpenBPM/openbpm.client/README.md) | Настройка и разработка клиентской части |
 
