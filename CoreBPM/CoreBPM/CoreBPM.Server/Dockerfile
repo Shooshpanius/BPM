@@ -4,9 +4,11 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
 
-# Установка Node.js для сборки SPA-проекта (esproj)
+# Установка Node.js 22.x для сборки SPA-проекта (Vite требует Node.js 20.19+ или 22.12+)
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends nodejs npm \
+    && apt-get install -y --no-install-recommends curl ca-certificates \
+    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
