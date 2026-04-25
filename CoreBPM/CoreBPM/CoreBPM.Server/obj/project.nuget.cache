@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "dgSpecHash": "7eMT07X5zN4=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\zaiaa\\source\\repos\\Shooshpanius\\BPM\\CoreBPM\\CoreBPM\\CoreBPM.Server\\CoreBPM.Server.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\zaiaa\\.nuget\\packages\\microsoft.aspnetcore.openapi\\10.0.6\\microsoft.aspnetcore.openapi.10.0.6.nupkg.sha512",
+    "C:\\Users\\zaiaa\\.nuget\\packages\\microsoft.aspnetcore.spaproxy\\10.0.7\\microsoft.aspnetcore.spaproxy.10.0.7.nupkg.sha512",
+    "C:\\Users\\zaiaa\\.nuget\\packages\\microsoft.openapi\\2.0.0\\microsoft.openapi.2.0.0.nupkg.sha512"
+  ],
+  "logs": []
+}

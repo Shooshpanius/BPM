@@ -2,8 +2,8 @@
 # Данный GITIGNORE-файл был автоматически создан Microsoft(R) Visual Studio.
 ################################################################################
 
-/OpenBPM/.vs
+/CoreBPM/.vs
 /.vs
-/OpenBPM/OpenBPM/openbpm.client/obj/Debug
-/OpenBPM/OpenBPM/OpenBPM.Server/bin/Debug/net10.0
-/OpenBPM/OpenBPM/OpenBPM.Server/obj/Debug/net10.0
+/CoreBPM/CoreBPM/corebpm.client/obj/Debug
+/CoreBPM/CoreBPM/CoreBPM.Server/bin/Debug/net10.0
+/CoreBPM/CoreBPM/CoreBPM.Server/obj/Debug/net10.0

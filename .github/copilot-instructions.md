@@ -2,23 +2,23 @@
 
 ## Обзор проекта
 
-Это корпоративная BPM-система (Business Process Management), название Open BPM.
+Это корпоративная BPM-система (Business Process Management), название Core BPM.
 Система управляет бизнес-процессами, задачами, документами, пользователями и организационной структурой.
 
 ## Структура решения
 
-Решение Visual Studio расположено в каталоге `OpenBPM/` репозитория:
+Решение Visual Studio расположено в каталоге `CoreBPM/` репозитория:
 
 ```
-OpenBPM/
-├── OpenBPM.slnx                         # Файл решения Visual Studio
-└── OpenBPM/
-    ├── OpenBPM.Server/                  # Серверная часть (Backend, C# ASP.NET Core)
-    └── openbpm.client/                  # Клиентская часть (Frontend, React + TypeScript)
+CoreBPM/
+├── CoreBPM.slnx                         # Файл решения Visual Studio
+└── CoreBPM/
+    ├── CoreBPM.Server/                  # Серверная часть (Backend, C# ASP.NET Core)
+    └── corebpm.client/                  # Клиентская часть (Frontend, React + TypeScript)
 ```
 
-- **Бэкенд** (`OpenBPM/OpenBPM/OpenBPM.Server/`) — Web API на C# ASP.NET Core.
-- **Фронтенд** (`OpenBPM/OpenBPM/openbpm.client/`) — SPA на React + TypeScript (сборщик Vite).
+- **Бэкенд** (`CoreBPM/CoreBPM/CoreBPM.Server/`) — Web API на C# ASP.NET Core.
+- **Фронтенд** (`CoreBPM/CoreBPM/corebpm.client/`) — SPA на React + TypeScript (сборщик Vite).
 
 ## Стек технологий
 

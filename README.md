@@ -1,4 +1,4 @@
-# Open BPM
+# Core BPM
 
 <div align="center">
 
@@ -16,7 +16,7 @@
 
 </div>
 
-**Open BPM** — корпоративная система управления бизнес-процессами (Business Process Management).  
+**Core BPM** — корпоративная система управления бизнес-процессами (Business Process Management).  
 Система предназначена для моделирования, автоматизации и мониторинга бизнес-процессов предприятия.
 
 ---
@@ -77,16 +77,16 @@
 BPM/
 ├── README.md                          # Этот файл — общая информация о проекте
 ├── todo.md                            # Функциональные требования (источник правды)
-└── OpenBPM/
+└── CoreBPM/
     ├── .env.example                   # Шаблон переменных окружения
     ├── docker-compose.yml             # Docker Compose — запуск всей системы одной командой
-    ├── OpenBPM.slnx                   # Файл решения Visual Studio
-    └── OpenBPM/
+    ├── CoreBPM.slnx                   # Файл решения Visual Studio
+    └── CoreBPM/
         ├── .dockerignore
-        ├── OpenBPM.Server/            # Серверная часть (Backend, C# ASP.NET Core)
+        ├── CoreBPM.Server/            # Серверная часть (Backend, C# ASP.NET Core)
         │   ├── Dockerfile             # Образ для production-сборки бэкенда
         │   └── README.md              # → Документация бэкенда
-        └── openbpm.client/            # Клиентская часть (Frontend, React + TypeScript)
+        └── corebpm.client/            # Клиентская часть (Frontend, React + TypeScript)
             ├── Dockerfile             # Образ для production-сборки фронтенда (Nginx)
             ├── nginx.conf             # Конфигурация Nginx для раздачи SPA
             ├── vite.config.prod.ts    # Конфигурация Vite для production-сборки
@@ -110,7 +110,7 @@ git clone https://github.com/Shooshpanius/BPM.git
 cd BPM
 
 # Запуск (бэкенд автоматически запустит фронтенд через SPA Proxy)
-cd OpenBPM/OpenBPM/OpenBPM.Server
+cd CoreBPM/CoreBPM/CoreBPM.Server
 dotnet run
 ```
 
@@ -125,7 +125,7 @@ dotnet run
 ```bash
 # Клонирование репозитория
 git clone https://github.com/Shooshpanius/BPM.git
-cd BPM/OpenBPM
+cd BPM/CoreBPM
 
 # Создание файла с переменными окружения (обязательно!)
 cp .env.example .env
@@ -156,8 +156,8 @@ docker compose down -v
 | Переменная | Описание | Значение по умолчанию |
 |------------|----------|-----------------------|
 | `BPM_S_DB_PASSWORD` | Пароль базы данных PostgreSQL | *(обязательно задать)* |
-| `BPM_S_DB_NAME` | Имя базы данных | `openbpm` |
-| `BPM_S_DB_USER` | Пользователь базы данных | `openbpm` |
+| `BPM_S_DB_NAME` | Имя базы данных | `corebpm` |
+| `BPM_S_DB_USER` | Пользователь базы данных | `corebpm` |
 | `BPM_S_Jwt__Secret` | Секрет для подписи JWT | *(обязательно задать)* |
 | `BPM_S_Jwt__AccessTokenExpirationMinutes` | Время жизни access-токена (мин) | `15` |
 | `BPM_S_Jwt__RefreshTokenExpirationDays` | Время жизни refresh-токена (дней) | `7` |
@@ -173,10 +173,10 @@ docker compose down -v
 | Документ | Описание |
 |----------|----------|
 | [Функциональные требования](todo.md) | Полный список требований к системе |
-| [Шаблон переменных окружения](OpenBPM/.env.example) | Переменные окружения для настройки системы |
-| [Docker Compose](OpenBPM/docker-compose.yml) | Конфигурация для развёртывания через Docker |
-| [Бэкенд (Server)](OpenBPM/OpenBPM/OpenBPM.Server/README.md) | Настройка и разработка серверной части |
-| [Фронтенд (Client)](OpenBPM/OpenBPM/openbpm.client/README.md) | Настройка и разработка клиентской части |
+| [Шаблон переменных окружения](CoreBPM/.env.example) | Переменные окружения для настройки системы |
+| [Docker Compose](CoreBPM/docker-compose.yml) | Конфигурация для развёртывания через Docker |
+| [Бэкенд (Server)](CoreBPM/CoreBPM/CoreBPM.Server/README.md) | Настройка и разработка серверной части |
+| [Фронтенд (Client)](CoreBPM/CoreBPM/corebpm.client/README.md) | Настройка и разработка клиентской части |
 
 ---
 

@@ -1,6 +1,0 @@
-@OpenBPM.Server_HostAddress = http://localhost:5071
-
-GET {{OpenBPM.Server_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###
