@@ -45,6 +45,8 @@ services:
       BPM_S_Jwt__Audience:     ${BPM_S_Jwt__Audience:-CoreBPM}
       BPM_S_Jwt__AccessTokenLifetimeMinutes: ${BPM_S_Jwt__AccessTokenLifetimeMinutes:-30}
       BPM_S_Jwt__RefreshTokenExpirationDays: ${BPM_S_Jwt__RefreshTokenExpirationDays:-7}
+      # Пароль начального администратора (BPM_S_ → Admin:Password)
+      BPM_S_Admin__Password: ${BPM_S_Admin__Password:?Установите BPM_S_Admin__Password в .env}
     expose:
       - "8080"
 
