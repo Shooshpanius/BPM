@@ -34,10 +34,21 @@ public static class AdminSeeder
         }
 
         // Проверяем, существует ли уже аккаунт admin
-        var exists = await db.AuthAccounts.AnyAsync(a => a.Username == "admin");
-        if (exists)
+        var existingAccount = await db.AuthAccounts.FirstOrDefaultAsync(a => a.Username == "admin");
+        if (existingAccount is not null)
         {
-            logger.LogDebug("Пользователь admin уже существует — пропускаем сидинг.");
+            // Синхронизируем пароль с конфигурацией: если хеш не совпадает — обновляем
+            if (!BCrypt.Net.BCrypt.Verify(password, existingAccount.PasswordHash))
+            {
+                existingAccount.PasswordHash = BCrypt.Net.BCrypt.HashPassword(password, workFactor: BcryptWorkFactor);
+                existingAccount.UpdatedAt = DateTimeOffset.UtcNow;
+                await db.SaveChangesAsync();
+                logger.LogInformation("Пароль пользователя admin обновлён из конфигурации.");
+            }
+            else
+            {
+                logger.LogDebug("Пользователь admin уже существует, пароль не изменился — пропускаем сидинг.");
+            }
             return;
         }
 
