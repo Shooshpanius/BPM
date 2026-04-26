@@ -1,0 +1,164 @@
+/* ─────────────── LoginPage ─────────────── */
+.lp-root {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+    padding: 1rem;
+    box-sizing: border-box;
+}
+
+.lp-card {
+    width: 100%;
+    max-width: 400px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2.5rem 2rem;
+    box-shadow: var(--shadow);
+    box-sizing: border-box;
+}
+
+/* Логотип */
+.lp-logo {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+}
+
+.lp-logo-icon {
+    font-size: 2rem;
+    color: var(--accent);
+    line-height: 1;
+}
+
+.lp-logo-name {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-h);
+    letter-spacing: -0.3px;
+}
+
+/* Заголовок */
+.lp-title {
+    font-size: 1.5rem;
+    font-weight: 500;
+    color: var(--text-h);
+    text-align: center;
+    margin: 0 0 1.75rem;
+    letter-spacing: -0.3px;
+}
+
+/* Форма */
+.lp-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.lp-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+}
+
+.lp-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-h);
+    text-align: left;
+}
+
+.lp-input {
+    width: 100%;
+    padding: 0.625rem 0.875rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 1rem;
+    font-family: inherit;
+    color: var(--text-h);
+    background: var(--bg);
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.lp-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-bg);
+}
+
+.lp-input:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Чекбокс «Запомнить меня» */
+.lp-remember {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--text);
+    cursor: pointer;
+    text-align: left;
+}
+
+.lp-remember input[type='checkbox'] {
+    width: 1rem;
+    height: 1rem;
+    accent-color: var(--accent);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+/* Ошибка */
+.lp-error {
+    font-size: 0.875rem;
+    color: #dc2626;
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    background: rgba(220, 38, 38, 0.08);
+    border: 1px solid rgba(220, 38, 38, 0.3);
+    border-radius: 6px;
+}
+
+@media (prefers-color-scheme: dark) {
+    .lp-error {
+        color: #f87171;
+        background: rgba(220, 38, 38, 0.15);
+        border-color: rgba(220, 38, 38, 0.4);
+    }
+}
+
+/* Кнопка «Войти» */
+.lp-btn {
+    margin-top: 0.25rem;
+    width: 100%;
+    padding: 0.7rem 1rem;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+}
+
+.lp-btn:hover:not(:disabled) {
+    opacity: 0.88;
+}
+
+.lp-btn:active:not(:disabled) {
+    transform: scale(0.98);
+}
+
+.lp-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
