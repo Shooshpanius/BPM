@@ -3,7 +3,7 @@
 "ServerUrl": "https://localhost:54959",
 "RedirectUrl": "",
 "LaunchCommand": "npm run dev",
-"WorkingDirectory": "C:\\Users\\zaiaa\\source\\repos\\Shooshpanius\\BPM\\CoreBPM\\CoreBPM\\CoreBPM.Server\\..\\corebpm.client",
+"WorkingDirectory": "/home/runner/work/BPM/BPM/CoreBPM/CoreBPM/CoreBPM.Server/../corebpm.client",
 "MaxTimeoutInSeconds": "120",
 "KeepRunning": "false"
 }
