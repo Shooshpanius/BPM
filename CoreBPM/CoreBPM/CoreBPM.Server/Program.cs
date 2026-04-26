@@ -74,4 +74,15 @@ app.MapControllers();
 
 app.MapFallbackToFile("/index.html");
 
+// Инициализация администратора при первом развёртывании
+var seederLogger = app.Services.GetRequiredService<ILogger<Program>>();
+try
+{
+    await AdminSeeder.SeedAsync(app.Services, seederLogger);
+}
+catch (Exception ex)
+{
+    seederLogger.LogError(ex, "Ошибка при инициализации пользователя admin. Проверьте подключение к БД и настройки конфигурации.");
+}
+
 app.Run();
