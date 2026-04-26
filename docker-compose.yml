@@ -39,6 +39,12 @@ services:
         Host=bpm_db;Port=5432;Database=${BPM_S_DB_NAME:-corebpm};
         Username=${BPM_S_DB_USER:-corebpm};
         Password=${BPM_S_DB_PASSWORD}
+      # JWT-настройки (BPM_S_ → Jwt:*)
+      BPM_S_Jwt__SecretKey:    ${BPM_S_Jwt__SecretKey:?Установите BPM_S_Jwt__SecretKey в .env}
+      BPM_S_Jwt__Issuer:       ${BPM_S_Jwt__Issuer:-CoreBPM}
+      BPM_S_Jwt__Audience:     ${BPM_S_Jwt__Audience:-CoreBPM}
+      BPM_S_Jwt__AccessTokenLifetimeMinutes: ${BPM_S_Jwt__AccessTokenLifetimeMinutes:-30}
+      BPM_S_Jwt__RefreshTokenExpirationDays: ${BPM_S_Jwt__RefreshTokenExpirationDays:-7}
     expose:
       - "8080"
 
