@@ -39,8 +39,11 @@ public class UserRepository : IUserRepository
             .FirstOrDefaultAsync(s => s.RefreshTokenHash == tokenHash, ct);
 
     /// <inheritdoc />
-    public async Task AddSessionAsync(AuthSession session, CancellationToken ct = default)
-        => await _context.AuthSessions.AddAsync(session, ct);
+    public Task AddSessionAsync(AuthSession session, CancellationToken ct = default)
+    {
+        _context.AuthSessions.Add(session);
+        return Task.CompletedTask;
+    }
 
     /// <inheritdoc />
     public async Task SaveChangesAsync(CancellationToken ct = default)
