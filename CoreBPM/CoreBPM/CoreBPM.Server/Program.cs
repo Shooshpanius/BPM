@@ -74,6 +74,21 @@ app.MapControllers();
 
 app.MapFallbackToFile("/index.html");
 
+// Применение миграций и инициализация базы данных при старте
+var startupLogger = app.Services.GetRequiredService<ILogger<Program>>();
+try
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await db.Database.MigrateAsync();
+    startupLogger.LogInformation("Миграции базы данных применены успешно.");
+}
+catch (Exception ex)
+{
+    startupLogger.LogError(ex, "Ошибка при применении миграций базы данных.");
+    throw;
+}
+
 // Инициализация администратора при первом развёртывании
 var seederLogger = app.Services.GetRequiredService<ILogger<Program>>();
 try
