@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("CoreBPM.Server")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+da6889d16bdeb2697c63c39bdaa8a19686c89784")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+13feccb9c35cbf6cda48e706b58621a2f4add7d4")]
 [assembly: System.Reflection.AssemblyProductAttribute("CoreBPM.Server")]
 [assembly: System.Reflection.AssemblyTitleAttribute("CoreBPM.Server")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
