@@ -33,6 +33,11 @@ RUN dotnet publish "CoreBPM.Server/CoreBPM.Server.csproj" \
 # =============================================================================
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 
+# libgssapi-krb5-2 требуется Npgsql для подключения к PostgreSQL через GSSAPI
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libgssapi-krb5-2 \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # Открываем HTTP-порт (рекомендуемый порт ASP.NET Core в контейнерах)
