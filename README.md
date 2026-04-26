@@ -2,7 +2,8 @@
 
 <div align="center">
 
-[![Demo](https://img.shields.io/badge/Demo-corebpm.ru-brightgreen?style=flat-square&logo=googlechrome&logoColor=white)](https://corebpm.ru/)
+[![Demo](https://img.shields.io/badge/🌐%20Demo-corebpm.ru-brightgreen?style=for-the-badge&logo=googlechrome&logoColor=white)](https://corebpm.ru/)
+
 [![GitHub Stars](https://img.shields.io/github/stars/Shooshpanius/BPM?style=flat-square&logo=github&label=Stars&cacheSeconds=3600)](https://github.com/Shooshpanius/BPM/stargazers)
 [![GitHub Forks](https://img.shields.io/github/forks/Shooshpanius/BPM?style=flat-square&logo=github&label=Forks&cacheSeconds=3600)](https://github.com/Shooshpanius/BPM/forks)
 [![GitHub Issues](https://img.shields.io/github/issues/Shooshpanius/BPM?style=flat-square&logo=github&label=Issues)](https://github.com/Shooshpanius/BPM/issues)
