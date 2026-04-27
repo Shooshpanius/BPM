@@ -79,7 +79,7 @@ public class AuthController : ControllerBase
         {
             HttpOnly = true,
             SameSite = SameSiteMode.Strict,
-            Secure = true
+            Secure = Request.IsHttps
         });
 
         return NoContent();
@@ -92,7 +92,7 @@ public class AuthController : ControllerBase
         {
             HttpOnly = true,
             SameSite = SameSiteMode.Strict,
-            Secure = true,
+            Secure = Request.IsHttps,
             Expires = DateTimeOffset.UtcNow.AddDays(7)
         });
     }
