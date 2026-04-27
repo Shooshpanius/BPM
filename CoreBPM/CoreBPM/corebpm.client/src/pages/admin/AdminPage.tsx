@@ -10,10 +10,13 @@ import type {
     UpdateUserRequest,
     EmployeeDto,
     CreateEmployeeRequest,
+    DepartmentDto,
+    CreateDepartmentRequest,
+    UpdateDepartmentRequest,
 } from '../../api/adminApi';
 import './AdminPage.css';
 
-type Tab = 'organizations' | 'users';
+type Tab = 'organizations' | 'departments' | 'users';
 
 interface AdminPageProps {
     onBack: () => void;
@@ -71,6 +74,12 @@ export function AdminPage({ onBack }: AdminPageProps) {
                     Организации
                 </button>
                 <button
+                    className={`admin-tab${activeTab === 'departments' ? ' active' : ''}`}
+                    onClick={() => setActiveTab('departments')}
+                >
+                    Подразделения
+                </button>
+                <button
                     className={`admin-tab${activeTab === 'users' ? ' active' : ''}`}
                     onClick={() => setActiveTab('users')}
                 >
@@ -80,6 +89,7 @@ export function AdminPage({ onBack }: AdminPageProps) {
 
             <div className="admin-content">
                 {activeTab === 'organizations' && <OrganizationsTab />}
+                {activeTab === 'departments' && <DepartmentsTab />}
                 {activeTab === 'users' && <UsersTab />}
             </div>
         </div>
@@ -295,8 +305,256 @@ function OrganizationFormModal({ org, token, onClose, onSaved }: OrgFormProps) {
 }
 
 // ─────────────────────────────────────────────
-// Вкладка «Пользователи»
+// Вкладка «Подразделения»
 // ─────────────────────────────────────────────
+
+function DepartmentsTab() {
+    const { accessToken } = useAuth();
+    const token = accessToken!;
+
+    const [orgs, setOrgs] = useState<OrganizationDto[]>([]);
+    const [departments, setDepartments] = useState<DepartmentDto[]>([]);
+    const [filterOrgId, setFilterOrgId] = useState('');
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+
+    const [showForm, setShowForm] = useState(false);
+    const [editDept, setEditDept] = useState<DepartmentDto | null>(null);
+    const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+    const load = useCallback(async () => {
+        setLoading(true);
+        setError('');
+        try {
+            const [orgsData, deptsData] = await Promise.all([
+                adminApi.getOrganizations(token),
+                adminApi.getDepartments(token, filterOrgId || undefined),
+            ]);
+            setOrgs(orgsData);
+            setDepartments(deptsData);
+        } catch (e) {
+            setError(String(e));
+        } finally {
+            setLoading(false);
+        }
+    }, [token, filterOrgId]);
+
+    useEffect(() => { load(); }, [load]);
+
+    const handleDeleteConfirmed = async () => {
+        if (!confirmDeleteId) return;
+        try {
+            await adminApi.deleteDepartment(token, confirmDeleteId);
+            await load();
+        } catch (e) { setError(String(e)); } finally {
+            setConfirmDeleteId(null);
+        }
+    };
+
+    return (
+        <>
+            <div className="section-header">
+                <h2>Подразделения</h2>
+                <button className="btn-primary" onClick={() => { setEditDept(null); setShowForm(true); }}>
+                    + Создать подразделение
+                </button>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: 16, maxWidth: 340 }}>
+                <label>Фильтр по организации</label>
+                <select value={filterOrgId} onChange={e => setFilterOrgId(e.target.value)}>
+                    <option value="">— Все организации —</option>
+                    {orgs.map(o => (
+                        <option key={o.id} value={o.id}>{o.name}</option>
+                    ))}
+                </select>
+            </div>
+
+            {error && <div className="error-msg">{error}</div>}
+            {loading
+                ? <div className="loading-msg">Загрузка…</div>
+                : departments.length === 0
+                    ? <div className="empty-msg">Подразделения не найдены</div>
+                    : (
+                        <table className="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Наименование</th>
+                                    <th>Организация</th>
+                                    <th>Родитель</th>
+                                    <th>Статус</th>
+                                    <th>Сотрудников</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {departments.map(dept => (
+                                    <tr key={dept.id}>
+                                        <td>
+                                            {dept.name}
+                                            {dept.description && (
+                                                <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: 2 }}>{dept.description}</div>
+                                            )}
+                                        </td>
+                                        <td>{dept.organizationName}</td>
+                                        <td>{dept.parentName ?? '—'}</td>
+                                        <td>
+                                            <span className={`badge ${dept.isActive ? 'badge-active' : 'badge-inactive'}`}>
+                                                {dept.isActive ? 'Активно' : 'Неактивно'}
+                                            </span>
+                                        </td>
+                                        <td>{dept.employeesCount}</td>
+                                        <td>
+                                            <div className="row-actions">
+                                                <button className="btn-secondary btn-sm"
+                                                    onClick={() => { setEditDept(dept); setShowForm(true); }}>
+                                                    Изменить
+                                                </button>
+                                                <button className="btn-danger btn-sm"
+                                                    onClick={() => setConfirmDeleteId(dept.id)}>
+                                                    Удалить
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    )
+            }
+
+            {showForm && (
+                <DepartmentFormModal
+                    dept={editDept}
+                    orgs={orgs}
+                    token={token}
+                    onClose={() => setShowForm(false)}
+                    onSaved={() => { setShowForm(false); load(); }}
+                />
+            )}
+
+            {confirmDeleteId && (
+                <ConfirmModal
+                    message="Удалить подразделение? Это невозможно, если есть дочерние подразделения или активные сотрудники."
+                    onConfirm={handleDeleteConfirmed}
+                    onCancel={() => setConfirmDeleteId(null)}
+                />
+            )}
+        </>
+    );
+}
+
+interface DepartmentFormProps {
+    dept: DepartmentDto | null;
+    orgs: OrganizationDto[];
+    token: string;
+    onClose: () => void;
+    onSaved: () => void;
+}
+
+function DepartmentFormModal({ dept, orgs, token, onClose, onSaved }: DepartmentFormProps) {
+    const [orgId, setOrgId] = useState(dept?.organizationId ?? '');
+    const [parentId, setParentId] = useState(dept?.parentId ?? '');
+    const [name, setName] = useState(dept?.name ?? '');
+    const [description, setDescription] = useState(dept?.description ?? '');
+    const [isActive, setIsActive] = useState(dept?.isActive ?? true);
+    const [siblings, setSiblings] = useState<DepartmentDto[]>([]);
+    const [error, setError] = useState('');
+    const [saving, setSaving] = useState(false);
+
+    // Загрузить подразделения выбранной организации для списка родителей
+    useEffect(() => {
+        if (!orgId) { setSiblings([]); return; }
+        adminApi.getDepartments(token, orgId).then(data => {
+            setSiblings(dept ? data.filter(d => d.id !== dept.id) : data);
+        }).catch(() => setSiblings([]));
+    }, [orgId, token, dept]);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!name.trim()) { setError('Введите наименование подразделения'); return; }
+        if (!orgId) { setError('Выберите организацию'); return; }
+        setSaving(true);
+        setError('');
+        try {
+            if (dept) {
+                const req: UpdateDepartmentRequest = {
+                    name,
+                    description: description || undefined,
+                    parentId: parentId || undefined,
+                    isActive,
+                };
+                await adminApi.updateDepartment(token, dept.id, req);
+            } else {
+                const req: CreateDepartmentRequest = {
+                    organizationId: orgId,
+                    name,
+                    description: description || undefined,
+                    parentId: parentId || undefined,
+                };
+                await adminApi.createDepartment(token, req);
+            }
+            onSaved();
+        } catch (e) {
+            setError(String(e));
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="modal" onClick={e => e.stopPropagation()}>
+                <h3>{dept ? 'Редактировать подразделение' : 'Создать подразделение'}</h3>
+                {error && <div className="error-msg">{error}</div>}
+                <form onSubmit={handleSubmit}>
+                    <div className="form-group">
+                        <label>Организация *</label>
+                        <select value={orgId} onChange={e => { setOrgId(e.target.value); setParentId(''); }} disabled={!!dept}>
+                            <option value="">— Выберите организацию —</option>
+                            {orgs.map(o => (
+                                <option key={o.id} value={o.id}>{o.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="form-group">
+                        <label>Родительское подразделение</label>
+                        <select value={parentId} onChange={e => setParentId(e.target.value)} disabled={!orgId}>
+                            <option value="">— Корневое подразделение —</option>
+                            {siblings.map(d => (
+                                <option key={d.id} value={d.id}>{d.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="form-group">
+                        <label>Наименование *</label>
+                        <input value={name} onChange={e => setName(e.target.value)} placeholder="Отдел разработки" />
+                    </div>
+                    <div className="form-group">
+                        <label>Описание</label>
+                        <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Краткое описание" />
+                    </div>
+                    {dept && (
+                        <div className="form-group">
+                            <label className="form-check">
+                                <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} />
+                                Активно
+                            </label>
+                        </div>
+                    )}
+                    <div className="modal-actions">
+                        <button type="button" className="btn-secondary" onClick={onClose}>Отмена</button>
+                        <button type="submit" className="btn-primary" disabled={saving}>
+                            {saving ? 'Сохранение…' : 'Сохранить'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+
+
 
 function UsersTab() {
     const { accessToken } = useAuth();
@@ -549,6 +807,9 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
     const [error, setError] = useState('');
 
     const [selectedOrg, setSelectedOrg] = useState('');
+    const [selectedDept, setSelectedDept] = useState('');
+    const [depts, setDepts] = useState<DepartmentDto[]>([]);
+    const [deptsLoading, setDeptsLoading] = useState(false);
     const [position, setPosition] = useState('');
     const [adding, setAdding] = useState(false);
     const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
@@ -571,19 +832,33 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
 
     useEffect(() => { load(); }, [load]);
 
+    // Загрузить подразделения при выборе организации
+    useEffect(() => {
+        if (!selectedOrg) { setDepts([]); setSelectedDept(''); return; }
+        setDeptsLoading(true);
+        adminApi.getDepartments(token, selectedOrg)
+            .then(data => { setDepts(data.filter(d => d.isActive)); setSelectedDept(''); })
+            .catch(() => setDepts([]))
+            .finally(() => setDeptsLoading(false));
+    }, [selectedOrg, token]);
+
     const handleAdd = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedOrg) { setError('Выберите организацию'); return; }
+        if (!selectedDept) { setError('Выберите подразделение'); return; }
         setAdding(true);
         setError('');
         try {
             const req: CreateEmployeeRequest = {
                 userId,
                 organizationId: selectedOrg,
+                departmentId: selectedDept,
                 position: position || undefined,
             };
             await adminApi.createEmployee(token, req);
             setSelectedOrg('');
+            setSelectedDept('');
+            setDepts([]);
             setPosition('');
             await load();
         } catch (e) {
@@ -619,6 +894,7 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
                                 <thead>
                                     <tr>
                                         <th>Организация</th>
+                                        <th>Подразделение</th>
                                         <th>Должность</th>
                                         <th>Статус</th>
                                         <th></th>
@@ -628,6 +904,7 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
                                     {employees.map(emp => (
                                         <tr key={emp.id}>
                                             <td>{emp.organizationName}</td>
+                                            <td>{emp.departmentName ?? '—'}</td>
                                             <td>{emp.position ?? '—'}</td>
                                             <td>
                                                 <span className={`badge ${emp.isActive ? 'badge-active' : 'badge-inactive'}`}>
@@ -663,6 +940,21 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
                                             <option value="">— Выберите организацию —</option>
                                             {availableOrgs.map(o => (
                                                 <option key={o.id} value={o.id}>{o.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Подразделение *</label>
+                                        <select
+                                            value={selectedDept}
+                                            onChange={e => setSelectedDept(e.target.value)}
+                                            disabled={!selectedOrg || deptsLoading}
+                                        >
+                                            <option value="">
+                                                {deptsLoading ? 'Загрузка…' : '— Выберите подразделение —'}
+                                            </option>
+                                            {depts.map(d => (
+                                                <option key={d.id} value={d.id}>{d.name}</option>
                                             ))}
                                         </select>
                                     </div>

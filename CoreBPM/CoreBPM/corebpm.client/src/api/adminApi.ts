@@ -64,6 +64,8 @@ export interface EmployeeDto {
     userWorkEmail: string;
     organizationId: string;
     organizationName: string;
+    departmentId?: string;
+    departmentName?: string;
     position?: string;
     isActive: boolean;
     createdAt: string;
@@ -72,11 +74,40 @@ export interface EmployeeDto {
 export interface CreateEmployeeRequest {
     userId: string;
     organizationId: string;
+    departmentId: string;
     position?: string;
 }
 
 export interface UpdateEmployeeRequest {
+    departmentId: string;
     position?: string;
+    isActive: boolean;
+}
+
+export interface DepartmentDto {
+    id: string;
+    organizationId: string;
+    organizationName: string;
+    parentId?: string;
+    parentName?: string;
+    name: string;
+    description?: string;
+    isActive: boolean;
+    employeesCount: number;
+    createdAt: string;
+}
+
+export interface CreateDepartmentRequest {
+    organizationId: string;
+    parentId?: string;
+    name: string;
+    description?: string;
+}
+
+export interface UpdateDepartmentRequest {
+    parentId?: string;
+    name: string;
+    description?: string;
     isActive: boolean;
 }
 
@@ -148,3 +179,21 @@ export const updateEmployee = (token: string, id: string, data: UpdateEmployeeRe
 
 export const deleteEmployee = (token: string, id: string): Promise<void> =>
     fetchJson(`/api/admin/employees/${id}`, token, { method: 'DELETE' });
+
+// --- Подразделения ---
+
+export const getDepartments = (token: string, organizationId?: string): Promise<DepartmentDto[]> => {
+    const url = organizationId
+        ? `/api/admin/departments?organizationId=${organizationId}`
+        : '/api/admin/departments';
+    return fetchJson(url, token);
+};
+
+export const createDepartment = (token: string, data: CreateDepartmentRequest): Promise<DepartmentDto> =>
+    fetchJson('/api/admin/departments', token, { method: 'POST', body: JSON.stringify(data) });
+
+export const updateDepartment = (token: string, id: string, data: UpdateDepartmentRequest): Promise<DepartmentDto> =>
+    fetchJson(`/api/admin/departments/${id}`, token, { method: 'PUT', body: JSON.stringify(data) });
+
+export const deleteDepartment = (token: string, id: string): Promise<void> =>
+    fetchJson(`/api/admin/departments/${id}`, token, { method: 'DELETE' });
