@@ -1,13 +1,17 @@
+import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { Sidebar, type SidebarSection } from '../components/Sidebar';
+import { ContactsPage } from './contacts/ContactsPage';
 import './HomePage.css';
 
 interface HomePageProps {
     onAdmin: () => void;
 }
 
-/** Базовая главная страница после успешного входа. */
+/** Основная страница приложения: шапка + сайдбар + содержимое раздела. */
 export function HomePage({ onAdmin }: HomePageProps) {
     const { logout, hasRole } = useAuth();
+    const [section, setSection] = useState<SidebarSection>('contacts');
 
     return (
         <div className="hp-root">
@@ -28,12 +32,12 @@ export function HomePage({ onAdmin }: HomePageProps) {
                 </nav>
             </header>
 
-            <main className="hp-main">
-                <h1 className="hp-welcome">Добро пожаловать</h1>
-                <p className="hp-desc">
-                    Система управления бизнес-процессами Core BPM
-                </p>
-            </main>
+            <div className="hp-body">
+                <Sidebar active={section} onSelect={setSection} />
+                <main className="hp-content">
+                    {section === 'contacts' && <ContactsPage />}
+                </main>
+            </div>
         </div>
     );
 }
