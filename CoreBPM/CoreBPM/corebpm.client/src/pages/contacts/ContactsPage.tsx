@@ -8,6 +8,15 @@ import type {
 } from '../../api/orgDirectoryApi';
 import './ContactsPage.css';
 
+// ─── Вспомогательные функции ───
+
+function getInitials(emp: DirectoryEmployeeDto): string {
+    const first = emp.firstName?.[0] ?? '';
+    const last = emp.lastName?.[0] ?? '';
+    if (first || last) return (first + last).toUpperCase();
+    return emp.displayName[0]?.toUpperCase() ?? '?';
+}
+
 /** Страница адресной книги: дерево оргструктуры + карточки сотрудников + поиск. */
 export function ContactsPage() {
     const { accessToken: token } = useAuth();
@@ -53,12 +62,22 @@ export function ContactsPage() {
     }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const loadDepartmentTree = useCallback(async (orgId: string) => {
-        if (!token || treeByOrg[orgId]) return;
-        try {
-            const tree = await api.getDirectoryDepartmentTree(token, orgId);
-            setTreeByOrg(prev => ({ ...prev, [orgId]: tree }));
-        } catch {/* игнорируем */}
-    }, [token, treeByOrg]);
+        if (!token) return;
+        setTreeByOrg(prev => {
+            if (prev[orgId]) return prev; // уже загружено
+            return prev;
+        });
+        // Читаем актуальное значение через setter-callback, чтобы не добавлять treeByOrg в зависимости
+        setTreeByOrg(prev => {
+            if (prev[orgId]) return prev;
+            // Запускаем загрузку асинхронно
+            api.getDirectoryDepartmentTree(token, orgId)
+                .then(tree => setTreeByOrg(p => ({ ...p, [orgId]: tree })))
+                .catch(() => {/* игнорируем */});
+            // Временно ставим пустой массив как признак «загружается»
+            return { ...prev, [orgId]: [] };
+        });
+    }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Загрузка сотрудников при смене выбора или поиска
     useEffect(() => {
@@ -220,7 +239,7 @@ export function ContactsPage() {
     // ─── Рендер карточек ───
 
     const renderEmployeeCard = (emp: DirectoryEmployeeDto) => {
-        const initials = [emp.firstName?.[0], emp.lastName?.[0]].filter(Boolean).join('').toUpperCase() || emp.displayName[0]?.toUpperCase() || '?';
+        const initials = getInitials(emp);
         return (
             <div className="emp-card" key={emp.id}>
                 <div className="emp-avatar" aria-hidden="true">

@@ -96,11 +96,11 @@ public class OrgDirectoryService : IOrgDirectoryService
 
         if (!string.IsNullOrWhiteSpace(search))
         {
-            var term = search.Trim().ToLower();
+            var pattern = $"%{search.Trim()}%";
             query = query.Where(e =>
-                e.User.DisplayName.ToLower().Contains(term) ||
-                e.User.WorkEmail.ToLower().Contains(term) ||
-                (e.Position != null && e.Position.ToLower().Contains(term)));
+                EF.Functions.ILike(e.User.DisplayName, pattern) ||
+                EF.Functions.ILike(e.User.WorkEmail, pattern) ||
+                (e.Position != null && EF.Functions.ILike(e.Position, pattern)));
         }
 
         return await query
