@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import * as adminApi from '../../api/adminApi';
 import type {
@@ -775,6 +775,49 @@ interface UserFormProps {
     onSaved: () => void;
 }
 
+// ─── Утилиты транслитерации и генерации ───────────────────────────────────────
+
+const TRANSLIT_MAP: Record<string, string> = {
+    'а': 'a',  'б': 'b',  'в': 'v',  'г': 'g',  'д': 'd',
+    'е': 'e',  'ё': 'yo', 'ж': 'zh', 'з': 'z',  'и': 'i',
+    'й': 'y',  'к': 'k',  'л': 'l',  'м': 'm',  'н': 'n',
+    'о': 'o',  'п': 'p',  'р': 'r',  'с': 's',  'т': 't',
+    'у': 'u',  'ф': 'f',  'х': 'kh', 'ц': 'ts', 'ч': 'ch',
+    'ш': 'sh', 'щ': 'shch', 'ъ': '', 'ы': 'y',  'ь': '',
+    'э': 'e',  'ю': 'yu', 'я': 'ya',
+};
+
+function transliterate(str: string): string {
+    return str.toLowerCase().split('').map(ch => TRANSLIT_MAP[ch] ?? ch).join('');
+}
+
+function buildEmail(lastName: string, firstName: string): string {
+    const last = transliterate(lastName.trim());
+    const first = firstName.trim() ? transliterate(firstName.trim()[0]) : '';
+    if (!last) return '';
+    return `${last}${first}@local`;
+}
+
+function generatePassword(): string {
+    const lower = 'abcdefghijklmnopqrstuvwxyz';
+    const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const digits = '0123456789';
+    const special = '!@#$%&*';
+    const all = lower + upper + digits + special;
+    // Гарантируем по одному символу каждого типа
+    const pick = (s: string) => s[Math.floor(Math.random() * s.length)];
+    const base = [pick(lower), pick(upper), pick(digits), pick(special)];
+    for (let i = base.length; i < 12; i++) base.push(pick(all));
+    // Перемешиваем
+    for (let i = base.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [base[i], base[j]] = [base[j], base[i]];
+    }
+    return base.join('');
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+
 function UserFormModal({ user, token, onClose, onSaved }: UserFormProps) {
     const [firstName, setFirstName] = useState(user?.firstName ?? '');
     const [lastName, setLastName] = useState(user?.lastName ?? '');
@@ -782,10 +825,35 @@ function UserFormModal({ user, token, onClose, onSaved }: UserFormProps) {
     const [workEmail, setWorkEmail] = useState(user?.workEmail ?? '');
     const [phone, setPhone] = useState(user?.phone ?? '');
     const [username, setUsername] = useState(user?.username ?? '');
-    const [password, setPassword] = useState('');
+    const [password, setPassword] = useState(() => !user ? generatePassword() : '');
+    const [showPassword, setShowPassword] = useState(false);
     const [isActive, setIsActive] = useState(user?.isActive ?? true);
     const [error, setError] = useState('');
     const [saving, setSaving] = useState(false);
+    const [flashButtons, setFlashButtons] = useState(false);
+
+    // Признак того, что email был изменён вручную (отключает автозаполнение)
+    const emailManuallyEdited = useRef(!!user);
+
+    // Автозаполнение email по ФИО в режиме создания
+    useEffect(() => {
+        if (!user && !emailManuallyEdited.current) {
+            const generated = buildEmail(lastName, firstName);
+            if (generated) setWorkEmail(generated);
+        }
+    }, [firstName, lastName, user]);
+
+    const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        emailManuallyEdited.current = true;
+        setWorkEmail(e.target.value);
+    };
+
+    // При клике мимо модального окна подсвечиваем кнопки действий
+    const handleOverlayClick = () => {
+        if (flashButtons) return;
+        setFlashButtons(true);
+        setTimeout(() => setFlashButtons(false), 900);
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -814,7 +882,7 @@ function UserFormModal({ user, token, onClose, onSaved }: UserFormProps) {
     };
 
     return (
-        <div className="modal-overlay" onClick={onClose}>
+        <div className="modal-overlay" onClick={handleOverlayClick}>
             <div className="modal" onClick={e => e.stopPropagation()}>
                 <h3>{user ? 'Редактировать пользователя' : 'Создать пользователя'}</h3>
                 {error && <div className="error-msg">{error}</div>}
@@ -833,7 +901,7 @@ function UserFormModal({ user, token, onClose, onSaved }: UserFormProps) {
                     </div>
                     <div className="form-group">
                         <label>Email *</label>
-                        <input type="email" value={workEmail} onChange={e => setWorkEmail(e.target.value)} placeholder="user@company.ru" />
+                        <input type="email" value={workEmail} onChange={handleEmailChange} placeholder="user@company.ru" />
                     </div>
                     <div className="form-group">
                         <label>Телефон</label>
@@ -847,7 +915,21 @@ function UserFormModal({ user, token, onClose, onSaved }: UserFormProps) {
                             </div>
                             <div className="form-group">
                                 <label>Пароль * (мин. 8 символов)</label>
-                                <input type="password" value={password} onChange={e => setPassword(e.target.value)} />
+                                <div className="password-input-wrap">
+                                    <input
+                                        type={showPassword ? 'text' : 'password'}
+                                        value={password}
+                                        onChange={e => setPassword(e.target.value)}
+                                    />
+                                    <button
+                                        type="button"
+                                        className="btn-show-password"
+                                        onClick={() => setShowPassword(v => !v)}
+                                        title={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
+                                    >
+                                        {showPassword ? '🙈' : '👁'}
+                                    </button>
+                                </div>
                             </div>
                         </>
                     )}
@@ -858,8 +940,18 @@ function UserFormModal({ user, token, onClose, onSaved }: UserFormProps) {
                         </label>
                     </div>
                     <div className="modal-actions">
-                        <button type="button" className="btn-secondary" onClick={onClose}>Отмена</button>
-                        <button type="submit" className="btn-primary" disabled={saving}>
+                        <button
+                            type="button"
+                            className={`btn-secondary${flashButtons ? ' btn-flash' : ''}`}
+                            onClick={onClose}
+                        >
+                            Отмена
+                        </button>
+                        <button
+                            type="submit"
+                            className={`btn-primary${flashButtons ? ' btn-flash' : ''}`}
+                            disabled={saving}
+                        >
                             {saving ? 'Сохранение…' : 'Сохранить'}
                         </button>
                     </div>
