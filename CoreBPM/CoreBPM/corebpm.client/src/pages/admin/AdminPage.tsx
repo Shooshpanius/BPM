@@ -331,6 +331,7 @@ function DepartmentsTab() {
 
     // Загрузить список организаций один раз
     useEffect(() => {
+        setLoading(true);
         adminApi.getOrganizations(token)
             .then(data => {
                 setOrgs(data);
@@ -338,7 +339,8 @@ function DepartmentsTab() {
                 const primary = data.find(o => o.isPrimary && o.isActive) ?? data.find(o => o.isActive);
                 if (primary) setSelectedOrgId(primary.id);
             })
-            .catch(e => setError(String(e)));
+            .catch(e => setError(String(e)))
+            .finally(() => setLoading(false));
     }, [token]);
 
     const loadTree = useCallback(async () => {
@@ -937,7 +939,7 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
         setEditDeptsLoading(true);
         adminApi.getDepartments(token, editEmployee.organizationId)
             .then(data => setEditDepts(data.filter(d => d.isActive)))
-            .catch(() => setEditDepts([]))
+            .catch(e => { setEditDepts([]); setError(String(e)); })
             .finally(() => setEditDeptsLoading(false));
     }, [editEmployee, token]);
 
