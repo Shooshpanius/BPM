@@ -1,5 +1,7 @@
 using CoreBPM.Server.Application.Admin.Interfaces;
 using CoreBPM.Server.Application.Admin.Services;
+using CoreBPM.Server.Application.Org.Interfaces;
+using CoreBPM.Server.Application.Org.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -60,6 +62,9 @@ builder.Services.AddScoped<IAdminOrganizationService, AdminOrganizationService>(
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();
 builder.Services.AddScoped<IAdminDepartmentService, AdminDepartmentService>();
 builder.Services.AddScoped<IAdminEmployeeService, AdminEmployeeService>();
+
+// Регистрация сервисов Org (адресная книга)
+builder.Services.AddScoped<IOrgDirectoryService, OrgDirectoryService>();
 
 var app = builder.Build();
 
