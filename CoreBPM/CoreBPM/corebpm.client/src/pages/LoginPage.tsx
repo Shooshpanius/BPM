@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { LAST_PR_NUMBER, LAST_PR_DATE } from '../version';
 import './LoginPage.css';
 
 /** Страница входа в систему. */
@@ -94,6 +95,12 @@ export function LoginPage() {
                         {loading ? 'Выполняется вход…' : 'Войти'}
                     </button>
                 </form>
+
+                <p className="lp-version">
+                    #{LAST_PR_NUMBER}
+                    <br />
+                    {LAST_PR_DATE}
+                </p>
             </div>
         </div>
     );

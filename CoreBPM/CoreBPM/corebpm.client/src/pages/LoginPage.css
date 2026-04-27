@@ -134,7 +134,17 @@
     }
 }
 
-/* Кнопка «Войти» */
+/* Версия */
+.lp-version {
+    margin: 1.25rem 0 0;
+    text-align: center;
+    line-height: 1.4;
+    color: var(--text);
+    opacity: 0.45;
+    font-size: 0.72rem;
+    letter-spacing: 0.3px;
+}
+
 .lp-btn {
     margin-top: 0.25rem;
     width: 100%;
