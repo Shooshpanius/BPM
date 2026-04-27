@@ -11,6 +11,7 @@ public class AppDbContext : DbContext
 
     public DbSet<OrgUser> OrgUsers => Set<OrgUser>();
     public DbSet<OrgOrganization> OrgOrganizations => Set<OrgOrganization>();
+    public DbSet<OrgDepartment> OrgDepartments => Set<OrgDepartment>();
     public DbSet<OrgEmployee> OrgEmployees => Set<OrgEmployee>();
     public DbSet<AuthAccount> AuthAccounts => Set<AuthAccount>();
     public DbSet<AuthSession> AuthSessions => Set<AuthSession>();
@@ -50,7 +51,7 @@ public class AppDbContext : DbContext
              .IsUnique();
         });
 
-        // Таблица сотрудников (связь пользователь ↔ организация)
+        // Таблица сотрудников (связь пользователь ↔ организация ↔ подразделение)
         modelBuilder.Entity<OrgEmployee>(e =>
         {
             e.ToTable("org_employees");
@@ -69,6 +70,32 @@ public class AppDbContext : DbContext
              .WithMany(o => o.Employees)
              .HasForeignKey(emp => emp.OrganizationId)
              .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasOne(emp => emp.Department)
+             .WithMany(d => d.Employees)
+             .HasForeignKey(emp => emp.DepartmentId)
+             .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Таблица подразделений
+        modelBuilder.Entity<OrgDepartment>(e =>
+        {
+            e.ToTable("org_departments");
+            e.HasKey(d => d.Id);
+            e.Property(d => d.Name).IsRequired().HasMaxLength(300);
+            e.Property(d => d.Description).HasMaxLength(1000);
+
+            e.HasOne(d => d.Organization)
+             .WithMany(o => o.Departments)
+             .HasForeignKey(d => d.OrganizationId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            // Самоссылающийся FK для иерархии
+            e.HasOne(d => d.Parent)
+             .WithMany(d => d.Children)
+             .HasForeignKey(d => d.ParentId)
+             .OnDelete(DeleteBehavior.Restrict)
+             .IsRequired(false);
         });
 
         // Таблица учётных записей

@@ -21,6 +21,7 @@ public class OrgOrganization
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
 
-    // Навигационное свойство
+    // Навигационные свойства
     public ICollection<OrgEmployee> Employees { get; set; } = new List<OrgEmployee>();
+    public ICollection<OrgDepartment> Departments { get; set; } = new List<OrgDepartment>();
 }
