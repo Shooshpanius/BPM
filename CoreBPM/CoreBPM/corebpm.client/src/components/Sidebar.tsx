@@ -1,3 +1,4 @@
+import { LAST_PR_NUMBER, LAST_PR_DATE } from '../version';
 import './Sidebar.css';
 
 export type SidebarSection = 'contacts';
@@ -25,6 +26,10 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
                     </svg>
                 }
             />
+            <div className="sidebar-version" aria-label="Версия системы">
+                <span>#{LAST_PR_NUMBER}</span>
+                <span>{LAST_PR_DATE}</span>
+            </div>
         </nav>
     );
 }
