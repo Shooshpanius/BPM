@@ -1515,13 +1515,15 @@
 ### FR-ADM-01: Управление пользователями и ролями
 
 #### FR-ADM-01.1: Пользователи
-- [ ] **CRUD пользователей**: создание (логин, ФИО, email, телефон, фото), редактирование, блокировка / разблокировка (с причиной), мягкое удаление; `GET /api/admin/users`; `POST /api/admin/users`; `PUT /api/admin/users/{id}`; `POST /api/admin/users/{id}/block`; `DELETE /api/admin/users/{id}`
+- [x] **CRUD пользователей**: создание (логин, ФИО, email, телефон, фото), редактирование, блокировка / разблокировка (с причиной), мягкое удаление; `GET /api/admin/users`; `POST /api/admin/users`; `PUT /api/admin/users/{id}`; `POST /api/admin/users/{id}/block`; `DELETE /api/admin/users/{id}`
 - [ ] **Импорт из LDAP / Active Directory**: настройка подключения (хост, порт, base DN, bind DN, пароль, LDAPS); поиск пользователей в каталоге; импорт выбранных или всех пользователей из OU; синхронизация по расписанию (добавление новых, обновление атрибутов, блокировка удалённых); `POST /api/admin/ldap/import`; `POST /api/admin/ldap/sync`; `GET /api/admin/ldap/sync-log`
 - [ ] **Поиск и фильтрация** пользователей: по ФИО, email, подразделению, роли, статусу (активен / заблокирован); `GET /api/admin/users?search=&deptId=&roleId=&status=`
 - [ ] **Профиль пользователя**: просмотр и редактирование администратором; смена пароля пользователя (одноразовая ссылка); `POST /api/admin/users/{id}/reset-password`
 - [ ] **Экспорт** списка пользователей в XLSX; `GET /api/admin/users/export`
 
 #### FR-ADM-01.2: Организационная структура
+- [x] **Организации**: ведение нескольких организаций в системе; признак «Основная» (единственная; если задана — используется по умолчанию везде); `GET /api/admin/organizations`; `POST /api/admin/organizations`; `PUT /api/admin/organizations/{id}`; `DELETE /api/admin/organizations/{id}`; `POST /api/admin/organizations/{id}/set-primary`
+- [x] **Сотрудники**: связь пользователь ↔ организация — уникальная пара; сотрудник создаётся из карточки пользователя и обязательно привязывается к организации; один пользователь может быть сотрудником нескольких организаций; `GET /api/admin/employees`; `POST /api/admin/employees`; `PUT /api/admin/employees/{id}`; `DELETE /api/admin/employees/{id}`; `GET /api/admin/users/{id}/employees`
 - [ ] **Подразделения (иерархия)**: дерево подразделений; CRUD; перемещение узлов; `GET /api/admin/departments?tree=true`; `POST /api/admin/departments`; `PUT /api/admin/departments/{id}`; `PATCH /api/admin/departments/{id}/parent`
 - [ ] **Должности**: список должностей организации; привязка должности к пользователю; `GET/POST/PUT/DELETE /api/admin/positions`; `PUT /api/admin/users/{id}/position`
 - [ ] **Назначение в подразделение**: пользователь может состоять в одном основном и нескольких дополнительных подразделениях; `PUT /api/admin/users/{id}/departments`
