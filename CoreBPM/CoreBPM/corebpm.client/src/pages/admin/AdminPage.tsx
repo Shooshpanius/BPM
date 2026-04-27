@@ -19,6 +19,35 @@ interface AdminPageProps {
     onBack: () => void;
 }
 
+// ─────────────────────────────────────────────
+// Компонент подтверждения действия
+// ─────────────────────────────────────────────
+
+interface ConfirmModalProps {
+    message: string;
+    onConfirm: () => void;
+    onCancel: () => void;
+}
+
+function ConfirmModal({ message, onConfirm, onCancel }: ConfirmModalProps) {
+    return (
+        <div className="modal-overlay" onClick={onCancel}>
+            <div className="modal" style={{ width: 380 }} onClick={e => e.stopPropagation()}>
+                <h3>Подтверждение</h3>
+                <p style={{ margin: '0 0 20px', color: '#374151', fontSize: '0.9rem' }}>{message}</p>
+                <div className="modal-actions">
+                    <button className="btn-secondary" onClick={onCancel}>Отмена</button>
+                    <button className="btn-danger" onClick={onConfirm}>Подтвердить</button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+interface AdminPageProps {
+    onBack: () => void;
+}
+
 /** Административная панель: управление организациями, пользователями и сотрудниками. */
 export function AdminPage({ onBack }: AdminPageProps) {
     const [activeTab, setActiveTab] = useState<Tab>('organizations');
@@ -71,6 +100,7 @@ function OrganizationsTab() {
 
     const [showForm, setShowForm] = useState(false);
     const [editOrg, setEditOrg] = useState<OrganizationDto | null>(null);
+    const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -86,19 +116,21 @@ function OrganizationsTab() {
 
     useEffect(() => { load(); }, [load]);
 
-    const handleDelete = async (id: string) => {
-        if (!confirm('Удалить организацию?')) return;
+    const handleDeleteConfirmed = async () => {
+        if (!confirmDeleteId) return;
         try {
-            await adminApi.deleteOrganization(token, id);
+            await adminApi.deleteOrganization(token, confirmDeleteId);
             await load();
-        } catch (e) { alert(String(e)); }
+        } catch (e) { setError(String(e)); } finally {
+            setConfirmDeleteId(null);
+        }
     };
 
     const handleSetPrimary = async (id: string) => {
         try {
             await adminApi.setOrganizationPrimary(token, id);
             await load();
-        } catch (e) { alert(String(e)); }
+        } catch (e) { setError(String(e)); }
     };
 
     return (
@@ -156,7 +188,7 @@ function OrganizationsTab() {
                                                     </button>
                                                 )}
                                                 <button className="btn-danger btn-sm"
-                                                    onClick={() => handleDelete(org.id)}>
+                                                    onClick={() => setConfirmDeleteId(org.id)}>
                                                     Удалить
                                                 </button>
                                             </div>
@@ -174,6 +206,14 @@ function OrganizationsTab() {
                     token={token}
                     onClose={() => setShowForm(false)}
                     onSaved={() => { setShowForm(false); load(); }}
+                />
+            )}
+
+            {confirmDeleteId && (
+                <ConfirmModal
+                    message="Удалить организацию? Это действие необратимо."
+                    onConfirm={handleDeleteConfirmed}
+                    onCancel={() => setConfirmDeleteId(null)}
                 />
             )}
         </>
@@ -268,6 +308,7 @@ function UsersTab() {
 
     const [showForm, setShowForm] = useState(false);
     const [editUser, setEditUser] = useState<AdminUserListItemDto | null>(null);
+    const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
     // Карточка сотрудника (для добавления в организацию)
     const [employeeUserId, setEmployeeUserId] = useState<string | null>(null);
@@ -286,12 +327,14 @@ function UsersTab() {
 
     useEffect(() => { load(); }, [load]);
 
-    const handleDelete = async (id: string) => {
-        if (!confirm('Деактивировать пользователя?')) return;
+    const handleDeleteConfirmed = async () => {
+        if (!confirmDeleteId) return;
         try {
-            await adminApi.deleteUser(token, id);
+            await adminApi.deleteUser(token, confirmDeleteId);
             await load();
-        } catch (e) { alert(String(e)); }
+        } catch (e) { setError(String(e)); } finally {
+            setConfirmDeleteId(null);
+        }
     };
 
     return (
@@ -346,7 +389,7 @@ function UsersTab() {
                                                     Сотрудник
                                                 </button>
                                                 <button className="btn-danger btn-sm"
-                                                    onClick={() => handleDelete(user.id)}>
+                                                    onClick={() => setConfirmDeleteId(user.id)}>
                                                     Деактивировать
                                                 </button>
                                             </div>
@@ -373,6 +416,14 @@ function UsersTab() {
                     userName={users.find(u => u.id === employeeUserId)?.displayName ?? ''}
                     token={token}
                     onClose={() => setEmployeeUserId(null)}
+                />
+            )}
+
+            {confirmDeleteId && (
+                <ConfirmModal
+                    message="Деактивировать пользователя? Он не сможет войти в систему."
+                    onConfirm={handleDeleteConfirmed}
+                    onCancel={() => setConfirmDeleteId(null)}
                 />
             )}
         </>
@@ -500,6 +551,7 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
     const [selectedOrg, setSelectedOrg] = useState('');
     const [position, setPosition] = useState('');
     const [adding, setAdding] = useState(false);
+    const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -541,12 +593,14 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
         }
     };
 
-    const handleRemove = async (id: string) => {
-        if (!confirm('Удалить запись сотрудника?')) return;
+    const handleRemoveConfirmed = async () => {
+        if (!confirmRemoveId) return;
         try {
-            await adminApi.deleteEmployee(token, id);
+            await adminApi.deleteEmployee(token, confirmRemoveId);
             await load();
-        } catch (e) { alert(String(e)); }
+        } catch (e) { setError(String(e)); } finally {
+            setConfirmRemoveId(null);
+        }
     };
 
     // Организации, в которых пользователь ещё не является сотрудником
@@ -582,7 +636,7 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
                                             </td>
                                             <td>
                                                 <button className="btn-danger btn-sm"
-                                                    onClick={() => handleRemove(emp.id)}>
+                                                    onClick={() => setConfirmRemoveId(emp.id)}>
                                                     Удалить
                                                 </button>
                                             </td>
@@ -634,6 +688,14 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
                     </>
                 )}
             </div>
+
+            {confirmRemoveId && (
+                <ConfirmModal
+                    message="Удалить запись сотрудника? Это действие необратимо."
+                    onConfirm={handleRemoveConfirmed}
+                    onCancel={() => setConfirmRemoveId(null)}
+                />
+            )}
         </div>
     );
 }
