@@ -10,7 +10,9 @@ import type {
     UpdateUserRequest,
     EmployeeDto,
     CreateEmployeeRequest,
+    UpdateEmployeeRequest,
     DepartmentDto,
+    DepartmentTreeDto,
     CreateDepartmentRequest,
     UpdateDepartmentRequest,
 } from '../../api/adminApi';
@@ -308,62 +310,94 @@ function OrganizationFormModal({ org, token, onClose, onSaved }: OrgFormProps) {
 // Вкладка «Подразделения»
 // ─────────────────────────────────────────────
 
+interface DeptFormTrigger {
+    orgId: string;
+    parentId?: string;
+    dept: DepartmentDto | null;
+}
+
 function DepartmentsTab() {
     const { accessToken } = useAuth();
     const token = accessToken!;
 
     const [orgs, setOrgs] = useState<OrganizationDto[]>([]);
-    const [departments, setDepartments] = useState<DepartmentDto[]>([]);
-    const [filterOrgId, setFilterOrgId] = useState('');
-    const [loading, setLoading] = useState(true);
+    const [tree, setTree] = useState<DepartmentTreeDto[]>([]);
+    const [selectedOrgId, setSelectedOrgId] = useState('');
+    const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    const [showForm, setShowForm] = useState(false);
-    const [editDept, setEditDept] = useState<DepartmentDto | null>(null);
+    const [formTrigger, setFormTrigger] = useState<DeptFormTrigger | null>(null);
     const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
-    const load = useCallback(async () => {
+    // Загрузить список организаций один раз
+    useEffect(() => {
+        setLoading(true);
+        adminApi.getOrganizations(token)
+            .then(data => {
+                setOrgs(data);
+                // Автовыбор основной или первой организации
+                const primary = data.find(o => o.isPrimary && o.isActive) ?? data.find(o => o.isActive);
+                if (primary) setSelectedOrgId(primary.id);
+            })
+            .catch(e => setError(String(e)))
+            .finally(() => setLoading(false));
+    }, [token]);
+
+    const loadTree = useCallback(async () => {
+        if (!selectedOrgId) { setTree([]); return; }
         setLoading(true);
         setError('');
         try {
-            const [orgsData, deptsData] = await Promise.all([
-                adminApi.getOrganizations(token),
-                adminApi.getDepartments(token, filterOrgId || undefined),
-            ]);
-            setOrgs(orgsData);
-            setDepartments(deptsData);
+            setTree(await adminApi.getDepartmentsTree(token, selectedOrgId));
         } catch (e) {
             setError(String(e));
         } finally {
             setLoading(false);
         }
-    }, [token, filterOrgId]);
+    }, [token, selectedOrgId]);
 
-    useEffect(() => { load(); }, [load]);
+    useEffect(() => { loadTree(); }, [loadTree]);
 
     const handleDeleteConfirmed = async () => {
         if (!confirmDeleteId) return;
         try {
             await adminApi.deleteDepartment(token, confirmDeleteId);
-            await load();
+            await loadTree();
         } catch (e) { setError(String(e)); } finally {
             setConfirmDeleteId(null);
         }
+    };
+
+    const openCreate = (orgId: string, parentId?: string) =>
+        setFormTrigger({ orgId, parentId, dept: null });
+
+    const openEdit = (dept: DepartmentDto) =>
+        setFormTrigger({ orgId: dept.organizationId, dept });
+
+    // Получить плоский dept по id из дерева (нужен для редактирования)
+    const handleEditFromTree = async (nodeId: string) => {
+        // Загружаем полный DepartmentDto для редактирования
+        try {
+            const dept = await adminApi.getDepartmentById(token, nodeId);
+            openEdit(dept);
+        } catch (e) { setError(String(e)); }
     };
 
     return (
         <>
             <div className="section-header">
                 <h2>Подразделения</h2>
-                <button className="btn-primary" onClick={() => { setEditDept(null); setShowForm(true); }}>
-                    + Создать подразделение
-                </button>
+                {selectedOrgId && (
+                    <button className="btn-primary" onClick={() => openCreate(selectedOrgId)}>
+                        + Создать подразделение
+                    </button>
+                )}
             </div>
 
             <div className="form-group" style={{ marginBottom: 16, maxWidth: 340 }}>
-                <label>Фильтр по организации</label>
-                <select value={filterOrgId} onChange={e => setFilterOrgId(e.target.value)}>
-                    <option value="">— Все организации —</option>
+                <label>Организация</label>
+                <select value={selectedOrgId} onChange={e => setSelectedOrgId(e.target.value)}>
+                    <option value="">— Выберите организацию —</option>
                     {orgs.map(o => (
                         <option key={o.id} value={o.id}>{o.name}</option>
                     ))}
@@ -371,65 +405,38 @@ function DepartmentsTab() {
             </div>
 
             {error && <div className="error-msg">{error}</div>}
-            {loading
-                ? <div className="loading-msg">Загрузка…</div>
-                : departments.length === 0
-                    ? <div className="empty-msg">Подразделения не найдены</div>
-                    : (
-                        <table className="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Наименование</th>
-                                    <th>Организация</th>
-                                    <th>Родитель</th>
-                                    <th>Статус</th>
-                                    <th>Сотрудников</th>
-                                    <th>Действия</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {departments.map(dept => (
-                                    <tr key={dept.id}>
-                                        <td>
-                                            {dept.name}
-                                            {dept.description && (
-                                                <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: 2 }}>{dept.description}</div>
-                                            )}
-                                        </td>
-                                        <td>{dept.organizationName}</td>
-                                        <td>{dept.parentName ?? '—'}</td>
-                                        <td>
-                                            <span className={`badge ${dept.isActive ? 'badge-active' : 'badge-inactive'}`}>
-                                                {dept.isActive ? 'Активно' : 'Неактивно'}
-                                            </span>
-                                        </td>
-                                        <td>{dept.employeesCount}</td>
-                                        <td>
-                                            <div className="row-actions">
-                                                <button className="btn-secondary btn-sm"
-                                                    onClick={() => { setEditDept(dept); setShowForm(true); }}>
-                                                    Изменить
-                                                </button>
-                                                <button className="btn-danger btn-sm"
-                                                    onClick={() => setConfirmDeleteId(dept.id)}>
-                                                    Удалить
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    )
-            }
 
-            {showForm && (
+            {!selectedOrgId ? (
+                <div className="empty-msg">Выберите организацию для просмотра структуры подразделений</div>
+            ) : loading ? (
+                <div className="loading-msg">Загрузка…</div>
+            ) : tree.length === 0 ? (
+                <div className="empty-msg">Подразделения не созданы</div>
+            ) : (
+                <div className="dept-tree">
+                    {tree.map(node => (
+                        <DepartmentTreeNode
+                            key={node.id}
+                            node={node}
+                            level={0}
+                            orgId={selectedOrgId}
+                            onAddChild={(parentId) => openCreate(selectedOrgId, parentId)}
+                            onEdit={handleEditFromTree}
+                            onDelete={(id) => setConfirmDeleteId(id)}
+                        />
+                    ))}
+                </div>
+            )}
+
+            {formTrigger && (
                 <DepartmentFormModal
-                    dept={editDept}
+                    dept={formTrigger.dept}
                     orgs={orgs}
+                    presetOrgId={formTrigger.orgId}
+                    presetParentId={formTrigger.parentId}
                     token={token}
-                    onClose={() => setShowForm(false)}
-                    onSaved={() => { setShowForm(false); load(); }}
+                    onClose={() => setFormTrigger(null)}
+                    onSaved={() => { setFormTrigger(null); loadTree(); }}
                 />
             )}
 
@@ -444,17 +451,90 @@ function DepartmentsTab() {
     );
 }
 
+// ─────────────────────────────────────────────
+// Узел дерева подразделений
+// ─────────────────────────────────────────────
+
+interface DepartmentTreeNodeProps {
+    node: DepartmentTreeDto;
+    level: number;
+    orgId: string;
+    onAddChild: (parentId: string) => void;
+    onEdit: (id: string) => void;
+    onDelete: (id: string) => void;
+}
+
+function DepartmentTreeNode({ node, level, orgId, onAddChild, onEdit, onDelete }: DepartmentTreeNodeProps) {
+    const [expanded, setExpanded] = useState(true);
+    const hasChildren = node.children.length > 0;
+
+    return (
+        <div className="dept-tree-node" style={{ marginLeft: level * 24 }}>
+            <div className={`dept-tree-row${!node.isActive ? ' dept-inactive' : ''}`}>
+                <button
+                    className="dept-tree-toggle"
+                    onClick={() => setExpanded(v => !v)}
+                    disabled={!hasChildren}
+                    title={hasChildren ? (expanded ? 'Свернуть' : 'Развернуть') : undefined}
+                >
+                    {hasChildren ? (expanded ? '▾' : '▸') : '·'}
+                </button>
+                <span className="dept-tree-name">
+                    {node.name}
+                    {!node.isActive && <span className="badge badge-inactive" style={{ marginLeft: 6 }}>Неактивно</span>}
+                    {node.description && (
+                        <span className="dept-tree-desc"> — {node.description}</span>
+                    )}
+                </span>
+                <span className="dept-tree-count" title="Сотрудников">{node.employeesCount > 0 ? `👤 ${node.employeesCount}` : ''}</span>
+                <div className="row-actions dept-tree-actions">
+                    <button
+                        className="btn-secondary btn-sm btn-icon"
+                        title="Добавить вложенное подразделение"
+                        onClick={() => onAddChild(node.id)}
+                    >
+                        +
+                    </button>
+                    <button className="btn-secondary btn-sm" onClick={() => onEdit(node.id)}>
+                        Изменить
+                    </button>
+                    <button className="btn-danger btn-sm" onClick={() => onDelete(node.id)}>
+                        Удалить
+                    </button>
+                </div>
+            </div>
+            {hasChildren && expanded && (
+                <div className="dept-tree-children">
+                    {node.children.map(child => (
+                        <DepartmentTreeNode
+                            key={child.id}
+                            node={child}
+                            level={level + 1}
+                            orgId={orgId}
+                            onAddChild={onAddChild}
+                            onEdit={onEdit}
+                            onDelete={onDelete}
+                        />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
 interface DepartmentFormProps {
     dept: DepartmentDto | null;
     orgs: OrganizationDto[];
+    presetOrgId?: string;
+    presetParentId?: string;
     token: string;
     onClose: () => void;
     onSaved: () => void;
 }
 
-function DepartmentFormModal({ dept, orgs, token, onClose, onSaved }: DepartmentFormProps) {
-    const [orgId, setOrgId] = useState(dept?.organizationId ?? '');
-    const [parentId, setParentId] = useState(dept?.parentId ?? '');
+function DepartmentFormModal({ dept, orgs, presetOrgId, presetParentId, token, onClose, onSaved }: DepartmentFormProps) {
+    const [orgId, setOrgId] = useState(dept?.organizationId ?? presetOrgId ?? '');
+    const [parentId, setParentId] = useState(dept?.parentId ?? presetParentId ?? '');
     const [name, setName] = useState(dept?.name ?? '');
     const [description, setDescription] = useState(dept?.description ?? '');
     const [isActive, setIsActive] = useState(dept?.isActive ?? true);
@@ -510,7 +590,7 @@ function DepartmentFormModal({ dept, orgs, token, onClose, onSaved }: Department
                 <form onSubmit={handleSubmit}>
                     <div className="form-group">
                         <label>Организация *</label>
-                        <select value={orgId} onChange={e => { setOrgId(e.target.value); setParentId(''); }} disabled={!!dept}>
+                        <select value={orgId} onChange={e => { setOrgId(e.target.value); setParentId(''); }} disabled={!!dept || !!presetOrgId}>
                             <option value="">— Выберите организацию —</option>
                             {orgs.map(o => (
                                 <option key={o.id} value={o.id}>{o.name}</option>
@@ -806,12 +886,23 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
+    // Форма добавления
     const [selectedOrg, setSelectedOrg] = useState('');
     const [selectedDept, setSelectedDept] = useState('');
     const [depts, setDepts] = useState<DepartmentDto[]>([]);
     const [deptsLoading, setDeptsLoading] = useState(false);
     const [position, setPosition] = useState('');
     const [adding, setAdding] = useState(false);
+
+    // Форма редактирования
+    const [editEmployee, setEditEmployee] = useState<EmployeeDto | null>(null);
+    const [editDeptId, setEditDeptId] = useState('');
+    const [editPosition, setEditPosition] = useState('');
+    const [editIsActive, setEditIsActive] = useState(true);
+    const [editDepts, setEditDepts] = useState<DepartmentDto[]>([]);
+    const [editDeptsLoading, setEditDeptsLoading] = useState(false);
+    const [saving, setSaving] = useState(false);
+
     const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
 
     const load = useCallback(async () => {
@@ -832,7 +923,7 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
 
     useEffect(() => { load(); }, [load]);
 
-    // Загрузить подразделения при выборе организации
+    // Загрузить подразделения при выборе организации (форма добавления)
     useEffect(() => {
         if (!selectedOrg) { setDepts([]); setSelectedDept(''); return; }
         setDeptsLoading(true);
@@ -841,6 +932,23 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
             .catch(() => setDepts([]))
             .finally(() => setDeptsLoading(false));
     }, [selectedOrg, token]);
+
+    // Загрузить подразделения при открытии формы редактирования
+    useEffect(() => {
+        if (!editEmployee) { setEditDepts([]); return; }
+        setEditDeptsLoading(true);
+        adminApi.getDepartments(token, editEmployee.organizationId)
+            .then(data => setEditDepts(data.filter(d => d.isActive)))
+            .catch(e => { setEditDepts([]); setError(String(e)); })
+            .finally(() => setEditDeptsLoading(false));
+    }, [editEmployee, token]);
+
+    const openEdit = (emp: EmployeeDto) => {
+        setEditEmployee(emp);
+        setEditDeptId(emp.departmentId ?? '');
+        setEditPosition(emp.position ?? '');
+        setEditIsActive(emp.isActive);
+    };
 
     const handleAdd = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -865,6 +973,28 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
             setError(String(e));
         } finally {
             setAdding(false);
+        }
+    };
+
+    const handleSaveEdit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editEmployee) return;
+        if (!editDeptId) { setError('Выберите подразделение'); return; }
+        setSaving(true);
+        setError('');
+        try {
+            const req: UpdateEmployeeRequest = {
+                departmentId: editDeptId,
+                position: editPosition || undefined,
+                isActive: editIsActive,
+            };
+            await adminApi.updateEmployee(token, editEmployee.id, req);
+            setEditEmployee(null);
+            await load();
+        } catch (e) {
+            setError(String(e));
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -912,10 +1042,16 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
                                                 </span>
                                             </td>
                                             <td>
-                                                <button className="btn-danger btn-sm"
-                                                    onClick={() => setConfirmRemoveId(emp.id)}>
-                                                    Удалить
-                                                </button>
+                                                <div className="row-actions">
+                                                    <button className="btn-secondary btn-sm"
+                                                        onClick={() => openEdit(emp)}>
+                                                        Изменить
+                                                    </button>
+                                                    <button className="btn-danger btn-sm"
+                                                        onClick={() => setConfirmRemoveId(emp.id)}>
+                                                        Удалить
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -927,7 +1063,51 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
                             </div>
                         )}
 
-                        {availableOrgs.length > 0 && (
+                        {/* Форма редактирования сотрудника */}
+                        {editEmployee && (
+                            <>
+                                <hr style={{ border: 'none', borderTop: '1px solid #e2e8f0', margin: '0 0 16px' }} />
+                                <p style={{ fontWeight: 600, fontSize: '0.875rem', margin: '0 0 12px', color: '#374151' }}>
+                                    Редактировать запись в «{editEmployee.organizationName}»:
+                                </p>
+                                <form onSubmit={handleSaveEdit}>
+                                    <div className="form-group">
+                                        <label>Подразделение *</label>
+                                        <select
+                                            value={editDeptId}
+                                            onChange={e => setEditDeptId(e.target.value)}
+                                            disabled={editDeptsLoading}
+                                        >
+                                            <option value="">
+                                                {editDeptsLoading ? 'Загрузка…' : '— Выберите подразделение —'}
+                                            </option>
+                                            {editDepts.map(d => (
+                                                <option key={d.id} value={d.id}>{d.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Должность</label>
+                                        <input value={editPosition} onChange={e => setEditPosition(e.target.value)} placeholder="Менеджер" />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-check">
+                                            <input type="checkbox" checked={editIsActive} onChange={e => setEditIsActive(e.target.checked)} />
+                                            Активен
+                                        </label>
+                                    </div>
+                                    <div className="modal-actions">
+                                        <button type="button" className="btn-secondary" onClick={() => setEditEmployee(null)}>Отмена</button>
+                                        <button type="submit" className="btn-primary" disabled={saving}>
+                                            {saving ? 'Сохранение…' : 'Сохранить'}
+                                        </button>
+                                    </div>
+                                </form>
+                            </>
+                        )}
+
+                        {/* Форма добавления в организацию */}
+                        {!editEmployee && availableOrgs.length > 0 && (
                             <>
                                 <hr style={{ border: 'none', borderTop: '1px solid #e2e8f0', margin: '0 0 16px' }} />
                                 <p style={{ fontWeight: 600, fontSize: '0.875rem', margin: '0 0 12px', color: '#374151' }}>
@@ -972,7 +1152,7 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
                             </>
                         )}
 
-                        {availableOrgs.length === 0 && (
+                        {!editEmployee && availableOrgs.length === 0 && (
                             <div className="modal-actions">
                                 <button className="btn-secondary" onClick={onClose}>Закрыть</button>
                             </div>

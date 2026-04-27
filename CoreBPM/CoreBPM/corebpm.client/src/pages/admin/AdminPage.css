@@ -340,3 +340,98 @@
     color: #475569;
     border-bottom: 1px solid #f1f5f9;
 }
+
+/* ── Дерево подразделений ── */
+.dept-tree {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.dept-tree-node {
+    display: flex;
+    flex-direction: column;
+}
+
+.dept-tree-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    transition: background 0.15s;
+}
+
+.dept-tree-row:hover {
+    background: #f1f5f9;
+}
+
+.dept-tree-row.dept-inactive {
+    opacity: 0.6;
+}
+
+.dept-tree-toggle {
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.8rem;
+    color: #64748b;
+    border-radius: 4px;
+    flex-shrink: 0;
+    padding: 0;
+}
+
+.dept-tree-toggle:hover:not(:disabled) {
+    background: #e2e8f0;
+    color: #1e293b;
+}
+
+.dept-tree-toggle:disabled {
+    cursor: default;
+    color: #cbd5e1;
+}
+
+.dept-tree-name {
+    flex: 1;
+    font-size: 0.875rem;
+    color: #1e293b;
+    font-weight: 500;
+}
+
+.dept-tree-desc {
+    font-weight: 400;
+    color: #94a3b8;
+    font-size: 0.8rem;
+}
+
+.dept-tree-count {
+    font-size: 0.78rem;
+    color: #64748b;
+    min-width: 50px;
+    text-align: right;
+}
+
+.dept-tree-actions {
+    flex-shrink: 0;
+}
+
+.btn-icon {
+    min-width: 26px;
+    font-size: 1rem;
+    font-weight: 700;
+    padding: 2px 6px;
+}
+
+.dept-tree-children {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: 2px;
+}

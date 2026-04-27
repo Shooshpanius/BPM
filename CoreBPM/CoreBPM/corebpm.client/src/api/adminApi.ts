@@ -97,6 +97,17 @@ export interface DepartmentDto {
     createdAt: string;
 }
 
+export interface DepartmentTreeDto {
+    id: string;
+    organizationId: string;
+    parentId?: string;
+    name: string;
+    description?: string;
+    isActive: boolean;
+    employeesCount: number;
+    children: DepartmentTreeDto[];
+}
+
 export interface CreateDepartmentRequest {
     organizationId: string;
     parentId?: string;
@@ -188,6 +199,12 @@ export const getDepartments = (token: string, organizationId?: string): Promise<
         : '/api/admin/departments';
     return fetchJson(url, token);
 };
+
+export const getDepartmentById = (token: string, id: string): Promise<DepartmentDto> =>
+    fetchJson(`/api/admin/departments/${id}`, token);
+
+export const getDepartmentsTree = (token: string, organizationId: string): Promise<DepartmentTreeDto[]> =>
+    fetchJson(`/api/admin/departments/tree?organizationId=${organizationId}`, token);
 
 export const createDepartment = (token: string, data: CreateDepartmentRequest): Promise<DepartmentDto> =>
     fetchJson('/api/admin/departments', token, { method: 'POST', body: JSON.stringify(data) });
