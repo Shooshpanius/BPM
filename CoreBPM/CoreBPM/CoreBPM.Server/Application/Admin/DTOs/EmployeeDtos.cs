@@ -9,8 +9,8 @@ public class EmployeeDto
     public string UserWorkEmail { get; set; } = string.Empty;
     public Guid OrganizationId { get; set; }
     public string OrganizationName { get; set; } = string.Empty;
-    public Guid DepartmentId { get; set; }
-    public string DepartmentName { get; set; } = string.Empty;
+    public Guid? DepartmentId { get; set; }
+    public string? DepartmentName { get; set; }
     public string? Position { get; set; }
     public bool IsActive { get; set; }
     public DateTimeOffset CreatedAt { get; set; }

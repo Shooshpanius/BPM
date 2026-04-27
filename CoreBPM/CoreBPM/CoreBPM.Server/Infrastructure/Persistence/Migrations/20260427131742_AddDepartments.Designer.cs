@@ -294,7 +294,7 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<Guid>("DepartmentId")
+                    b.Property<Guid?>("DepartmentId")
                         .HasColumnType("uuid")
                         .HasColumnName("department_id");
 
@@ -519,7 +519,6 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                         .WithMany("Employees")
                         .HasForeignKey("DepartmentId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
                         .HasConstraintName("fk_org_employees_org_departments_department_id");
 
                     b.HasOne("CoreBPM.Server.Domain.Org.OrgOrganization", "Organization")

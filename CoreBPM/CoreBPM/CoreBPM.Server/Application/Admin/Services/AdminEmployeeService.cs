@@ -151,7 +151,7 @@ public class AdminEmployeeService : IAdminEmployeeService
         OrganizationId = e.OrganizationId,
         OrganizationName = e.Organization.Name,
         DepartmentId = e.DepartmentId,
-        DepartmentName = e.Department.Name,
+        DepartmentName = e.Department?.Name,
         Position = e.Position,
         IsActive = e.IsActive,
         CreatedAt = e.CreatedAt

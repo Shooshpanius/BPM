@@ -17,8 +17,8 @@ public class OrgEmployee
     /// <summary>Должность сотрудника в данной организации.</summary>
     public string? Position { get; set; }
 
-    /// <summary>Подразделение организации, в котором состоит сотрудник.</summary>
-    public Guid DepartmentId { get; set; }
+    /// <summary>Подразделение организации, в котором состоит сотрудник. Может быть null, если подразделение не назначено.</summary>
+    public Guid? DepartmentId { get; set; }
 
     public bool IsActive { get; set; } = true;
     public DateTimeOffset CreatedAt { get; set; }
@@ -27,5 +27,5 @@ public class OrgEmployee
     // Навигационные свойства
     public OrgUser User { get; set; } = null!;
     public OrgOrganization Organization { get; set; } = null!;
-    public OrgDepartment Department { get; set; } = null!;
+    public OrgDepartment? Department { get; set; }
 }
