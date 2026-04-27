@@ -113,11 +113,8 @@ export function ContactsPage() {
 
     const toggleOrg = async (orgId: string) => {
         const isExpanded = expandedOrgs.has(orgId);
-        setExpandedOrgs(prev => {
-            const next = new Set(prev);
-            if (isExpanded) next.delete(orgId); else next.add(orgId);
-            return next;
-        });
+        // Аккордеон: только одна организация развёрнута одновременно
+        setExpandedOrgs(isExpanded ? new Set() : new Set([orgId]));
         setSelectedOrgId(orgId);
         setSelectedDeptId(null);
         setSearch('');
@@ -324,11 +321,37 @@ export function ContactsPage() {
                             {search.trim() ? 'Ничего не найдено' : 'Нет сотрудников'}
                         </div>
                     )}
-                    {!empLoading && !empError && employees.length > 0 && (
-                        <div className="emp-grid">
-                            {employees.map(renderEmployeeCard)}
-                        </div>
-                    )}
+                    {!empLoading && !empError && employees.length > 0 && (() => {
+                        // Группируем сотрудников по подразделению
+                        const groups = new Map<string, DirectoryEmployeeDto[]>();
+                        for (const emp of employees) {
+                            const key = emp.departmentName ?? '';
+                            if (!groups.has(key)) groups.set(key, []);
+                            groups.get(key)!.push(emp);
+                        }
+                        const showDividers = groups.size > 1;
+                        if (!showDividers) {
+                            return (
+                                <div className="emp-grid">
+                                    {employees.map(renderEmployeeCard)}
+                                </div>
+                            );
+                        }
+                        return (
+                            <div className="emp-groups">
+                                {Array.from(groups.entries()).map(([deptName, emps]) => (
+                                    <div key={deptName} className="emp-group">
+                                        <div className="emp-group-divider">
+                                            <span className="emp-group-name">{deptName || 'Без подразделения'}</span>
+                                        </div>
+                                        <div className="emp-grid">
+                                            {emps.map(renderEmployeeCard)}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        );
+                    })()}
                 </div>
             </section>
         </div>
