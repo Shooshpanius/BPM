@@ -1,9 +1,13 @@
 import { useAuth } from '../context/AuthContext';
 import './HomePage.css';
 
+interface HomePageProps {
+    onAdmin: () => void;
+}
+
 /** Базовая главная страница после успешного входа. */
-export function HomePage() {
-    const { logout } = useAuth();
+export function HomePage({ onAdmin }: HomePageProps) {
+    const { logout, hasRole } = useAuth();
 
     return (
         <div className="hp-root">
@@ -13,6 +17,11 @@ export function HomePage() {
                     <span className="hp-logo-name">Core BPM</span>
                 </div>
                 <nav className="hp-header-nav">
+                    {hasRole('Admin') && (
+                        <button className="hp-admin-btn" onClick={onAdmin}>
+                            Администрирование
+                        </button>
+                    )}
                     <button className="hp-logout-btn" onClick={logout}>
                         Выйти
                     </button>

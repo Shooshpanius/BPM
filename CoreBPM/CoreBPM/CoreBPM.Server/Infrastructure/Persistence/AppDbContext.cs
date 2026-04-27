@@ -10,6 +10,8 @@ public class AppDbContext : DbContext
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
     public DbSet<OrgUser> OrgUsers => Set<OrgUser>();
+    public DbSet<OrgOrganization> OrgOrganizations => Set<OrgOrganization>();
+    public DbSet<OrgEmployee> OrgEmployees => Set<OrgEmployee>();
     public DbSet<AuthAccount> AuthAccounts => Set<AuthAccount>();
     public DbSet<AuthSession> AuthSessions => Set<AuthSession>();
     public DbSet<AuthRole> AuthRoles => Set<AuthRole>();
@@ -32,6 +34,41 @@ public class AppDbContext : DbContext
             e.Property(u => u.WorkEmail).IsRequired().HasMaxLength(320);
             e.Property(u => u.Phone).HasMaxLength(50);
             e.Property(u => u.AvatarUrl).HasMaxLength(500);
+        });
+
+        // Таблица организаций
+        modelBuilder.Entity<OrgOrganization>(e =>
+        {
+            e.ToTable("org_organizations");
+            e.HasKey(o => o.Id);
+            e.Property(o => o.Name).IsRequired().HasMaxLength(300);
+            e.Property(o => o.Description).HasMaxLength(1000);
+
+            // Только одна организация может иметь признак IsPrimary = true
+            e.HasIndex(o => o.IsPrimary)
+             .HasFilter("is_primary = true")
+             .IsUnique();
+        });
+
+        // Таблица сотрудников (связь пользователь ↔ организация)
+        modelBuilder.Entity<OrgEmployee>(e =>
+        {
+            e.ToTable("org_employees");
+            e.HasKey(emp => emp.Id);
+            e.Property(emp => emp.Position).HasMaxLength(200);
+
+            // Пара пользователь–организация уникальна
+            e.HasIndex(emp => new { emp.UserId, emp.OrganizationId }).IsUnique();
+
+            e.HasOne(emp => emp.User)
+             .WithMany(u => u.Employees)
+             .HasForeignKey(emp => emp.UserId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasOne(emp => emp.Organization)
+             .WithMany(o => o.Employees)
+             .HasForeignKey(emp => emp.OrganizationId)
+             .OnDelete(DeleteBehavior.Restrict);
         });
 
         // Таблица учётных записей

@@ -1,3 +1,5 @@
+using CoreBPM.Server.Application.Admin.Interfaces;
+using CoreBPM.Server.Application.Admin.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -52,6 +54,11 @@ builder.Services.AddAuthorization();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+
+// Регистрация сервисов административной панели
+builder.Services.AddScoped<IAdminOrganizationService, AdminOrganizationService>();
+builder.Services.AddScoped<IAdminUserService, AdminUserService>();
+builder.Services.AddScoped<IAdminEmployeeService, AdminEmployeeService>();
 
 var app = builder.Build();
 
