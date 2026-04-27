@@ -8,8 +8,8 @@
 
 /* ─── Панель дерева ─── */
 .contacts-tree-panel {
-    width: 220px;
-    flex: 0 0 220px;
+    width: 260px;
+    flex: 0 0 260px;
     display: flex;
     flex-direction: column;
     border-right: 1px solid var(--border);
@@ -352,6 +352,46 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+/* ─── Группировка по подразделению ─── */
+.emp-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.emp-group {
+    margin-bottom: 6px;
+}
+
+.emp-group-divider {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 2px 6px;
+}
+
+.emp-group-divider::before,
+.emp-group-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+}
+
+.emp-group-divider::before {
+    flex: 0 0 0;
+}
+
+.emp-group-name {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    color: var(--text);
+    opacity: 0.55;
+    white-space: nowrap;
 }
 
 /* Состояния */
