@@ -74,7 +74,8 @@ public class AppDbContext : DbContext
             e.HasOne(emp => emp.Department)
              .WithMany(d => d.Employees)
              .HasForeignKey(emp => emp.DepartmentId)
-             .OnDelete(DeleteBehavior.Restrict);
+             .OnDelete(DeleteBehavior.Restrict)
+             .IsRequired(false);
         });
 
         // Таблица подразделений
