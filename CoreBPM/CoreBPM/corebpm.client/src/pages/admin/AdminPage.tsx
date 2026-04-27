@@ -804,13 +804,18 @@ function generatePassword(): string {
     const digits = '0123456789';
     const special = '!@#$%&*';
     const all = lower + upper + digits + special;
+    const randomIndex = (max: number) => {
+        const arr = new Uint32Array(1);
+        crypto.getRandomValues(arr);
+        return arr[0] % max;
+    };
+    const pick = (s: string) => s[randomIndex(s.length)];
     // Гарантируем по одному символу каждого типа
-    const pick = (s: string) => s[Math.floor(Math.random() * s.length)];
     const base = [pick(lower), pick(upper), pick(digits), pick(special)];
     for (let i = base.length; i < 12; i++) base.push(pick(all));
-    // Перемешиваем
+    // Криптографически стойкое перемешивание (Fisher-Yates)
     for (let i = base.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
+        const j = randomIndex(i + 1);
         [base[i], base[j]] = [base[j], base[i]];
     }
     return base.join('');
