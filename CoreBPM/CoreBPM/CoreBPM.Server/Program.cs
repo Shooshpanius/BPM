@@ -58,6 +58,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 // Регистрация сервисов административной панели
 builder.Services.AddScoped<IAdminOrganizationService, AdminOrganizationService>();
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();
+builder.Services.AddScoped<IAdminDepartmentService, AdminDepartmentService>();
 builder.Services.AddScoped<IAdminEmployeeService, AdminEmployeeService>();
 
 var app = builder.Build();

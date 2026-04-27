@@ -24,6 +24,7 @@ public class AdminEmployeeService : IAdminEmployeeService
             .AsNoTracking()
             .Include(e => e.User)
             .Include(e => e.Organization)
+            .Include(e => e.Department)
             .AsQueryable();
 
         if (organizationId.HasValue)
@@ -44,6 +45,7 @@ public class AdminEmployeeService : IAdminEmployeeService
             .AsNoTracking()
             .Include(e => e.User)
             .Include(e => e.Organization)
+            .Include(e => e.Department)
             .Where(e => e.UserId == userId)
             .OrderBy(e => e.Organization.Name)
             .Select(e => MapToDto(e))
@@ -63,6 +65,13 @@ public class AdminEmployeeService : IAdminEmployeeService
         if (!orgExists)
             throw new NotFoundException($"Организация {request.OrganizationId} не найдена");
 
+        // Проверяем существование подразделения и его принадлежность к организации
+        var dept = await _db.OrgDepartments.FindAsync(new object[] { request.DepartmentId }, ct)
+            ?? throw new NotFoundException($"Подразделение {request.DepartmentId} не найдено");
+
+        if (dept.OrganizationId != request.OrganizationId)
+            throw new ValidationException("Подразделение не принадлежит указанной организации");
+
         // Проверяем уникальность пары пользователь–организация
         var alreadyExists = await _db.OrgEmployees
             .AnyAsync(e => e.UserId == request.UserId && e.OrganizationId == request.OrganizationId, ct);
@@ -75,6 +84,7 @@ public class AdminEmployeeService : IAdminEmployeeService
             Id = Guid.NewGuid(),
             UserId = request.UserId,
             OrganizationId = request.OrganizationId,
+            DepartmentId = request.DepartmentId,
             Position = request.Position?.Trim(),
             IsActive = true,
             CreatedAt = now,
@@ -87,6 +97,7 @@ public class AdminEmployeeService : IAdminEmployeeService
         // Загружаем навигационные свойства для ответа
         await _db.Entry(employee).Reference(e => e.User).LoadAsync(ct);
         await _db.Entry(employee).Reference(e => e.Organization).LoadAsync(ct);
+        await _db.Entry(employee).Reference(e => e.Department).LoadAsync(ct);
 
         return MapToDto(employee);
     }
@@ -97,14 +108,26 @@ public class AdminEmployeeService : IAdminEmployeeService
         var employee = await _db.OrgEmployees
             .Include(e => e.User)
             .Include(e => e.Organization)
+            .Include(e => e.Department)
             .FirstOrDefaultAsync(e => e.Id == id, ct)
             ?? throw new NotFoundException($"Сотрудник {id} не найден");
 
+        // Проверяем новое подразделение
+        var dept = await _db.OrgDepartments.FindAsync(new object[] { request.DepartmentId }, ct)
+            ?? throw new NotFoundException($"Подразделение {request.DepartmentId} не найдено");
+
+        if (dept.OrganizationId != employee.OrganizationId)
+            throw new ValidationException("Подразделение не принадлежит организации сотрудника");
+
+        employee.DepartmentId = request.DepartmentId;
         employee.Position = request.Position?.Trim();
         employee.IsActive = request.IsActive;
         employee.UpdatedAt = DateTimeOffset.UtcNow;
 
         await _db.SaveChangesAsync(ct);
+
+        // Обновляем навигационное свойство после изменения FK
+        await _db.Entry(employee).Reference(e => e.Department).LoadAsync(ct);
 
         return MapToDto(employee);
     }
@@ -127,6 +150,8 @@ public class AdminEmployeeService : IAdminEmployeeService
         UserWorkEmail = e.User.WorkEmail,
         OrganizationId = e.OrganizationId,
         OrganizationName = e.Organization.Name,
+        DepartmentId = e.DepartmentId,
+        DepartmentName = e.Department.Name,
         Position = e.Position,
         IsActive = e.IsActive,
         CreatedAt = e.CreatedAt
