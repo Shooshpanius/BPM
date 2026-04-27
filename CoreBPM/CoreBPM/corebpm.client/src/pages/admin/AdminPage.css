@@ -1,0 +1,342 @@
+.admin-root {
+    min-height: 100vh;
+    background: #f4f6fa;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.admin-header {
+    background: #1a1a2e;
+    color: #fff;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.25);
+}
+
+.admin-header-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.admin-header-brand .brand-sep {
+    color: #555;
+    margin: 0 4px;
+}
+
+.admin-back-btn {
+    background: none;
+    border: 1px solid #444;
+    color: #ccc;
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: background 0.15s;
+}
+
+.admin-back-btn:hover {
+    background: #333;
+}
+
+.admin-tabs {
+    display: flex;
+    gap: 2px;
+    background: #fff;
+    border-bottom: 2px solid #e2e8f0;
+    padding: 0 24px;
+}
+
+.admin-tab {
+    padding: 14px 20px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: #64748b;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: color 0.15s, border-color 0.15s;
+}
+
+.admin-tab:hover {
+    color: #334155;
+}
+
+.admin-tab.active {
+    color: #3b82f6;
+    border-bottom-color: #3b82f6;
+    font-weight: 600;
+}
+
+.admin-content {
+    padding: 24px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* Секция с заголовком и кнопкой */
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.section-header h2 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin: 0;
+}
+
+.btn-primary {
+    background: #3b82f6;
+    color: #fff;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: background 0.15s;
+}
+
+.btn-primary:hover {
+    background: #2563eb;
+}
+
+.btn-secondary {
+    background: #fff;
+    color: #374151;
+    border: 1px solid #d1d5db;
+    padding: 8px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: background 0.15s;
+}
+
+.btn-secondary:hover {
+    background: #f9fafb;
+}
+
+.btn-danger {
+    background: #fff;
+    color: #ef4444;
+    border: 1px solid #fca5a5;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: background 0.15s;
+}
+
+.btn-danger:hover {
+    background: #fef2f2;
+}
+
+.btn-sm {
+    padding: 5px 10px;
+    font-size: 0.78rem;
+}
+
+/* Таблица */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+}
+
+.data-table th {
+    text-align: left;
+    padding: 12px 16px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.data-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 0.875rem;
+    color: #1e293b;
+}
+
+.data-table tr:last-child td {
+    border-bottom: none;
+}
+
+.data-table tr:hover td {
+    background: #f8fafc;
+}
+
+.badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
+.badge-primary {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.badge-active {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+.badge-inactive {
+    background: #f1f5f9;
+    color: #94a3b8;
+}
+
+/* Действия в строке */
+.row-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+/* Форма */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal {
+    background: #fff;
+    border-radius: 12px;
+    padding: 28px 32px;
+    width: 480px;
+    max-width: 95vw;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,.25);
+}
+
+.modal h3 {
+    margin: 0 0 20px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.form-group {
+    margin-bottom: 14px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 5px;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    color: #1e293b;
+    box-sizing: border-box;
+    transition: border-color 0.15s;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59,130,246,.1);
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 72px;
+}
+
+.form-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.875rem;
+    color: #374151;
+    cursor: pointer;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.error-msg {
+    background: #fef2f2;
+    border: 1px solid #fca5a5;
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 0.85rem;
+    color: #b91c1c;
+    margin-bottom: 14px;
+}
+
+.loading-msg {
+    text-align: center;
+    padding: 40px;
+    color: #94a3b8;
+    font-size: 0.9rem;
+}
+
+.empty-msg {
+    text-align: center;
+    padding: 40px;
+    color: #94a3b8;
+    font-size: 0.875rem;
+}
+
+/* Подтаблица сотрудников внутри строки */
+.employee-sub-table {
+    margin-top: 8px;
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+}
+
+.employee-sub-table th {
+    color: #94a3b8;
+    font-weight: 600;
+    text-align: left;
+    padding: 4px 8px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.employee-sub-table td {
+    padding: 5px 8px;
+    color: #475569;
+    border-bottom: 1px solid #f1f5f9;
+}

@@ -17,6 +17,7 @@ public class OrgUser
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
 
-    // Навигационное свойство
+    // Навигационные свойства
     public AuthAccount? Account { get; set; }
+    public ICollection<OrgEmployee> Employees { get; set; } = new List<OrgEmployee>();
 }

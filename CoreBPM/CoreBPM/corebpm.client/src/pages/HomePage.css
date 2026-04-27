@@ -64,6 +64,23 @@
     background: var(--accent-bg);
 }
 
+.hp-admin-btn {
+    padding: 0.4rem 1rem;
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--accent);
+    font-size: 0.875rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.hp-admin-btn:hover {
+    background: var(--accent);
+    color: #fff;
+}
+
 /* Основной контент */
 .hp-main {
     flex: 1;
