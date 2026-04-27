@@ -3,10 +3,6 @@
     "Name": "Новый профиль",
     "Projects": [
       {
-        "Path": "CoreBPM\\corebpm.client\\corebpm.client.esproj",
-        "Action": "Start"
-      },
-      {
         "Path": "CoreBPM\\CoreBPM.Server\\CoreBPM.Server.csproj",
         "Action": "Start",
         "DebugTarget": "http"
