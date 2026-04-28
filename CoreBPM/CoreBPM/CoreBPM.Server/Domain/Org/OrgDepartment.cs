@@ -22,7 +22,21 @@ public class OrgDepartment
     /// <summary>Краткое описание подразделения.</summary>
     public string? Description { get; set; }
 
-    public bool IsActive { get; set; } = true;
+    /// <summary>Краткое название (аббревиатура).</summary>
+    public string? ShortName { get; set; }
+
+    /// <summary>Уникальный код подразделения в рамках организации.</summary>
+    public string? Code { get; set; }
+
+    /// <summary>
+    /// Материализованный путь для быстрых запросов потомков.
+    /// Формат: /id1/id2/id3 (от корня до текущего узла включительно).
+    /// </summary>
+    public string Path { get; set; } = string.Empty;
+
+    /// <summary>Статус подразделения (активное / архивное).</summary>
+    public DepartmentStatus Status { get; set; } = DepartmentStatus.Active;
+
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
 

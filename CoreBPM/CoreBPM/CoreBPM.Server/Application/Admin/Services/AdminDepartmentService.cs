@@ -40,8 +40,10 @@ public class AdminDepartmentService : IAdminDepartmentService
                 ParentId = d.ParentId,
                 ParentName = d.Parent != null ? d.Parent.Name : null,
                 Name = d.Name,
+                ShortName = d.ShortName,
+                Code = d.Code,
                 Description = d.Description,
-                IsActive = d.IsActive,
+                Status = d.Status,
                 EmployeesCount = d.Employees.Count(e => e.IsActive),
                 CreatedAt = d.CreatedAt
             })
@@ -64,8 +66,10 @@ public class AdminDepartmentService : IAdminDepartmentService
                 d.Id,
                 d.ParentId,
                 d.Name,
+                d.ShortName,
+                d.Code,
                 d.Description,
-                d.IsActive,
+                d.Status,
                 EmployeesCount = d.Employees.Count(e => e.IsActive)
             })
             .ToListAsync(ct);
@@ -79,8 +83,10 @@ public class AdminDepartmentService : IAdminDepartmentService
                 OrganizationId = organizationId,
                 ParentId = d.ParentId,
                 Name = d.Name,
+                ShortName = d.ShortName,
+                Code = d.Code,
                 Description = d.Description,
-                IsActive = d.IsActive,
+                Status = d.Status,
                 EmployeesCount = d.EmployeesCount,
                 Children = new List<DepartmentTreeDto>()
             });
@@ -114,8 +120,10 @@ public class AdminDepartmentService : IAdminDepartmentService
                 ParentId = d.ParentId,
                 ParentName = d.Parent != null ? d.Parent.Name : null,
                 Name = d.Name,
+                ShortName = d.ShortName,
+                Code = d.Code,
                 Description = d.Description,
-                IsActive = d.IsActive,
+                Status = d.Status,
                 EmployeesCount = d.Employees.Count(e => e.IsActive),
                 CreatedAt = d.CreatedAt
             })
@@ -135,6 +143,7 @@ public class AdminDepartmentService : IAdminDepartmentService
         if (!orgExists)
             throw new NotFoundException($"Организация {request.OrganizationId} не найдена");
 
+        string parentPath = string.Empty;
         if (request.ParentId.HasValue)
         {
             var parent = await _db.OrgDepartments.FindAsync(new object[] { request.ParentId.Value }, ct)
@@ -142,17 +151,25 @@ public class AdminDepartmentService : IAdminDepartmentService
 
             if (parent.OrganizationId != request.OrganizationId)
                 throw new ValidationException("Родительское подразделение должно принадлежать той же организации");
+
+            parentPath = parent.Path;
         }
 
+        await ValidateCodeUniqueAsync(request.OrganizationId, request.Code, null, ct);
+
+        var id = Guid.NewGuid();
         var now = DateTimeOffset.UtcNow;
         var dept = new OrgDepartment
         {
-            Id = Guid.NewGuid(),
+            Id = id,
             OrganizationId = request.OrganizationId,
             ParentId = request.ParentId,
             Name = request.Name.Trim(),
+            ShortName = request.ShortName?.Trim(),
+            Code = request.Code?.Trim(),
             Description = request.Description?.Trim(),
-            IsActive = true,
+            Path = $"{parentPath}/{id}",
+            Status = DepartmentStatus.Active,
             CreatedAt = now,
             UpdatedAt = now
         };
@@ -188,10 +205,14 @@ public class AdminDepartmentService : IAdminDepartmentService
                 throw new ValidationException("Нельзя назначить дочернее подразделение в качестве родителя");
         }
 
+        await ValidateCodeUniqueAsync(dept.OrganizationId, request.Code, id, ct);
+
         dept.ParentId = request.ParentId;
         dept.Name = request.Name.Trim();
+        dept.ShortName = request.ShortName?.Trim();
+        dept.Code = request.Code?.Trim();
         dept.Description = request.Description?.Trim();
-        dept.IsActive = request.IsActive;
+        dept.Status = request.Status;
         dept.UpdatedAt = DateTimeOffset.UtcNow;
 
         await _db.SaveChangesAsync(ct);
@@ -205,15 +226,18 @@ public class AdminDepartmentService : IAdminDepartmentService
         var dept = await _db.OrgDepartments.FindAsync(new object[] { id }, ct)
             ?? throw new NotFoundException($"Подразделение {id} не найдено");
 
-        var hasChildren = await _db.OrgDepartments.AnyAsync(d => d.ParentId == id, ct);
-        if (hasChildren)
-            throw new ValidationException("Невозможно удалить подразделение, у которого есть дочерние подразделения");
+        var hasActiveChildren = await _db.OrgDepartments.AnyAsync(
+            d => d.ParentId == id && d.Status == DepartmentStatus.Active, ct);
+        if (hasActiveChildren)
+            throw new ValidationException("Невозможно архивировать подразделение, у которого есть активные дочерние подразделения");
 
         var hasEmployees = await _db.OrgEmployees.AnyAsync(e => e.DepartmentId == id && e.IsActive, ct);
         if (hasEmployees)
-            throw new ValidationException("Невозможно удалить подразделение с активными сотрудниками");
+            throw new ValidationException("Невозможно архивировать подразделение с активными сотрудниками");
 
-        _db.OrgDepartments.Remove(dept);
+        dept.Status = DepartmentStatus.Archived;
+        dept.UpdatedAt = DateTimeOffset.UtcNow;
+
         await _db.SaveChangesAsync(ct);
     }
 
@@ -249,5 +273,19 @@ public class AdminDepartmentService : IAdminDepartmentService
         }
 
         return false;
+    }
+
+    private async Task ValidateCodeUniqueAsync(Guid organizationId, string? code, Guid? excludeId, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(code)) return;
+
+        var trimmed = code.Trim();
+        var exists = await _db.OrgDepartments.AnyAsync(d =>
+            d.OrganizationId == organizationId &&
+            d.Code == trimmed &&
+            (excludeId == null || d.Id != excludeId.Value), ct);
+
+        if (exists)
+            throw new ValidationException($"Подразделение с кодом '{trimmed}' уже существует в этой организации");
     }
 }

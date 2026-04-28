@@ -36,7 +36,7 @@ public class OrgDirectoryService : IOrgDirectoryService
     {
         var all = await _db.OrgDepartments
             .AsNoTracking()
-            .Where(d => d.OrganizationId == organizationId && d.IsActive)
+            .Where(d => d.OrganizationId == organizationId && d.Status == Domain.Org.DepartmentStatus.Active)
             .Select(d => new
             {
                 d.Id,

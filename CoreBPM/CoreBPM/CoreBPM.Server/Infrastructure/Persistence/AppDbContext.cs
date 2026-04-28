@@ -12,6 +12,7 @@ public class AppDbContext : DbContext
     public DbSet<OrgUser> OrgUsers => Set<OrgUser>();
     public DbSet<OrgOrganization> OrgOrganizations => Set<OrgOrganization>();
     public DbSet<OrgDepartment> OrgDepartments => Set<OrgDepartment>();
+    public DbSet<OrgDepartmentHistory> OrgDepartmentHistories => Set<OrgDepartmentHistory>();
     public DbSet<OrgEmployee> OrgEmployees => Set<OrgEmployee>();
     public DbSet<AuthAccount> AuthAccounts => Set<AuthAccount>();
     public DbSet<AuthSession> AuthSessions => Set<AuthSession>();
@@ -84,7 +85,16 @@ public class AppDbContext : DbContext
             e.ToTable("org_departments");
             e.HasKey(d => d.Id);
             e.Property(d => d.Name).IsRequired().HasMaxLength(300);
+            e.Property(d => d.ShortName).HasMaxLength(50);
+            e.Property(d => d.Code).HasMaxLength(50);
             e.Property(d => d.Description).HasMaxLength(1000);
+            e.Property(d => d.Path).IsRequired().HasMaxLength(1000);
+            e.Property(d => d.Status).HasConversion<int>();
+
+            // Уникальный код в рамках организации (только там, где Code != null)
+            e.HasIndex(d => new { d.OrganizationId, d.Code })
+             .HasFilter("code IS NOT NULL")
+             .IsUnique();
 
             e.HasOne(d => d.Organization)
              .WithMany(o => o.Departments)
@@ -96,6 +106,27 @@ public class AppDbContext : DbContext
              .WithMany(d => d.Children)
              .HasForeignKey(d => d.ParentId)
              .OnDelete(DeleteBehavior.Restrict)
+             .IsRequired(false);
+        });
+
+        // Таблица истории изменений подразделений
+        modelBuilder.Entity<OrgDepartmentHistory>(e =>
+        {
+            e.ToTable("org_department_history");
+            e.HasKey(h => h.Id);
+            e.Property(h => h.ChangeType).HasConversion<int>();
+            e.Property(h => h.OldValue).HasColumnType("text");
+            e.Property(h => h.NewValue).HasColumnType("text");
+
+            e.HasOne(h => h.Department)
+             .WithMany()
+             .HasForeignKey(h => h.DepartmentId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(h => h.ChangedByUser)
+             .WithMany()
+             .HasForeignKey(h => h.ChangedByUserId)
+             .OnDelete(DeleteBehavior.SetNull)
              .IsRequired(false);
         });
 
