@@ -16,6 +16,8 @@ export default defineConfig({
             '@': fileURLToPath(new URL('./src', import.meta.url))
         }
     },
+    // Переменные окружения с префиксом BPM_C_ доступны в коде как import.meta.env.BPM_C_*
+    envPrefix: 'BPM_C_',
     server: {
         proxy: {
             '^/api': {
