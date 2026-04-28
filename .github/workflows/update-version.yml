@@ -41,6 +41,7 @@ jobs:
             echo "// Номер и дата последнего принятого пулл реквеста"
             echo "export const LAST_PR_NUMBER = ${PR_NUMBER};"
             echo "export const LAST_PR_DATE = '${PR_DATE}';"
+            echo "export const APP_VERSION = \`0.0.\${LAST_PR_NUMBER}\`;"
           } > CoreBPM/CoreBPM/corebpm.client/src/version.ts
 
       - name: Обновление бейджа версии в README.md
