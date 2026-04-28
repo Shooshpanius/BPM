@@ -3,6 +3,7 @@ using System;
 using CoreBPM.Server.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260428125802_AddOrgPositionAssignments")]
+    partial class AddOrgPositionAssignments
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -364,6 +367,10 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("organization_id");
 
+                    b.Property<Guid?>("PositionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("position_id");
+
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -380,6 +387,9 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("OrganizationId")
                         .HasDatabaseName("ix_org_employees_organization_id");
+
+                    b.HasIndex("PositionId")
+                        .HasDatabaseName("ix_org_employees_position_id");
 
                     b.HasIndex("UserId", "OrganizationId")
                         .IsUnique()
@@ -811,6 +821,12 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_org_employees_org_organizations_organization_id");
 
+                    b.HasOne("CoreBPM.Server.Domain.Org.OrgPosition", "JobPosition")
+                        .WithMany()
+                        .HasForeignKey("PositionId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_org_employees_org_positions_position_id");
+
                     b.HasOne("CoreBPM.Server.Domain.Org.OrgUser", "User")
                         .WithMany("Employees")
                         .HasForeignKey("UserId")
@@ -819,6 +835,8 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_org_employees_org_users_user_id");
 
                     b.Navigation("Department");
+
+                    b.Navigation("JobPosition");
 
                     b.Navigation("Organization");
 

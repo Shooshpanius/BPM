@@ -17,6 +17,7 @@ public class AppDbContext : DbContext
     public DbSet<OrgPosition> OrgPositions => Set<OrgPosition>();
     public DbSet<OrgPositionAttachment> OrgPositionAttachments => Set<OrgPositionAttachment>();
     public DbSet<OrgPositionRoleMapping> OrgPositionRoleMappings => Set<OrgPositionRoleMapping>();
+    public DbSet<OrgPositionAssignment> OrgPositionAssignments => Set<OrgPositionAssignment>();
     public DbSet<AuthAccount> AuthAccounts => Set<AuthAccount>();
     public DbSet<AuthSession> AuthSessions => Set<AuthSession>();
     public DbSet<AuthRole> AuthRoles => Set<AuthRole>();
@@ -55,7 +56,8 @@ public class AppDbContext : DbContext
              .IsUnique();
         });
 
-        // Таблица сотрудников (связь пользователь ↔ организация ↔ подразделение ↔ должность)
+        // Таблица сотрудников (связь пользователь ↔ организация ↔ подразделение)
+        // Должность определяется через OrgPositionAssignment, а не через поле PositionId
         modelBuilder.Entity<OrgEmployee>(e =>
         {
             e.ToTable("org_employees");
@@ -78,12 +80,6 @@ public class AppDbContext : DbContext
              .WithMany(d => d.Employees)
              .HasForeignKey(emp => emp.DepartmentId)
              .OnDelete(DeleteBehavior.Restrict)
-             .IsRequired(false);
-
-            e.HasOne(emp => emp.JobPosition)
-             .WithMany()
-             .HasForeignKey(emp => emp.PositionId)
-             .OnDelete(DeleteBehavior.SetNull)
              .IsRequired(false);
         });
 
@@ -259,6 +255,45 @@ public class AppDbContext : DbContext
              .WithMany(p => p.RoleMappings)
              .HasForeignKey(r => r.PositionId)
              .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Таблица назначений пользователей на должности
+        modelBuilder.Entity<OrgPositionAssignment>(e =>
+        {
+            e.ToTable("org_position_assignments", t =>
+            {
+                // Ставка должна быть одним из допустимых значений: 0.25, 0.5, 0.75, 1.0
+                t.HasCheckConstraint("ck_org_position_assignments_rate",
+                    "rate IN (0.25, 0.50, 0.75, 1.00)");
+                // Дата окончания должна быть не раньше даты начала
+                t.HasCheckConstraint("ck_org_position_assignments_dates",
+                    "end_date IS NULL OR end_date >= start_date");
+            });
+
+            e.HasKey(a => a.Id);
+
+            e.Property(a => a.Rate)
+             .HasColumnType("decimal(4,2)");
+
+            // Индексы для производительности
+            e.HasIndex(a => a.UserId);
+            e.HasIndex(a => a.OrganizationId);
+            e.HasIndex(a => new { a.PositionId, a.EndDate });
+
+            e.HasOne(a => a.User)
+             .WithMany()
+             .HasForeignKey(a => a.UserId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasOne(a => a.Position)
+             .WithMany(p => p.Assignments)
+             .HasForeignKey(a => a.PositionId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasOne(a => a.Organization)
+             .WithMany()
+             .HasForeignKey(a => a.OrganizationId)
+             .OnDelete(DeleteBehavior.Restrict);
         });
 
         // Seed системных ролей

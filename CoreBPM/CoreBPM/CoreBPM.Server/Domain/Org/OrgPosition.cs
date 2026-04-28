@@ -42,4 +42,5 @@ public class OrgPosition
     public OrgDepartment? Department { get; set; }
     public ICollection<OrgPositionAttachment> Attachments { get; set; } = new List<OrgPositionAttachment>();
     public ICollection<OrgPositionRoleMapping> RoleMappings { get; set; } = new List<OrgPositionRoleMapping>();
+    public ICollection<OrgPositionAssignment> Assignments { get; set; } = new List<OrgPositionAssignment>();
 }

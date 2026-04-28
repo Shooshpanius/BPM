@@ -70,6 +70,7 @@ builder.Services.AddScoped<IAdminEmployeeService, AdminEmployeeService>();
 builder.Services.AddScoped<IOrgDirectoryService, OrgDirectoryService>();
 builder.Services.AddScoped<IOrgUnitsService, OrgUnitsService>();
 builder.Services.AddScoped<IOrgPositionsService, OrgPositionsService>();
+builder.Services.AddScoped<IOrgAssignmentService, OrgAssignmentService>();
 
 var app = builder.Build();
 

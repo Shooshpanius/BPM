@@ -20,38 +20,82 @@ public class AdminEmployeeService : IAdminEmployeeService
     /// <inheritdoc />
     public async Task<IReadOnlyList<EmployeeDto>> GetAllAsync(Guid? organizationId = null, CancellationToken ct = default)
     {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
         var query = _db.OrgEmployees
             .AsNoTracking()
             .Include(e => e.User)
             .Include(e => e.Organization)
             .Include(e => e.Department)
-            .Include(e => e.JobPosition)
             .AsQueryable();
 
         if (organizationId.HasValue)
             query = query.Where(e => e.OrganizationId == organizationId.Value);
 
-        return await query
+        var employees = await query
             .OrderBy(e => e.Organization.Name)
             .ThenBy(e => e.User.LastName)
             .ThenBy(e => e.User.FirstName)
-            .Select(e => MapToDto(e))
             .ToListAsync(ct);
+
+        // Загружаем только основные (IsPrimary = true) действующие назначения.
+        // По бизнес-правилу у пользователя не более одного активного основного назначения.
+        var userIds = employees.Select(e => e.UserId).Distinct().ToList();
+        var assignments = await _db.OrgPositionAssignments
+            .AsNoTracking()
+            .Include(a => a.Position)
+            .Where(a => userIds.Contains(a.UserId) &&
+                        a.IsPrimary &&
+                        (organizationId == null || a.OrganizationId == organizationId) &&
+                        (a.EndDate == null || a.EndDate >= today))
+            .ToListAsync(ct);
+
+        // Ключ (UserId, OrganizationId) — уникален благодаря фильтру IsPrimary
+        var assignmentsByKey = assignments
+            .ToDictionary(a => (a.UserId, a.OrganizationId));
+
+        return employees.Select(e =>
+        {
+            assignmentsByKey.TryGetValue((e.UserId, e.OrganizationId), out var assignment);
+            return MapToDto(e, assignment);
+        }).ToList();
     }
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<EmployeeDto>> GetByUserAsync(Guid userId, CancellationToken ct = default)
     {
-        return await _db.OrgEmployees
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var employees = await _db.OrgEmployees
             .AsNoTracking()
             .Include(e => e.User)
             .Include(e => e.Organization)
             .Include(e => e.Department)
-            .Include(e => e.JobPosition)
             .Where(e => e.UserId == userId)
             .OrderBy(e => e.Organization.Name)
-            .Select(e => MapToDto(e))
             .ToListAsync(ct);
+
+        var orgIds = employees.Select(e => e.OrganizationId).ToList();
+
+        // Загружаем только основные (IsPrimary = true) действующие назначения
+        var assignments = await _db.OrgPositionAssignments
+            .AsNoTracking()
+            .Include(a => a.Position)
+            .Where(a => a.UserId == userId &&
+                        a.IsPrimary &&
+                        orgIds.Contains(a.OrganizationId) &&
+                        (a.EndDate == null || a.EndDate >= today))
+            .ToListAsync(ct);
+
+        // Ключ OrganizationId: уникален благодаря глобальному ограничению на IsPrimary
+        var assignmentsByOrg = assignments
+            .ToDictionary(a => a.OrganizationId);
+
+        return employees.Select(e =>
+        {
+            assignmentsByOrg.TryGetValue(e.OrganizationId, out var assignment);
+            return MapToDto(e, assignment);
+        }).ToList();
     }
 
     /// <inheritdoc />
@@ -80,16 +124,6 @@ public class AdminEmployeeService : IAdminEmployeeService
         if (alreadyExists)
             throw new ValidationException("Данный пользователь уже является сотрудником этой организации");
 
-        // Проверяем должность, если указана
-        if (request.PositionId.HasValue)
-        {
-            var positionBelongsToOrg = await _db.OrgPositions
-                .AnyAsync(p => p.Id == request.PositionId.Value &&
-                               (p.DepartmentId == null || p.Department!.OrganizationId == request.OrganizationId), ct);
-            if (!positionBelongsToOrg)
-                throw new ValidationException("Указанная должность не принадлежит данной организации");
-        }
-
         var now = DateTimeOffset.UtcNow;
         var employee = new OrgEmployee
         {
@@ -97,7 +131,6 @@ public class AdminEmployeeService : IAdminEmployeeService
             UserId = request.UserId,
             OrganizationId = request.OrganizationId,
             DepartmentId = request.DepartmentId,
-            PositionId = request.PositionId,
             IsActive = true,
             CreatedAt = now,
             UpdatedAt = now
@@ -110,19 +143,19 @@ public class AdminEmployeeService : IAdminEmployeeService
         await _db.Entry(employee).Reference(e => e.User).LoadAsync(ct);
         await _db.Entry(employee).Reference(e => e.Organization).LoadAsync(ct);
         await _db.Entry(employee).Reference(e => e.Department).LoadAsync(ct);
-        await _db.Entry(employee).Reference(e => e.JobPosition).LoadAsync(ct);
 
-        return MapToDto(employee);
+        return MapToDto(employee, null);
     }
 
     /// <inheritdoc />
     public async Task<EmployeeDto> UpdateAsync(Guid id, UpdateEmployeeRequest request, CancellationToken ct = default)
     {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
         var employee = await _db.OrgEmployees
             .Include(e => e.User)
             .Include(e => e.Organization)
             .Include(e => e.Department)
-            .Include(e => e.JobPosition)
             .FirstOrDefaultAsync(e => e.Id == id, ct)
             ?? throw new NotFoundException($"Сотрудник {id} не найден");
 
@@ -133,28 +166,26 @@ public class AdminEmployeeService : IAdminEmployeeService
         if (dept.OrganizationId != employee.OrganizationId)
             throw new ValidationException("Подразделение не принадлежит организации сотрудника");
 
-        // Проверяем должность, если указана
-        if (request.PositionId.HasValue)
-        {
-            var positionBelongsToOrg = await _db.OrgPositions
-                .AnyAsync(p => p.Id == request.PositionId.Value &&
-                               (p.DepartmentId == null || p.Department!.OrganizationId == employee.OrganizationId), ct);
-            if (!positionBelongsToOrg)
-                throw new ValidationException("Указанная должность не принадлежит данной организации");
-        }
-
         employee.DepartmentId = request.DepartmentId;
-        employee.PositionId = request.PositionId;
         employee.IsActive = request.IsActive;
         employee.UpdatedAt = DateTimeOffset.UtcNow;
 
         await _db.SaveChangesAsync(ct);
 
-        // Обновляем навигационные свойства после изменения FK
+        // Обновляем навигационное свойство после изменения FK
         await _db.Entry(employee).Reference(e => e.Department).LoadAsync(ct);
-        await _db.Entry(employee).Reference(e => e.JobPosition).LoadAsync(ct);
 
-        return MapToDto(employee);
+        // Получаем текущее основное (IsPrimary = true) активное назначение для ответа
+        var assignment = await _db.OrgPositionAssignments
+            .AsNoTracking()
+            .Include(a => a.Position)
+            .Where(a => a.UserId == employee.UserId &&
+                        a.OrganizationId == employee.OrganizationId &&
+                        a.IsPrimary &&
+                        (a.EndDate == null || a.EndDate >= today))
+            .FirstOrDefaultAsync(ct);
+
+        return MapToDto(employee, assignment);
     }
 
     /// <inheritdoc />
@@ -167,7 +198,7 @@ public class AdminEmployeeService : IAdminEmployeeService
         await _db.SaveChangesAsync(ct);
     }
 
-    private static EmployeeDto MapToDto(OrgEmployee e) => new()
+    private static EmployeeDto MapToDto(OrgEmployee e, OrgPositionAssignment? assignment) => new()
     {
         Id = e.Id,
         UserId = e.UserId,
@@ -177,8 +208,8 @@ public class AdminEmployeeService : IAdminEmployeeService
         OrganizationName = e.Organization.Name,
         DepartmentId = e.DepartmentId,
         DepartmentName = e.Department?.Name,
-        PositionId = e.PositionId,
-        PositionName = e.JobPosition?.Name,
+        PositionId = assignment?.PositionId,
+        PositionName = assignment?.Position?.Name,
         IsActive = e.IsActive,
         CreatedAt = e.CreatedAt
     };

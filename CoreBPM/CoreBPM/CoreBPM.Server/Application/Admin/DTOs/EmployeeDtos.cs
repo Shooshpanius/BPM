@@ -1,6 +1,9 @@
 namespace CoreBPM.Server.Application.Admin.DTOs;
 
-/// <summary>DTO сотрудника организации.</summary>
+/// <summary>
+/// DTO сотрудника организации.
+/// Должность (positionId / positionName) вычисляется из активного назначения (OrgPositionAssignment) — read-only.
+/// </summary>
 public class EmployeeDto
 {
     public Guid Id { get; set; }
@@ -11,8 +14,13 @@ public class EmployeeDto
     public string OrganizationName { get; set; } = string.Empty;
     public Guid? DepartmentId { get; set; }
     public string? DepartmentName { get; set; }
+
+    /// <summary>Идентификатор должности из активного назначения (read-only, нельзя задать напрямую).</summary>
     public Guid? PositionId { get; set; }
+
+    /// <summary>Название должности из активного назначения (read-only).</summary>
     public string? PositionName { get; set; }
+
     public bool IsActive { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 }
@@ -25,18 +33,13 @@ public class CreateEmployeeRequest
 
     /// <summary>Подразделение организации, в которое зачисляется сотрудник. Обязательно.</summary>
     public Guid DepartmentId { get; set; }
-
-    /// <summary>Идентификатор должности из справочника org_positions.</summary>
-    public Guid? PositionId { get; set; }
 }
 
-/// <summary>Запрос на обновление данных сотрудника.</summary>
+/// <summary>Запрос на обновление данных сотрудника. Должность задаётся отдельно через /api/admin/assignments.</summary>
 public class UpdateEmployeeRequest
 {
     /// <summary>Новое подразделение. Должно принадлежать той же организации.</summary>
     public Guid DepartmentId { get; set; }
 
-    /// <summary>Идентификатор должности из справочника org_positions. Должность должна принадлежать организации сотрудника.</summary>
-    public Guid? PositionId { get; set; }
     public bool IsActive { get; set; }
 }
