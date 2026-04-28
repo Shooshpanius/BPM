@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.Text.Json.Serialization;
 using CoreBPM.Server.Application.Auth.Interfaces;
 using CoreBPM.Server.Application.Auth.Services;
 using CoreBPM.Server.Infrastructure.Middleware;
@@ -18,7 +19,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddEnvironmentVariables("BPM_S_");
 
 // Add services to the container.
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddOpenApi();
 
 // Подключение к PostgreSQL через Npgsql с именованием колонок в snake_case

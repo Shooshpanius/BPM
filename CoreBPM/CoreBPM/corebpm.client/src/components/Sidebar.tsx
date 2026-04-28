@@ -1,3 +1,4 @@
+import { useAuth } from '../context/AuthContext';
 import { APP_VERSION, LAST_PR_DATE } from '../version';
 import './Sidebar.css';
 
@@ -10,6 +11,9 @@ interface SidebarProps {
 
 /** Вертикальный сайдбар навигации (~60px) с иконками разделов. */
 export function Sidebar({ active, onSelect }: SidebarProps) {
+    const { hasRole } = useAuth();
+    const canManageOrg = hasRole('Admin') || hasRole('HR');
+
     return (
         <nav className="sidebar" aria-label="Разделы системы">
             <SidebarItem
@@ -26,23 +30,28 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
                     </svg>
                 }
             />
-            <SidebarItem
-                id="org-structure"
-                label="Оргструктура"
-                active={active === 'org-structure'}
-                onClick={() => onSelect('org-structure')}
-                icon={
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <rect x="3" y="3" width="6" height="4" rx="1"/>
-                        <rect x="9" y="10" width="6" height="4" rx="1"/>
-                        <rect x="15" y="17" width="6" height="4" rx="1"/>
-                        <rect x="3" y="17" width="6" height="4" rx="1"/>
-                        <path d="M6 7v3"/>
-                        <path d="M12 14v3"/>
-                        <path d="M6 10h12"/>
-                    </svg>
-                }
-            />
+            {canManageOrg && (
+                <>
+                    <div className="sidebar-divider" role="separator" />
+                    <SidebarItem
+                        id="org-structure"
+                        label="Оргструктура"
+                        active={active === 'org-structure'}
+                        onClick={() => onSelect('org-structure')}
+                        icon={
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                <rect x="3" y="3" width="6" height="4" rx="1"/>
+                                <rect x="9" y="10" width="6" height="4" rx="1"/>
+                                <rect x="15" y="17" width="6" height="4" rx="1"/>
+                                <rect x="3" y="17" width="6" height="4" rx="1"/>
+                                <path d="M6 7v3"/>
+                                <path d="M12 14v3"/>
+                                <path d="M6 10h12"/>
+                            </svg>
+                        }
+                    />
+                </>
+            )}
             <div className="sidebar-version" aria-label="Версия системы">
                 <span>v{APP_VERSION}</span>
                 <span>{LAST_PR_DATE}</span>

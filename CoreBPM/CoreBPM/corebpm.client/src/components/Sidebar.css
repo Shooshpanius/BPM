@@ -13,6 +13,14 @@
     overflow: hidden;
 }
 
+.sidebar-divider {
+    width: 36px;
+    height: 1px;
+    background: var(--border);
+    margin: 6px 0;
+    flex-shrink: 0;
+}
+
 .sidebar-item {
     width: 48px;
     display: flex;
