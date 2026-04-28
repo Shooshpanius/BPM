@@ -132,7 +132,7 @@ function OrganizationsTab() {
         try {
             setOrgs(await adminApi.getOrganizations(token));
         } catch (e) {
-            setError(String(e));
+            setError(e instanceof Error ? e.message : String(e));
         } finally {
             setLoading(false);
         }
@@ -145,7 +145,7 @@ function OrganizationsTab() {
         try {
             await adminApi.deleteOrganization(token, confirmDeleteId);
             await load();
-        } catch (e) { setError(String(e)); } finally {
+        } catch (e) { setError(e instanceof Error ? e.message : String(e)); } finally {
             setConfirmDeleteId(null);
         }
     };
@@ -154,7 +154,7 @@ function OrganizationsTab() {
         try {
             await adminApi.setOrganizationPrimary(token, id);
             await load();
-        } catch (e) { setError(String(e)); }
+        } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
     };
 
     return (
@@ -274,7 +274,7 @@ function OrganizationFormModal({ org, token, onClose, onSaved }: OrgFormProps) {
             }
             onSaved();
         } catch (e) {
-            setError(String(e));
+            setError(e instanceof Error ? e.message : String(e));
         } finally {
             setSaving(false);
         }
@@ -349,7 +349,7 @@ function PositionsTab() {
                 const primary = data.find(o => o.isPrimary && o.isActive) ?? data.find(o => o.isActive);
                 if (primary) setSelectedOrgId(primary.id);
             })
-            .catch(e => setError(String(e)));
+            .catch(e => setError(e instanceof Error ? e.message : String(e)));
     }, [token]);
 
     // Загрузить должности при выборе организации или переключении фильтра архива
@@ -361,7 +361,7 @@ function PositionsTab() {
             const status: PositionStatus | undefined = showArchived ? 'Archived' : 'Active';
             setPositions(await adminApi.getPositions(token, selectedOrgId, status));
         } catch (e) {
-            setError(String(e));
+            setError(e instanceof Error ? e.message : String(e));
         } finally {
             setLoading(false);
         }
@@ -382,7 +382,7 @@ function PositionsTab() {
         try {
             await adminApi.archivePosition(token, confirmArchiveId);
             await loadPositions();
-        } catch (e) { setError(String(e)); } finally {
+        } catch (e) { setError(e instanceof Error ? e.message : String(e)); } finally {
             setConfirmArchiveId(null);
         }
     };
@@ -596,7 +596,7 @@ function PositionFormModal({ position, organizationId, depts, token, onClose, on
             }
             onSaved();
         } catch (e) {
-            setError(String(e));
+            setError(e instanceof Error ? e.message : String(e));
         } finally {
             setSaving(false);
         }
@@ -703,7 +703,7 @@ function UsersTab() {
         try {
             setUsers(await adminApi.getUsers(token));
         } catch (e) {
-            setError(String(e));
+            setError(e instanceof Error ? e.message : String(e));
         } finally {
             setLoading(false);
         }
@@ -716,7 +716,7 @@ function UsersTab() {
         try {
             await adminApi.deleteUser(token, confirmDeleteId);
             await load();
-        } catch (e) { setError(String(e)); } finally {
+        } catch (e) { setError(e instanceof Error ? e.message : String(e)); } finally {
             setConfirmDeleteId(null);
         }
     };
@@ -926,7 +926,7 @@ function UserFormModal({ user, token, onClose, onSaved }: UserFormProps) {
             }
             onSaved();
         } catch (e) {
-            setError(String(e));
+            setError(e instanceof Error ? e.message : String(e));
         } finally {
             setSaving(false);
         }
@@ -1056,7 +1056,7 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
             setEmployees(emps);
             setOrgs(orgsData.filter(o => o.isActive));
         } catch (e) {
-            setError(String(e));
+            setError(e instanceof Error ? e.message : String(e));
         } finally {
             setLoading(false);
         }
@@ -1080,7 +1080,7 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
         setEditDeptsLoading(true);
         adminApi.getDepartments(token, editEmployee.organizationId)
             .then(data => setEditDepts(data.filter(d => d.isActive)))
-            .catch(e => { setEditDepts([]); setError(String(e)); })
+            .catch(e => { setEditDepts([]); setError(e instanceof Error ? e.message : String(e)); })
             .finally(() => setEditDeptsLoading(false));
     }, [editEmployee, token]);
 
@@ -1108,7 +1108,7 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
             setDepts([]);
             await load();
         } catch (e) {
-            setError(String(e));
+            setError(e instanceof Error ? e.message : String(e));
         } finally {
             setAdding(false);
         }
@@ -1129,7 +1129,7 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
             setEditEmployee(null);
             await load();
         } catch (e) {
-            setError(String(e));
+            setError(e instanceof Error ? e.message : String(e));
         } finally {
             setSaving(false);
         }
@@ -1140,7 +1140,7 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
         try {
             await adminApi.deleteEmployee(token, confirmRemoveId);
             await load();
-        } catch (e) { setError(String(e)); } finally {
+        } catch (e) { setError(e instanceof Error ? e.message : String(e)); } finally {
             setConfirmRemoveId(null);
         }
     };
@@ -1343,7 +1343,7 @@ function AssignmentsTab() {
                 const primary = active.find(o => o.isPrimary) ?? active[0];
                 if (primary) setSelectedOrgId(primary.id);
             })
-            .catch(e => setError(String(e)));
+            .catch(e => setError(e instanceof Error ? e.message : String(e)));
     }, [token]);
 
     const loadAssignments = useCallback(async () => {
@@ -1356,7 +1356,7 @@ function AssignmentsTab() {
                 activeOnly: activeOnly || undefined,
             }));
         } catch (e) {
-            setError(String(e));
+            setError(e instanceof Error ? e.message : String(e));
         } finally {
             setLoading(false);
         }
@@ -1369,7 +1369,7 @@ function AssignmentsTab() {
         try {
             await adminApi.deleteAssignment(token, confirmEndId);
             await loadAssignments();
-        } catch (e) { setError(String(e)); } finally {
+        } catch (e) { setError(e instanceof Error ? e.message : String(e)); } finally {
             setConfirmEndId(null);
         }
     };
@@ -1535,7 +1535,7 @@ function AssignmentFormModal({ assignment, organizationId, token, onClose, onSav
                 setEmployees(emps.filter(e => e.isActive));
                 setPositions(pos);
             })
-            .catch(e => setError(String(e)))
+            .catch(e => setError(e instanceof Error ? e.message : String(e)))
             .finally(() => setLoadingData(false));
     }, [token, organizationId]);
 
@@ -1569,7 +1569,7 @@ function AssignmentFormModal({ assignment, organizationId, token, onClose, onSav
             }
             onSaved();
         } catch (e) {
-            setError(String(e));
+            setError(e instanceof Error ? e.message : String(e));
         } finally {
             setSaving(false);
         }

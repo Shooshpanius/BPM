@@ -139,7 +139,12 @@ async function fetchJson<T>(url: string, token: string, options?: RequestInit): 
     });
     if (!res.ok) {
         const text = await res.text().catch(() => '');
-        throw new Error(text || `HTTP ${res.status}`);
+        let message = text || `HTTP ${res.status}`;
+        try {
+            const body = JSON.parse(text);
+            if (body?.error) message = body.error;
+        } catch { /* тело не является JSON — используем текст как есть */ }
+        throw new Error(message);
     }
     if (res.status === 204) return undefined as T;
     return res.json() as Promise<T>;
