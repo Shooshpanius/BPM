@@ -14,6 +14,9 @@ public class AppDbContext : DbContext
     public DbSet<OrgDepartment> OrgDepartments => Set<OrgDepartment>();
     public DbSet<OrgDepartmentHistory> OrgDepartmentHistories => Set<OrgDepartmentHistory>();
     public DbSet<OrgEmployee> OrgEmployees => Set<OrgEmployee>();
+    public DbSet<OrgPosition> OrgPositions => Set<OrgPosition>();
+    public DbSet<OrgPositionAttachment> OrgPositionAttachments => Set<OrgPositionAttachment>();
+    public DbSet<OrgPositionRoleMapping> OrgPositionRoleMappings => Set<OrgPositionRoleMapping>();
     public DbSet<AuthAccount> AuthAccounts => Set<AuthAccount>();
     public DbSet<AuthSession> AuthSessions => Set<AuthSession>();
     public DbSet<AuthRole> AuthRoles => Set<AuthRole>();
@@ -187,6 +190,64 @@ public class AppDbContext : DbContext
              .WithMany(r => r.UserRoles)
              .HasForeignKey(ur => ur.RoleId)
              .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Таблица должностей
+        modelBuilder.Entity<OrgPosition>(e =>
+        {
+            e.ToTable("org_positions");
+            e.HasKey(p => p.Id);
+            e.Property(p => p.Name).IsRequired().HasMaxLength(300);
+            e.Property(p => p.Code).HasMaxLength(50);
+            e.Property(p => p.Description).HasMaxLength(2000);
+            e.Property(p => p.Category).HasConversion<int>();
+            e.Property(p => p.Status).HasConversion<int>();
+            e.Property(p => p.PlannedHeadcount).HasColumnType("decimal(5,2)");
+
+            // Фильтр мягкого удаления — по умолчанию скрываем удалённые записи
+            e.HasQueryFilter(p => !p.IsDeleted);
+
+            // Уникальный код в рамках подразделения (только там, где Code != null)
+            e.HasIndex(p => new { p.DepartmentId, p.Code })
+             .HasFilter("code IS NOT NULL AND is_deleted = false")
+             .IsUnique();
+
+            e.HasOne(p => p.Department)
+             .WithMany()
+             .HasForeignKey(p => p.DepartmentId)
+             .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Таблица вложений должностей
+        modelBuilder.Entity<OrgPositionAttachment>(e =>
+        {
+            e.ToTable("org_position_attachments");
+            e.HasKey(a => a.Id);
+            e.Property(a => a.FileName).IsRequired().HasMaxLength(500);
+            e.Property(a => a.ContentType).IsRequired().HasMaxLength(200);
+            e.Property(a => a.FilePath).IsRequired().HasMaxLength(1000);
+            e.Property(a => a.Description).HasMaxLength(1000);
+
+            e.HasOne(a => a.Position)
+             .WithMany(p => p.Attachments)
+             .HasForeignKey(a => a.PositionId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Таблица матрицы ролей должностей
+        modelBuilder.Entity<OrgPositionRoleMapping>(e =>
+        {
+            e.ToTable("org_position_role_mappings");
+            e.HasKey(r => r.Id);
+            e.Property(r => r.RoleName).IsRequired().HasMaxLength(100);
+
+            // Уникальная пара должность–роль
+            e.HasIndex(r => new { r.PositionId, r.RoleName }).IsUnique();
+
+            e.HasOne(r => r.Position)
+             .WithMany(p => p.RoleMappings)
+             .HasForeignKey(r => r.PositionId)
+             .OnDelete(DeleteBehavior.Cascade);
         });
 
         // Seed системных ролей
