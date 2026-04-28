@@ -1450,9 +1450,11 @@ interface AssignmentFormProps {
 function AssignmentFormModal({ assignment, organizationId, token, onClose, onSaved }: AssignmentFormProps) {
     const [employees, setEmployees] = useState<EmployeeDto[]>([]);
     const [positions, setPositions] = useState<PositionDto[]>([]);
+    const [departments, setDepartments] = useState<DepartmentDto[]>([]);
     const [loadingData, setLoadingData] = useState(true);
 
     const [userId, setUserId] = useState(assignment?.userId ?? '');
+    const [departmentFilter, setDepartmentFilter] = useState(assignment?.departmentId ?? '');
     const [positionId, setPositionId] = useState(assignment?.positionId ?? '');
     const [rate, setRate] = useState(String(assignment?.rate ?? 1.0));
     const [isPrimary, setIsPrimary] = useState(assignment?.isPrimary ?? true);
@@ -1467,14 +1469,32 @@ function AssignmentFormModal({ assignment, organizationId, token, onClose, onSav
         Promise.all([
             adminApi.getEmployees(token, organizationId),
             adminApi.getPositions(token, organizationId),
+            adminApi.getDepartments(token, organizationId),
         ])
-            .then(([emps, pos]) => {
+            .then(([emps, pos, depts]) => {
                 setEmployees(emps.filter(e => e.isActive));
                 setPositions(pos);
+                setDepartments((depts as DepartmentDto[]).filter(d => d.isActive));
             })
             .catch(e => setError(e instanceof Error ? e.message : String(e)))
             .finally(() => setLoadingData(false));
     }, [token, organizationId]);
+
+    // Список должностей, отфильтрованный по выбранному подразделению
+    const filteredPositions = departmentFilter
+        ? positions.filter(p => p.departmentId === departmentFilter)
+        : positions;
+
+    const handleDepartmentFilterChange = (newDeptId: string) => {
+        setDepartmentFilter(newDeptId);
+        // Сбрасываем выбранную должность, если она не относится к новому подразделению
+        if (newDeptId && positionId) {
+            const pos = positions.find(p => p.id === positionId);
+            if (pos && pos.departmentId !== newDeptId) {
+                setPositionId('');
+            }
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -1544,12 +1564,29 @@ function AssignmentFormModal({ assignment, organizationId, token, onClose, onSav
                         )}
                         {!isEdit && (
                             <div className="form-group">
+                                <label>Подразделение</label>
+                                <select value={departmentFilter} onChange={e => handleDepartmentFilterChange(e.target.value)}>
+                                    <option value="">— Все подразделения —</option>
+                                    {departments.map(d => (
+                                        <option key={d.id} value={d.id}>{d.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+                        {isEdit && assignment.departmentName && (
+                            <div className="form-group">
+                                <label>Подразделение</label>
+                                <input value={assignment.departmentName} readOnly disabled />
+                            </div>
+                        )}
+                        {!isEdit && (
+                            <div className="form-group">
                                 <label>Должность *</label>
                                 <select value={positionId} onChange={e => setPositionId(e.target.value)}>
                                     <option value="">— Выберите должность —</option>
-                                    {positions.map(p => (
+                                    {filteredPositions.map(p => (
                                         <option key={p.id} value={p.id}>
-                                            {p.name}{p.departmentName ? ` (${p.departmentName})` : ''}
+                                            {p.name}{!departmentFilter && p.departmentName ? ` (${p.departmentName})` : ''}
                                         </option>
                                     ))}
                                 </select>
