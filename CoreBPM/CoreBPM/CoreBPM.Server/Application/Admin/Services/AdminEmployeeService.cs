@@ -38,20 +38,21 @@ public class AdminEmployeeService : IAdminEmployeeService
             .ThenBy(e => e.User.FirstName)
             .ToListAsync(ct);
 
-        // Загружаем активные назначения для всех сотрудников одним запросом
+        // Загружаем только основные (IsPrimary = true) действующие назначения.
+        // По бизнес-правилу у пользователя не более одного активного основного назначения.
         var userIds = employees.Select(e => e.UserId).Distinct().ToList();
         var assignments = await _db.OrgPositionAssignments
             .AsNoTracking()
             .Include(a => a.Position)
             .Where(a => userIds.Contains(a.UserId) &&
+                        a.IsPrimary &&
                         (organizationId == null || a.OrganizationId == organizationId) &&
                         (a.EndDate == null || a.EndDate >= today))
             .ToListAsync(ct);
 
-        // Индексируем по UserId + OrganizationId для быстрого поиска
+        // Ключ (UserId, OrganizationId) — уникален благодаря фильтру IsPrimary
         var assignmentsByKey = assignments
-            .GroupBy(a => (a.UserId, a.OrganizationId))
-            .ToDictionary(g => g.Key, g => g.OrderByDescending(a => a.IsPrimary).First());
+            .ToDictionary(a => (a.UserId, a.OrganizationId));
 
         return employees.Select(e =>
         {
@@ -75,17 +76,20 @@ public class AdminEmployeeService : IAdminEmployeeService
             .ToListAsync(ct);
 
         var orgIds = employees.Select(e => e.OrganizationId).ToList();
+
+        // Загружаем только основные (IsPrimary = true) действующие назначения
         var assignments = await _db.OrgPositionAssignments
             .AsNoTracking()
             .Include(a => a.Position)
             .Where(a => a.UserId == userId &&
+                        a.IsPrimary &&
                         orgIds.Contains(a.OrganizationId) &&
                         (a.EndDate == null || a.EndDate >= today))
             .ToListAsync(ct);
 
+        // Ключ OrganizationId: уникален благодаря глобальному ограничению на IsPrimary
         var assignmentsByOrg = assignments
-            .GroupBy(a => a.OrganizationId)
-            .ToDictionary(g => g.Key, g => g.OrderByDescending(a => a.IsPrimary).First());
+            .ToDictionary(a => a.OrganizationId);
 
         return employees.Select(e =>
         {
@@ -171,14 +175,14 @@ public class AdminEmployeeService : IAdminEmployeeService
         // Обновляем навигационное свойство после изменения FK
         await _db.Entry(employee).Reference(e => e.Department).LoadAsync(ct);
 
-        // Получаем текущее активное назначение для ответа
+        // Получаем текущее основное (IsPrimary = true) активное назначение для ответа
         var assignment = await _db.OrgPositionAssignments
             .AsNoTracking()
             .Include(a => a.Position)
             .Where(a => a.UserId == employee.UserId &&
                         a.OrganizationId == employee.OrganizationId &&
+                        a.IsPrimary &&
                         (a.EndDate == null || a.EndDate >= today))
-            .OrderByDescending(a => a.IsPrimary)
             .FirstOrDefaultAsync(ct);
 
         return MapToDto(employee, assignment);

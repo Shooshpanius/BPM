@@ -119,10 +119,13 @@ public class OrgDirectoryService : IOrgDirectoryService
             ? employees.FirstOrDefault()?.OrganizationId
             : organizationId;
 
+        // Загружаем только основные (IsPrimary = true) действующие назначения.
+        // По бизнес-правилу у пользователя может быть не более одного активного основного назначения.
         var assignmentsQuery = _db.OrgPositionAssignments
             .AsNoTracking()
             .Include(a => a.Position)
             .Where(a => userIds.Contains(a.UserId) &&
+                        a.IsPrimary &&
                         (a.EndDate == null || a.EndDate >= today));
 
         if (filterOrgId.HasValue)
@@ -130,9 +133,10 @@ public class OrgDirectoryService : IOrgDirectoryService
 
         var assignments = await assignmentsQuery.ToListAsync(ct);
 
+        // Ключ (UserId, OrganizationId): при глобально уникальном основном назначении
+        // каждый пользователь даёт не более одной записи в словаре.
         var assignmentsByKey = assignments
-            .GroupBy(a => (a.UserId, a.OrganizationId))
-            .ToDictionary(g => g.Key, g => g.OrderByDescending(a => a.IsPrimary).First());
+            .ToDictionary(a => (a.UserId, a.OrganizationId));
 
         return employees.Select(e =>
         {
