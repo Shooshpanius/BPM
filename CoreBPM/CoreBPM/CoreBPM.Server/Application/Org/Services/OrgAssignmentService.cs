@@ -35,6 +35,7 @@ public class OrgAssignmentService : IOrgAssignmentService
             .Include(a => a.User)
             .Include(a => a.Position).ThenInclude(p => p.Department)
             .Include(a => a.Organization)
+            .Include(a => a.Department)
             .AsQueryable();
 
         if (userId.HasValue)
@@ -67,6 +68,7 @@ public class OrgAssignmentService : IOrgAssignmentService
             .Include(a => a.User)
             .Include(a => a.Position).ThenInclude(p => p.Department)
             .Include(a => a.Organization)
+            .Include(a => a.Department)
             .FirstOrDefaultAsync(a => a.Id == id, ct)
             ?? throw new NotFoundException($"Назначение {id} не найдено");
 
@@ -119,6 +121,15 @@ public class OrgAssignmentService : IOrgAssignmentService
                     "Завершите его или создайте назначение как совмещение (IsPrimary = false).");
         }
 
+        // Проверяем подразделение, если оно задано явно
+        if (request.DepartmentId.HasValue)
+        {
+            var dept = await _db.OrgDepartments
+                .FirstOrDefaultAsync(d => d.Id == request.DepartmentId.Value, ct);
+            if (dept == null)
+                throw new NotFoundException($"Подразделение {request.DepartmentId.Value} не найдено");
+        }
+
         var now = DateTimeOffset.UtcNow;
         var assignment = new OrgPositionAssignment
         {
@@ -126,6 +137,8 @@ public class OrgAssignmentService : IOrgAssignmentService
             UserId = request.UserId,
             PositionId = request.PositionId,
             OrganizationId = position.OrganizationId,
+            // Явно заданное подразделение имеет приоритет; иначе — подразделение должности
+            DepartmentId = request.DepartmentId ?? position.DepartmentId,
             Rate = request.Rate,
             IsPrimary = request.IsPrimary,
             StartDate = request.StartDate,
@@ -202,8 +215,30 @@ public class OrgAssignmentService : IOrgAssignmentService
             assignment.PositionId = newPosition.Id;
             assignment.OrganizationId = newPosition.OrganizationId;
 
+            // Если подразделение не задано явно — берём из новой должности
+            if (!request.DepartmentId.HasValue)
+                assignment.DepartmentId = newPosition.DepartmentId;
+
             // Применяем роли новой должности
             await ApplyRoleMappingsAsync(assignment.UserId, newPosition.RoleMappings, ct);
+        }
+
+        // Явное обновление подразделения (если передано)
+        if (request.DepartmentId.HasValue)
+        {
+            if (request.DepartmentId.Value == Guid.Empty)
+            {
+                // Пустой Guid — явный сброс подразделения
+                assignment.DepartmentId = null;
+            }
+            else
+            {
+                var dept = await _db.OrgDepartments
+                    .FirstOrDefaultAsync(d => d.Id == request.DepartmentId.Value, ct);
+                if (dept == null)
+                    throw new NotFoundException($"Подразделение {request.DepartmentId.Value} не найдено");
+                assignment.DepartmentId = request.DepartmentId.Value;
+            }
         }
 
         assignment.Rate = request.Rate;
@@ -346,8 +381,8 @@ public class OrgAssignmentService : IOrgAssignmentService
         PositionName = a.Position.Name,
         OrganizationId = a.OrganizationId,
         OrganizationName = a.Organization.Name,
-        DepartmentId = a.Position.DepartmentId,
-        DepartmentName = a.Position.Department?.Name,
+        DepartmentId = a.DepartmentId,
+        DepartmentName = a.Department?.Name,
         Rate = a.Rate,
         IsPrimary = a.IsPrimary,
         StartDate = a.StartDate,

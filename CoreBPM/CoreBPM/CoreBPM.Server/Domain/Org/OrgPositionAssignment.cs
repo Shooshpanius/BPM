@@ -18,6 +18,9 @@ public class OrgPositionAssignment
     /// <summary>Организация (денормализовано для удобства фильтрации).</summary>
     public Guid OrganizationId { get; set; }
 
+    /// <summary>Подразделение, к которому относится назначение. Задаётся явно при создании/изменении; по умолчанию берётся из должности.</summary>
+    public Guid? DepartmentId { get; set; }
+
     /// <summary>Ставка занятости (0.25, 0.5, 0.75 или 1.0).</summary>
     public decimal Rate { get; set; } = 1.0m;
 
@@ -37,4 +40,5 @@ public class OrgPositionAssignment
     public OrgUser User { get; set; } = null!;
     public OrgPosition Position { get; set; } = null!;
     public OrgOrganization Organization { get; set; } = null!;
+    public OrgDepartment? Department { get; set; }
 }

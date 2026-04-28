@@ -1510,6 +1510,7 @@ function AssignmentFormModal({ assignment, organizationId, token, onClose, onSav
             if (assignment) {
                 const req: UpdateAssignmentRequest = {
                     positionId: positionId ? positionId : undefined,
+                    departmentId: departmentFilter || undefined,
                     rate: rateNum,
                     isPrimary,
                     startDate,
@@ -1520,6 +1521,7 @@ function AssignmentFormModal({ assignment, organizationId, token, onClose, onSav
                 const req: CreateAssignmentRequest = {
                     userId,
                     positionId,
+                    departmentId: departmentFilter || undefined,
                     rate: rateNum,
                     isPrimary,
                     startDate,
