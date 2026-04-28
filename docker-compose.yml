@@ -59,9 +59,9 @@ services:
       context: ./CoreBPM/CoreBPM/corebpm.client
       dockerfile: Dockerfile
       # Переменные сборки Vite (доступны в приложении как import.meta.env.BPM_C_*)
-      # Добавляйте переменные BPM_C_ при необходимости, например:
-      # args:
-      #   BPM_C_SOME_FEATURE_FLAG: "true"
+      args:
+        # ID счётчика Яндекс.Метрики (если не задан — скрипт метрики не загружается)
+        BPM_C_YANDEX_METRIKA_ID: "${BPM_C_YANDEX_METRIKA_ID:-}"
     restart: unless-stopped
     depends_on:
       - bpm_server
