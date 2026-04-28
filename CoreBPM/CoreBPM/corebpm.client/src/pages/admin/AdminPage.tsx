@@ -1481,18 +1481,19 @@ function AssignmentFormModal({ assignment, organizationId, token, onClose, onSav
     }, [token, organizationId]);
 
     // Список должностей, отфильтрованный по выбранному подразделению.
-    // При активном фильтре показываем только должности, привязанные именно к этому подразделению.
+    // При активном фильтре показываем должности выбранного подразделения
+    // и всегда включаем должности без привязки к подразделению.
     const filteredPositions = departmentFilter
-        ? positions.filter(p => p.departmentId === departmentFilter)
+        ? positions.filter(p => p.departmentId === departmentFilter || !p.departmentId)
         : positions;
 
     const handleDepartmentFilterChange = (newDeptId: string) => {
         setDepartmentFilter(newDeptId);
-        // Сбрасываем выбранную должность, если она не принадлежит новому подразделению
-        // (в том числе если должность вообще не привязана к подразделению).
+        // Сбрасываем выбранную должность только если она привязана к другому подразделению.
+        // Должности без подразделения остаются доступными при любом фильтре.
         if (positionId) {
             const pos = positions.find(p => p.id === positionId);
-            if (pos && pos.departmentId !== newDeptId) {
+            if (pos && pos.departmentId && pos.departmentId !== newDeptId) {
                 setPositionId('');
             }
         }
@@ -1582,7 +1583,7 @@ function AssignmentFormModal({ assignment, organizationId, token, onClose, onSav
                                 <option value="">— {isEdit ? 'Не изменять' : 'Выберите должность'} —</option>
                                 {filteredPositions.map(p => (
                                     <option key={p.id} value={p.id}>
-                                        {p.name}{!departmentFilter && p.departmentName ? ` (${p.departmentName})` : ''}
+                                        {p.name}{p.departmentName ? ` (${p.departmentName})` : ''}
                                     </option>
                                 ))}
                             </select>
