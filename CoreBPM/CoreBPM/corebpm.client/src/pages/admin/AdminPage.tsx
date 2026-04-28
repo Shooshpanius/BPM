@@ -1423,7 +1423,7 @@ function AssignmentsTab() {
         }
     };
 
-    const formatDate = (d?: string) => d ? d : '—';
+    const displayDate = (d?: string) => d ? d : '—';
 
     return (
         <>
@@ -1501,8 +1501,8 @@ function AssignmentsTab() {
                                         {a.isPrimary ? 'Основное' : 'Совмещение'}
                                     </span>
                                 </td>
-                                <td>{formatDate(a.startDate)}</td>
-                                <td>{formatDate(a.endDate)}</td>
+                                <td>{displayDate(a.startDate)}</td>
+                                <td>{displayDate(a.endDate)}</td>
                                 <td>
                                     <span className={`badge ${a.isActive ? 'badge-active' : 'badge-inactive'}`}>
                                         {a.isActive ? 'Активно' : 'Завершено'}

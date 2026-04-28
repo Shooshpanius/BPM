@@ -194,10 +194,10 @@ public class OrgAssignmentService : IOrgAssignmentService
 
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
-        // Если назначение ещё активно — устанавливаем дату окончания вчерашним днём
+        // Если назначение ещё активно — устанавливаем дату окончания на сегодня
         if (assignment.EndDate == null || assignment.EndDate >= today)
         {
-            assignment.EndDate = today.AddDays(-1);
+            assignment.EndDate = today;
             assignment.UpdatedAt = DateTimeOffset.UtcNow;
         }
 

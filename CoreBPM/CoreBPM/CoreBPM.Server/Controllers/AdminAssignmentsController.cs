@@ -52,7 +52,7 @@ public class AdminAssignmentsController : ControllerBase
         => Ok(await _service.UpdateAsync(id, request, ct));
 
     /// <summary>
-    /// Завершает назначение (устанавливает дату окончания = вчера).
+    /// Завершает назначение (устанавливает дату окончания = сегодня).
     /// Снимает роли должности, если у пользователя нет других активных назначений с теми же ролями.
     /// </summary>
     [HttpDelete("{id:guid}")]
