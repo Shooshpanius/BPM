@@ -8,6 +8,7 @@
 [![GitHub Forks](https://img.shields.io/github/forks/Shooshpanius/BPM?style=flat-square&logo=github&label=Forks&cacheSeconds=3600)](https://github.com/Shooshpanius/BPM/forks)
 [![GitHub Issues](https://img.shields.io/github/issues/Shooshpanius/BPM?style=flat-square&logo=github&label=Issues)](https://github.com/Shooshpanius/BPM/issues)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue?style=flat-square)](LICENSE)
+[![Version](https://img.shields.io/badge/version-0.0.47-informational?style=flat-square)](CoreBPM/CoreBPM/corebpm.client/src/version.ts)
 
 ![.NET](https://img.shields.io/badge/.NET_10-512BD4?style=flat-square&logo=dotnet&logoColor=white)
 ![React](https://img.shields.io/badge/React_19-61DAFB?style=flat-square&logo=react&logoColor=black)
@@ -50,26 +51,20 @@
 
 ## Тестовые логины для демо-базы
 
-1. Организация: «ТехноСфера» (IT-сектор)
-Отдел разработки
-Иванов Иван (Team Lead) ivanovi %$NQJKzC63oq
-Петров Петр (Senior Developer) petrovp Yo&2b6LYG6KX
-Отдел маркетинга
-Сидорова Анна (Маркетолог) sidorovaa uDyiTF$AH9@l
-Кузнецова Мария (SMM-менеджер) kuznetsovam 2jsUu5%6p$DM
-Отдел кадров
-Васильева Елена (HR-директор) vasilevae 4zV3V#5i5L@T
-Алексеев Игорь (Рекрутер) alekseevi KCSk@E0myM1C
-2. Организация: «Уютный Дом» (Ритейл)
-Отдел продаж
-Смирнов Олег (Старший менеджер) smirnovo @1aDaStaFj0*
-Козлов Дмитрий (Менеджер по работе с клиентами) kozlovd kND33A$#3%Mi
-Логистический отдел
-Морозов Артем (Диспетчер) morozova hsa*F7JcB4N&
-Павлов Сергей (Водитель-экспедитор) pavlovs I@bz8YDmN8E%
-Финансовый отдел
-Соколова Ольга (Главный бухгалтер) sokolovao q#1U*oL$v4Az
-Николаева Дарья (Экономист) nikolaevad gh*&lfINSC1f
+| Организация | Отдел | Имя | Должность | Логин | Пароль |
+|-------------|-------|-----|-----------|-------|--------|
+| ТехноСфера (IT) | Отдел разработки | Иванов Иван | Team Lead | `ivanovi` | `%$NQJKzC63oq` |
+| ТехноСфера (IT) | Отдел разработки | Петров Петр | Senior Developer | `petrovp` | `Yo&2b6LYG6KX` |
+| ТехноСфера (IT) | Отдел маркетинга | Сидорова Анна | Маркетолог | `sidorovaa` | `uDyiTF$AH9@l` |
+| ТехноСфера (IT) | Отдел маркетинга | Кузнецова Мария | SMM-менеджер | `kuznetsovam` | `2jsUu5%6p$DM` |
+| ТехноСфера (IT) | Отдел кадров | Васильева Елена | HR-директор | `vasilevae` | `4zV3V#5i5L@T` |
+| ТехноСфера (IT) | Отдел кадров | Алексеев Игорь | Рекрутер | `alekseevi` | `KCSk@E0myM1C` |
+| Уютный Дом (Ритейл) | Отдел продаж | Смирнов Олег | Старший менеджер | `smirnovo` | `@1aDaStaFj0*` |
+| Уютный Дом (Ритейл) | Отдел продаж | Козлов Дмитрий | Менеджер по работе с клиентами | `kozlovd` | `kND33A$#3%Mi` |
+| Уютный Дом (Ритейл) | Логистический отдел | Морозов Артем | Диспетчер | `morozova` | `hsa*F7JcB4N&` |
+| Уютный Дом (Ритейл) | Логистический отдел | Павлов Сергей | Водитель-экспедитор | `pavlovs` | `I@bz8YDmN8E%` |
+| Уютный Дом (Ритейл) | Финансовый отдел | Соколова Ольга | Главный бухгалтер | `sokolovao` | `q#1U*oL$v4Az` |
+| Уютный Дом (Ритейл) | Финансовый отдел | Николаева Дарья | Экономист | `nikolaevad` | `gh*&lfINSC1f` |
 
 ---
 
