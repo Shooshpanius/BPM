@@ -933,8 +933,11 @@ function PositionFormModal({ position, depts, token, onClose, onSaved }: Positio
     );
 }
 
+// ─────────────────────────────────────────────
+// Вкладка «Пользователи»
+// ─────────────────────────────────────────────
 
-
+function UsersTab() {
     const { accessToken } = useAuth();
     const token = accessToken!;
 
