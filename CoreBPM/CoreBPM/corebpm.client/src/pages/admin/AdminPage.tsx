@@ -12,9 +12,6 @@ import type {
     CreateEmployeeRequest,
     UpdateEmployeeRequest,
     DepartmentDto,
-    DepartmentTreeDto,
-    CreateDepartmentRequest,
-    UpdateDepartmentRequest,
     PositionDto,
     CreatePositionRequest,
     UpdatePositionRequest,
@@ -23,7 +20,7 @@ import type {
 } from '../../api/adminApi';
 import './AdminPage.css';
 
-type Tab = 'organizations' | 'departments' | 'positions' | 'users';
+type Tab = 'organizations' | 'positions' | 'users';
 
 interface AdminPageProps {
     onBack: () => void;
@@ -81,12 +78,6 @@ export function AdminPage({ onBack }: AdminPageProps) {
                     Организации
                 </button>
                 <button
-                    className={`admin-tab${activeTab === 'departments' ? ' active' : ''}`}
-                    onClick={() => setActiveTab('departments')}
-                >
-                    Подразделения
-                </button>
-                <button
                     className={`admin-tab${activeTab === 'positions' ? ' active' : ''}`}
                     onClick={() => setActiveTab('positions')}
                 >
@@ -102,7 +93,6 @@ export function AdminPage({ onBack }: AdminPageProps) {
 
             <div className="admin-content">
                 {activeTab === 'organizations' && <OrganizationsTab />}
-                {activeTab === 'departments' && <DepartmentsTab />}
                 {activeTab === 'positions' && <PositionsTab />}
                 {activeTab === 'users' && <UsersTab />}
             </div>
@@ -319,333 +309,6 @@ function OrganizationFormModal({ org, token, onClose, onSaved }: OrgFormProps) {
 }
 
 // ─────────────────────────────────────────────
-// Вкладка «Подразделения»
-// ─────────────────────────────────────────────
-
-interface DeptFormTrigger {
-    orgId: string;
-    parentId?: string;
-    dept: DepartmentDto | null;
-}
-
-function DepartmentsTab() {
-    const { accessToken } = useAuth();
-    const token = accessToken!;
-
-    const [orgs, setOrgs] = useState<OrganizationDto[]>([]);
-    const [tree, setTree] = useState<DepartmentTreeDto[]>([]);
-    const [selectedOrgId, setSelectedOrgId] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
-
-    const [formTrigger, setFormTrigger] = useState<DeptFormTrigger | null>(null);
-    const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-
-    // Загрузить список организаций один раз
-    useEffect(() => {
-        setLoading(true);
-        adminApi.getOrganizations(token)
-            .then(data => {
-                setOrgs(data);
-                // Автовыбор основной или первой организации
-                const primary = data.find(o => o.isPrimary && o.isActive) ?? data.find(o => o.isActive);
-                if (primary) setSelectedOrgId(primary.id);
-            })
-            .catch(e => setError(String(e)))
-            .finally(() => setLoading(false));
-    }, [token]);
-
-    const loadTree = useCallback(async () => {
-        if (!selectedOrgId) { setTree([]); return; }
-        setLoading(true);
-        setError('');
-        try {
-            setTree(await adminApi.getDepartmentsTree(token, selectedOrgId));
-        } catch (e) {
-            setError(String(e));
-        } finally {
-            setLoading(false);
-        }
-    }, [token, selectedOrgId]);
-
-    useEffect(() => { loadTree(); }, [loadTree]);
-
-    const handleDeleteConfirmed = async () => {
-        if (!confirmDeleteId) return;
-        try {
-            await adminApi.deleteDepartment(token, confirmDeleteId);
-            await loadTree();
-        } catch (e) { setError(String(e)); } finally {
-            setConfirmDeleteId(null);
-        }
-    };
-
-    const openCreate = (orgId: string, parentId?: string) =>
-        setFormTrigger({ orgId, parentId, dept: null });
-
-    const openEdit = (dept: DepartmentDto) =>
-        setFormTrigger({ orgId: dept.organizationId, dept });
-
-    // Получить плоский dept по id из дерева (нужен для редактирования)
-    const handleEditFromTree = async (nodeId: string) => {
-        // Загружаем полный DepartmentDto для редактирования
-        try {
-            const dept = await adminApi.getDepartmentById(token, nodeId);
-            openEdit(dept);
-        } catch (e) { setError(String(e)); }
-    };
-
-    return (
-        <>
-            <div className="section-header">
-                <h2>Подразделения</h2>
-                {selectedOrgId && (
-                    <button className="btn-primary" onClick={() => openCreate(selectedOrgId)}>
-                        + Создать подразделение
-                    </button>
-                )}
-            </div>
-
-            <div className="form-group" style={{ marginBottom: 16, maxWidth: 340 }}>
-                <label>Организация</label>
-                <select value={selectedOrgId} onChange={e => setSelectedOrgId(e.target.value)}>
-                    <option value="">— Выберите организацию —</option>
-                    {orgs.map(o => (
-                        <option key={o.id} value={o.id}>{o.name}</option>
-                    ))}
-                </select>
-            </div>
-
-            {error && <div className="error-msg">{error}</div>}
-
-            {!selectedOrgId ? (
-                <div className="empty-msg">Выберите организацию для просмотра структуры подразделений</div>
-            ) : loading ? (
-                <div className="loading-msg">Загрузка…</div>
-            ) : tree.length === 0 ? (
-                <div className="empty-msg">Подразделения не созданы</div>
-            ) : (
-                <div className="dept-tree">
-                    {tree.map(node => (
-                        <DepartmentTreeNode
-                            key={node.id}
-                            node={node}
-                            level={0}
-                            orgId={selectedOrgId}
-                            onAddChild={(parentId) => openCreate(selectedOrgId, parentId)}
-                            onEdit={handleEditFromTree}
-                            onDelete={(id) => setConfirmDeleteId(id)}
-                        />
-                    ))}
-                </div>
-            )}
-
-            {formTrigger && (
-                <DepartmentFormModal
-                    dept={formTrigger.dept}
-                    orgs={orgs}
-                    presetOrgId={formTrigger.orgId}
-                    presetParentId={formTrigger.parentId}
-                    token={token}
-                    onClose={() => setFormTrigger(null)}
-                    onSaved={() => { setFormTrigger(null); loadTree(); }}
-                />
-            )}
-
-            {confirmDeleteId && (
-                <ConfirmModal
-                    message="Удалить подразделение? Это невозможно, если есть дочерние подразделения или активные сотрудники."
-                    onConfirm={handleDeleteConfirmed}
-                    onCancel={() => setConfirmDeleteId(null)}
-                />
-            )}
-        </>
-    );
-}
-
-// ─────────────────────────────────────────────
-// Узел дерева подразделений
-// ─────────────────────────────────────────────
-
-interface DepartmentTreeNodeProps {
-    node: DepartmentTreeDto;
-    level: number;
-    orgId: string;
-    onAddChild: (parentId: string) => void;
-    onEdit: (id: string) => void;
-    onDelete: (id: string) => void;
-}
-
-function DepartmentTreeNode({ node, level, orgId, onAddChild, onEdit, onDelete }: DepartmentTreeNodeProps) {
-    const [expanded, setExpanded] = useState(true);
-    const hasChildren = node.children.length > 0;
-
-    return (
-        <div className="dept-tree-node" style={{ marginLeft: level * 24 }}>
-            <div className={`dept-tree-row${!node.isActive ? ' dept-inactive' : ''}`}>
-                <button
-                    className="dept-tree-toggle"
-                    onClick={() => setExpanded(v => !v)}
-                    disabled={!hasChildren}
-                    title={hasChildren ? (expanded ? 'Свернуть' : 'Развернуть') : undefined}
-                >
-                    {hasChildren ? (expanded ? '▾' : '▸') : '·'}
-                </button>
-                <span className="dept-tree-name">
-                    {node.name}
-                    {!node.isActive && <span className="badge badge-inactive" style={{ marginLeft: 6 }}>Неактивно</span>}
-                    {node.description && (
-                        <span className="dept-tree-desc"> — {node.description}</span>
-                    )}
-                </span>
-                <span className="dept-tree-count" title="Сотрудников">{node.employeesCount > 0 ? `👤 ${node.employeesCount}` : ''}</span>
-                <div className="row-actions dept-tree-actions">
-                    <button
-                        className="btn-secondary btn-sm btn-icon"
-                        title="Добавить вложенное подразделение"
-                        onClick={() => onAddChild(node.id)}
-                    >
-                        +
-                    </button>
-                    <button className="btn-secondary btn-sm" onClick={() => onEdit(node.id)}>
-                        Изменить
-                    </button>
-                    <button className="btn-danger btn-sm" onClick={() => onDelete(node.id)}>
-                        Удалить
-                    </button>
-                </div>
-            </div>
-            {hasChildren && expanded && (
-                <div className="dept-tree-children">
-                    {node.children.map(child => (
-                        <DepartmentTreeNode
-                            key={child.id}
-                            node={child}
-                            level={level + 1}
-                            orgId={orgId}
-                            onAddChild={onAddChild}
-                            onEdit={onEdit}
-                            onDelete={onDelete}
-                        />
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-}
-
-interface DepartmentFormProps {
-    dept: DepartmentDto | null;
-    orgs: OrganizationDto[];
-    presetOrgId?: string;
-    presetParentId?: string;
-    token: string;
-    onClose: () => void;
-    onSaved: () => void;
-}
-
-function DepartmentFormModal({ dept, orgs, presetOrgId, presetParentId, token, onClose, onSaved }: DepartmentFormProps) {
-    const [orgId, setOrgId] = useState(dept?.organizationId ?? presetOrgId ?? '');
-    const [parentId, setParentId] = useState(dept?.parentId ?? presetParentId ?? '');
-    const [name, setName] = useState(dept?.name ?? '');
-    const [description, setDescription] = useState(dept?.description ?? '');
-    const [isActive, setIsActive] = useState(dept?.isActive ?? true);
-    const [siblings, setSiblings] = useState<DepartmentDto[]>([]);
-    const [error, setError] = useState('');
-    const [saving, setSaving] = useState(false);
-
-    // Загрузить подразделения выбранной организации для списка родителей
-    useEffect(() => {
-        if (!orgId) { setSiblings([]); return; }
-        adminApi.getDepartments(token, orgId).then(data => {
-            setSiblings(dept ? data.filter(d => d.id !== dept.id) : data);
-        }).catch(() => setSiblings([]));
-    }, [orgId, token, dept]);
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!name.trim()) { setError('Введите наименование подразделения'); return; }
-        if (!orgId) { setError('Выберите организацию'); return; }
-        setSaving(true);
-        setError('');
-        try {
-            if (dept) {
-                const req: UpdateDepartmentRequest = {
-                    name,
-                    description: description || undefined,
-                    parentId: parentId || undefined,
-                    isActive,
-                };
-                await adminApi.updateDepartment(token, dept.id, req);
-            } else {
-                const req: CreateDepartmentRequest = {
-                    organizationId: orgId,
-                    name,
-                    description: description || undefined,
-                    parentId: parentId || undefined,
-                };
-                await adminApi.createDepartment(token, req);
-            }
-            onSaved();
-        } catch (e) {
-            setError(String(e));
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal" onClick={e => e.stopPropagation()}>
-                <h3>{dept ? 'Редактировать подразделение' : 'Создать подразделение'}</h3>
-                {error && <div className="error-msg">{error}</div>}
-                <form onSubmit={handleSubmit}>
-                    <div className="form-group">
-                        <label>Организация *</label>
-                        <select value={orgId} onChange={e => { setOrgId(e.target.value); setParentId(''); }} disabled={!!dept || !!presetOrgId}>
-                            <option value="">— Выберите организацию —</option>
-                            {orgs.map(o => (
-                                <option key={o.id} value={o.id}>{o.name}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="form-group">
-                        <label>Родительское подразделение</label>
-                        <select value={parentId} onChange={e => setParentId(e.target.value)} disabled={!orgId}>
-                            <option value="">— Корневое подразделение —</option>
-                            {siblings.map(d => (
-                                <option key={d.id} value={d.id}>{d.name}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="form-group">
-                        <label>Наименование *</label>
-                        <input value={name} onChange={e => setName(e.target.value)} placeholder="Отдел разработки" />
-                    </div>
-                    <div className="form-group">
-                        <label>Описание</label>
-                        <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Краткое описание" />
-                    </div>
-                    {dept && (
-                        <div className="form-group">
-                            <label className="form-check">
-                                <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} />
-                                Активно
-                            </label>
-                        </div>
-                    )}
-                    <div className="modal-actions">
-                        <button type="button" className="btn-secondary" onClick={onClose}>Отмена</button>
-                        <button type="submit" className="btn-primary" disabled={saving}>
-                            {saving ? 'Сохранение…' : 'Сохранить'}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    );
-}
-// ─────────────────────────────────────────────
 // Вкладка «Должности»
 // ─────────────────────────────────────────────
 
@@ -659,6 +322,10 @@ function PositionsTab() {
     const [depts, setDepts] = useState<DepartmentDto[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+
+    // Фильтры
+    const [searchQuery, setSearchQuery] = useState('');
+    const [showArchived, setShowArchived] = useState(false);
 
     const [showForm, setShowForm] = useState(false);
     const [editPosition, setEditPosition] = useState<PositionDto | null>(null);
@@ -675,19 +342,20 @@ function PositionsTab() {
             .catch(e => setError(String(e)));
     }, [token]);
 
-    // Загрузить должности при выборе организации
+    // Загрузить должности при выборе организации или переключении фильтра архива
     const loadPositions = useCallback(async () => {
         if (!selectedOrgId) { setPositions([]); return; }
         setLoading(true);
         setError('');
         try {
-            setPositions(await adminApi.getPositions(token, selectedOrgId));
+            const status: PositionStatus | undefined = showArchived ? 'Archived' : 'Active';
+            setPositions(await adminApi.getPositions(token, selectedOrgId, status));
         } catch (e) {
             setError(String(e));
         } finally {
             setLoading(false);
         }
-    }, [token, selectedOrgId]);
+    }, [token, selectedOrgId, showArchived]);
 
     useEffect(() => { loadPositions(); }, [loadPositions]);
 
@@ -715,25 +383,61 @@ function PositionsTab() {
         Project: 'Проектная',
     };
 
+    // Клиентская фильтрация по строке поиска
+    const q = searchQuery.trim().toLowerCase();
+    const filteredPositions = q
+        ? positions.filter(p =>
+            p.name.toLowerCase().includes(q) ||
+            (p.code ?? '').toLowerCase().includes(q) ||
+            (p.description ?? '').toLowerCase().includes(q) ||
+            (p.departmentName ?? '').toLowerCase().includes(q)
+        )
+        : positions;
+
     return (
         <>
             <div className="section-header">
                 <h2>Должности</h2>
-                {selectedOrgId && (
+                {selectedOrgId && !showArchived && (
                     <button className="btn-primary" onClick={() => { setEditPosition(null); setShowForm(true); }}>
                         + Создать должность
                     </button>
                 )}
             </div>
 
-            <div className="form-group" style={{ marginBottom: 16, maxWidth: 340 }}>
-                <label>Организация</label>
-                <select value={selectedOrgId} onChange={e => setSelectedOrgId(e.target.value)}>
-                    <option value="">— Выберите организацию —</option>
-                    {orgs.map(o => (
-                        <option key={o.id} value={o.id}>{o.name}</option>
-                    ))}
-                </select>
+            {/* Строка фильтров */}
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 16 }}>
+                <div className="form-group" style={{ marginBottom: 0, minWidth: 240, maxWidth: 340, flex: '1 1 240px' }}>
+                    <label>Организация</label>
+                    <select value={selectedOrgId} onChange={e => setSelectedOrgId(e.target.value)}>
+                        <option value="">— Выберите организацию —</option>
+                        {orgs.map(o => (
+                            <option key={o.id} value={o.id}>{o.name}</option>
+                        ))}
+                    </select>
+                </div>
+
+                <div className="form-group" style={{ marginBottom: 0, flex: '2 1 220px' }}>
+                    <label>Поиск</label>
+                    <input
+                        type="search"
+                        placeholder="Название, код, описание, подразделение…"
+                        value={searchQuery}
+                        onChange={e => setSearchQuery(e.target.value)}
+                    />
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 2, whiteSpace: 'nowrap' }}>
+                    <input
+                        id="show-archived-positions"
+                        type="checkbox"
+                        checked={showArchived}
+                        onChange={e => setShowArchived(e.target.checked)}
+                    />
+                    <label htmlFor="show-archived-positions" style={{ margin: 0, cursor: 'pointer', userSelect: 'none' }}>
+                        Показать архивные
+                    </label>
+                </div>
             </div>
 
             {error && <div className="error-msg">{error}</div>}
@@ -742,8 +446,10 @@ function PositionsTab() {
                 <div className="empty-msg">Выберите организацию для просмотра должностей</div>
             ) : loading ? (
                 <div className="loading-msg">Загрузка…</div>
-            ) : positions.length === 0 ? (
-                <div className="empty-msg">Должности не созданы</div>
+            ) : filteredPositions.length === 0 ? (
+                <div className="empty-msg">
+                    {q ? 'Ничего не найдено по запросу' : showArchived ? 'Архивных должностей нет' : 'Должности не созданы'}
+                </div>
             ) : (
                 <table className="data-table">
                     <thead>
@@ -756,13 +462,18 @@ function PositionsTab() {
                         </tr>
                     </thead>
                     <tbody>
-                        {positions.map(pos => (
-                            <tr key={pos.id}>
+                        {filteredPositions.map(pos => (
+                            <tr key={pos.id} style={pos.status === 'Archived' ? { opacity: 0.65 } : undefined}>
                                 <td>
-                                    {pos.name}
-                                    {pos.code && (
-                                        <span style={{ marginLeft: 6, fontSize: '0.78rem', color: '#94a3b8' }}>[{pos.code}]</span>
-                                    )}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                        {pos.name}
+                                        {pos.code && (
+                                            <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>[{pos.code}]</span>
+                                        )}
+                                        {pos.status === 'Archived' && (
+                                            <span className="badge badge-inactive" style={{ fontSize: '0.72rem' }}>Архив</span>
+                                        )}
+                                    </div>
                                     {pos.description && (
                                         <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: 2 }}>{pos.description}</div>
                                     )}
@@ -772,14 +483,18 @@ function PositionsTab() {
                                 <td>{pos.plannedHeadcount} / {pos.occupiedHeadcount}</td>
                                 <td>
                                     <div className="row-actions">
-                                        <button className="btn-secondary btn-sm"
-                                            onClick={() => { setEditPosition(pos); setShowForm(true); }}>
-                                            Изменить
-                                        </button>
-                                        <button className="btn-danger btn-sm"
-                                            onClick={() => setConfirmArchiveId(pos.id)}>
-                                            Архивировать
-                                        </button>
+                                        {pos.status !== 'Archived' && (
+                                            <>
+                                                <button className="btn-secondary btn-sm"
+                                                    onClick={() => { setEditPosition(pos); setShowForm(true); }}>
+                                                    Изменить
+                                                </button>
+                                                <button className="btn-danger btn-sm"
+                                                    onClick={() => setConfirmArchiveId(pos.id)}>
+                                                    Архивировать
+                                                </button>
+                                            </>
+                                        )}
                                     </div>
                                 </td>
                             </tr>
@@ -791,6 +506,7 @@ function PositionsTab() {
             {showForm && (
                 <PositionFormModal
                     position={editPosition}
+                    organizationId={selectedOrgId}
                     depts={depts}
                     token={token}
                     onClose={() => setShowForm(false)}
@@ -811,13 +527,14 @@ function PositionsTab() {
 
 interface PositionFormProps {
     position: PositionDto | null;
+    organizationId: string;
     depts: DepartmentDto[];
     token: string;
     onClose: () => void;
     onSaved: () => void;
 }
 
-function PositionFormModal({ position, depts, token, onClose, onSaved }: PositionFormProps) {
+function PositionFormModal({ position, organizationId, depts, token, onClose, onSaved }: PositionFormProps) {
     const [name, setName] = useState(position?.name ?? '');
     const [code, setCode] = useState(position?.code ?? '');
     const [description, setDescription] = useState(position?.description ?? '');
@@ -827,6 +544,14 @@ function PositionFormModal({ position, depts, token, onClose, onSaved }: Positio
     const [plannedHeadcount, setPlannedHeadcount] = useState(String(position?.plannedHeadcount ?? 1));
     const [error, setError] = useState('');
     const [saving, setSaving] = useState(false);
+    const [flashButtons, setFlashButtons] = useState(false);
+
+    // При клике мимо модального окна подсвечиваем кнопки действий
+    const handleOverlayClick = useCallback(() => {
+        if (flashButtons) return;
+        setFlashButtons(true);
+        setTimeout(() => setFlashButtons(false), 900);
+    }, [flashButtons]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -849,6 +574,7 @@ function PositionFormModal({ position, depts, token, onClose, onSaved }: Positio
                 await adminApi.updatePosition(token, position.id, req);
             } else {
                 const req: CreatePositionRequest = {
+                    organizationId,
                     name: name.trim(),
                     code: code.trim() || undefined,
                     description: description.trim() || undefined,
@@ -867,7 +593,7 @@ function PositionFormModal({ position, depts, token, onClose, onSaved }: Positio
     };
 
     return (
-        <div className="modal-overlay" onClick={onClose}>
+        <div className="modal-overlay" onClick={handleOverlayClick}>
             <div className="modal" onClick={e => e.stopPropagation()}>
                 <h3>{position ? 'Редактировать должность' : 'Создать должность'}</h3>
                 {error && <div className="error-msg">{error}</div>}
@@ -921,8 +647,18 @@ function PositionFormModal({ position, depts, token, onClose, onSaved }: Positio
                         <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Краткое описание обязанностей" />
                     </div>
                     <div className="modal-actions">
-                        <button type="button" className="btn-secondary" onClick={onClose}>Отмена</button>
-                        <button type="submit" className="btn-primary" disabled={saving}>
+                        <button
+                            type="button"
+                            className={`btn-secondary${flashButtons ? ' btn-flash' : ''}`}
+                            onClick={onClose}
+                        >
+                            Отмена
+                        </button>
+                        <button
+                            type="submit"
+                            className={`btn-primary${flashButtons ? ' btn-flash' : ''}`}
+                            disabled={saving}
+                        >
                             {saving ? 'Сохранение…' : 'Сохранить'}
                         </button>
                     </div>
@@ -1154,11 +890,11 @@ function UserFormModal({ user, token, onClose, onSaved }: UserFormProps) {
     };
 
     // При клике мимо модального окна подсвечиваем кнопки действий
-    const handleOverlayClick = () => {
+    const handleOverlayClick = useCallback(() => {
         if (flashButtons) return;
         setFlashButtons(true);
         setTimeout(() => setFlashButtons(false), 900);
-    };
+    }, [flashButtons]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

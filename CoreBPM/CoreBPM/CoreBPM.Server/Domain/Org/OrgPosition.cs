@@ -7,6 +7,9 @@ public class OrgPosition
 {
     public Guid Id { get; set; }
 
+    /// <summary>Организация, к которой относится должность.</summary>
+    public Guid OrganizationId { get; set; }
+
     /// <summary>Наименование должности.</summary>
     public string Name { get; set; } = string.Empty;
 
@@ -35,6 +38,7 @@ public class OrgPosition
     public bool IsDeleted { get; set; }
 
     // Навигационные свойства
+    public OrgOrganization? Organization { get; set; }
     public OrgDepartment? Department { get; set; }
     public ICollection<OrgPositionAttachment> Attachments { get; set; } = new List<OrgPositionAttachment>();
     public ICollection<OrgPositionRoleMapping> RoleMappings { get; set; } = new List<OrgPositionRoleMapping>();
