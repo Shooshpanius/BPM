@@ -229,6 +229,7 @@ export type PositionStatus = 'Active' | 'Archived';
 
 export interface PositionDto {
     id: string;
+    organizationId: string;
     name: string;
     code?: string;
     description?: string;
@@ -244,6 +245,7 @@ export interface PositionDto {
 }
 
 export interface CreatePositionRequest {
+    organizationId: string;
     name: string;
     code?: string;
     description?: string;

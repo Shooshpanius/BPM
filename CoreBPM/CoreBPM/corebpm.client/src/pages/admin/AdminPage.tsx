@@ -454,6 +454,7 @@ function PositionsTab() {
             {showForm && (
                 <PositionFormModal
                     position={editPosition}
+                    organizationId={selectedOrgId}
                     depts={depts}
                     token={token}
                     onClose={() => setShowForm(false)}
@@ -474,13 +475,14 @@ function PositionsTab() {
 
 interface PositionFormProps {
     position: PositionDto | null;
+    organizationId: string;
     depts: DepartmentDto[];
     token: string;
     onClose: () => void;
     onSaved: () => void;
 }
 
-function PositionFormModal({ position, depts, token, onClose, onSaved }: PositionFormProps) {
+function PositionFormModal({ position, organizationId, depts, token, onClose, onSaved }: PositionFormProps) {
     const [name, setName] = useState(position?.name ?? '');
     const [code, setCode] = useState(position?.code ?? '');
     const [description, setDescription] = useState(position?.description ?? '');
@@ -520,6 +522,7 @@ function PositionFormModal({ position, depts, token, onClose, onSaved }: Positio
                 await adminApi.updatePosition(token, position.id, req);
             } else {
                 const req: CreatePositionRequest = {
+                    organizationId,
                     name: name.trim(),
                     code: code.trim() || undefined,
                     description: description.trim() || undefined,

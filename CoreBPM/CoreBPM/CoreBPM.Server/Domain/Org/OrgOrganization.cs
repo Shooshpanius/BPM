@@ -24,4 +24,5 @@ public class OrgOrganization
     // Навигационные свойства
     public ICollection<OrgEmployee> Employees { get; set; } = new List<OrgEmployee>();
     public ICollection<OrgDepartment> Departments { get; set; } = new List<OrgDepartment>();
+    public ICollection<OrgPosition> Positions { get; set; } = new List<OrgPosition>();
 }

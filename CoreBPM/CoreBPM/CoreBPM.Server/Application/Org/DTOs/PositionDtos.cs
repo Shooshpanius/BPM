@@ -7,6 +7,9 @@ namespace CoreBPM.Server.Application.Org.DTOs;
 /// <summary>Запрос на создание должности.</summary>
 public class CreatePositionRequest
 {
+    /// <summary>Организация, к которой относится должность.</summary>
+    public Guid OrganizationId { get; set; }
+
     /// <summary>Наименование должности.</summary>
     public string Name { get; set; } = string.Empty;
 
@@ -64,6 +67,7 @@ public class SetPositionRoleMappingsRequest
 public class PositionResponse
 {
     public Guid Id { get; set; }
+    public Guid OrganizationId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? Code { get; set; }
     public string? Description { get; set; }

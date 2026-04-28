@@ -39,7 +39,7 @@ public class OrgPositionsService : IOrgPositionsService
             query = query.Where(p => p.DepartmentId == departmentId.Value);
 
         if (organizationId.HasValue)
-            query = query.Where(p => p.DepartmentId.HasValue && p.Department!.OrganizationId == organizationId.Value);
+            query = query.Where(p => p.OrganizationId == organizationId.Value);
 
         if (category.HasValue)
             query = query.Where(p => p.Category == category.Value);
@@ -80,19 +80,27 @@ public class OrgPositionsService : IOrgPositionsService
         if (request.PlannedHeadcount <= 0)
             throw new ValidationException("Плановое число ставок должно быть больше нуля");
 
+        var orgExists = await _db.OrgOrganizations.AnyAsync(o => o.Id == request.OrganizationId, ct);
+        if (!orgExists)
+            throw new NotFoundException($"Организация {request.OrganizationId} не найдена");
+
         if (request.DepartmentId.HasValue)
         {
-            var deptExists = await _db.OrgDepartments.AnyAsync(d => d.Id == request.DepartmentId.Value, ct);
-            if (!deptExists)
+            var dept = await _db.OrgDepartments
+                .FirstOrDefaultAsync(d => d.Id == request.DepartmentId.Value, ct);
+            if (dept == null)
                 throw new NotFoundException($"Подразделение {request.DepartmentId.Value} не найдено");
+            if (dept.OrganizationId != request.OrganizationId)
+                throw new ValidationException("Подразделение не принадлежит указанной организации");
         }
 
-        await ValidateCodeUniqueAsync(request.DepartmentId, request.Code, null, ct);
+        await ValidateCodeUniqueAsync(request.OrganizationId, request.Code, null, ct);
 
         var now = DateTimeOffset.UtcNow;
         var position = new OrgPosition
         {
             Id = Guid.NewGuid(),
+            OrganizationId = request.OrganizationId,
             Name = request.Name.Trim(),
             Code = request.Code?.Trim(),
             Description = request.Description?.Trim(),
@@ -124,12 +132,15 @@ public class OrgPositionsService : IOrgPositionsService
 
         if (request.DepartmentId.HasValue)
         {
-            var deptExists = await _db.OrgDepartments.AnyAsync(d => d.Id == request.DepartmentId.Value, ct);
-            if (!deptExists)
+            var dept = await _db.OrgDepartments
+                .FirstOrDefaultAsync(d => d.Id == request.DepartmentId.Value, ct);
+            if (dept == null)
                 throw new NotFoundException($"Подразделение {request.DepartmentId.Value} не найдено");
+            if (dept.OrganizationId != position.OrganizationId)
+                throw new ValidationException("Подразделение не принадлежит организации этой должности");
         }
 
-        await ValidateCodeUniqueAsync(request.DepartmentId, request.Code, positionId, ct);
+        await ValidateCodeUniqueAsync(position.OrganizationId, request.Code, positionId, ct);
 
         position.Name = request.Name.Trim();
         position.Code = request.Code?.Trim();
@@ -298,6 +309,7 @@ public class OrgPositionsService : IOrgPositionsService
     private static PositionResponse MapToResponse(OrgPosition p) => new()
     {
         Id = p.Id,
+        OrganizationId = p.OrganizationId,
         Name = p.Name,
         Code = p.Code,
         Description = p.Description,
@@ -333,17 +345,17 @@ public class OrgPositionsService : IOrgPositionsService
             .ToList()
     };
 
-    private async Task ValidateCodeUniqueAsync(Guid? departmentId, string? code, Guid? excludeId, CancellationToken ct)
+    private async Task ValidateCodeUniqueAsync(Guid organizationId, string? code, Guid? excludeId, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(code) || !departmentId.HasValue) return;
+        if (string.IsNullOrWhiteSpace(code)) return;
 
         var trimmed = code.Trim();
         var exists = await _db.OrgPositions.AnyAsync(p =>
-            p.DepartmentId == departmentId.Value &&
+            p.OrganizationId == organizationId &&
             p.Code == trimmed &&
             (excludeId == null || p.Id != excludeId.Value), ct);
 
         if (exists)
-            throw new ValidationException($"Должность с кодом '{trimmed}' уже существует в этом подразделении");
+            throw new ValidationException($"Должность с кодом '{trimmed}' уже существует в этой организации");
     }
 }
