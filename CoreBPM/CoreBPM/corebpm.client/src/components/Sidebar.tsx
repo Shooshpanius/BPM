@@ -1,4 +1,4 @@
-import { LAST_PR_NUMBER, LAST_PR_DATE } from '../version';
+import { APP_VERSION, LAST_PR_DATE } from '../version';
 import './Sidebar.css';
 
 export type SidebarSection = 'contacts';
@@ -27,7 +27,7 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
                 }
             />
             <div className="sidebar-version" aria-label="Версия системы">
-                <span>#{LAST_PR_NUMBER}</span>
+                <span>v{APP_VERSION}</span>
                 <span>{LAST_PR_DATE}</span>
             </div>
         </nav>
