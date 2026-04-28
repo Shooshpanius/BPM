@@ -226,8 +226,8 @@ export interface PositionDto {
     name: string;
     code?: string;
     description?: string;
-    departmentId: string;
-    departmentName: string;
+    departmentId?: string;
+    departmentName?: string;
     category: PositionCategory;
     status: PositionStatus;
     plannedHeadcount: number;
@@ -241,7 +241,7 @@ export interface CreatePositionRequest {
     name: string;
     code?: string;
     description?: string;
-    departmentId: string;
+    departmentId?: string;
     category: PositionCategory;
     plannedHeadcount: number;
 }
@@ -250,7 +250,7 @@ export interface UpdatePositionRequest {
     name: string;
     code?: string;
     description?: string;
-    departmentId: string;
+    departmentId?: string;
     category: PositionCategory;
     status: PositionStatus;
     plannedHeadcount: number;

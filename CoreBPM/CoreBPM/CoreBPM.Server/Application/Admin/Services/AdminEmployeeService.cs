@@ -85,7 +85,7 @@ public class AdminEmployeeService : IAdminEmployeeService
         {
             var positionBelongsToOrg = await _db.OrgPositions
                 .AnyAsync(p => p.Id == request.PositionId.Value &&
-                               p.Department!.OrganizationId == request.OrganizationId, ct);
+                               (p.DepartmentId == null || p.Department!.OrganizationId == request.OrganizationId), ct);
             if (!positionBelongsToOrg)
                 throw new ValidationException("Указанная должность не принадлежит данной организации");
         }
@@ -138,7 +138,7 @@ public class AdminEmployeeService : IAdminEmployeeService
         {
             var positionBelongsToOrg = await _db.OrgPositions
                 .AnyAsync(p => p.Id == request.PositionId.Value &&
-                               p.Department!.OrganizationId == employee.OrganizationId, ct);
+                               (p.DepartmentId == null || p.Department!.OrganizationId == employee.OrganizationId), ct);
             if (!positionBelongsToOrg)
                 throw new ValidationException("Указанная должность не принадлежит данной организации");
         }

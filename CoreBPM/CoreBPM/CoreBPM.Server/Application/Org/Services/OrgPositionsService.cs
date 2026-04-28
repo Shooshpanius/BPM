@@ -39,7 +39,7 @@ public class OrgPositionsService : IOrgPositionsService
             query = query.Where(p => p.DepartmentId == departmentId.Value);
 
         if (organizationId.HasValue)
-            query = query.Where(p => p.Department!.OrganizationId == organizationId.Value);
+            query = query.Where(p => p.DepartmentId.HasValue && p.Department!.OrganizationId == organizationId.Value);
 
         if (category.HasValue)
             query = query.Where(p => p.Category == category.Value);
@@ -80,9 +80,12 @@ public class OrgPositionsService : IOrgPositionsService
         if (request.PlannedHeadcount <= 0)
             throw new ValidationException("Плановое число ставок должно быть больше нуля");
 
-        var deptExists = await _db.OrgDepartments.AnyAsync(d => d.Id == request.DepartmentId, ct);
-        if (!deptExists)
-            throw new NotFoundException($"Подразделение {request.DepartmentId} не найдено");
+        if (request.DepartmentId.HasValue)
+        {
+            var deptExists = await _db.OrgDepartments.AnyAsync(d => d.Id == request.DepartmentId.Value, ct);
+            if (!deptExists)
+                throw new NotFoundException($"Подразделение {request.DepartmentId.Value} не найдено");
+        }
 
         await ValidateCodeUniqueAsync(request.DepartmentId, request.Code, null, ct);
 
@@ -119,9 +122,12 @@ public class OrgPositionsService : IOrgPositionsService
         var position = await _db.OrgPositions.FindAsync(new object[] { positionId }, ct)
             ?? throw new NotFoundException($"Должность {positionId} не найдена");
 
-        var deptExists = await _db.OrgDepartments.AnyAsync(d => d.Id == request.DepartmentId, ct);
-        if (!deptExists)
-            throw new NotFoundException($"Подразделение {request.DepartmentId} не найдено");
+        if (request.DepartmentId.HasValue)
+        {
+            var deptExists = await _db.OrgDepartments.AnyAsync(d => d.Id == request.DepartmentId.Value, ct);
+            if (!deptExists)
+                throw new NotFoundException($"Подразделение {request.DepartmentId.Value} не найдено");
+        }
 
         await ValidateCodeUniqueAsync(request.DepartmentId, request.Code, positionId, ct);
 
@@ -296,7 +302,7 @@ public class OrgPositionsService : IOrgPositionsService
         Code = p.Code,
         Description = p.Description,
         DepartmentId = p.DepartmentId,
-        DepartmentName = p.Department?.Name ?? string.Empty,
+        DepartmentName = p.Department?.Name,
         Category = p.Category,
         Status = p.Status,
         PlannedHeadcount = p.PlannedHeadcount,
@@ -327,13 +333,13 @@ public class OrgPositionsService : IOrgPositionsService
             .ToList()
     };
 
-    private async Task ValidateCodeUniqueAsync(Guid departmentId, string? code, Guid? excludeId, CancellationToken ct)
+    private async Task ValidateCodeUniqueAsync(Guid? departmentId, string? code, Guid? excludeId, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(code)) return;
+        if (string.IsNullOrWhiteSpace(code) || !departmentId.HasValue) return;
 
         var trimmed = code.Trim();
         var exists = await _db.OrgPositions.AnyAsync(p =>
-            p.DepartmentId == departmentId &&
+            p.DepartmentId == departmentId.Value &&
             p.Code == trimmed &&
             (excludeId == null || p.Id != excludeId.Value), ct);
 

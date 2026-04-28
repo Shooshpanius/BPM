@@ -16,8 +16,8 @@ public class OrgPosition
     /// <summary>Описание должности.</summary>
     public string? Description { get; set; }
 
-    /// <summary>Подразделение, к которому относится должность.</summary>
-    public Guid DepartmentId { get; set; }
+    /// <summary>Подразделение, к которому относится должность (необязательно).</summary>
+    public Guid? DepartmentId { get; set; }
 
     /// <summary>Категория должности (руководящая / рядовая / проектная).</summary>
     public PositionCategory Category { get; set; } = PositionCategory.Regular;
@@ -35,7 +35,7 @@ public class OrgPosition
     public bool IsDeleted { get; set; }
 
     // Навигационные свойства
-    public OrgDepartment Department { get; set; } = null!;
+    public OrgDepartment? Department { get; set; }
     public ICollection<OrgPositionAttachment> Attachments { get; set; } = new List<OrgPositionAttachment>();
     public ICollection<OrgPositionRoleMapping> RoleMappings { get; set; } = new List<OrgPositionRoleMapping>();
 }

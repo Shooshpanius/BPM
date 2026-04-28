@@ -212,15 +212,16 @@ public class AppDbContext : DbContext
             // Фильтр мягкого удаления — по умолчанию скрываем удалённые записи
             e.HasQueryFilter(p => !p.IsDeleted);
 
-            // Уникальный код в рамках подразделения (только там, где Code != null)
+            // Уникальный код в рамках подразделения (только там, где Code != null и DepartmentId != null)
             e.HasIndex(p => new { p.DepartmentId, p.Code })
-             .HasFilter("code IS NOT NULL AND is_deleted = false")
+             .HasFilter("department_id IS NOT NULL AND code IS NOT NULL AND is_deleted = false")
              .IsUnique();
 
             e.HasOne(p => p.Department)
              .WithMany()
              .HasForeignKey(p => p.DepartmentId)
-             .OnDelete(DeleteBehavior.Restrict);
+             .OnDelete(DeleteBehavior.SetNull)
+             .IsRequired(false);
         });
 
         // Таблица вложений должностей

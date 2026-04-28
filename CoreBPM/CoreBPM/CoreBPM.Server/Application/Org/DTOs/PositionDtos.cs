@@ -16,8 +16,8 @@ public class CreatePositionRequest
     /// <summary>Описание должности.</summary>
     public string? Description { get; set; }
 
-    /// <summary>Идентификатор подразделения.</summary>
-    public Guid DepartmentId { get; set; }
+    /// <summary>Идентификатор подразделения (необязательно).</summary>
+    public Guid? DepartmentId { get; set; }
 
     /// <summary>Категория должности.</summary>
     public PositionCategory Category { get; set; } = PositionCategory.Regular;
@@ -38,8 +38,8 @@ public class UpdatePositionRequest
     /// <summary>Описание должности.</summary>
     public string? Description { get; set; }
 
-    /// <summary>Идентификатор подразделения.</summary>
-    public Guid DepartmentId { get; set; }
+    /// <summary>Идентификатор подразделения (необязательно).</summary>
+    public Guid? DepartmentId { get; set; }
 
     /// <summary>Категория должности.</summary>
     public PositionCategory Category { get; set; }
@@ -67,10 +67,10 @@ public class PositionResponse
     public string Name { get; set; } = string.Empty;
     public string? Code { get; set; }
     public string? Description { get; set; }
-    public Guid DepartmentId { get; set; }
+    public Guid? DepartmentId { get; set; }
 
     /// <summary>Краткое название подразделения.</summary>
-    public string DepartmentName { get; set; } = string.Empty;
+    public string? DepartmentName { get; set; }
 
     public PositionCategory Category { get; set; }
     public PositionStatus Status { get; set; }

@@ -767,7 +767,7 @@ function PositionsTab() {
                                         <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: 2 }}>{pos.description}</div>
                                     )}
                                 </td>
-                                <td>{pos.departmentName}</td>
+                                <td>{pos.departmentName ?? '—'}</td>
                                 <td>{CATEGORY_LABELS[pos.category] ?? pos.category}</td>
                                 <td>{pos.plannedHeadcount} / {pos.occupiedHeadcount}</td>
                                 <td>
@@ -831,7 +831,6 @@ function PositionFormModal({ position, depts, token, onClose, onSaved }: Positio
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!name.trim()) { setError('Введите наименование должности'); return; }
-        if (!departmentId) { setError('Выберите подразделение'); return; }
         const headcount = parseFloat(plannedHeadcount);
         if (isNaN(headcount) || headcount <= 0) { setError('Плановое число ставок должно быть больше нуля'); return; }
         setSaving(true);
@@ -842,7 +841,7 @@ function PositionFormModal({ position, depts, token, onClose, onSaved }: Positio
                     name: name.trim(),
                     code: code.trim() || undefined,
                     description: description.trim() || undefined,
-                    departmentId,
+                    departmentId: departmentId || undefined,
                     category,
                     status,
                     plannedHeadcount: headcount,
@@ -853,7 +852,7 @@ function PositionFormModal({ position, depts, token, onClose, onSaved }: Positio
                     name: name.trim(),
                     code: code.trim() || undefined,
                     description: description.trim() || undefined,
-                    departmentId,
+                    departmentId: departmentId || undefined,
                     category,
                     plannedHeadcount: headcount,
                 };
@@ -882,9 +881,9 @@ function PositionFormModal({ position, depts, token, onClose, onSaved }: Positio
                         <input value={code} onChange={e => setCode(e.target.value)} placeholder="ENG-01" />
                     </div>
                     <div className="form-group">
-                        <label>Подразделение *</label>
-                        <select value={departmentId} onChange={e => setDepartmentId(e.target.value)} disabled={!!position}>
-                            <option value="">— Выберите подразделение —</option>
+                        <label>Подразделение</label>
+                        <select value={departmentId} onChange={e => setDepartmentId(e.target.value)}>
+                            <option value="">— Без привязки к подразделению —</option>
                             {depts.map(d => (
                                 <option key={d.id} value={d.id}>{d.name}</option>
                             ))}
