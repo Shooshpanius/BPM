@@ -28,11 +28,14 @@ public class OrgPositionsService : IOrgPositionsService
         PositionStatus? status = null,
         CancellationToken ct = default)
     {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
         var query = _db.OrgPositions
             .AsNoTracking()
             .Include(p => p.Department)
             .Include(p => p.RoleMappings)
             .Include(p => p.Attachments)
+            .Include(p => p.Assignments.Where(a => a.EndDate == null || a.EndDate >= today))
             .AsQueryable();
 
         if (departmentId.HasValue)
@@ -54,21 +57,24 @@ public class OrgPositionsService : IOrgPositionsService
             .OrderBy(p => p.Name)
             .ToListAsync(ct);
 
-        return positions.Select(MapToResponse).ToList();
+        return positions.Select(p => MapToResponse(p, today)).ToList();
     }
 
     /// <inheritdoc />
     public async Task<PositionResponse> GetPositionByIdAsync(Guid positionId, CancellationToken ct = default)
     {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
         var position = await _db.OrgPositions
             .AsNoTracking()
             .Include(p => p.Department)
             .Include(p => p.RoleMappings)
             .Include(p => p.Attachments)
+            .Include(p => p.Assignments.Where(a => a.EndDate == null || a.EndDate >= today))
             .FirstOrDefaultAsync(p => p.Id == positionId, ct)
             ?? throw new NotFoundException($"Должность {positionId} не найдена");
 
-        return MapToResponse(position);
+        return MapToResponse(position, today);
     }
 
     /// <inheritdoc />
@@ -306,7 +312,7 @@ public class OrgPositionsService : IOrgPositionsService
 
     // ─── Вспомогательные методы ───
 
-    private static PositionResponse MapToResponse(OrgPosition p) => new()
+    private static PositionResponse MapToResponse(OrgPosition p, DateOnly today) => new()
     {
         Id = p.Id,
         OrganizationId = p.OrganizationId,
@@ -318,7 +324,9 @@ public class OrgPositionsService : IOrgPositionsService
         Category = p.Category,
         Status = p.Status,
         PlannedHeadcount = p.PlannedHeadcount,
-        OccupiedHeadcount = 0, // будет рассчитываться при реализации FR-ORG-01.3
+        OccupiedHeadcount = p.Assignments
+            .Where(a => a.EndDate == null || a.EndDate >= today)
+            .Sum(a => a.Rate),
         CreatedAt = p.CreatedAt,
         UpdatedAt = p.UpdatedAt,
         RoleMappings = p.RoleMappings

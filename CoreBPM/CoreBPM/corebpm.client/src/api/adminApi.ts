@@ -280,3 +280,67 @@ export const updatePosition = (token: string, id: string, data: UpdatePositionRe
 
 export const archivePosition = (token: string, id: string): Promise<void> =>
     fetchJson(`/api/admin/positions/${id}`, token, { method: 'DELETE' });
+
+// --- Назначения на должности ---
+
+export interface AssignmentDto {
+    id: string;
+    userId: string;
+    userDisplayName: string;
+    userWorkEmail: string;
+    positionId: string;
+    positionName: string;
+    organizationId: string;
+    organizationName: string;
+    departmentId?: string;
+    departmentName?: string;
+    rate: number;
+    isPrimary: boolean;
+    startDate: string;  // YYYY-MM-DD
+    endDate?: string;   // YYYY-MM-DD | undefined
+    isActive: boolean;
+    createdAt: string;
+}
+
+export interface CreateAssignmentRequest {
+    userId: string;
+    positionId: string;
+    rate: number;
+    isPrimary: boolean;
+    startDate: string;  // YYYY-MM-DD
+    endDate?: string;   // YYYY-MM-DD | undefined
+}
+
+export interface UpdateAssignmentRequest {
+    rate: number;
+    isPrimary: boolean;
+    startDate: string;
+    endDate?: string;
+}
+
+export interface AssignmentFilters {
+    userId?: string;
+    positionId?: string;
+    organizationId?: string;
+    activeOnly?: boolean;
+}
+
+export const getAssignments = (token: string, filters?: AssignmentFilters): Promise<AssignmentDto[]> => {
+    const params = new URLSearchParams();
+    if (filters?.userId) params.set('userId', filters.userId);
+    if (filters?.positionId) params.set('positionId', filters.positionId);
+    if (filters?.organizationId) params.set('organizationId', filters.organizationId);
+    if (filters?.activeOnly !== undefined) params.set('activeOnly', String(filters.activeOnly));
+    const qs = params.toString();
+    return fetchJson(qs ? `/api/org/assignments?${qs}` : '/api/org/assignments', token);
+};
+
+export const createAssignment = (token: string, data: CreateAssignmentRequest): Promise<AssignmentDto> =>
+    fetchJson('/api/admin/assignments', token, { method: 'POST', body: JSON.stringify(data) });
+
+export const updateAssignment = (token: string, id: string, data: UpdateAssignmentRequest): Promise<AssignmentDto> =>
+    fetchJson(`/api/admin/assignments/${id}`, token, { method: 'PUT', body: JSON.stringify(data) });
+
+export const deleteAssignment = (token: string, id: string): Promise<void> =>
+    fetchJson(`/api/admin/assignments/${id}`, token, { method: 'DELETE' });
+

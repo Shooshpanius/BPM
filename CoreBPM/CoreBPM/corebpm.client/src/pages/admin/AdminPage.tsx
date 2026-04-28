@@ -17,10 +17,13 @@ import type {
     UpdatePositionRequest,
     PositionCategory,
     PositionStatus,
+    AssignmentDto,
+    CreateAssignmentRequest,
+    UpdateAssignmentRequest,
 } from '../../api/adminApi';
 import './AdminPage.css';
 
-type Tab = 'organizations' | 'positions' | 'users';
+type Tab = 'organizations' | 'positions' | 'assignments' | 'users';
 
 interface AdminPageProps {
     onBack: () => void;
@@ -84,6 +87,12 @@ export function AdminPage({ onBack }: AdminPageProps) {
                     Должности
                 </button>
                 <button
+                    className={`admin-tab${activeTab === 'assignments' ? ' active' : ''}`}
+                    onClick={() => setActiveTab('assignments')}
+                >
+                    Назначения
+                </button>
+                <button
                     className={`admin-tab${activeTab === 'users' ? ' active' : ''}`}
                     onClick={() => setActiveTab('users')}
                 >
@@ -94,6 +103,7 @@ export function AdminPage({ onBack }: AdminPageProps) {
             <div className="admin-content">
                 {activeTab === 'organizations' && <OrganizationsTab />}
                 {activeTab === 'positions' && <PositionsTab />}
+                {activeTab === 'assignments' && <AssignmentsTab />}
                 {activeTab === 'users' && <UsersTab />}
             </div>
         </div>
@@ -1338,6 +1348,374 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
                     onCancel={() => setConfirmRemoveId(null)}
                 />
             )}
+        </div>
+    );
+}
+
+// ─────────────────────────────────────────────
+// Вкладка «Назначения»
+// ─────────────────────────────────────────────
+
+const RATE_OPTIONS: number[] = [0.25, 0.5, 0.75, 1.0];
+const RATE_LABELS: Record<number, string> = {
+    0.25: '0.25 (четверть ставки)',
+    0.5: '0.5 (полставки)',
+    0.75: '0.75 (три четверти)',
+    1.0: '1.0 (полная ставка)',
+};
+
+function todayIso(): string {
+    return new Date().toISOString().slice(0, 10);
+}
+
+function AssignmentsTab() {
+    const { accessToken } = useAuth();
+    const token = accessToken!;
+
+    const [orgs, setOrgs] = useState<OrganizationDto[]>([]);
+    const [selectedOrgId, setSelectedOrgId] = useState('');
+    const [assignments, setAssignments] = useState<AssignmentDto[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+    const [activeOnly, setActiveOnly] = useState(true);
+
+    const [showForm, setShowForm] = useState(false);
+    const [editAssignment, setEditAssignment] = useState<AssignmentDto | null>(null);
+    const [confirmEndId, setConfirmEndId] = useState<string | null>(null);
+
+    // Загрузить список организаций один раз
+    useEffect(() => {
+        adminApi.getOrganizations(token)
+            .then(data => {
+                const active = data.filter(o => o.isActive);
+                setOrgs(active);
+                const primary = active.find(o => o.isPrimary) ?? active[0];
+                if (primary) setSelectedOrgId(primary.id);
+            })
+            .catch(e => setError(String(e)));
+    }, [token]);
+
+    const loadAssignments = useCallback(async () => {
+        if (!selectedOrgId) { setAssignments([]); return; }
+        setLoading(true);
+        setError('');
+        try {
+            setAssignments(await adminApi.getAssignments(token, {
+                organizationId: selectedOrgId,
+                activeOnly: activeOnly || undefined,
+            }));
+        } catch (e) {
+            setError(String(e));
+        } finally {
+            setLoading(false);
+        }
+    }, [token, selectedOrgId, activeOnly]);
+
+    useEffect(() => { loadAssignments(); }, [loadAssignments]);
+
+    const handleEndConfirmed = async () => {
+        if (!confirmEndId) return;
+        try {
+            await adminApi.deleteAssignment(token, confirmEndId);
+            await loadAssignments();
+        } catch (e) { setError(String(e)); } finally {
+            setConfirmEndId(null);
+        }
+    };
+
+    const formatDate = (d?: string) => d ? d : '—';
+
+    return (
+        <>
+            <div className="section-header">
+                <h2>Назначения на должности</h2>
+                {selectedOrgId && (
+                    <button className="btn-primary" onClick={() => { setEditAssignment(null); setShowForm(true); }}>
+                        + Назначить
+                    </button>
+                )}
+            </div>
+
+            {/* Фильтры */}
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 16 }}>
+                <div className="form-group" style={{ marginBottom: 0, minWidth: 240, maxWidth: 340, flex: '1 1 240px' }}>
+                    <label>Организация</label>
+                    <select value={selectedOrgId} onChange={e => setSelectedOrgId(e.target.value)}>
+                        <option value="">— Выберите организацию —</option>
+                        {orgs.map(o => (
+                            <option key={o.id} value={o.id}>{o.name}</option>
+                        ))}
+                    </select>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 2, whiteSpace: 'nowrap' }}>
+                    <input
+                        id="assignments-active-only"
+                        type="checkbox"
+                        checked={activeOnly}
+                        onChange={e => setActiveOnly(e.target.checked)}
+                    />
+                    <label htmlFor="assignments-active-only" style={{ margin: 0, cursor: 'pointer', userSelect: 'none' }}>
+                        Только активные
+                    </label>
+                </div>
+            </div>
+
+            {error && <div className="error-msg">{error}</div>}
+
+            {!selectedOrgId ? (
+                <div className="empty-msg">Выберите организацию для просмотра назначений</div>
+            ) : loading ? (
+                <div className="loading-msg">Загрузка…</div>
+            ) : assignments.length === 0 ? (
+                <div className="empty-msg">{activeOnly ? 'Активных назначений нет' : 'Назначений нет'}</div>
+            ) : (
+                <table className="data-table">
+                    <thead>
+                        <tr>
+                            <th>Пользователь</th>
+                            <th>Должность / Подразделение</th>
+                            <th>Ставка</th>
+                            <th>Тип</th>
+                            <th>Дата начала</th>
+                            <th>Дата окончания</th>
+                            <th>Статус</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {assignments.map(a => (
+                            <tr key={a.id} style={!a.isActive ? { opacity: 0.6 } : undefined}>
+                                <td>
+                                    <div>{a.userDisplayName}</div>
+                                    <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>{a.userWorkEmail}</div>
+                                </td>
+                                <td>
+                                    <div>{a.positionName}</div>
+                                    {a.departmentName && (
+                                        <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>{a.departmentName}</div>
+                                    )}
+                                </td>
+                                <td>{a.rate}</td>
+                                <td>
+                                    <span className={`badge ${a.isPrimary ? 'badge-primary' : 'badge-active'}`}>
+                                        {a.isPrimary ? 'Основное' : 'Совмещение'}
+                                    </span>
+                                </td>
+                                <td>{formatDate(a.startDate)}</td>
+                                <td>{formatDate(a.endDate)}</td>
+                                <td>
+                                    <span className={`badge ${a.isActive ? 'badge-active' : 'badge-inactive'}`}>
+                                        {a.isActive ? 'Активно' : 'Завершено'}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div className="row-actions">
+                                        {a.isActive && (
+                                            <>
+                                                <button className="btn-secondary btn-sm"
+                                                    onClick={() => { setEditAssignment(a); setShowForm(true); }}>
+                                                    Изменить
+                                                </button>
+                                                <button className="btn-danger btn-sm"
+                                                    onClick={() => setConfirmEndId(a.id)}>
+                                                    Завершить
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            )}
+
+            {showForm && (
+                <AssignmentFormModal
+                    assignment={editAssignment}
+                    organizationId={selectedOrgId}
+                    token={token}
+                    onClose={() => setShowForm(false)}
+                    onSaved={() => { setShowForm(false); loadAssignments(); }}
+                />
+            )}
+
+            {confirmEndId && (
+                <ConfirmModal
+                    message="Завершить назначение? Дата окончания будет установлена на сегодня, роли должности будут сняты."
+                    onConfirm={handleEndConfirmed}
+                    onCancel={() => setConfirmEndId(null)}
+                />
+            )}
+        </>
+    );
+}
+
+interface AssignmentFormProps {
+    assignment: AssignmentDto | null;
+    organizationId: string;
+    token: string;
+    onClose: () => void;
+    onSaved: () => void;
+}
+
+function AssignmentFormModal({ assignment, organizationId, token, onClose, onSaved }: AssignmentFormProps) {
+    const [employees, setEmployees] = useState<EmployeeDto[]>([]);
+    const [positions, setPositions] = useState<PositionDto[]>([]);
+    const [loadingData, setLoadingData] = useState(true);
+
+    const [userId, setUserId] = useState(assignment?.userId ?? '');
+    const [positionId, setPositionId] = useState(assignment?.positionId ?? '');
+    const [rate, setRate] = useState(String(assignment?.rate ?? 1.0));
+    const [isPrimary, setIsPrimary] = useState(assignment?.isPrimary ?? true);
+    const [startDate, setStartDate] = useState(assignment?.startDate ?? todayIso());
+    const [endDate, setEndDate] = useState(assignment?.endDate ?? '');
+    const [error, setError] = useState('');
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+        if (!organizationId) return;
+        setLoadingData(true);
+        Promise.all([
+            adminApi.getEmployees(token, organizationId),
+            adminApi.getPositions(token, organizationId),
+        ])
+            .then(([emps, pos]) => {
+                setEmployees(emps.filter(e => e.isActive));
+                setPositions(pos);
+            })
+            .catch(e => setError(String(e)))
+            .finally(() => setLoadingData(false));
+    }, [token, organizationId]);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!userId) { setError('Выберите пользователя'); return; }
+        if (!positionId) { setError('Выберите должность'); return; }
+        const rateNum = parseFloat(rate);
+        if (!RATE_OPTIONS.includes(rateNum)) { setError('Выберите допустимую ставку'); return; }
+        setSaving(true);
+        setError('');
+        try {
+            if (assignment) {
+                const req: UpdateAssignmentRequest = {
+                    rate: rateNum,
+                    isPrimary,
+                    startDate,
+                    endDate: endDate || undefined,
+                };
+                await adminApi.updateAssignment(token, assignment.id, req);
+            } else {
+                const req: CreateAssignmentRequest = {
+                    userId,
+                    positionId,
+                    rate: rateNum,
+                    isPrimary,
+                    startDate,
+                    endDate: endDate || undefined,
+                };
+                await adminApi.createAssignment(token, req);
+            }
+            onSaved();
+        } catch (e) {
+            setError(String(e));
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const isEdit = !!assignment;
+
+    return (
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="modal" onClick={e => e.stopPropagation()}>
+                <h3>{isEdit ? 'Изменить назначение' : 'Назначить на должность'}</h3>
+                {error && <div className="error-msg">{error}</div>}
+                {loadingData ? (
+                    <div className="loading-msg">Загрузка данных…</div>
+                ) : (
+                    <form onSubmit={handleSubmit}>
+                        {!isEdit && (
+                            <div className="form-group">
+                                <label>Пользователь *</label>
+                                <select value={userId} onChange={e => setUserId(e.target.value)}>
+                                    <option value="">— Выберите пользователя —</option>
+                                    {employees.map(emp => (
+                                        <option key={emp.userId} value={emp.userId}>
+                                            {emp.userDisplayName} ({emp.userWorkEmail})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+                        {isEdit && (
+                            <div className="form-group">
+                                <label>Пользователь</label>
+                                <input value={assignment.userDisplayName} readOnly disabled />
+                            </div>
+                        )}
+                        {!isEdit && (
+                            <div className="form-group">
+                                <label>Должность *</label>
+                                <select value={positionId} onChange={e => setPositionId(e.target.value)}>
+                                    <option value="">— Выберите должность —</option>
+                                    {positions.map(p => (
+                                        <option key={p.id} value={p.id}>
+                                            {p.name}{p.departmentName ? ` (${p.departmentName})` : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+                        {isEdit && (
+                            <div className="form-group">
+                                <label>Должность</label>
+                                <input value={assignment.positionName} readOnly disabled />
+                            </div>
+                        )}
+                        <div className="form-group">
+                            <label>Ставка *</label>
+                            <select value={rate} onChange={e => setRate(e.target.value)}>
+                                {RATE_OPTIONS.map(r => (
+                                    <option key={r} value={r}>{RATE_LABELS[r]}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="form-group">
+                            <label className="form-check">
+                                <input
+                                    type="checkbox"
+                                    checked={isPrimary}
+                                    onChange={e => setIsPrimary(e.target.checked)}
+                                />
+                                Основное назначение
+                            </label>
+                        </div>
+                        <div className="form-group">
+                            <label>Дата начала *</label>
+                            <input
+                                type="date"
+                                value={startDate}
+                                onChange={e => setStartDate(e.target.value)}
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label>Дата окончания (необязательно)</label>
+                            <input
+                                type="date"
+                                value={endDate}
+                                onChange={e => setEndDate(e.target.value)}
+                            />
+                        </div>
+                        <div className="modal-actions">
+                            <button type="button" className="btn-secondary" onClick={onClose}>Отмена</button>
+                            <button type="submit" className="btn-primary" disabled={saving}>
+                                {saving ? 'Сохранение…' : 'Сохранить'}
+                            </button>
+                        </div>
+                    </form>
+                )}
+            </div>
         </div>
     );
 }
