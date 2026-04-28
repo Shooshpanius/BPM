@@ -11,6 +11,7 @@
 # Артефакты сборки клиентского проекта (Vite / MSBuild interop)
 /CoreBPM/CoreBPM/corebpm.client/obj/
 /CoreBPM/CoreBPM/corebpm.client/obj
+CoreBPM/CoreBPM/corebpm.client/obj*/
 
 # Артефакты сборки серверного проекта
 /CoreBPM/CoreBPM/CoreBPM.Server/bin/Debug/net10.0
