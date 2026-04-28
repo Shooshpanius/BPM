@@ -1480,17 +1480,20 @@ function AssignmentFormModal({ assignment, organizationId, token, onClose, onSav
             .finally(() => setLoadingData(false));
     }, [token, organizationId]);
 
-    // Список должностей, отфильтрованный по выбранному подразделению
+    // Список должностей, отфильтрованный по выбранному подразделению.
+    // Должности без привязки к подразделению (departmentId == null) всегда доступны
+    // при выборе любого подразделения.
     const filteredPositions = departmentFilter
-        ? positions.filter(p => p.departmentId === departmentFilter)
+        ? positions.filter(p => p.departmentId === departmentFilter || !p.departmentId)
         : positions;
 
     const handleDepartmentFilterChange = (newDeptId: string) => {
         setDepartmentFilter(newDeptId);
-        // Сбрасываем выбранную должность, если она не относится к новому подразделению
+        // Сбрасываем выбранную должность только если она привязана к другому подразделению.
+        // Должности без подразделения остаются доступны для любого подразделения.
         if (newDeptId && positionId) {
             const pos = positions.find(p => p.id === positionId);
-            if (pos && pos.departmentId !== newDeptId) {
+            if (pos && pos.departmentId && pos.departmentId !== newDeptId) {
                 setPositionId('');
             }
         }
