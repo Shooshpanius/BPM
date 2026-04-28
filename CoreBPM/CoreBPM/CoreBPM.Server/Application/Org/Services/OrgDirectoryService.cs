@@ -45,16 +45,18 @@ public class OrgDirectoryService : IOrgDirectoryService
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
-        // Число сотрудников в подразделении = число уникальных пользователей с активным назначением
-        // в должность, привязанную к данному подразделению
+        // Число сотрудников в подразделении = число уникальных пользователей с активным назначением.
+        // Эффективное подразделение назначения: сначала a.DepartmentId (явно на назначении),
+        // затем a.Position.DepartmentId (через должность).
         var deptCounts = await _db.OrgPositionAssignments
             .AsNoTracking()
             .Where(a => a.OrganizationId == organizationId &&
-                        a.Position.DepartmentId.HasValue &&
+                        (a.DepartmentId.HasValue || a.Position.DepartmentId.HasValue) &&
                         a.StartDate <= today &&
                         (a.EndDate == null || a.EndDate >= today))
-            .GroupBy(a => a.Position.DepartmentId!.Value)
-            .Select(g => new { DeptId = g.Key, Count = g.Select(a => a.UserId).Distinct().Count() })
+            .GroupBy(a => a.DepartmentId ?? a.Position.DepartmentId)
+            .Where(g => g.Key.HasValue)
+            .Select(g => new { DeptId = g.Key!.Value, Count = g.Select(a => a.UserId).Distinct().Count() })
             .ToDictionaryAsync(x => x.DeptId, x => x.Count, ct);
 
         var all = await _db.OrgDepartments
@@ -115,11 +117,14 @@ public class OrgDirectoryService : IOrgDirectoryService
 
         if (departmentId.HasValue)
         {
-            // Только сотрудники с активным назначением в должность данного подразделения
+            // Только сотрудники с активным назначением в данное подразделение.
+            // Эффективное подразделение: сначала a.DepartmentId (явно на назначении),
+            // затем a.Position.DepartmentId (через должность).
             query = query.Where(e => _db.OrgPositionAssignments.Any(a =>
                 a.UserId == e.UserId &&
                 a.OrganizationId == e.OrganizationId &&
-                a.Position.DepartmentId == departmentId.Value &&
+                (a.DepartmentId == departmentId.Value ||
+                 (a.DepartmentId == null && a.Position.DepartmentId == departmentId.Value)) &&
                 a.StartDate <= today &&
                 (a.EndDate == null || a.EndDate >= today)));
         }
@@ -167,12 +172,15 @@ public class OrgDirectoryService : IOrgDirectoryService
             : organizationId;
 
         // Загружаем все действующие назначения.
+        // Включаем как Department самого назначения, так и Department должности —
+        // чтобы корректно заполнить эффективное подразделение в DTO.
         // Приоритет выбора для карточки:
         // 1) основное назначение (если есть),
         // 2) иначе самое позднее действующее на текущую дату.
         var assignmentsQuery = _db.OrgPositionAssignments
             .AsNoTracking()
             .Include(a => a.Position).ThenInclude(p => p.Department)
+            .Include(a => a.Department)
             .Where(a => userIds.Contains(a.UserId) &&
                         a.StartDate <= today &&
                         (a.EndDate == null || a.EndDate >= today));
@@ -211,8 +219,8 @@ public class OrgDirectoryService : IOrgDirectoryService
                 Position = assignment?.Position?.Name,
                 OrganizationId = e.OrganizationId,
                 OrganizationName = e.Organization.Name,
-                DepartmentId = assignment?.Position?.DepartmentId,
-                DepartmentName = assignment?.Position?.Department?.Name
+                DepartmentId = assignment?.DepartmentId ?? assignment?.Position?.DepartmentId,
+                DepartmentName = assignment?.Department?.Name ?? assignment?.Position?.Department?.Name
             };
         }).ToList();
     }
