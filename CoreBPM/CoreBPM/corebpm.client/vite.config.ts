@@ -18,6 +18,8 @@ export default defineConfig({
     },
     // Переменные окружения с префиксом BPM_C_ доступны в коде как import.meta.env.BPM_C_*
     envPrefix: 'BPM_C_',
+    // Для локальной разработки читаем .env из корня репозитория (там же, где .env.example)
+    envDir: fileURLToPath(new URL('../../../', import.meta.url)),
     server: {
         proxy: {
             '^/api': {
