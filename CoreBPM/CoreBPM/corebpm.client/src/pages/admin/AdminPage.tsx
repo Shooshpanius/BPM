@@ -323,6 +323,10 @@ function PositionsTab() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
+    // Фильтры
+    const [searchQuery, setSearchQuery] = useState('');
+    const [showArchived, setShowArchived] = useState(false);
+
     const [showForm, setShowForm] = useState(false);
     const [editPosition, setEditPosition] = useState<PositionDto | null>(null);
     const [confirmArchiveId, setConfirmArchiveId] = useState<string | null>(null);
@@ -338,19 +342,20 @@ function PositionsTab() {
             .catch(e => setError(String(e)));
     }, [token]);
 
-    // Загрузить должности при выборе организации
+    // Загрузить должности при выборе организации или переключении фильтра архива
     const loadPositions = useCallback(async () => {
         if (!selectedOrgId) { setPositions([]); return; }
         setLoading(true);
         setError('');
         try {
-            setPositions(await adminApi.getPositions(token, selectedOrgId));
+            const status: PositionStatus | undefined = showArchived ? 'Archived' : 'Active';
+            setPositions(await adminApi.getPositions(token, selectedOrgId, status));
         } catch (e) {
             setError(String(e));
         } finally {
             setLoading(false);
         }
-    }, [token, selectedOrgId]);
+    }, [token, selectedOrgId, showArchived]);
 
     useEffect(() => { loadPositions(); }, [loadPositions]);
 
@@ -378,25 +383,61 @@ function PositionsTab() {
         Project: 'Проектная',
     };
 
+    // Клиентская фильтрация по строке поиска
+    const q = searchQuery.trim().toLowerCase();
+    const filteredPositions = q
+        ? positions.filter(p =>
+            p.name.toLowerCase().includes(q) ||
+            (p.code ?? '').toLowerCase().includes(q) ||
+            (p.description ?? '').toLowerCase().includes(q) ||
+            (p.departmentName ?? '').toLowerCase().includes(q)
+        )
+        : positions;
+
     return (
         <>
             <div className="section-header">
                 <h2>Должности</h2>
-                {selectedOrgId && (
+                {selectedOrgId && !showArchived && (
                     <button className="btn-primary" onClick={() => { setEditPosition(null); setShowForm(true); }}>
                         + Создать должность
                     </button>
                 )}
             </div>
 
-            <div className="form-group" style={{ marginBottom: 16, maxWidth: 340 }}>
-                <label>Организация</label>
-                <select value={selectedOrgId} onChange={e => setSelectedOrgId(e.target.value)}>
-                    <option value="">— Выберите организацию —</option>
-                    {orgs.map(o => (
-                        <option key={o.id} value={o.id}>{o.name}</option>
-                    ))}
-                </select>
+            {/* Строка фильтров */}
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 16 }}>
+                <div className="form-group" style={{ marginBottom: 0, minWidth: 240, maxWidth: 340, flex: '1 1 240px' }}>
+                    <label>Организация</label>
+                    <select value={selectedOrgId} onChange={e => setSelectedOrgId(e.target.value)}>
+                        <option value="">— Выберите организацию —</option>
+                        {orgs.map(o => (
+                            <option key={o.id} value={o.id}>{o.name}</option>
+                        ))}
+                    </select>
+                </div>
+
+                <div className="form-group" style={{ marginBottom: 0, flex: '2 1 220px' }}>
+                    <label>Поиск</label>
+                    <input
+                        type="search"
+                        placeholder="Название, код, описание, подразделение…"
+                        value={searchQuery}
+                        onChange={e => setSearchQuery(e.target.value)}
+                    />
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 2, whiteSpace: 'nowrap' }}>
+                    <input
+                        id="show-archived-positions"
+                        type="checkbox"
+                        checked={showArchived}
+                        onChange={e => setShowArchived(e.target.checked)}
+                    />
+                    <label htmlFor="show-archived-positions" style={{ margin: 0, cursor: 'pointer', userSelect: 'none' }}>
+                        Показать архивные
+                    </label>
+                </div>
             </div>
 
             {error && <div className="error-msg">{error}</div>}
@@ -405,8 +446,10 @@ function PositionsTab() {
                 <div className="empty-msg">Выберите организацию для просмотра должностей</div>
             ) : loading ? (
                 <div className="loading-msg">Загрузка…</div>
-            ) : positions.length === 0 ? (
-                <div className="empty-msg">Должности не созданы</div>
+            ) : filteredPositions.length === 0 ? (
+                <div className="empty-msg">
+                    {q ? 'Ничего не найдено по запросу' : showArchived ? 'Архивных должностей нет' : 'Должности не созданы'}
+                </div>
             ) : (
                 <table className="data-table">
                     <thead>
@@ -419,13 +462,18 @@ function PositionsTab() {
                         </tr>
                     </thead>
                     <tbody>
-                        {positions.map(pos => (
-                            <tr key={pos.id}>
+                        {filteredPositions.map(pos => (
+                            <tr key={pos.id} style={pos.status === 'Archived' ? { opacity: 0.65 } : undefined}>
                                 <td>
-                                    {pos.name}
-                                    {pos.code && (
-                                        <span style={{ marginLeft: 6, fontSize: '0.78rem', color: '#94a3b8' }}>[{pos.code}]</span>
-                                    )}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                        {pos.name}
+                                        {pos.code && (
+                                            <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>[{pos.code}]</span>
+                                        )}
+                                        {pos.status === 'Archived' && (
+                                            <span className="badge badge-inactive" style={{ fontSize: '0.72rem' }}>Архив</span>
+                                        )}
+                                    </div>
                                     {pos.description && (
                                         <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: 2 }}>{pos.description}</div>
                                     )}
@@ -435,14 +483,18 @@ function PositionsTab() {
                                 <td>{pos.plannedHeadcount} / {pos.occupiedHeadcount}</td>
                                 <td>
                                     <div className="row-actions">
-                                        <button className="btn-secondary btn-sm"
-                                            onClick={() => { setEditPosition(pos); setShowForm(true); }}>
-                                            Изменить
-                                        </button>
-                                        <button className="btn-danger btn-sm"
-                                            onClick={() => setConfirmArchiveId(pos.id)}>
-                                            Архивировать
-                                        </button>
+                                        {pos.status !== 'Archived' && (
+                                            <>
+                                                <button className="btn-secondary btn-sm"
+                                                    onClick={() => { setEditPosition(pos); setShowForm(true); }}>
+                                                    Изменить
+                                                </button>
+                                                <button className="btn-danger btn-sm"
+                                                    onClick={() => setConfirmArchiveId(pos.id)}>
+                                                    Архивировать
+                                                </button>
+                                            </>
+                                        )}
                                     </div>
                                 </td>
                             </tr>

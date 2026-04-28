@@ -264,11 +264,12 @@ export interface UpdatePositionRequest {
     plannedHeadcount: number;
 }
 
-export const getPositions = (token: string, organizationId?: string): Promise<PositionDto[]> => {
-    const url = organizationId
-        ? `/api/org/positions?organizationId=${organizationId}`
-        : '/api/org/positions';
-    return fetchJson(url, token);
+export const getPositions = (token: string, organizationId?: string, status?: PositionStatus): Promise<PositionDto[]> => {
+    const params = new URLSearchParams();
+    if (organizationId) params.set('organizationId', organizationId);
+    if (status) params.set('status', status);
+    const qs = params.toString();
+    return fetchJson(qs ? `/api/org/positions?${qs}` : '/api/org/positions', token);
 };
 
 export const createPosition = (token: string, data: CreatePositionRequest): Promise<PositionDto> =>
