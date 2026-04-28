@@ -153,6 +153,7 @@ public class OrgAssignmentService : IOrgAssignmentService
             throw new ValidationException("Дата окончания не может быть раньше даты начала");
 
         var assignment = await _db.OrgPositionAssignments
+            .Include(a => a.Position).ThenInclude(p => p.RoleMappings)
             .FirstOrDefaultAsync(a => a.Id == id, ct)
             ?? throw new NotFoundException($"Назначение {id} не найдено");
 
@@ -171,6 +172,38 @@ public class OrgAssignmentService : IOrgAssignmentService
                 throw new ValidationException(
                     "У пользователя уже есть другое активное основное назначение. " +
                     "Сначала завершите его.");
+        }
+
+        // Смена должности
+        if (request.PositionId.HasValue && request.PositionId.Value != assignment.PositionId)
+        {
+            var newPosition = await _db.OrgPositions
+                .Include(p => p.RoleMappings)
+                .FirstOrDefaultAsync(p => p.Id == request.PositionId.Value, ct)
+                ?? throw new NotFoundException($"Должность {request.PositionId.Value} не найдена");
+
+            if (newPosition.Status == PositionStatus.Archived)
+                throw new ValidationException("Нельзя назначить пользователя на архивированную должность");
+
+            // Проверяем дублирование активного назначения на новую должность
+            var duplicate = await _db.OrgPositionAssignments.AnyAsync(a =>
+                a.UserId == assignment.UserId &&
+                a.PositionId == newPosition.Id &&
+                a.Id != id &&
+                (a.EndDate == null || a.EndDate >= today), ct);
+
+            if (duplicate)
+                throw new ValidationException("У пользователя уже есть активное назначение на эту должность");
+
+            // Снимаем роли старой должности, если они больше нигде не нужны
+            await RevokeStaleRolesAsync(assignment.UserId, assignment.PositionId,
+                assignment.Position.RoleMappings, ct);
+
+            assignment.PositionId = newPosition.Id;
+            assignment.OrganizationId = newPosition.OrganizationId;
+
+            // Применяем роли новой должности
+            await ApplyRoleMappingsAsync(assignment.UserId, newPosition.RoleMappings, ct);
         }
 
         assignment.Rate = request.Rate;

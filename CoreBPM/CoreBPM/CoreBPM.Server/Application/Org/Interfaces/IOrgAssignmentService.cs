@@ -26,8 +26,8 @@ public interface IOrgAssignmentService
     Task<AssignmentDto> CreateAsync(CreateAssignmentRequest request, CancellationToken ct = default);
 
     /// <summary>
-    /// Изменяет параметры назначения (ставку, тип, даты).
-    /// Пересчитывает роли пользователя при необходимости.
+    /// Изменяет параметры назначения (должность, ставку, тип, даты).
+    /// При смене должности пересчитывает роли пользователя.
     /// </summary>
     Task<AssignmentDto> UpdateAsync(Guid id, UpdateAssignmentRequest request, CancellationToken ct = default);
 

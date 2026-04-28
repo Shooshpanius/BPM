@@ -39,7 +39,8 @@ public class AdminAssignmentsController : ControllerBase
     }
 
     /// <summary>
-    /// Изменяет параметры назначения: ставку, тип (основное/совмещение) и даты.
+    /// Изменяет параметры назначения: должность, ставку, тип (основное/совмещение) и даты.
+    /// При смене должности автоматически пересчитывает матрицу ролей пользователя.
     /// </summary>
     [HttpPut("{id:guid}")]
     [ProducesResponseType(typeof(AssignmentDto), StatusCodes.Status200OK)]

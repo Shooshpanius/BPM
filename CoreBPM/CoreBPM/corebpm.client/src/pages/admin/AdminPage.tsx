@@ -1498,8 +1498,8 @@ function AssignmentFormModal({ assignment, organizationId, token, onClose, onSav
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!userId) { setError('Выберите пользователя'); return; }
-        if (!positionId) { setError('Выберите должность'); return; }
+        if (!assignment && !userId) { setError('Выберите пользователя'); return; }
+        if (!assignment && !positionId) { setError('Выберите должность'); return; }
         const rateNum = parseFloat(rate);
         if (!RATE_OPTIONS.includes(rateNum)) { setError('Выберите допустимую ставку'); return; }
         setSaving(true);
@@ -1507,6 +1507,7 @@ function AssignmentFormModal({ assignment, organizationId, token, onClose, onSav
         try {
             if (assignment) {
                 const req: UpdateAssignmentRequest = {
+                    positionId: positionId ? positionId : undefined,
                     rate: rateNum,
                     isPrimary,
                     startDate,
@@ -1562,42 +1563,26 @@ function AssignmentFormModal({ assignment, organizationId, token, onClose, onSav
                                 <input value={assignment.userDisplayName} readOnly disabled />
                             </div>
                         )}
-                        {!isEdit && (
-                            <div className="form-group">
-                                <label>Подразделение</label>
-                                <select value={departmentFilter} onChange={e => handleDepartmentFilterChange(e.target.value)}>
-                                    <option value="">— Все подразделения —</option>
-                                    {departments.map(d => (
-                                        <option key={d.id} value={d.id}>{d.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        )}
-                        {isEdit && assignment?.departmentName && (
-                            <div className="form-group">
-                                <label>Подразделение</label>
-                                <input value={assignment.departmentName} readOnly disabled />
-                            </div>
-                        )}
-                        {!isEdit && (
-                            <div className="form-group">
-                                <label>Должность *</label>
-                                <select value={positionId} onChange={e => setPositionId(e.target.value)}>
-                                    <option value="">— Выберите должность —</option>
-                                    {filteredPositions.map(p => (
-                                        <option key={p.id} value={p.id}>
-                                            {p.name}{!departmentFilter && p.departmentName ? ` (${p.departmentName})` : ''}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        )}
-                        {isEdit && (
-                            <div className="form-group">
-                                <label>Должность</label>
-                                <input value={assignment.positionName} readOnly disabled />
-                            </div>
-                        )}
+                        <div className="form-group">
+                            <label>Подразделение</label>
+                            <select value={departmentFilter} onChange={e => handleDepartmentFilterChange(e.target.value)}>
+                                <option value="">— Все подразделения —</option>
+                                {departments.map(d => (
+                                    <option key={d.id} value={d.id}>{d.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="form-group">
+                            <label>Должность {!isEdit && '*'}</label>
+                            <select value={positionId} onChange={e => setPositionId(e.target.value)}>
+                                <option value="">— {isEdit ? 'Не изменять' : 'Выберите должность'} —</option>
+                                {filteredPositions.map(p => (
+                                    <option key={p.id} value={p.id}>
+                                        {p.name}{!departmentFilter && p.departmentName ? ` (${p.departmentName})` : ''}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
                         <div className="form-group">
                             <label>Ставка *</label>
                             <select value={rate} onChange={e => setRate(e.target.value)}>

@@ -315,6 +315,8 @@ export interface CreateAssignmentRequest {
 }
 
 export interface UpdateAssignmentRequest {
+    /** Новая должность. Если не указана — должность не изменяется. */
+    positionId?: string;
     rate: number;
     isPrimary: boolean;
     startDate: string;
