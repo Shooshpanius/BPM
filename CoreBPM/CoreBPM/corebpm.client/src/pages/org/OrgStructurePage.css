@@ -1,0 +1,318 @@
+.org-root {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    background: var(--bg, #f9fafb);
+}
+
+/* ─── Тулбар ─── */
+.org-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border, #e5e7eb);
+    background: var(--bg, #fff);
+    flex-wrap: wrap;
+}
+
+.org-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text, #111827);
+    margin: 0;
+    white-space: nowrap;
+}
+
+.org-toolbar-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    flex: 1;
+}
+
+.org-select {
+    height: 32px;
+    padding: 0 8px;
+    font-size: 13px;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 6px;
+    background: var(--bg, #fff);
+    color: var(--text, #111827);
+    cursor: pointer;
+}
+
+.org-status-filter {
+    display: flex;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 6px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.org-status-btn {
+    padding: 4px 12px;
+    font-size: 12px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-secondary, #6b7280);
+    transition: background 0.1s, color 0.1s;
+    white-space: nowrap;
+}
+
+.org-status-btn + .org-status-btn {
+    border-left: 1px solid var(--border, #e5e7eb);
+}
+
+.org-status-btn.active {
+    background: var(--primary, #3b82f6);
+    color: #fff;
+}
+
+.org-search {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 6px;
+    padding: 0 8px;
+    background: var(--bg, #fff);
+    flex: 1;
+    min-width: 160px;
+    max-width: 280px;
+}
+
+.org-search-icon {
+    color: var(--text-secondary, #6b7280);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+}
+
+.org-search-input {
+    flex: 1;
+    height: 32px;
+    border: none;
+    background: none;
+    font-size: 13px;
+    color: var(--text, #111827);
+    outline: none;
+}
+
+.org-search-clear {
+    background: none;
+    border: none;
+    color: var(--text-secondary, #6b7280);
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    padding: 0 2px;
+    border-radius: 3px;
+}
+
+.org-search-clear:hover {
+    background: var(--border, #e5e7eb);
+}
+
+.org-add-btn {
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    background: var(--primary, #3b82f6);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: background 0.1s;
+}
+
+.org-add-btn:hover {
+    background: var(--primary-dark, #2563eb);
+}
+
+/* ─── Тело ─── */
+.org-body {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* ─── Панель дерева ─── */
+.org-tree-panel {
+    width: 320px;
+    flex: 0 0 320px;
+    border-right: 1px solid var(--border, #e5e7eb);
+    overflow-y: auto;
+    padding: 8px 0;
+    background: var(--bg, #fff);
+}
+
+/* ─── Панель деталей ─── */
+.org-detail-panel {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 24px;
+}
+
+.org-status {
+    padding: 16px;
+    color: var(--text-secondary, #6b7280);
+    font-size: 13px;
+    text-align: center;
+}
+
+.org-status--error {
+    color: var(--color-error, #dc2626);
+}
+
+.org-detail-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-secondary, #6b7280);
+    font-size: 14px;
+}
+
+/* ─── Детальная карточка ─── */
+.org-detail {
+    max-width: 560px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.org-breadcrumb {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px;
+    font-size: 12px;
+    color: var(--text-secondary, #6b7280);
+}
+
+.org-breadcrumb-item {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.org-breadcrumb-sep {
+    color: var(--border, #d1d5db);
+    margin: 0 2px;
+}
+
+.org-detail-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.org-detail-name {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text, #111827);
+    margin: 0;
+    line-height: 1.3;
+}
+
+.org-detail-short-name {
+    font-size: 13px;
+    color: var(--text-secondary, #6b7280);
+}
+
+.org-detail-status {
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.org-detail-status--0 {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+.org-detail-status--1 {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.org-detail-meta {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 6px 12px;
+    margin: 0;
+    font-size: 13px;
+}
+
+.org-detail-meta dt {
+    color: var(--text-secondary, #6b7280);
+    font-weight: 500;
+}
+
+.org-detail-meta dd {
+    color: var(--text, #111827);
+    margin: 0;
+}
+
+.org-detail-description {
+    font-size: 14px;
+    color: var(--text, #374151);
+    line-height: 1.5;
+    margin: 0;
+    padding: 12px;
+    background: var(--bg-raised, #f3f4f6);
+    border-radius: 6px;
+}
+
+.org-detail-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.org-action-btn {
+    padding: 7px 16px;
+    font-size: 13px;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 1px solid var(--border, #e5e7eb);
+    background: var(--bg, #fff);
+    color: var(--text, #374151);
+    font-weight: 500;
+    transition: background 0.1s, border-color 0.1s;
+}
+
+.org-action-btn:hover {
+    background: var(--bg-raised, #f3f4f6);
+}
+
+.org-action-btn--primary {
+    background: var(--primary, #3b82f6);
+    color: #fff;
+    border-color: transparent;
+}
+
+.org-action-btn--primary:hover {
+    background: var(--primary-dark, #2563eb);
+}
+
+.org-action-btn--danger {
+    color: var(--color-error, #dc2626);
+    border-color: var(--color-error-light, #fca5a5);
+}
+
+.org-action-btn--danger:hover {
+    background: var(--color-error-light, #fee2e2);
+}

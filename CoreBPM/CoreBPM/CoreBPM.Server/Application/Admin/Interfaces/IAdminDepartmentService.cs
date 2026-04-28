@@ -20,9 +20,9 @@ public interface IAdminDepartmentService
     /// <summary>Создаёт новое подразделение в указанной организации.</summary>
     Task<DepartmentDto> CreateAsync(CreateDepartmentRequest request, CancellationToken ct = default);
 
-    /// <summary>Обновляет данные подразделения (название, описание, родитель, активность).</summary>
+    /// <summary>Обновляет данные подразделения (название, описание, родитель, статус).</summary>
     Task<DepartmentDto> UpdateAsync(Guid id, UpdateDepartmentRequest request, CancellationToken ct = default);
 
-    /// <summary>Удаляет подразделение. Запрещено, если есть дочерние подразделения или активные сотрудники.</summary>
+    /// <summary>Архивирует подразделение (мягкое удаление). Запрещено, если есть активные дочерние подразделения или активные сотрудники.</summary>
     Task DeleteAsync(Guid id, CancellationToken ct = default);
 }

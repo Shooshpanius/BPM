@@ -1,7 +1,7 @@
 import { APP_VERSION, LAST_PR_DATE } from '../version';
 import './Sidebar.css';
 
-export type SidebarSection = 'contacts';
+export type SidebarSection = 'contacts' | 'org-structure';
 
 interface SidebarProps {
     active: SidebarSection;
@@ -23,6 +23,23 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
                         <circle cx="9" cy="7" r="4"/>
                         <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
                         <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </svg>
+                }
+            />
+            <SidebarItem
+                id="org-structure"
+                label="Оргструктура"
+                active={active === 'org-structure'}
+                onClick={() => onSelect('org-structure')}
+                icon={
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <rect x="3" y="3" width="6" height="4" rx="1"/>
+                        <rect x="9" y="10" width="6" height="4" rx="1"/>
+                        <rect x="15" y="17" width="6" height="4" rx="1"/>
+                        <rect x="3" y="17" width="6" height="4" rx="1"/>
+                        <path d="M6 7v3"/>
+                        <path d="M12 14v3"/>
+                        <path d="M6 10h12"/>
                     </svg>
                 }
             />

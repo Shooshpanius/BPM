@@ -1,3 +1,5 @@
+using CoreBPM.Server.Domain.Org;
+
 namespace CoreBPM.Server.Application.Admin.DTOs;
 
 /// <summary>DTO подразделения (плоское представление).</summary>
@@ -9,8 +11,10 @@ public class DepartmentDto
     public Guid? ParentId { get; set; }
     public string? ParentName { get; set; }
     public string Name { get; set; } = string.Empty;
+    public string? ShortName { get; set; }
+    public string? Code { get; set; }
     public string? Description { get; set; }
-    public bool IsActive { get; set; }
+    public DepartmentStatus Status { get; set; }
     public int EmployeesCount { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 }
@@ -22,8 +26,10 @@ public class DepartmentTreeDto
     public Guid OrganizationId { get; set; }
     public Guid? ParentId { get; set; }
     public string Name { get; set; } = string.Empty;
+    public string? ShortName { get; set; }
+    public string? Code { get; set; }
     public string? Description { get; set; }
-    public bool IsActive { get; set; }
+    public DepartmentStatus Status { get; set; }
     public int EmployeesCount { get; set; }
     public IReadOnlyList<DepartmentTreeDto> Children { get; set; } = [];
 }
@@ -40,6 +46,12 @@ public class CreateDepartmentRequest
     /// <summary>Наименование подразделения.</summary>
     public string Name { get; set; } = string.Empty;
 
+    /// <summary>Краткое название (аббревиатура).</summary>
+    public string? ShortName { get; set; }
+
+    /// <summary>Уникальный код в рамках организации.</summary>
+    public string? Code { get; set; }
+
     public string? Description { get; set; }
 }
 
@@ -49,6 +61,8 @@ public class UpdateDepartmentRequest
     /// <summary>Новый родитель. Null — перемещает подразделение на корневой уровень.</summary>
     public Guid? ParentId { get; set; }
     public string Name { get; set; } = string.Empty;
+    public string? ShortName { get; set; }
+    public string? Code { get; set; }
     public string? Description { get; set; }
-    public bool IsActive { get; set; }
+    public DepartmentStatus Status { get; set; }
 }
