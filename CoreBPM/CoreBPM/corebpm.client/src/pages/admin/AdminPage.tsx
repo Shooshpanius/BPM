@@ -495,11 +495,11 @@ function PositionFormModal({ position, organizationId, depts, token, onClose, on
     const [flashButtons, setFlashButtons] = useState(false);
 
     // При клике мимо модального окна подсвечиваем кнопки действий
-    const handleOverlayClick = () => {
+    const handleOverlayClick = useCallback(() => {
         if (flashButtons) return;
         setFlashButtons(true);
         setTimeout(() => setFlashButtons(false), 900);
-    };
+    }, [flashButtons]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -838,11 +838,11 @@ function UserFormModal({ user, token, onClose, onSaved }: UserFormProps) {
     };
 
     // При клике мимо модального окна подсвечиваем кнопки действий
-    const handleOverlayClick = () => {
+    const handleOverlayClick = useCallback(() => {
         if (flashButtons) return;
         setFlashButtons(true);
         setTimeout(() => setFlashButtons(false), 900);
-    };
+    }, [flashButtons]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

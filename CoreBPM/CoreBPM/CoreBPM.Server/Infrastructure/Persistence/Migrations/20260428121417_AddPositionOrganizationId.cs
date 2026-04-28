@@ -15,12 +15,47 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                 name: "ix_org_positions_department_id_code",
                 table: "org_positions");
 
+            // Добавляем колонку как nullable, чтобы корректно обработать существующие данные
             migrationBuilder.AddColumn<Guid>(
                 name: "organization_id",
                 table: "org_positions",
                 type: "uuid",
+                nullable: true,
+                defaultValue: null);
+
+            // Для существующих записей, привязанных к подразделению, заполняем organization_id
+            // из организации соответствующего подразделения
+            migrationBuilder.Sql(@"
+                UPDATE org_positions p
+                SET organization_id = d.organization_id
+                FROM org_departments d
+                WHERE p.department_id = d.id
+                  AND p.organization_id IS NULL;
+            ");
+
+            // Для оставшихся записей без подразделения назначаем первую доступную организацию
+            migrationBuilder.Sql(@"
+                UPDATE org_positions
+                SET organization_id = (SELECT id FROM org_organizations ORDER BY created_at LIMIT 1)
+                WHERE organization_id IS NULL
+                  AND (SELECT COUNT(*) FROM org_organizations) > 0;
+            ");
+
+            // Удаляем оставшиеся записи без организации (у которых нет ни подразделения,
+            // ни ни одной организации в системе — теоретически невозможная ситуация)
+            migrationBuilder.Sql(@"
+                DELETE FROM org_positions WHERE organization_id IS NULL;
+            ");
+
+            // Делаем колонку обязательной
+            migrationBuilder.AlterColumn<Guid>(
+                name: "organization_id",
+                table: "org_positions",
+                type: "uuid",
                 nullable: false,
-                defaultValue: new Guid("00000000-0000-0000-0000-000000000000"));
+                oldClrType: typeof(Guid),
+                oldType: "uuid",
+                oldNullable: true);
 
             migrationBuilder.CreateIndex(
                 name: "ix_org_positions_department_id",
