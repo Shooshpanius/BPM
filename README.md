@@ -8,7 +8,7 @@
 [![GitHub Forks](https://img.shields.io/github/forks/Shooshpanius/BPM?style=flat-square&logo=github&label=Forks&cacheSeconds=3600)](https://github.com/Shooshpanius/BPM/forks)
 [![GitHub Issues](https://img.shields.io/github/issues/Shooshpanius/BPM?style=flat-square&logo=github&label=Issues)](https://github.com/Shooshpanius/BPM/issues)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue?style=flat-square)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.0.62-informational?style=flat-square)](CoreBPM/CoreBPM/corebpm.client/src/version.ts)
+[![Version](https://img.shields.io/badge/version-0.0.63-informational?style=flat-square)](CoreBPM/CoreBPM/corebpm.client/src/version.ts)
 
 ![.NET](https://img.shields.io/badge/.NET_10-512BD4?style=flat-square&logo=dotnet&logoColor=white)
 ![React](https://img.shields.io/badge/React_19-61DAFB?style=flat-square&logo=react&logoColor=black)
