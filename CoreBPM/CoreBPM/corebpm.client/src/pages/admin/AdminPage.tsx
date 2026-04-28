@@ -1474,7 +1474,7 @@ function AssignmentFormModal({ assignment, organizationId, token, onClose, onSav
             .then(([emps, pos, depts]) => {
                 setEmployees(emps.filter(e => e.isActive));
                 setPositions(pos);
-                setDepartments((depts as DepartmentDto[]).filter(d => d.isActive));
+                setDepartments(depts.filter(d => d.isActive));
             })
             .catch(e => setError(e instanceof Error ? e.message : String(e)))
             .finally(() => setLoadingData(false));
@@ -1573,7 +1573,7 @@ function AssignmentFormModal({ assignment, organizationId, token, onClose, onSav
                                 </select>
                             </div>
                         )}
-                        {isEdit && assignment.departmentName && (
+                        {isEdit && assignment?.departmentName && (
                             <div className="form-group">
                                 <label>Подразделение</label>
                                 <input value={assignment.departmentName} readOnly disabled />
