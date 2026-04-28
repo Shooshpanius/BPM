@@ -92,7 +92,10 @@ export interface DepartmentDto {
     parentId?: string;
     parentName?: string;
     name: string;
+    shortName?: string;
+    code?: string;
     description?: string;
+    status: number;
     isActive: boolean;
     employeesCount: number;
     createdAt: string;
@@ -103,7 +106,10 @@ export interface DepartmentTreeDto {
     organizationId: string;
     parentId?: string;
     name: string;
+    shortName?: string;
+    code?: string;
     description?: string;
+    status: number;
     isActive: boolean;
     employeesCount: number;
     children: DepartmentTreeDto[];
