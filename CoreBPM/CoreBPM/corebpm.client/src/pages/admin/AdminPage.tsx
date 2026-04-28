@@ -1507,7 +1507,7 @@ function AssignmentFormModal({ assignment, organizationId, token, onClose, onSav
         try {
             if (assignment) {
                 const req: UpdateAssignmentRequest = {
-                    positionId: positionId || undefined,
+                    positionId: positionId ? positionId : undefined,
                     rate: rateNum,
                     isPrimary,
                     startDate,
