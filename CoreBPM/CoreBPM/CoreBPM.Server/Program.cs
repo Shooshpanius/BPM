@@ -66,6 +66,7 @@ builder.Services.AddScoped<IAdminEmployeeService, AdminEmployeeService>();
 // Регистрация сервисов Org (адресная книга и управление подразделениями)
 builder.Services.AddScoped<IOrgDirectoryService, OrgDirectoryService>();
 builder.Services.AddScoped<IOrgUnitsService, OrgUnitsService>();
+builder.Services.AddScoped<IOrgPositionsService, OrgPositionsService>();
 
 var app = builder.Build();
 

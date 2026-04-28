@@ -15,6 +15,10 @@ public class DepartmentDto
     public string? Code { get; set; }
     public string? Description { get; set; }
     public DepartmentStatus Status { get; set; }
+
+    /// <summary>Признак активного подразделения (Status == Active).</summary>
+    public bool IsActive => Status == DepartmentStatus.Active;
+
     public int EmployeesCount { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 }
@@ -30,6 +34,10 @@ public class DepartmentTreeDto
     public string? Code { get; set; }
     public string? Description { get; set; }
     public DepartmentStatus Status { get; set; }
+
+    /// <summary>Признак активного подразделения (Status == Active).</summary>
+    public bool IsActive => Status == DepartmentStatus.Active;
+
     public int EmployeesCount { get; set; }
     public IReadOnlyList<DepartmentTreeDto> Children { get; set; } = [];
 }

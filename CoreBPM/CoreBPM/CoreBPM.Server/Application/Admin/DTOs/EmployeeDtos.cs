@@ -11,7 +11,8 @@ public class EmployeeDto
     public string OrganizationName { get; set; } = string.Empty;
     public Guid? DepartmentId { get; set; }
     public string? DepartmentName { get; set; }
-    public string? Position { get; set; }
+    public Guid? PositionId { get; set; }
+    public string? PositionName { get; set; }
     public bool IsActive { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 }
@@ -25,7 +26,8 @@ public class CreateEmployeeRequest
     /// <summary>Подразделение организации, в которое зачисляется сотрудник. Обязательно.</summary>
     public Guid DepartmentId { get; set; }
 
-    public string? Position { get; set; }
+    /// <summary>Идентификатор должности из справочника org_positions.</summary>
+    public Guid? PositionId { get; set; }
 }
 
 /// <summary>Запрос на обновление данных сотрудника.</summary>
@@ -34,6 +36,7 @@ public class UpdateEmployeeRequest
     /// <summary>Новое подразделение. Должно принадлежать той же организации.</summary>
     public Guid DepartmentId { get; set; }
 
-    public string? Position { get; set; }
+    /// <summary>Идентификатор должности из справочника org_positions. Должность должна принадлежать организации сотрудника.</summary>
+    public Guid? PositionId { get; set; }
     public bool IsActive { get; set; }
 }

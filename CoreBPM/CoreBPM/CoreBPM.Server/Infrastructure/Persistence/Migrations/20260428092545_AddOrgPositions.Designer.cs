@@ -3,6 +3,7 @@ using System;
 using CoreBPM.Server.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260428092545_AddOrgPositions")]
+    partial class AddOrgPositions
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -364,9 +367,10 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("organization_id");
 
-                    b.Property<Guid?>("PositionId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("position_id");
+                    b.Property<string>("Position")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("position");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -384,9 +388,6 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("OrganizationId")
                         .HasDatabaseName("ix_org_employees_organization_id");
-
-                    b.HasIndex("PositionId")
-                        .HasDatabaseName("ix_org_employees_position_id");
 
                     b.HasIndex("UserId", "OrganizationId")
                         .IsUnique()
@@ -460,7 +461,7 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<Guid?>("DepartmentId")
+                    b.Property<Guid>("DepartmentId")
                         .HasColumnType("uuid")
                         .HasColumnName("department_id");
 
@@ -497,7 +498,7 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                     b.HasIndex("DepartmentId", "Code")
                         .IsUnique()
                         .HasDatabaseName("ix_org_positions_department_id_code")
-                        .HasFilter("department_id IS NOT NULL AND code IS NOT NULL AND is_deleted = false");
+                        .HasFilter("code IS NOT NULL AND is_deleted = false");
 
                     b.ToTable("org_positions", (string)null);
                 });
@@ -741,12 +742,6 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_org_employees_org_departments_department_id");
 
-                    b.HasOne("CoreBPM.Server.Domain.Org.OrgPosition", "JobPosition")
-                        .WithMany()
-                        .HasForeignKey("PositionId")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .HasConstraintName("fk_org_employees_org_positions_position_id");
-
                     b.HasOne("CoreBPM.Server.Domain.Org.OrgOrganization", "Organization")
                         .WithMany("Employees")
                         .HasForeignKey("OrganizationId")
@@ -763,8 +758,6 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
 
                     b.Navigation("Department");
 
-                    b.Navigation("JobPosition");
-
                     b.Navigation("Organization");
 
                     b.Navigation("User");
@@ -775,7 +768,8 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                     b.HasOne("CoreBPM.Server.Domain.Org.OrgDepartment", "Department")
                         .WithMany()
                         .HasForeignKey("DepartmentId")
-                        .OnDelete(DeleteBehavior.SetNull)
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
                         .HasConstraintName("fk_org_positions_org_departments_department_id");
 
                     b.Navigation("Department");
