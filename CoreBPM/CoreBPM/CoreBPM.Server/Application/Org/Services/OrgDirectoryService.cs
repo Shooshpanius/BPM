@@ -81,12 +81,13 @@ public class OrgDirectoryService : IOrgDirectoryService
         string? search,
         CancellationToken ct = default)
     {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
         var query = _db.OrgEmployees
             .AsNoTracking()
             .Include(e => e.User)
             .Include(e => e.Organization)
             .Include(e => e.Department)
-            .Include(e => e.JobPosition)
             .Where(e => e.IsActive && e.User.IsActive)
             .AsQueryable();
 
@@ -100,14 +101,43 @@ public class OrgDirectoryService : IOrgDirectoryService
             var pattern = $"%{search.Trim()}%";
             query = query.Where(e =>
                 EF.Functions.ILike(e.User.DisplayName, pattern) ||
-                EF.Functions.ILike(e.User.WorkEmail, pattern) ||
-                (e.JobPosition != null && EF.Functions.ILike(e.JobPosition.Name, pattern)));
+                EF.Functions.ILike(e.User.WorkEmail, pattern));
         }
 
-        return await query
+        var employees = await query
             .OrderBy(e => e.User.LastName)
             .ThenBy(e => e.User.FirstName)
-            .Select(e => new DirectoryEmployeeDto
+            .ToListAsync(ct);
+
+        // Загружаем активные назначения для полученных сотрудников
+        var userIds = employees.Select(e => e.UserId).Distinct().ToList();
+        // Определяем organizationId для фильтрации назначений:
+        // - если указан departmentId, берём организацию первого найденного сотрудника
+        //   (все они в одном подразделении, значит и в одной организации)
+        // - если departmentId не задан, используем переданный organizationId напрямую
+        var filterOrgId = departmentId.HasValue
+            ? employees.FirstOrDefault()?.OrganizationId
+            : organizationId;
+
+        var assignmentsQuery = _db.OrgPositionAssignments
+            .AsNoTracking()
+            .Include(a => a.Position)
+            .Where(a => userIds.Contains(a.UserId) &&
+                        (a.EndDate == null || a.EndDate >= today));
+
+        if (filterOrgId.HasValue)
+            assignmentsQuery = assignmentsQuery.Where(a => a.OrganizationId == filterOrgId.Value);
+
+        var assignments = await assignmentsQuery.ToListAsync(ct);
+
+        var assignmentsByKey = assignments
+            .GroupBy(a => (a.UserId, a.OrganizationId))
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(a => a.IsPrimary).First());
+
+        return employees.Select(e =>
+        {
+            assignmentsByKey.TryGetValue((e.UserId, e.OrganizationId), out var assignment);
+            return new DirectoryEmployeeDto
             {
                 Id = e.Id,
                 UserId = e.UserId,
@@ -118,13 +148,13 @@ public class OrgDirectoryService : IOrgDirectoryService
                 WorkEmail = e.User.WorkEmail,
                 Phone = e.User.Phone,
                 AvatarUrl = e.User.AvatarUrl,
-                Position = e.JobPosition != null ? e.JobPosition.Name : null,
+                Position = assignment?.Position?.Name,
                 OrganizationId = e.OrganizationId,
                 OrganizationName = e.Organization.Name,
                 DepartmentId = e.DepartmentId,
-                DepartmentName = e.Department != null ? e.Department.Name : null
-            })
-            .ToListAsync(ct);
+                DepartmentName = e.Department?.Name
+            };
+        }).ToList();
     }
 
     private static void SortChildren(List<DirectoryDepartmentTreeDto> nodes)

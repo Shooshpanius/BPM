@@ -56,7 +56,8 @@ public class AppDbContext : DbContext
              .IsUnique();
         });
 
-        // Таблица сотрудников (связь пользователь ↔ организация ↔ подразделение ↔ должность)
+        // Таблица сотрудников (связь пользователь ↔ организация ↔ подразделение)
+        // Должность определяется через OrgPositionAssignment, а не через поле PositionId
         modelBuilder.Entity<OrgEmployee>(e =>
         {
             e.ToTable("org_employees");
@@ -79,12 +80,6 @@ public class AppDbContext : DbContext
              .WithMany(d => d.Employees)
              .HasForeignKey(emp => emp.DepartmentId)
              .OnDelete(DeleteBehavior.Restrict)
-             .IsRequired(false);
-
-            e.HasOne(emp => emp.JobPosition)
-             .WithMany()
-             .HasForeignKey(emp => emp.PositionId)
-             .OnDelete(DeleteBehavior.SetNull)
              .IsRequired(false);
         });
 

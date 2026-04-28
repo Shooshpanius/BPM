@@ -66,6 +66,7 @@ export interface EmployeeDto {
     organizationName: string;
     departmentId?: string;
     departmentName?: string;
+    /** Должность из активного назначения (read-only, задаётся через /api/admin/assignments) */
     positionId?: string;
     positionName?: string;
     isActive: boolean;
@@ -76,12 +77,10 @@ export interface CreateEmployeeRequest {
     userId: string;
     organizationId: string;
     departmentId: string;
-    positionId?: string;
 }
 
 export interface UpdateEmployeeRequest {
     departmentId: string;
-    positionId?: string;
     isActive: boolean;
 }
 

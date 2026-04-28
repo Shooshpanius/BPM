@@ -1034,20 +1034,14 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
     const [selectedDept, setSelectedDept] = useState('');
     const [depts, setDepts] = useState<DepartmentDto[]>([]);
     const [deptsLoading, setDeptsLoading] = useState(false);
-    const [positions, setPositions] = useState<PositionDto[]>([]);
-    const [positionsLoading, setPositionsLoading] = useState(false);
-    const [selectedPositionId, setSelectedPositionId] = useState('');
     const [adding, setAdding] = useState(false);
 
     // Форма редактирования
     const [editEmployee, setEditEmployee] = useState<EmployeeDto | null>(null);
     const [editDeptId, setEditDeptId] = useState('');
-    const [editPositionId, setEditPositionId] = useState('');
     const [editIsActive, setEditIsActive] = useState(true);
     const [editDepts, setEditDepts] = useState<DepartmentDto[]>([]);
     const [editDeptsLoading, setEditDeptsLoading] = useState(false);
-    const [editPositions, setEditPositions] = useState<PositionDto[]>([]);
-    const [editPositionsLoading, setEditPositionsLoading] = useState(false);
     const [saving, setSaving] = useState(false);
 
     const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
@@ -1072,38 +1066,27 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
 
     // Загрузить подразделения при выборе организации (форма добавления)
     useEffect(() => {
-        if (!selectedOrg) { setDepts([]); setSelectedDept(''); setPositions([]); setSelectedPositionId(''); return; }
+        if (!selectedOrg) { setDepts([]); setSelectedDept(''); return; }
         setDeptsLoading(true);
         adminApi.getDepartments(token, selectedOrg)
             .then(data => { setDepts(data.filter(d => d.isActive)); setSelectedDept(''); })
             .catch(() => setDepts([]))
             .finally(() => setDeptsLoading(false));
-        setPositionsLoading(true);
-        adminApi.getPositions(token, selectedOrg)
-            .then(data => { setPositions(data); setSelectedPositionId(''); })
-            .catch(() => setPositions([]))
-            .finally(() => setPositionsLoading(false));
     }, [selectedOrg, token]);
 
-    // Загрузить подразделения и должности при открытии формы редактирования
+    // Загрузить подразделения при открытии формы редактирования
     useEffect(() => {
-        if (!editEmployee) { setEditDepts([]); setEditPositions([]); return; }
+        if (!editEmployee) { setEditDepts([]); return; }
         setEditDeptsLoading(true);
         adminApi.getDepartments(token, editEmployee.organizationId)
             .then(data => setEditDepts(data.filter(d => d.isActive)))
             .catch(e => { setEditDepts([]); setError(String(e)); })
             .finally(() => setEditDeptsLoading(false));
-        setEditPositionsLoading(true);
-        adminApi.getPositions(token, editEmployee.organizationId)
-            .then(data => setEditPositions(data))
-            .catch(() => setEditPositions([]))
-            .finally(() => setEditPositionsLoading(false));
     }, [editEmployee, token]);
 
     const openEdit = (emp: EmployeeDto) => {
         setEditEmployee(emp);
         setEditDeptId(emp.departmentId ?? '');
-        setEditPositionId(emp.positionId ?? '');
         setEditIsActive(emp.isActive);
     };
 
@@ -1118,14 +1101,11 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
                 userId,
                 organizationId: selectedOrg,
                 departmentId: selectedDept,
-                positionId: selectedPositionId || undefined,
             };
             await adminApi.createEmployee(token, req);
             setSelectedOrg('');
             setSelectedDept('');
             setDepts([]);
-            setSelectedPositionId('');
-            setPositions([]);
             await load();
         } catch (e) {
             setError(String(e));
@@ -1143,7 +1123,6 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
         try {
             const req: UpdateEmployeeRequest = {
                 departmentId: editDeptId,
-                positionId: editPositionId || undefined,
                 isActive: editIsActive,
             };
             await adminApi.updateEmployee(token, editEmployee.id, req);
@@ -1183,7 +1162,7 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
                                     <tr>
                                         <th>Организация</th>
                                         <th>Подразделение</th>
-                                        <th>Должность</th>
+                                        <th>Должность (назначение)</th>
                                         <th>Статус</th>
                                         <th></th>
                                     </tr>
@@ -1193,7 +1172,9 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
                                         <tr key={emp.id}>
                                             <td>{emp.organizationName}</td>
                                             <td>{emp.departmentName ?? '—'}</td>
-                                            <td>{emp.positionName ?? '—'}</td>
+                                            <td>
+                                                {emp.positionName || <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Нет назначения</span>}
+                                            </td>
                                             <td>
                                                 <span className={`badge ${emp.isActive ? 'badge-active' : 'badge-inactive'}`}>
                                                     {emp.isActive ? 'Активен' : 'Неактивен'}
@@ -1245,21 +1226,6 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
                                         </select>
                                     </div>
                                     <div className="form-group">
-                                        <label>Должность</label>
-                                        <select
-                                            value={editPositionId}
-                                            onChange={e => setEditPositionId(e.target.value)}
-                                            disabled={editPositionsLoading}
-                                        >
-                                            <option value="">
-                                                {editPositionsLoading ? 'Загрузка…' : '— Без должности —'}
-                                            </option>
-                                            {editPositions.map(p => (
-                                                <option key={p.id} value={p.id}>{p.name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div className="form-group">
                                         <label className="form-check">
                                             <input type="checkbox" checked={editIsActive} onChange={e => setEditIsActive(e.target.checked)} />
                                             Активен
@@ -1304,21 +1270,6 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
                                             </option>
                                             {depts.map(d => (
                                                 <option key={d.id} value={d.id}>{d.name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div className="form-group">
-                                        <label>Должность</label>
-                                        <select
-                                            value={selectedPositionId}
-                                            onChange={e => setSelectedPositionId(e.target.value)}
-                                            disabled={!selectedOrg || positionsLoading}
-                                        >
-                                            <option value="">
-                                                {positionsLoading ? 'Загрузка…' : '— Без должности —'}
-                                            </option>
-                                            {positions.map(p => (
-                                                <option key={p.id} value={p.id}>{p.name}</option>
                                             ))}
                                         </select>
                                     </div>
