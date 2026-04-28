@@ -288,6 +288,12 @@ public class AppDbContext : DbContext
              .WithMany()
              .HasForeignKey(a => a.OrganizationId)
              .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasOne(a => a.Department)
+             .WithMany()
+             .HasForeignKey(a => a.DepartmentId)
+             .OnDelete(DeleteBehavior.SetNull)
+             .IsRequired(false);
         });
 
         // Seed системных ролей

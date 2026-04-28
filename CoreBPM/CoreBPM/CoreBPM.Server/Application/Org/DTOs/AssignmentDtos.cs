@@ -11,6 +11,11 @@ public class CreateAssignmentRequest
     /// <summary>Идентификатор должности.</summary>
     public Guid PositionId { get; set; }
 
+    /// <summary>
+    /// Идентификатор подразделения. Если не указан — берётся из подразделения должности.
+    /// </summary>
+    public Guid? DepartmentId { get; set; }
+
     /// <summary>Ставка занятости. Допустимые значения: 0.25, 0.5, 0.75, 1.0.</summary>
     public decimal Rate { get; set; } = 1.0m;
 
@@ -24,7 +29,7 @@ public class CreateAssignmentRequest
     public DateOnly? EndDate { get; set; }
 }
 
-/// <summary>Запрос на обновление назначения (изменяются должность, ставка, тип и даты).</summary>
+/// <summary>Запрос на обновление назначения (изменяются должность, подразделение, ставка, тип и даты).</summary>
 public class UpdateAssignmentRequest
 {
     /// <summary>
@@ -32,6 +37,13 @@ public class UpdateAssignmentRequest
     /// При смене должности автоматически пересчитываются роли пользователя.
     /// </summary>
     public Guid? PositionId { get; set; }
+
+    /// <summary>
+    /// Подразделение назначения. Если null — подразделение будет взято из должности (при смене
+    /// должности) или сохранено прежним (если должность не менялась).
+    /// Чтобы явно задать подразделение — передайте его Guid.
+    /// </summary>
+    public Guid? DepartmentId { get; set; }
 
     /// <summary>Ставка занятости. Допустимые значения: 0.25, 0.5, 0.75, 1.0.</summary>
     public decimal Rate { get; set; }

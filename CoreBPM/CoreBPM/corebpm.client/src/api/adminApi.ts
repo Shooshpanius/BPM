@@ -308,6 +308,8 @@ export interface AssignmentDto {
 export interface CreateAssignmentRequest {
     userId: string;
     positionId: string;
+    /** Подразделение. Если не указано — берётся из подразделения выбранной должности. */
+    departmentId?: string;
     rate: number;
     isPrimary: boolean;
     startDate: string;  // YYYY-MM-DD
@@ -317,6 +319,11 @@ export interface CreateAssignmentRequest {
 export interface UpdateAssignmentRequest {
     /** Новая должность. Если не указана — должность не изменяется. */
     positionId?: string;
+    /**
+     * Подразделение. Если не указано — при смене должности берётся из новой должности,
+     * иначе сохраняется прежнее. Передайте '00000000-0000-0000-0000-000000000000' чтобы очистить.
+     */
+    departmentId?: string;
     rate: number;
     isPrimary: boolean;
     startDate: string;
