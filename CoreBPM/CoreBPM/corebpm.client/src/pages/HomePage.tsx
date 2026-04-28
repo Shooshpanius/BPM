@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Sidebar, type SidebarSection } from '../components/Sidebar';
 import { ContactsPage } from './contacts/ContactsPage';
+import { OrgStructurePage } from './org/OrgStructurePage';
 import './HomePage.css';
 
 interface HomePageProps {
@@ -36,6 +37,7 @@ export function HomePage({ onAdmin }: HomePageProps) {
                 <Sidebar active={section} onSelect={setSection} />
                 <main className="hp-content">
                     {section === 'contacts' && <ContactsPage />}
+                    {section === 'org-structure' && <OrgStructurePage />}
                 </main>
             </div>
         </div>

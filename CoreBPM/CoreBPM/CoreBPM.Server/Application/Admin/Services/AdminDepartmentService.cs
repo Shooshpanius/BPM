@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using CoreBPM.Server.Application.Admin.DTOs;
 using CoreBPM.Server.Application.Admin.Interfaces;
@@ -235,8 +236,20 @@ public class AdminDepartmentService : IAdminDepartmentService
         if (hasEmployees)
             throw new ValidationException("Невозможно архивировать подразделение с активными сотрудниками");
 
+        var now = DateTimeOffset.UtcNow;
         dept.Status = DepartmentStatus.Archived;
-        dept.UpdatedAt = DateTimeOffset.UtcNow;
+        dept.UpdatedAt = now;
+
+        _db.OrgDepartmentHistories.Add(new OrgDepartmentHistory
+        {
+            Id = Guid.NewGuid(),
+            DepartmentId = id,
+            ChangedByUserId = null,
+            ChangedAt = now,
+            ChangeType = DepartmentChangeType.Archived,
+            OldValue = null,
+            NewValue = null
+        });
 
         await _db.SaveChangesAsync(ct);
     }

@@ -1,0 +1,18 @@
+.dept-tree {
+    user-select: none;
+}
+
+.dept-tree__node-wrapper {
+    /* Обёртка узла и его дочерних элементов */
+}
+
+.dept-tree__children {
+    /* Отступ обеспечивается через paddingLeft в DepartmentNode */
+}
+
+.dept-tree-empty {
+    padding: 16px;
+    color: var(--color-text-secondary, #6b7280);
+    font-size: 13px;
+    text-align: center;
+}

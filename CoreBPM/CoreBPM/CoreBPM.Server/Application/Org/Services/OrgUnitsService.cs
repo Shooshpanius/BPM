@@ -332,12 +332,13 @@ public class OrgUnitsService : IOrgUnitsService
         var dept = await _db.OrgDepartments.FindAsync(new object[] { unitId }, ct)
             ?? throw new NotFoundException($"Подразделение {unitId} не найдено");
 
+        OrgDepartment? newParent = null;
         if (request.NewParentId.HasValue)
         {
             if (request.NewParentId.Value == unitId)
                 throw new ValidationException("Подразделение не может быть родителем само себе");
 
-            var newParent = await _db.OrgDepartments.FindAsync(new object[] { request.NewParentId.Value }, ct)
+            newParent = await _db.OrgDepartments.FindAsync(new object[] { request.NewParentId.Value }, ct)
                 ?? throw new NotFoundException($"Целевое родительское подразделение {request.NewParentId} не найдено");
 
             if (newParent.OrganizationId != dept.OrganizationId)
@@ -349,15 +350,9 @@ public class OrgUnitsService : IOrgUnitsService
         }
 
         var oldPath = dept.Path;
-        var oldParentId = dept.ParentId;
 
-        // Вычисляем новый Path
-        string newParentPath = string.Empty;
-        if (request.NewParentId.HasValue)
-        {
-            var newParent = await _db.OrgDepartments.FindAsync(new object[] { request.NewParentId.Value }, ct)!;
-            newParentPath = newParent!.Path;
-        }
+        // Вычисляем новый Path, используя уже загруженного newParent
+        string newParentPath = newParent?.Path ?? string.Empty;
         var newPath = $"{newParentPath}/{unitId}";
 
         // Обновляем Path у всех потомков (у которых Path начинается с oldPath/)
