@@ -18,6 +18,8 @@ public class OrgDirectoryService : IOrgDirectoryService
     /// <inheritdoc />
     public async Task<IReadOnlyList<DirectoryOrganizationDto>> GetOrganizationsAsync(CancellationToken ct = default)
     {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
         return await _db.OrgOrganizations
             .AsNoTracking()
             .Where(o => o.IsActive)
@@ -26,7 +28,14 @@ public class OrgDirectoryService : IOrgDirectoryService
             {
                 Id = o.Id,
                 Name = o.Name,
-                EmployeesCount = o.Employees.Count(e => e.IsActive)
+                // Активный сотрудник = есть действующее назначение в организации
+                EmployeesCount = _db.OrgPositionAssignments
+                    .Where(a => a.OrganizationId == o.Id &&
+                                a.StartDate <= today &&
+                                (a.EndDate == null || a.EndDate >= today))
+                    .Select(a => a.UserId)
+                    .Distinct()
+                    .Count()
             })
             .ToListAsync(ct);
     }
@@ -34,6 +43,20 @@ public class OrgDirectoryService : IOrgDirectoryService
     /// <inheritdoc />
     public async Task<IReadOnlyList<DirectoryDepartmentTreeDto>> GetDepartmentTreeAsync(Guid organizationId, CancellationToken ct = default)
     {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        // Число сотрудников в подразделении = число уникальных пользователей с активным назначением
+        // в должность, привязанную к данному подразделению
+        var deptCounts = await _db.OrgPositionAssignments
+            .AsNoTracking()
+            .Where(a => a.OrganizationId == organizationId &&
+                        a.Position.DepartmentId.HasValue &&
+                        a.StartDate <= today &&
+                        (a.EndDate == null || a.EndDate >= today))
+            .GroupBy(a => a.Position.DepartmentId!.Value)
+            .Select(g => new { DeptId = g.Key, Count = g.Select(a => a.UserId).Distinct().Count() })
+            .ToDictionaryAsync(x => x.DeptId, x => x.Count, ct);
+
         var all = await _db.OrgDepartments
             .AsNoTracking()
             .Where(d => d.OrganizationId == organizationId && d.Status == Domain.Org.DepartmentStatus.Active)
@@ -41,8 +64,7 @@ public class OrgDirectoryService : IOrgDirectoryService
             {
                 d.Id,
                 d.ParentId,
-                d.Name,
-                EmployeesCount = d.Employees.Count(e => e.IsActive)
+                d.Name
             })
             .ToListAsync(ct);
 
@@ -54,7 +76,7 @@ public class OrgDirectoryService : IOrgDirectoryService
                 OrganizationId = organizationId,
                 ParentId = d.ParentId,
                 Name = d.Name,
-                EmployeesCount = d.EmployeesCount,
+                EmployeesCount = deptCounts.GetValueOrDefault(d.Id, 0),
                 Children = new List<DirectoryDepartmentTreeDto>()
             });
 
@@ -83,18 +105,43 @@ public class OrgDirectoryService : IOrgDirectoryService
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
+        // Базовый запрос: только пользователи с активными профилями
         var query = _db.OrgEmployees
             .AsNoTracking()
             .Include(e => e.User)
             .Include(e => e.Organization)
-            .Include(e => e.Department)
-            .Where(e => e.IsActive && e.User.IsActive)
+            .Where(e => e.User.IsActive)
             .AsQueryable();
 
         if (departmentId.HasValue)
-            query = query.Where(e => e.DepartmentId == departmentId.Value);
+        {
+            // Только сотрудники с активным назначением в должность данного подразделения
+            query = query.Where(e => _db.OrgPositionAssignments.Any(a =>
+                a.UserId == e.UserId &&
+                a.OrganizationId == e.OrganizationId &&
+                a.Position.DepartmentId == departmentId.Value &&
+                a.StartDate <= today &&
+                (a.EndDate == null || a.EndDate >= today)));
+        }
         else if (organizationId.HasValue)
-            query = query.Where(e => e.OrganizationId == organizationId.Value);
+        {
+            // Только сотрудники организации с хотя бы одним активным назначением
+            query = query.Where(e => e.OrganizationId == organizationId.Value &&
+                _db.OrgPositionAssignments.Any(a =>
+                    a.UserId == e.UserId &&
+                    a.OrganizationId == e.OrganizationId &&
+                    a.StartDate <= today &&
+                    (a.EndDate == null || a.EndDate >= today)));
+        }
+        else
+        {
+            // Без фильтра по организации — только сотрудники с хотя бы одним активным назначением
+            query = query.Where(e => _db.OrgPositionAssignments.Any(a =>
+                a.UserId == e.UserId &&
+                a.OrganizationId == e.OrganizationId &&
+                a.StartDate <= today &&
+                (a.EndDate == null || a.EndDate >= today)));
+        }
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -125,7 +172,7 @@ public class OrgDirectoryService : IOrgDirectoryService
         // 2) иначе самое позднее действующее на текущую дату.
         var assignmentsQuery = _db.OrgPositionAssignments
             .AsNoTracking()
-            .Include(a => a.Position)
+            .Include(a => a.Position).ThenInclude(p => p.Department)
             .Where(a => userIds.Contains(a.UserId) &&
                         a.StartDate <= today &&
                         (a.EndDate == null || a.EndDate >= today));
@@ -164,8 +211,8 @@ public class OrgDirectoryService : IOrgDirectoryService
                 Position = assignment?.Position?.Name,
                 OrganizationId = e.OrganizationId,
                 OrganizationName = e.Organization.Name,
-                DepartmentId = e.DepartmentId,
-                DepartmentName = e.Department?.Name
+                DepartmentId = assignment?.Position?.DepartmentId,
+                DepartmentName = assignment?.Position?.Department?.Name
             };
         }).ToList();
     }

@@ -1031,17 +1031,11 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
 
     // Форма добавления
     const [selectedOrg, setSelectedOrg] = useState('');
-    const [selectedDept, setSelectedDept] = useState('');
-    const [depts, setDepts] = useState<DepartmentDto[]>([]);
-    const [deptsLoading, setDeptsLoading] = useState(false);
     const [adding, setAdding] = useState(false);
 
     // Форма редактирования
     const [editEmployee, setEditEmployee] = useState<EmployeeDto | null>(null);
-    const [editDeptId, setEditDeptId] = useState('');
     const [editIsActive, setEditIsActive] = useState(true);
-    const [editDepts, setEditDepts] = useState<DepartmentDto[]>([]);
-    const [editDeptsLoading, setEditDeptsLoading] = useState(false);
     const [saving, setSaving] = useState(false);
 
     const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
@@ -1064,48 +1058,23 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
 
     useEffect(() => { load(); }, [load]);
 
-    // Загрузить подразделения при выборе организации (форма добавления)
-    useEffect(() => {
-        if (!selectedOrg) { setDepts([]); setSelectedDept(''); return; }
-        setDeptsLoading(true);
-        adminApi.getDepartments(token, selectedOrg)
-            .then(data => { setDepts(data.filter(d => d.isActive)); setSelectedDept(''); })
-            .catch(() => setDepts([]))
-            .finally(() => setDeptsLoading(false));
-    }, [selectedOrg, token]);
-
-    // Загрузить подразделения при открытии формы редактирования
-    useEffect(() => {
-        if (!editEmployee) { setEditDepts([]); return; }
-        setEditDeptsLoading(true);
-        adminApi.getDepartments(token, editEmployee.organizationId)
-            .then(data => setEditDepts(data.filter(d => d.isActive)))
-            .catch(e => { setEditDepts([]); setError(e instanceof Error ? e.message : String(e)); })
-            .finally(() => setEditDeptsLoading(false));
-    }, [editEmployee, token]);
-
     const openEdit = (emp: EmployeeDto) => {
         setEditEmployee(emp);
-        setEditDeptId(emp.departmentId ?? '');
         setEditIsActive(emp.isActive);
     };
 
     const handleAdd = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedOrg) { setError('Выберите организацию'); return; }
-        if (!selectedDept) { setError('Выберите подразделение'); return; }
         setAdding(true);
         setError('');
         try {
             const req: CreateEmployeeRequest = {
                 userId,
                 organizationId: selectedOrg,
-                departmentId: selectedDept,
             };
             await adminApi.createEmployee(token, req);
             setSelectedOrg('');
-            setSelectedDept('');
-            setDepts([]);
             await load();
         } catch (e) {
             setError(e instanceof Error ? e.message : String(e));
@@ -1117,12 +1086,10 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
     const handleSaveEdit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!editEmployee) return;
-        if (!editDeptId) { setError('Выберите подразделение'); return; }
         setSaving(true);
         setError('');
         try {
             const req: UpdateEmployeeRequest = {
-                departmentId: editDeptId,
                 isActive: editIsActive,
             };
             await adminApi.updateEmployee(token, editEmployee.id, req);
@@ -1211,21 +1178,6 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
                                 </p>
                                 <form onSubmit={handleSaveEdit}>
                                     <div className="form-group">
-                                        <label>Подразделение *</label>
-                                        <select
-                                            value={editDeptId}
-                                            onChange={e => setEditDeptId(e.target.value)}
-                                            disabled={editDeptsLoading}
-                                        >
-                                            <option value="">
-                                                {editDeptsLoading ? 'Загрузка…' : '— Выберите подразделение —'}
-                                            </option>
-                                            {editDepts.map(d => (
-                                                <option key={d.id} value={d.id}>{d.name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div className="form-group">
                                         <label className="form-check">
                                             <input type="checkbox" checked={editIsActive} onChange={e => setEditIsActive(e.target.checked)} />
                                             Активен
@@ -1255,21 +1207,6 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
                                             <option value="">— Выберите организацию —</option>
                                             {availableOrgs.map(o => (
                                                 <option key={o.id} value={o.id}>{o.name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div className="form-group">
-                                        <label>Подразделение *</label>
-                                        <select
-                                            value={selectedDept}
-                                            onChange={e => setSelectedDept(e.target.value)}
-                                            disabled={!selectedOrg || deptsLoading}
-                                        >
-                                            <option value="">
-                                                {deptsLoading ? 'Загрузка…' : '— Выберите подразделение —'}
-                                            </option>
-                                            {depts.map(d => (
-                                                <option key={d.id} value={d.id}>{d.name}</option>
                                             ))}
                                         </select>
                                     </div>

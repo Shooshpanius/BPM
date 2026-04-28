@@ -36,6 +36,8 @@ public class OrgUnitsService : IOrgUnitsService
         if (status.HasValue)
             query = query.Where(d => d.Status == status.Value);
 
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
         var allRaw = await query
             .Select(d => new
             {
@@ -47,7 +49,13 @@ public class OrgUnitsService : IOrgUnitsService
                 d.Description,
                 d.Status,
                 d.Path,
-                DirectEmployeesCount = d.Employees.Count(e => e.IsActive)
+                DirectEmployeesCount = _db.OrgPositionAssignments
+                    .Where(a => a.Position.DepartmentId == d.Id &&
+                                a.StartDate <= today &&
+                                (a.EndDate == null || a.EndDate >= today))
+                    .Select(a => a.UserId)
+                    .Distinct()
+                    .Count()
             })
             .ToListAsync(ct);
 
@@ -134,6 +142,8 @@ public class OrgUnitsService : IOrgUnitsService
     /// <inheritdoc />
     public async Task<OrgUnitDto> GetByIdAsync(Guid unitId, CancellationToken ct = default)
     {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
         var dept = await _db.OrgDepartments
             .AsNoTracking()
             .Where(d => d.Id == unitId)
@@ -150,7 +160,13 @@ public class OrgUnitsService : IOrgUnitsService
                 d.Path,
                 d.CreatedAt,
                 d.UpdatedAt,
-                DirectEmployeesCount = d.Employees.Count(e => e.IsActive)
+                DirectEmployeesCount = _db.OrgPositionAssignments
+                    .Where(a => a.Position.DepartmentId == d.Id &&
+                                a.StartDate <= today &&
+                                (a.EndDate == null || a.EndDate >= today))
+                    .Select(a => a.UserId)
+                    .Distinct()
+                    .Count()
             })
             .FirstOrDefaultAsync(ct)
             ?? throw new NotFoundException($"Подразделение {unitId} не найдено");
@@ -160,7 +176,13 @@ public class OrgUnitsService : IOrgUnitsService
         var totalEmployees = dept.DirectEmployeesCount + await _db.OrgDepartments
             .AsNoTracking()
             .Where(d => d.OrganizationId == dept.OrganizationId && d.Path.StartsWith(prefix))
-            .SumAsync(d => d.Employees.Count(e => e.IsActive), ct);
+            .SumAsync(d => _db.OrgPositionAssignments
+                .Where(a => a.Position.DepartmentId == d.Id &&
+                            a.StartDate <= today &&
+                            (a.EndDate == null || a.EndDate >= today))
+                .Select(a => a.UserId)
+                .Distinct()
+                .Count(), ct);
 
         // Формируем breadcrumb из Path
         var breadcrumb = await BuildBreadcrumbAsync(dept.Path, ct);
@@ -303,7 +325,11 @@ public class OrgUnitsService : IOrgUnitsService
         if (hasActiveChildren)
             throw new ValidationException("Нельзя архивировать подразделение с активными дочерними подразделениями");
 
-        var hasEmployees = await _db.OrgEmployees.AnyAsync(e => e.DepartmentId == unitId && e.IsActive, ct);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var hasEmployees = await _db.OrgPositionAssignments
+            .AnyAsync(a => a.Position.DepartmentId == unitId &&
+                           a.StartDate <= today &&
+                           (a.EndDate == null || a.EndDate >= today), ct);
         if (hasEmployees)
             throw new ValidationException("Нельзя архивировать подразделение с активными сотрудниками");
 
