@@ -66,7 +66,8 @@ export interface EmployeeDto {
     organizationName: string;
     departmentId?: string;
     departmentName?: string;
-    position?: string;
+    positionId?: string;
+    positionName?: string;
     isActive: boolean;
     createdAt: string;
 }
@@ -75,12 +76,12 @@ export interface CreateEmployeeRequest {
     userId: string;
     organizationId: string;
     departmentId: string;
-    position?: string;
+    positionId?: string;
 }
 
 export interface UpdateEmployeeRequest {
     departmentId: string;
-    position?: string;
+    positionId?: string;
     isActive: boolean;
 }
 
@@ -214,3 +215,59 @@ export const updateDepartment = (token: string, id: string, data: UpdateDepartme
 
 export const deleteDepartment = (token: string, id: string): Promise<void> =>
     fetchJson(`/api/admin/departments/${id}`, token, { method: 'DELETE' });
+
+// --- Должности ---
+
+export type PositionCategory = 'Managerial' | 'Regular' | 'Project';
+export type PositionStatus = 'Active' | 'Archived';
+
+export interface PositionDto {
+    id: string;
+    name: string;
+    code?: string;
+    description?: string;
+    departmentId: string;
+    departmentName: string;
+    category: PositionCategory;
+    status: PositionStatus;
+    plannedHeadcount: number;
+    occupiedHeadcount: number;
+    vacancyCount: number;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface CreatePositionRequest {
+    name: string;
+    code?: string;
+    description?: string;
+    departmentId: string;
+    category: PositionCategory;
+    plannedHeadcount: number;
+}
+
+export interface UpdatePositionRequest {
+    name: string;
+    code?: string;
+    description?: string;
+    departmentId: string;
+    category: PositionCategory;
+    status: PositionStatus;
+    plannedHeadcount: number;
+}
+
+export const getPositions = (token: string, organizationId?: string): Promise<PositionDto[]> => {
+    const url = organizationId
+        ? `/api/org/positions?organizationId=${organizationId}`
+        : '/api/org/positions';
+    return fetchJson(url, token);
+};
+
+export const createPosition = (token: string, data: CreatePositionRequest): Promise<PositionDto> =>
+    fetchJson('/api/admin/positions', token, { method: 'POST', body: JSON.stringify(data) });
+
+export const updatePosition = (token: string, id: string, data: UpdatePositionRequest): Promise<PositionDto> =>
+    fetchJson(`/api/admin/positions/${id}`, token, { method: 'PUT', body: JSON.stringify(data) });
+
+export const archivePosition = (token: string, id: string): Promise<void> =>
+    fetchJson(`/api/admin/positions/${id}`, token, { method: 'DELETE' });

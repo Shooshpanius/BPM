@@ -364,10 +364,9 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("organization_id");
 
-                    b.Property<string>("Position")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("position");
+                    b.Property<Guid?>("PositionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("position_id");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -385,6 +384,9 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("OrganizationId")
                         .HasDatabaseName("ix_org_employees_organization_id");
+
+                    b.HasIndex("PositionId")
+                        .HasDatabaseName("ix_org_employees_position_id");
 
                     b.HasIndex("UserId", "OrganizationId")
                         .IsUnique()
@@ -739,6 +741,12 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_org_employees_org_departments_department_id");
 
+                    b.HasOne("CoreBPM.Server.Domain.Org.OrgPosition", "JobPosition")
+                        .WithMany()
+                        .HasForeignKey("PositionId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_org_employees_org_positions_position_id");
+
                     b.HasOne("CoreBPM.Server.Domain.Org.OrgOrganization", "Organization")
                         .WithMany("Employees")
                         .HasForeignKey("OrganizationId")
@@ -754,6 +762,8 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_org_employees_org_users_user_id");
 
                     b.Navigation("Department");
+
+                    b.Navigation("JobPosition");
 
                     b.Navigation("Organization");
 

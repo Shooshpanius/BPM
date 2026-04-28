@@ -14,8 +14,8 @@ public class OrgEmployee
     /// <summary>Ссылка на организацию (org_organizations).</summary>
     public Guid OrganizationId { get; set; }
 
-    /// <summary>Должность сотрудника в данной организации.</summary>
-    public string? Position { get; set; }
+    /// <summary>Ссылка на должность из справочника должностей организации. Может быть null.</summary>
+    public Guid? PositionId { get; set; }
 
     /// <summary>Подразделение организации, в котором состоит сотрудник. Может быть null, если подразделение не назначено.</summary>
     public Guid? DepartmentId { get; set; }
@@ -28,4 +28,5 @@ public class OrgEmployee
     public OrgUser User { get; set; } = null!;
     public OrgOrganization Organization { get; set; } = null!;
     public OrgDepartment? Department { get; set; }
+    public OrgPosition? JobPosition { get; set; }
 }

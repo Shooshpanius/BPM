@@ -23,18 +23,23 @@ public class OrgPositionsService : IOrgPositionsService
     /// <inheritdoc />
     public async Task<IReadOnlyList<PositionResponse>> GetPositionsAsync(
         Guid? departmentId = null,
+        Guid? organizationId = null,
         PositionCategory? category = null,
         PositionStatus? status = null,
         CancellationToken ct = default)
     {
         var query = _db.OrgPositions
             .AsNoTracking()
+            .Include(p => p.Department)
             .Include(p => p.RoleMappings)
             .Include(p => p.Attachments)
             .AsQueryable();
 
         if (departmentId.HasValue)
             query = query.Where(p => p.DepartmentId == departmentId.Value);
+
+        if (organizationId.HasValue)
+            query = query.Where(p => p.Department!.OrganizationId == organizationId.Value);
 
         if (category.HasValue)
             query = query.Where(p => p.Category == category.Value);

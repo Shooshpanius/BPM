@@ -86,6 +86,7 @@ public class OrgDirectoryService : IOrgDirectoryService
             .Include(e => e.User)
             .Include(e => e.Organization)
             .Include(e => e.Department)
+            .Include(e => e.JobPosition)
             .Where(e => e.IsActive && e.User.IsActive)
             .AsQueryable();
 
@@ -100,7 +101,7 @@ public class OrgDirectoryService : IOrgDirectoryService
             query = query.Where(e =>
                 EF.Functions.ILike(e.User.DisplayName, pattern) ||
                 EF.Functions.ILike(e.User.WorkEmail, pattern) ||
-                (e.Position != null && EF.Functions.ILike(e.Position, pattern)));
+                (e.JobPosition != null && EF.Functions.ILike(e.JobPosition.Name, pattern)));
         }
 
         return await query
@@ -117,7 +118,7 @@ public class OrgDirectoryService : IOrgDirectoryService
                 WorkEmail = e.User.WorkEmail,
                 Phone = e.User.Phone,
                 AvatarUrl = e.User.AvatarUrl,
-                Position = e.Position,
+                Position = e.JobPosition != null ? e.JobPosition.Name : null,
                 OrganizationId = e.OrganizationId,
                 OrganizationName = e.Organization.Name,
                 DepartmentId = e.DepartmentId,

@@ -27,10 +27,11 @@ public class OrgPositionsController : ControllerBase
     [ProducesResponseType(typeof(IReadOnlyList<PositionResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<PositionResponse>>> GetAll(
         [FromQuery] Guid? departmentId,
+        [FromQuery] Guid? organizationId,
         [FromQuery] PositionCategory? category,
         [FromQuery] PositionStatus? status,
         CancellationToken ct)
-        => Ok(await _service.GetPositionsAsync(departmentId, category, status, ct));
+        => Ok(await _service.GetPositionsAsync(departmentId, organizationId, category, status, ct));
 
     /// <summary>
     /// Возвращает должность по идентификатору.

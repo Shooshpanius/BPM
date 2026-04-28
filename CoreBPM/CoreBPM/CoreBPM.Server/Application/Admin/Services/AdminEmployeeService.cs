@@ -25,6 +25,7 @@ public class AdminEmployeeService : IAdminEmployeeService
             .Include(e => e.User)
             .Include(e => e.Organization)
             .Include(e => e.Department)
+            .Include(e => e.JobPosition)
             .AsQueryable();
 
         if (organizationId.HasValue)
@@ -46,6 +47,7 @@ public class AdminEmployeeService : IAdminEmployeeService
             .Include(e => e.User)
             .Include(e => e.Organization)
             .Include(e => e.Department)
+            .Include(e => e.JobPosition)
             .Where(e => e.UserId == userId)
             .OrderBy(e => e.Organization.Name)
             .Select(e => MapToDto(e))
@@ -78,6 +80,16 @@ public class AdminEmployeeService : IAdminEmployeeService
         if (alreadyExists)
             throw new ValidationException("Данный пользователь уже является сотрудником этой организации");
 
+        // Проверяем должность, если указана
+        if (request.PositionId.HasValue)
+        {
+            var positionBelongsToOrg = await _db.OrgPositions
+                .AnyAsync(p => p.Id == request.PositionId.Value &&
+                               p.Department!.OrganizationId == request.OrganizationId, ct);
+            if (!positionBelongsToOrg)
+                throw new ValidationException("Указанная должность не принадлежит данной организации");
+        }
+
         var now = DateTimeOffset.UtcNow;
         var employee = new OrgEmployee
         {
@@ -85,7 +97,7 @@ public class AdminEmployeeService : IAdminEmployeeService
             UserId = request.UserId,
             OrganizationId = request.OrganizationId,
             DepartmentId = request.DepartmentId,
-            Position = request.Position?.Trim(),
+            PositionId = request.PositionId,
             IsActive = true,
             CreatedAt = now,
             UpdatedAt = now
@@ -98,6 +110,7 @@ public class AdminEmployeeService : IAdminEmployeeService
         await _db.Entry(employee).Reference(e => e.User).LoadAsync(ct);
         await _db.Entry(employee).Reference(e => e.Organization).LoadAsync(ct);
         await _db.Entry(employee).Reference(e => e.Department).LoadAsync(ct);
+        await _db.Entry(employee).Reference(e => e.JobPosition).LoadAsync(ct);
 
         return MapToDto(employee);
     }
@@ -109,6 +122,7 @@ public class AdminEmployeeService : IAdminEmployeeService
             .Include(e => e.User)
             .Include(e => e.Organization)
             .Include(e => e.Department)
+            .Include(e => e.JobPosition)
             .FirstOrDefaultAsync(e => e.Id == id, ct)
             ?? throw new NotFoundException($"Сотрудник {id} не найден");
 
@@ -119,15 +133,26 @@ public class AdminEmployeeService : IAdminEmployeeService
         if (dept.OrganizationId != employee.OrganizationId)
             throw new ValidationException("Подразделение не принадлежит организации сотрудника");
 
+        // Проверяем должность, если указана
+        if (request.PositionId.HasValue)
+        {
+            var positionBelongsToOrg = await _db.OrgPositions
+                .AnyAsync(p => p.Id == request.PositionId.Value &&
+                               p.Department!.OrganizationId == employee.OrganizationId, ct);
+            if (!positionBelongsToOrg)
+                throw new ValidationException("Указанная должность не принадлежит данной организации");
+        }
+
         employee.DepartmentId = request.DepartmentId;
-        employee.Position = request.Position?.Trim();
+        employee.PositionId = request.PositionId;
         employee.IsActive = request.IsActive;
         employee.UpdatedAt = DateTimeOffset.UtcNow;
 
         await _db.SaveChangesAsync(ct);
 
-        // Обновляем навигационное свойство после изменения FK
+        // Обновляем навигационные свойства после изменения FK
         await _db.Entry(employee).Reference(e => e.Department).LoadAsync(ct);
+        await _db.Entry(employee).Reference(e => e.JobPosition).LoadAsync(ct);
 
         return MapToDto(employee);
     }
@@ -152,7 +177,8 @@ public class AdminEmployeeService : IAdminEmployeeService
         OrganizationName = e.Organization.Name,
         DepartmentId = e.DepartmentId,
         DepartmentName = e.Department?.Name,
-        Position = e.Position,
+        PositionId = e.PositionId,
+        PositionName = e.JobPosition?.Name,
         IsActive = e.IsActive,
         CreatedAt = e.CreatedAt
     };

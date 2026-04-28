@@ -11,10 +11,12 @@ public interface IOrgPositionsService
     /// Возвращает список должностей с опциональной фильтрацией.
     /// </summary>
     /// <param name="departmentId">Фильтр по подразделению. Null — все подразделения.</param>
+    /// <param name="organizationId">Фильтр по организации. Null — все организации.</param>
     /// <param name="category">Фильтр по категории. Null — все категории.</param>
     /// <param name="status">Фильтр по статусу. Null — только активные.</param>
     Task<IReadOnlyList<PositionResponse>> GetPositionsAsync(
         Guid? departmentId = null,
+        Guid? organizationId = null,
         PositionCategory? category = null,
         PositionStatus? status = null,
         CancellationToken ct = default);
