@@ -1,4 +1,4 @@
 // Номер и дата последнего принятого пулл реквеста
-export const LAST_PR_NUMBER = 59;
+export const LAST_PR_NUMBER = 60;
 export const LAST_PR_DATE = '28.04.2026';
 export const APP_VERSION = `0.0.${LAST_PR_NUMBER}`;
