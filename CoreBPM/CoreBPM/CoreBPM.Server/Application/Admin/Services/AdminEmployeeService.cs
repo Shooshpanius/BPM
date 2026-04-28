@@ -26,7 +26,6 @@ public class AdminEmployeeService : IAdminEmployeeService
             .AsNoTracking()
             .Include(e => e.User)
             .Include(e => e.Organization)
-            .Include(e => e.Department)
             .AsQueryable();
 
         if (organizationId.HasValue)
@@ -38,21 +37,27 @@ public class AdminEmployeeService : IAdminEmployeeService
             .ThenBy(e => e.User.FirstName)
             .ToListAsync(ct);
 
-        // Загружаем только основные (IsPrimary = true) действующие назначения.
-        // По бизнес-правилу у пользователя не более одного активного основного назначения.
+        // Загружаем лучшее назначение для каждой пары (UserId, OrganizationId):
+        // сначала основное (IsPrimary = true), при его отсутствии — последнее вступившее в силу.
         var userIds = employees.Select(e => e.UserId).Distinct().ToList();
         var assignments = await _db.OrgPositionAssignments
             .AsNoTracking()
-            .Include(a => a.Position)
+            .Include(a => a.Position).ThenInclude(p => p.Department)
             .Where(a => userIds.Contains(a.UserId) &&
-                        a.IsPrimary &&
                         (organizationId == null || a.OrganizationId == organizationId) &&
                         (a.EndDate == null || a.EndDate >= today))
             .ToListAsync(ct);
 
-        // Ключ (UserId, OrganizationId) — уникален благодаря фильтру IsPrimary
+        // Ключ (UserId, OrganizationId): приоритет — основное, затем самое позднее по StartDate
         var assignmentsByKey = assignments
-            .ToDictionary(a => (a.UserId, a.OrganizationId));
+            .GroupBy(a => (a.UserId, a.OrganizationId))
+            .ToDictionary(
+                g => g.Key,
+                g => g
+                    .OrderByDescending(a => a.IsPrimary)
+                    .ThenByDescending(a => a.StartDate)
+                    .ThenByDescending(a => a.CreatedAt)
+                    .First());
 
         return employees.Select(e =>
         {
@@ -70,26 +75,31 @@ public class AdminEmployeeService : IAdminEmployeeService
             .AsNoTracking()
             .Include(e => e.User)
             .Include(e => e.Organization)
-            .Include(e => e.Department)
             .Where(e => e.UserId == userId)
             .OrderBy(e => e.Organization.Name)
             .ToListAsync(ct);
 
         var orgIds = employees.Select(e => e.OrganizationId).ToList();
 
-        // Загружаем только основные (IsPrimary = true) действующие назначения
+        // Загружаем лучшие назначения: основное или последнее вступившее в силу
         var assignments = await _db.OrgPositionAssignments
             .AsNoTracking()
-            .Include(a => a.Position)
+            .Include(a => a.Position).ThenInclude(p => p.Department)
             .Where(a => a.UserId == userId &&
-                        a.IsPrimary &&
                         orgIds.Contains(a.OrganizationId) &&
                         (a.EndDate == null || a.EndDate >= today))
             .ToListAsync(ct);
 
-        // Ключ OrganizationId: уникален благодаря глобальному ограничению на IsPrimary
+        // Ключ OrganizationId: приоритет — основное, затем самое позднее по StartDate
         var assignmentsByOrg = assignments
-            .ToDictionary(a => a.OrganizationId);
+            .GroupBy(a => a.OrganizationId)
+            .ToDictionary(
+                g => g.Key,
+                g => g
+                    .OrderByDescending(a => a.IsPrimary)
+                    .ThenByDescending(a => a.StartDate)
+                    .ThenByDescending(a => a.CreatedAt)
+                    .First());
 
         return employees.Select(e =>
         {
@@ -111,13 +121,6 @@ public class AdminEmployeeService : IAdminEmployeeService
         if (!orgExists)
             throw new NotFoundException($"Организация {request.OrganizationId} не найдена");
 
-        // Проверяем существование подразделения и его принадлежность к организации
-        var dept = await _db.OrgDepartments.FindAsync(new object[] { request.DepartmentId }, ct)
-            ?? throw new NotFoundException($"Подразделение {request.DepartmentId} не найдено");
-
-        if (dept.OrganizationId != request.OrganizationId)
-            throw new ValidationException("Подразделение не принадлежит указанной организации");
-
         // Проверяем уникальность пары пользователь–организация
         var alreadyExists = await _db.OrgEmployees
             .AnyAsync(e => e.UserId == request.UserId && e.OrganizationId == request.OrganizationId, ct);
@@ -130,7 +133,6 @@ public class AdminEmployeeService : IAdminEmployeeService
             Id = Guid.NewGuid(),
             UserId = request.UserId,
             OrganizationId = request.OrganizationId,
-            DepartmentId = request.DepartmentId,
             IsActive = true,
             CreatedAt = now,
             UpdatedAt = now
@@ -142,7 +144,6 @@ public class AdminEmployeeService : IAdminEmployeeService
         // Загружаем навигационные свойства для ответа
         await _db.Entry(employee).Reference(e => e.User).LoadAsync(ct);
         await _db.Entry(employee).Reference(e => e.Organization).LoadAsync(ct);
-        await _db.Entry(employee).Reference(e => e.Department).LoadAsync(ct);
 
         return MapToDto(employee, null);
     }
@@ -155,34 +156,23 @@ public class AdminEmployeeService : IAdminEmployeeService
         var employee = await _db.OrgEmployees
             .Include(e => e.User)
             .Include(e => e.Organization)
-            .Include(e => e.Department)
             .FirstOrDefaultAsync(e => e.Id == id, ct)
             ?? throw new NotFoundException($"Сотрудник {id} не найден");
 
-        // Проверяем новое подразделение
-        var dept = await _db.OrgDepartments.FindAsync(new object[] { request.DepartmentId }, ct)
-            ?? throw new NotFoundException($"Подразделение {request.DepartmentId} не найдено");
-
-        if (dept.OrganizationId != employee.OrganizationId)
-            throw new ValidationException("Подразделение не принадлежит организации сотрудника");
-
-        employee.DepartmentId = request.DepartmentId;
         employee.IsActive = request.IsActive;
         employee.UpdatedAt = DateTimeOffset.UtcNow;
 
         await _db.SaveChangesAsync(ct);
 
-        // Обновляем навигационное свойство после изменения FK
-        await _db.Entry(employee).Reference(e => e.Department).LoadAsync(ct);
-
-        // Получаем текущее основное (IsPrimary = true) активное назначение для ответа
+        // Получаем лучшее активное назначение для ответа
         var assignment = await _db.OrgPositionAssignments
             .AsNoTracking()
-            .Include(a => a.Position)
+            .Include(a => a.Position).ThenInclude(p => p.Department)
             .Where(a => a.UserId == employee.UserId &&
                         a.OrganizationId == employee.OrganizationId &&
-                        a.IsPrimary &&
                         (a.EndDate == null || a.EndDate >= today))
+            .OrderByDescending(a => a.IsPrimary)
+            .ThenByDescending(a => a.StartDate)
             .FirstOrDefaultAsync(ct);
 
         return MapToDto(employee, assignment);
@@ -206,8 +196,8 @@ public class AdminEmployeeService : IAdminEmployeeService
         UserWorkEmail = e.User.WorkEmail,
         OrganizationId = e.OrganizationId,
         OrganizationName = e.Organization.Name,
-        DepartmentId = e.DepartmentId,
-        DepartmentName = e.Department?.Name,
+        DepartmentId = assignment?.Position?.DepartmentId,
+        DepartmentName = assignment?.Position?.Department?.Name,
         PositionId = assignment?.PositionId,
         PositionName = assignment?.Position?.Name,
         IsActive = e.IsActive,

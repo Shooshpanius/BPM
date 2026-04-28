@@ -21,6 +21,8 @@ public class AdminDepartmentService : IAdminDepartmentService
     /// <inheritdoc />
     public async Task<IReadOnlyList<DepartmentDto>> GetAllAsync(Guid? organizationId = null, CancellationToken ct = default)
     {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
         var query = _db.OrgDepartments
             .AsNoTracking()
             .Include(d => d.Organization)
@@ -45,7 +47,13 @@ public class AdminDepartmentService : IAdminDepartmentService
                 Code = d.Code,
                 Description = d.Description,
                 Status = d.Status,
-                EmployeesCount = d.Employees.Count(e => e.IsActive),
+                EmployeesCount = _db.OrgPositionAssignments
+                    .Where(a => a.Position.DepartmentId == d.Id &&
+                                a.StartDate <= today &&
+                                (a.EndDate == null || a.EndDate >= today))
+                    .Select(a => a.UserId)
+                    .Distinct()
+                    .Count(),
                 CreatedAt = d.CreatedAt
             })
             .ToListAsync(ct);
@@ -57,6 +65,8 @@ public class AdminDepartmentService : IAdminDepartmentService
         var orgExists = await _db.OrgOrganizations.AnyAsync(o => o.Id == organizationId, ct);
         if (!orgExists)
             throw new NotFoundException($"Организация {organizationId} не найдена");
+
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
         // Загружаем все подразделения организации одним запросом
         var all = await _db.OrgDepartments
@@ -71,7 +81,13 @@ public class AdminDepartmentService : IAdminDepartmentService
                 d.Code,
                 d.Description,
                 d.Status,
-                EmployeesCount = d.Employees.Count(e => e.IsActive)
+                EmployeesCount = _db.OrgPositionAssignments
+                    .Where(a => a.Position.DepartmentId == d.Id &&
+                                a.StartDate <= today &&
+                                (a.EndDate == null || a.EndDate >= today))
+                    .Select(a => a.UserId)
+                    .Distinct()
+                    .Count()
             })
             .ToListAsync(ct);
 
@@ -108,6 +124,8 @@ public class AdminDepartmentService : IAdminDepartmentService
     /// <inheritdoc />
     public async Task<DepartmentDto> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
         var dept = await _db.OrgDepartments
             .AsNoTracking()
             .Include(d => d.Organization)
@@ -125,7 +143,13 @@ public class AdminDepartmentService : IAdminDepartmentService
                 Code = d.Code,
                 Description = d.Description,
                 Status = d.Status,
-                EmployeesCount = d.Employees.Count(e => e.IsActive),
+                EmployeesCount = _db.OrgPositionAssignments
+                    .Where(a => a.Position.DepartmentId == d.Id &&
+                                a.StartDate <= today &&
+                                (a.EndDate == null || a.EndDate >= today))
+                    .Select(a => a.UserId)
+                    .Distinct()
+                    .Count(),
                 CreatedAt = d.CreatedAt
             })
             .FirstOrDefaultAsync(ct)
@@ -232,7 +256,11 @@ public class AdminDepartmentService : IAdminDepartmentService
         if (hasActiveChildren)
             throw new ValidationException("Невозможно архивировать подразделение, у которого есть активные дочерние подразделения");
 
-        var hasEmployees = await _db.OrgEmployees.AnyAsync(e => e.DepartmentId == id && e.IsActive, ct);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var hasEmployees = await _db.OrgPositionAssignments
+            .AnyAsync(a => a.Position.DepartmentId == id &&
+                           a.StartDate <= today &&
+                           (a.EndDate == null || a.EndDate >= today), ct);
         if (hasEmployees)
             throw new ValidationException("Невозможно архивировать подразделение с активными сотрудниками");
 

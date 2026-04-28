@@ -44,5 +44,4 @@ public class OrgDepartment
     public OrgOrganization Organization { get; set; } = null!;
     public OrgDepartment? Parent { get; set; }
     public ICollection<OrgDepartment> Children { get; set; } = new List<OrgDepartment>();
-    public ICollection<OrgEmployee> Employees { get; set; } = new List<OrgEmployee>();
 }
