@@ -1,0 +1,283 @@
+.pp-root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 24px;
+    box-sizing: border-box;
+    overflow-y: auto;
+}
+
+.pp-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    flex-shrink: 0;
+}
+
+.pp-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--color-text-primary, #1a1a2e);
+    margin: 0;
+}
+
+.pp-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.pp-org-select {
+    padding: 7px 12px;
+    border: 1px solid var(--color-border, #dde1e7);
+    border-radius: 6px;
+    font-size: 0.875rem;
+    background: #fff;
+    cursor: pointer;
+}
+
+.pp-btn-primary {
+    padding: 8px 18px;
+    background: var(--color-primary, #4f6ef7);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.pp-btn-primary:hover:not(:disabled) { background: #3a58e0; }
+.pp-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.pp-btn-secondary {
+    padding: 8px 18px;
+    background: transparent;
+    color: var(--color-text-secondary, #5a6072);
+    border: 1px solid var(--color-border, #dde1e7);
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+}
+.pp-btn-secondary:hover:not(:disabled) { background: #f4f6fb; }
+.pp-btn-secondary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.pp-btn-danger {
+    padding: 8px 18px;
+    background: #e53935;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.pp-btn-danger:hover:not(:disabled) { background: #c62828; }
+.pp-btn-danger:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.pp-btn-icon {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+}
+.pp-btn-open { color: var(--color-primary, #4f6ef7); }
+.pp-btn-open:hover { background: #eef1fd; }
+.pp-btn-delete { color: #e53935; }
+.pp-btn-delete:hover { background: #fdecea; }
+
+/* Список */
+.pp-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.pp-card {
+    display: flex;
+    align-items: center;
+    padding: 16px 20px;
+    background: #fff;
+    border: 1px solid var(--color-border, #dde1e7);
+    border-radius: 10px;
+    transition: box-shadow 0.15s, border-color 0.15s;
+}
+.pp-card:hover {
+    border-color: var(--color-primary, #4f6ef7);
+    box-shadow: 0 2px 12px rgba(79, 110, 247, 0.1);
+}
+
+.pp-card-main {
+    flex: 1;
+    cursor: pointer;
+    min-width: 0;
+}
+.pp-card-main:focus-visible { outline: 2px solid var(--color-primary, #4f6ef7); border-radius: 4px; }
+
+.pp-card-name {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text-primary, #1a1a2e);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pp-card-desc {
+    font-size: 0.8125rem;
+    color: var(--color-text-secondary, #5a6072);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pp-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.pp-badge {
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+.pp-badge--active { background: #e6f4ea; color: #2e7d32; }
+.pp-badge--draft  { background: #fff3e0; color: #e65100; }
+.pp-badge--empty  { background: #f4f6fb; color: #8a93a6; }
+
+.pp-card-date,
+.pp-card-versions {
+    font-size: 0.75rem;
+    color: var(--color-text-secondary, #8a93a6);
+}
+
+.pp-card-actions {
+    display: flex;
+    gap: 4px;
+    margin-left: 12px;
+    flex-shrink: 0;
+}
+
+/* Состояния */
+.pp-loading {
+    padding: 40px;
+    text-align: center;
+    color: var(--color-text-secondary, #8a93a6);
+}
+
+.pp-error {
+    padding: 16px;
+    background: #fdecea;
+    border: 1px solid #ffcdd2;
+    border-radius: 8px;
+    color: #c62828;
+    margin-bottom: 16px;
+}
+
+/* Пустое состояние */
+.pp-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 80px 20px;
+    text-align: center;
+}
+.pp-empty-icon { font-size: 3rem; margin-bottom: 16px; opacity: 0.3; }
+.pp-empty-title { font-size: 1.125rem; font-weight: 600; color: var(--color-text-primary, #1a1a2e); margin: 0 0 8px; }
+.pp-empty-sub { font-size: 0.875rem; color: var(--color-text-secondary, #8a93a6); margin: 0 0 24px; max-width: 380px; }
+
+/* Модальные окна */
+.pp-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.pp-modal {
+    background: #fff;
+    border-radius: 12px;
+    padding: 28px 32px;
+    width: 440px;
+    max-width: 90vw;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+}
+
+.pp-modal--confirm {
+    width: 380px;
+}
+
+.pp-modal-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--color-text-primary, #1a1a2e);
+    margin: 0 0 20px;
+}
+
+.pp-modal-text {
+    font-size: 0.875rem;
+    color: var(--color-text-secondary, #5a6072);
+    margin: 0 0 20px;
+    line-height: 1.5;
+}
+
+.pp-modal-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+
+.pp-modal-field label {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--color-text-primary, #1a1a2e);
+}
+
+.pp-input {
+    padding: 8px 12px;
+    border: 1px solid var(--color-border, #dde1e7);
+    border-radius: 6px;
+    font-size: 0.875rem;
+    width: 100%;
+    box-sizing: border-box;
+    transition: border-color 0.15s;
+}
+.pp-input:focus { outline: none; border-color: var(--color-primary, #4f6ef7); }
+
+.pp-textarea { resize: vertical; font-family: inherit; }
+
+.pp-modal-error {
+    padding: 10px 12px;
+    background: #fdecea;
+    border: 1px solid #ffcdd2;
+    border-radius: 6px;
+    color: #c62828;
+    font-size: 0.8125rem;
+    margin-bottom: 16px;
+}
+
+.pp-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 4px;
+}

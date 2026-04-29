@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using CoreBPM.Server.Domain.Auth;
+using CoreBPM.Server.Domain.Bpm;
 using CoreBPM.Server.Domain.Org;
 
 namespace CoreBPM.Server.Infrastructure.Persistence;
@@ -18,6 +19,8 @@ public class AppDbContext : DbContext
     public DbSet<OrgPositionAttachment> OrgPositionAttachments => Set<OrgPositionAttachment>();
     public DbSet<OrgPositionRoleMapping> OrgPositionRoleMappings => Set<OrgPositionRoleMapping>();
     public DbSet<OrgPositionAssignment> OrgPositionAssignments => Set<OrgPositionAssignment>();
+    public DbSet<BpmProcess> BpmProcesses => Set<BpmProcess>();
+    public DbSet<BpmProcessVersion> BpmProcessVersions => Set<BpmProcessVersion>();
     public DbSet<AuthAccount> AuthAccounts => Set<AuthAccount>();
     public DbSet<AuthSession> AuthSessions => Set<AuthSession>();
     public DbSet<AuthRole> AuthRoles => Set<AuthRole>();
@@ -298,6 +301,37 @@ public class AppDbContext : DbContext
 
         // Seed системных ролей
         SeedSystemRoles(modelBuilder);
+
+        // Таблица определений бизнес-процессов
+        modelBuilder.Entity<BpmProcess>(e =>
+        {
+            e.ToTable("bpm_processes");
+            e.HasKey(p => p.Id);
+            e.Property(p => p.Name).IsRequired().HasMaxLength(300);
+            e.Property(p => p.Description).HasMaxLength(2000);
+
+            e.HasQueryFilter(p => !p.IsDeleted);
+
+            e.HasIndex(p => p.OrganizationId);
+            e.HasIndex(p => p.CreatedByUserId);
+        });
+
+        // Таблица версий диаграмм бизнес-процессов
+        modelBuilder.Entity<BpmProcessVersion>(e =>
+        {
+            e.ToTable("bpm_process_versions");
+            e.HasKey(v => v.Id);
+            e.Property(v => v.Status).HasConversion<int>();
+            e.Property(v => v.DiagramXml).HasColumnType("text");
+
+            e.HasIndex(v => v.ProcessId);
+            e.HasIndex(v => new { v.ProcessId, v.VersionNumber }).IsUnique();
+
+            e.HasOne(v => v.Process)
+             .WithMany(p => p.Versions)
+             .HasForeignKey(v => v.ProcessId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
     }
 
     private static void SeedSystemRoles(ModelBuilder modelBuilder)

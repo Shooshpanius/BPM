@@ -10,14 +10,6 @@ function getInitials(displayName: string): string {
     return displayName[0]?.toUpperCase() ?? '?';
 }
 
-function collectNodeIds(node: OrgChartNodeDto): Set<string> {
-    const ids = new Set<string>([node.id]);
-    for (const child of node.children)
-        for (const id of collectNodeIds(child))
-            ids.add(id);
-    return ids;
-}
-
 /** Находит путь (ids) от корня до узла, содержащего нужного сотрудника. */
 function findPathToEmployee(nodes: OrgChartNodeDto[], userId: string): string[] | null {
     for (const node of nodes) {
