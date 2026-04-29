@@ -1,0 +1,176 @@
+/* Корневой контейнер дизайнера — занимает всё доступное пространство */
+.bpd-root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    background: #f8f9fc;
+}
+
+/* ─── Тулбар ─── */
+.bpd-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 12px;
+    height: 48px;
+    background: #fff;
+    border-bottom: 1px solid var(--color-border, #dde1e7);
+    flex-shrink: 0;
+    z-index: 10;
+}
+
+.bpd-back-btn {
+    padding: 5px 10px;
+    background: transparent;
+    border: 1px solid var(--color-border, #dde1e7);
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    color: var(--color-text-secondary, #5a6072);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s;
+}
+.bpd-back-btn:hover { background: #f4f6fb; }
+
+.bpd-toolbar-sep {
+    width: 1px;
+    height: 24px;
+    background: var(--color-border, #dde1e7);
+    margin: 0 4px;
+    flex-shrink: 0;
+}
+
+.bpd-process-name {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--color-text-primary, #1a1a2e);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 320px;
+}
+
+.bpd-toolbar-spacer { flex: 1; }
+
+.bpd-toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.bpd-tool-btn {
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--color-text-secondary, #5a6072);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+.bpd-tool-btn:hover { background: #f0f2f8; color: var(--color-text-primary, #1a1a2e); }
+.bpd-tool-btn svg { width: 18px; height: 18px; }
+
+.bpd-save-btn {
+    padding: 6px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.bpd-save-btn--saved,
+.bpd-save-btn--unsaved {
+    background: var(--color-primary, #4f6ef7);
+    color: #fff;
+}
+.bpd-save-btn--saved:hover,
+.bpd-save-btn--unsaved:hover { background: #3a58e0; }
+.bpd-save-btn--saving { background: #b0bec5; color: #fff; cursor: not-allowed; }
+.bpd-save-btn--error { background: #e53935; color: #fff; }
+.bpd-save-btn--error:hover { background: #c62828; }
+
+.bpd-status {
+    font-size: 0.75rem;
+    font-weight: 500;
+    white-space: nowrap;
+    margin-left: 4px;
+}
+.bpd-status--saved   { color: #2e7d32; }
+.bpd-status--unsaved { color: #e65100; }
+.bpd-status--saving  { color: #546e7a; }
+.bpd-status--error   { color: #c62828; }
+
+/* ─── Сообщения об ошибках ─── */
+.bpd-load-error,
+.bpd-save-error {
+    padding: 10px 16px;
+    font-size: 0.8125rem;
+    flex-shrink: 0;
+}
+.bpd-load-error { background: #fdecea; color: #c62828; border-bottom: 1px solid #ffcdd2; }
+.bpd-save-error { background: #fff3e0; color: #e65100; border-bottom: 1px solid #ffe0b2; }
+
+/* ─── Основная рабочая область ─── */
+.bpd-workspace {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+}
+
+/* Холст bpmn-js */
+.bpd-canvas {
+    flex: 1;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+}
+
+/* bpmn-js вставляет свой DOM внутрь контейнера */
+.bpd-canvas :global(.djs-container) {
+    width: 100%;
+    height: 100%;
+}
+
+/* ─── Панель свойств ─── */
+.bpd-properties-panel {
+    width: 300px;
+    min-width: 240px;
+    max-width: 400px;
+    height: 100%;
+    background: #fff;
+    border-left: 1px solid var(--color-border, #dde1e7);
+    overflow-y: auto;
+    flex-shrink: 0;
+}
+
+.bpd-properties-inner {
+    height: 100%;
+}
+
+/* Стили для bpmn-js properties panel */
+.bpd-properties-panel :global(.bio-properties-panel) {
+    font-family: inherit;
+    font-size: 0.8125rem;
+}
+
+/* Горизонтальный скролл-бар холста */
+.bpd-canvas :global(.djs-scrollbar) {
+    z-index: 1;
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 768px) {
+    .bpd-properties-panel {
+        display: none;
+    }
+    .bpd-process-name {
+        max-width: 160px;
+    }
+}

@@ -2,7 +2,7 @@ import { useAuth } from '../context/AuthContext';
 import { APP_VERSION, LAST_PR_DATE } from '../version';
 import './Sidebar.css';
 
-export type SidebarSection = 'contacts' | 'org-structure';
+export type SidebarSection = 'contacts' | 'org-structure' | 'bpm-processes';
 
 interface SidebarProps {
     active: SidebarSection;
@@ -27,6 +27,23 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
                         <circle cx="9" cy="7" r="4"/>
                         <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
                         <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </svg>
+                }
+            />
+            <div className="sidebar-divider" role="separator" />
+            <SidebarItem
+                id="bpm-processes"
+                label="Процессы"
+                active={active === 'bpm-processes'}
+                onClick={() => onSelect('bpm-processes')}
+                icon={
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <rect x="2" y="7" width="6" height="5" rx="1"/>
+                        <rect x="16" y="7" width="6" height="5" rx="1"/>
+                        <rect x="9" y="14" width="6" height="5" rx="1"/>
+                        <path d="M8 9.5h2.5a1.5 1.5 0 0 1 1.5 1.5v1"/>
+                        <path d="M16 9.5h-2.5A1.5 1.5 0 0 0 12 11v1"/>
+                        <path d="M12 12v2"/>
                     </svg>
                 }
             />

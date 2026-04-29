@@ -3,6 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import { Sidebar, type SidebarSection } from '../components/Sidebar';
 import { ContactsPage } from './contacts/ContactsPage';
 import { OrgStructurePage } from './org/OrgStructurePage';
+import { ProcessesPage } from './bpm/ProcessesPage';
+import { BpmnDesignerPage } from './bpm/BpmnDesignerPage';
 import { MyColleaguesWidget } from '../components/org/MyColleaguesWidget';
 import './HomePage.css';
 
@@ -15,11 +17,21 @@ export function HomePage({ onAdmin }: HomePageProps) {
     const { logout, hasRole } = useAuth();
     const canManageOrg = hasRole('Admin') || hasRole('HR');
     const [section, setSection] = useState<SidebarSection>('contacts');
+    const [designerProcessId, setDesignerProcessId] = useState<string | null>(null);
 
     const handleSelect = (s: SidebarSection) => {
         // Обычные пользователи не имеют доступа к разделу «Оргструктура»
         if (s === 'org-structure' && !canManageOrg) return;
+        setDesignerProcessId(null);
         setSection(s);
+    };
+
+    const handleOpenDesigner = (processId: string) => {
+        setDesignerProcessId(processId);
+    };
+
+    const handleBackFromDesigner = () => {
+        setDesignerProcessId(null);
     };
 
     return (
@@ -53,6 +65,14 @@ export function HomePage({ onAdmin }: HomePageProps) {
                         </div>
                     )}
                     {section === 'org-structure' && <OrgStructurePage />}
+                    {section === 'bpm-processes' && (
+                        designerProcessId
+                            ? <BpmnDesignerPage
+                                processId={designerProcessId}
+                                onBack={handleBackFromDesigner}
+                              />
+                            : <ProcessesPage onOpenDesigner={handleOpenDesigner} />
+                    )}
                 </main>
             </div>
         </div>
