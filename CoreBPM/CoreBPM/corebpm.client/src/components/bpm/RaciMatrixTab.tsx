@@ -81,14 +81,11 @@ export function RaciMatrixTab({ processId, token }: Props) {
     const addStage = () => {
         const s = newStage.trim();
         if (!s || stages.includes(s)) return;
-        // Добавляем строку без ячеек (будут заполнены пользователем)
+        // Добавляем временную запись с плейсхолдером роли; при сохранении она фильтруется
         setNewStage('');
-        // Добавляем хотя бы одну пустую запись, чтобы этап попал в список
-        // На самом деле нет нужды — этап появится в unique(stages) как только добавят ячейку
-        // Добавляем временный маркер (удалим при сохранении если ячеек нет)
         setEntries(prev => [
             ...prev,
-            { id: crypto.randomUUID(), stage: s, role: roles[0] ?? '__placeholder__', raciType: 'I' as BpmRaciType },
+            { id: crypto.randomUUID(), stage: s, role: '__placeholder__', raciType: 'I' as BpmRaciType },
         ]);
         setDirty(true);
     };
@@ -96,10 +93,11 @@ export function RaciMatrixTab({ processId, token }: Props) {
     const addRole = () => {
         const r = newRole.trim();
         if (!r || roles.includes(r)) return;
+        // Добавляем временную запись с плейсхолдером этапа; при сохранении она фильтруется
         setNewRole('');
         setEntries(prev => [
             ...prev,
-            { id: crypto.randomUUID(), stage: stages[0] ?? '__placeholder__', role: r, raciType: 'I' as BpmRaciType },
+            { id: crypto.randomUUID(), stage: '__placeholder__', role: r, raciType: 'I' as BpmRaciType },
         ]);
         setDirty(true);
     };
