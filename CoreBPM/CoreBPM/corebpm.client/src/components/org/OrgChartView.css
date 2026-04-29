@@ -1,0 +1,266 @@
+/* ─── OrgChartView — дерево органиграммы ─── */
+
+.ocv-root {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.ocv-toolbar {
+    display: flex;
+    gap: 8px;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--border, #e5e7eb);
+    flex-shrink: 0;
+}
+
+.ocv-btn {
+    padding: 4px 12px;
+    font-size: 12px;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 6px;
+    background: var(--bg-white, #fff);
+    color: var(--text-secondary, #6b7280);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.ocv-btn:hover {
+    background: var(--bg-hover, #f3f4f6);
+    color: var(--text, #111827);
+}
+
+.ocv-tree {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 16px;
+}
+
+.ocv-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    color: var(--text-secondary, #9ca3af);
+    font-size: 14px;
+    padding: 40px;
+}
+
+/* ─── Узел подразделения ─── */
+
+.ocv-dept {
+    margin-bottom: 4px;
+}
+
+.ocv-dept--root {
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    background: var(--bg-white, #fff);
+}
+
+.ocv-dept-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    cursor: pointer;
+    user-select: none;
+    border-radius: 8px;
+    transition: background 0.12s;
+}
+
+.ocv-dept--root > .ocv-dept-header {
+    border-radius: 8px 8px 0 0;
+}
+
+.ocv-dept--root > .ocv-dept-header.expanded {
+    border-bottom: 1px solid var(--border, #e5e7eb);
+    border-radius: 8px 8px 0 0;
+}
+
+.ocv-dept-header:hover {
+    background: var(--bg-hover, #f9fafb);
+}
+
+.ocv-dept-toggle {
+    font-size: 10px;
+    color: var(--text-secondary, #9ca3af);
+    width: 12px;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.ocv-dept-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text, #111827);
+    flex: 1;
+}
+
+.ocv-dept-count {
+    font-size: 11px;
+    color: var(--text-secondary, #6b7280);
+    background: var(--bg, #f3f4f6);
+    border-radius: 10px;
+    padding: 1px 8px;
+    flex-shrink: 0;
+}
+
+/* ─── Тело узла ─── */
+
+.ocv-dept-body {
+    padding: 10px 14px 12px 26px;
+}
+
+.ocv-dept--root > .ocv-dept-body {
+    padding-left: 14px;
+}
+
+/* Дочерние узлы */
+.ocv-dept-body > .ocv-dept {
+    border-left: 2px solid var(--border, #e5e7eb);
+    padding-left: 12px;
+    margin-left: 4px;
+    border-radius: 0;
+    background: transparent;
+}
+
+.ocv-dept-body > .ocv-dept > .ocv-dept-header {
+    border-radius: 6px;
+}
+
+/* ─── Строка карточек ─── */
+
+.ocv-cards-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 4px 0 8px;
+}
+
+/* ─── Карточка сотрудника ─── */
+
+.ocv-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 8px;
+    background: var(--bg-white, #fff);
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.12s;
+    min-width: 180px;
+    max-width: 240px;
+    outline: none;
+}
+
+.ocv-card:hover,
+.ocv-card:focus {
+    border-color: var(--primary, #3b82f6);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+.ocv-card--highlighted {
+    border-color: var(--primary, #3b82f6);
+    background: rgba(59, 130, 246, 0.06);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+}
+
+.ocv-card--managerial {
+    border-color: var(--warning, #f59e0b);
+}
+
+.ocv-card--managerial.ocv-card--highlighted {
+    border-color: var(--primary, #3b82f6);
+}
+
+.ocv-card--vacancy {
+    border-style: dashed;
+    border-color: var(--border, #d1d5db);
+    background: var(--bg, #f9fafb);
+    cursor: default;
+    opacity: 0.75;
+}
+
+.ocv-card--vacancy:hover {
+    border-color: var(--border, #d1d5db);
+    box-shadow: none;
+}
+
+/* ─── Аватар ─── */
+
+.ocv-card-avatar {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    overflow: hidden;
+    background: var(--primary-light, #dbeafe);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ocv-card-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.ocv-card-avatar-initials {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--primary, #3b82f6);
+    letter-spacing: 0.5px;
+}
+
+.ocv-card-avatar--empty {
+    color: var(--text-secondary, #9ca3af);
+    background: var(--bg, #f3f4f6);
+}
+
+/* ─── Инфо карточки ─── */
+
+.ocv-card-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    gap: 1px;
+}
+
+.ocv-card-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text, #111827);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ocv-card-position {
+    font-size: 11px;
+    color: var(--text-secondary, #6b7280);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ocv-card-rate {
+    font-size: 10px;
+    color: var(--text-tertiary, #9ca3af);
+}
+
+.ocv-card-rate--vacancy {
+    color: var(--warning, #d97706);
+}
+
+/* ─── Узел «Без подразделения» ─── */
+
+.ocv-dept--unassigned > .ocv-dept-header .ocv-dept-name {
+    color: var(--text-secondary, #6b7280);
+    font-style: italic;
+}
