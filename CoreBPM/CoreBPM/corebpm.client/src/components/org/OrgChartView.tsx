@@ -288,7 +288,7 @@ export function OrgChartView({
                                             employee={emp}
                                             highlighted={highlightEmployeeId === emp.userId}
                                             extended={extended}
-                                            onClick={() => { }}
+                                            onClick={() => { /* будущая навигация к профилю */ }}
                                             cardRef={el => {
                                                 if (el) cardRefs.current.set(emp.userId, el);
                                                 else cardRefs.current.delete(emp.userId);

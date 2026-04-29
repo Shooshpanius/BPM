@@ -83,8 +83,9 @@ export function MyColleaguesWidget() {
                 setManager(mgr);
                 setColleagues(visible);
                 setExtra(Math.max(0, peers.length - MAX_VISIBLE));
-            } catch {
+            } catch (error) {
                 // Виджет не должен ломать страницу
+                console.error('MyColleaguesWidget: ошибка загрузки коллег', error);
             } finally {
                 setLoading(false);
             }
