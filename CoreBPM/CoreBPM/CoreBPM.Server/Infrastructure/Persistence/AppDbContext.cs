@@ -25,6 +25,8 @@ public class AppDbContext : DbContext
     public DbSet<BpmElementConfig> BpmElementConfigs => Set<BpmElementConfig>();
     public DbSet<BpmProcessVariable> BpmProcessVariables => Set<BpmProcessVariable>();
     public DbSet<BpmRaciEntry> BpmRaciEntries => Set<BpmRaciEntry>();
+    public DbSet<BpmTaskForm> BpmTaskForms => Set<BpmTaskForm>();
+    public DbSet<BpmTaskFormVersion> BpmTaskFormVersions => Set<BpmTaskFormVersion>();
     public DbSet<DmnTable> DmnTables => Set<DmnTable>();
     public DbSet<DmnTableVersion> DmnTableVersions => Set<DmnTableVersion>();
     public DbSet<DmnColumn> DmnColumns => Set<DmnColumn>();
@@ -391,6 +393,42 @@ public class AppDbContext : DbContext
             e.HasOne(r => r.Process)
              .WithMany()
              .HasForeignKey(r => r.ProcessId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ─── DMN: таблицы бизнес-правил ─────────────────────────────────────────
+
+        // ─── Формы задач ─────────────────────────────────────────────────────────
+
+        modelBuilder.Entity<BpmTaskForm>(e =>
+        {
+            e.ToTable("bpm_task_forms");
+            e.HasKey(f => f.Id);
+            e.Property(f => f.Name).IsRequired().HasMaxLength(300);
+            e.Property(f => f.Description).HasMaxLength(2000);
+            e.Property(f => f.ElementId).HasMaxLength(200);
+
+            e.HasIndex(f => f.ProcessId);
+
+            e.HasOne(f => f.Process)
+             .WithMany()
+             .HasForeignKey(f => f.ProcessId)
+             .OnDelete(DeleteBehavior.SetNull)
+             .IsRequired(false);
+        });
+
+        modelBuilder.Entity<BpmTaskFormVersion>(e =>
+        {
+            e.ToTable("bpm_task_form_versions");
+            e.HasKey(v => v.Id);
+            e.Property(v => v.Schema).IsRequired().HasColumnType("jsonb");
+            e.Property(v => v.Status).HasConversion<int>();
+
+            e.HasIndex(v => new { v.FormId, v.VersionNumber }).IsUnique();
+
+            e.HasOne(v => v.Form)
+             .WithMany(f => f.Versions)
+             .HasForeignKey(v => v.FormId)
              .OnDelete(DeleteBehavior.Cascade);
         });
 
