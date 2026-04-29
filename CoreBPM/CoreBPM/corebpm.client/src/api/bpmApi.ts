@@ -2,6 +2,10 @@
 
 export type BpmProcessVersionStatus = 'Draft' | 'Active' | 'Obsolete';
 
+export type BpmVariableType = 'String' | 'Int' | 'Decimal' | 'Bool' | 'Date' | 'DateTime' | 'Json' | 'File' | 'User' | 'List';
+
+export type BpmRaciType = 'R' | 'A' | 'C' | 'I';
+
 export interface BpmProcessListItemDto {
     id: string;
     organizationId: string;
@@ -42,6 +46,62 @@ export interface BpmDiagramDto {
     updatedAt: string;
 }
 
+// ─── Конфигурации элементов ──────────────────────────────────────────────────
+
+export interface BpmElementConfigDto {
+    elementId: string;
+    configJson: string;
+    updatedAt: string;
+}
+
+// ─── Переменные процесса ─────────────────────────────────────────────────────
+
+export interface BpmProcessVariableDto {
+    id: string;
+    name: string;
+    variableType: BpmVariableType;
+    defaultValue?: string;
+    isKeyVariable: boolean;
+    isInput: boolean;
+    isOutput: boolean;
+    sortOrder: number;
+}
+
+export interface CreateBpmVariableRequest {
+    name: string;
+    variableType: BpmVariableType;
+    defaultValue?: string;
+    isKeyVariable: boolean;
+    isInput: boolean;
+    isOutput: boolean;
+}
+
+export interface UpdateBpmVariableRequest {
+    name: string;
+    variableType: BpmVariableType;
+    defaultValue?: string;
+    isKeyVariable: boolean;
+    isInput: boolean;
+    isOutput: boolean;
+}
+
+// ─── RACI-матрица ─────────────────────────────────────────────────────────────
+
+export interface BpmRaciEntryDto {
+    id: string;
+    stage: string;
+    role: string;
+    raciType: BpmRaciType;
+}
+
+export interface UpsertRaciEntryRequest {
+    stage: string;
+    role: string;
+    raciType: BpmRaciType;
+}
+
+// ─── Fetch helper ─────────────────────────────────────────────────────────────
+
 async function fetchJson<T>(url: string, token: string, init?: RequestInit): Promise<T> {
     const res = await fetch(url, {
         ...init,
@@ -63,6 +123,8 @@ async function fetchJson<T>(url: string, token: string, init?: RequestInit): Pro
     if (res.status === 204) return undefined as unknown as T;
     return res.json() as Promise<T>;
 }
+
+// ─── Процессы ─────────────────────────────────────────────────────────────────
 
 /** Список процессов организации. */
 export const getProcesses = (token: string, organizationId: string): Promise<BpmProcessListItemDto[]> =>
@@ -111,3 +173,70 @@ export const saveDiagram = (token: string, processId: string, diagramXml: string
         method: 'PUT',
         body: JSON.stringify({ diagramXml }),
     });
+
+// ─── Конфигурации элементов ──────────────────────────────────────────────────
+
+/** Получить все конфигурации элементов процесса. */
+export const getElementConfigs = (token: string, processId: string): Promise<BpmElementConfigDto[]> =>
+    fetchJson(`/api/bpm/processes/${processId}/element-configs`, token);
+
+/** Получить конфигурацию конкретного элемента. */
+export const getElementConfig = (token: string, processId: string, elementId: string): Promise<BpmElementConfigDto | null> =>
+    fetchJson<BpmElementConfigDto>(`/api/bpm/processes/${processId}/element-configs/${encodeURIComponent(elementId)}`, token)
+        .catch(e => { if (e.message?.includes('404') || e.message?.startsWith('HTTP 404')) return null; throw e; });
+
+/** Сохранить (создать/обновить) конфигурацию элемента. */
+export const upsertElementConfig = (token: string, processId: string, elementId: string, configJson: string): Promise<BpmElementConfigDto> =>
+    fetchJson(`/api/bpm/processes/${processId}/element-configs/${encodeURIComponent(elementId)}`, token, {
+        method: 'PUT',
+        body: JSON.stringify({ configJson }),
+    });
+
+/** Удалить конфигурацию элемента. */
+export const deleteElementConfig = (token: string, processId: string, elementId: string): Promise<void> =>
+    fetchJson(`/api/bpm/processes/${processId}/element-configs/${encodeURIComponent(elementId)}`, token, { method: 'DELETE' });
+
+// ─── Переменные процесса ─────────────────────────────────────────────────────
+
+/** Список переменных процесса. */
+export const getVariables = (token: string, processId: string): Promise<BpmProcessVariableDto[]> =>
+    fetchJson(`/api/bpm/processes/${processId}/variables`, token);
+
+/** Создать переменную. */
+export const createVariable = (token: string, processId: string, data: CreateBpmVariableRequest): Promise<BpmProcessVariableDto> =>
+    fetchJson(`/api/bpm/processes/${processId}/variables`, token, {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+
+/** Обновить переменную. */
+export const updateVariable = (token: string, processId: string, variableId: string, data: UpdateBpmVariableRequest): Promise<BpmProcessVariableDto> =>
+    fetchJson(`/api/bpm/processes/${processId}/variables/${variableId}`, token, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+    });
+
+/** Удалить переменную. */
+export const deleteVariable = (token: string, processId: string, variableId: string): Promise<void> =>
+    fetchJson(`/api/bpm/processes/${processId}/variables/${variableId}`, token, { method: 'DELETE' });
+
+/** Изменить порядок переменных. */
+export const reorderVariables = (token: string, processId: string, orderedIds: string[]): Promise<void> =>
+    fetchJson(`/api/bpm/processes/${processId}/variables/reorder`, token, {
+        method: 'PUT',
+        body: JSON.stringify({ orderedIds }),
+    });
+
+// ─── RACI-матрица ─────────────────────────────────────────────────────────────
+
+/** Получить RACI-матрицу процесса. */
+export const getRaci = (token: string, processId: string): Promise<BpmRaciEntryDto[]> =>
+    fetchJson(`/api/bpm/processes/${processId}/raci`, token);
+
+/** Заменить RACI-матрицу целиком. */
+export const replaceRaci = (token: string, processId: string, entries: UpsertRaciEntryRequest[]): Promise<BpmRaciEntryDto[]> =>
+    fetchJson(`/api/bpm/processes/${processId}/raci`, token, {
+        method: 'PUT',
+        body: JSON.stringify(entries),
+    });
+

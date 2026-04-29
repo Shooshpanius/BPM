@@ -21,6 +21,9 @@ public class AppDbContext : DbContext
     public DbSet<OrgPositionAssignment> OrgPositionAssignments => Set<OrgPositionAssignment>();
     public DbSet<BpmProcess> BpmProcesses => Set<BpmProcess>();
     public DbSet<BpmProcessVersion> BpmProcessVersions => Set<BpmProcessVersion>();
+    public DbSet<BpmElementConfig> BpmElementConfigs => Set<BpmElementConfig>();
+    public DbSet<BpmProcessVariable> BpmProcessVariables => Set<BpmProcessVariable>();
+    public DbSet<BpmRaciEntry> BpmRaciEntries => Set<BpmRaciEntry>();
     public DbSet<AuthAccount> AuthAccounts => Set<AuthAccount>();
     public DbSet<AuthSession> AuthSessions => Set<AuthSession>();
     public DbSet<AuthRole> AuthRoles => Set<AuthRole>();
@@ -330,6 +333,58 @@ public class AppDbContext : DbContext
             e.HasOne(v => v.Process)
              .WithMany(p => p.Versions)
              .HasForeignKey(v => v.ProcessId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Таблица кастомных конфигураций элементов BPMN
+        modelBuilder.Entity<BpmElementConfig>(e =>
+        {
+            e.ToTable("bpm_element_configs");
+            e.HasKey(c => c.Id);
+            e.Property(c => c.ElementId).IsRequired().HasMaxLength(200);
+            e.Property(c => c.ConfigJson).IsRequired().HasColumnType("jsonb");
+
+            // Уникальная пара процесс–elementId
+            e.HasIndex(c => new { c.ProcessId, c.ElementId }).IsUnique();
+
+            e.HasOne(c => c.Process)
+             .WithMany()
+             .HasForeignKey(c => c.ProcessId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Таблица переменных контекста процесса
+        modelBuilder.Entity<BpmProcessVariable>(e =>
+        {
+            e.ToTable("bpm_process_variables");
+            e.HasKey(v => v.Id);
+            e.Property(v => v.Name).IsRequired().HasMaxLength(200);
+            e.Property(v => v.VariableType).HasConversion<int>();
+            e.Property(v => v.DefaultValue).HasMaxLength(2000);
+
+            // Имя переменной уникально в рамках процесса
+            e.HasIndex(v => new { v.ProcessId, v.Name }).IsUnique();
+
+            e.HasOne(v => v.Process)
+             .WithMany()
+             .HasForeignKey(v => v.ProcessId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Таблица RACI-матрицы
+        modelBuilder.Entity<BpmRaciEntry>(e =>
+        {
+            e.ToTable("bpm_raci_entries");
+            e.HasKey(r => r.Id);
+            e.Property(r => r.Stage).IsRequired().HasMaxLength(300);
+            e.Property(r => r.Role).IsRequired().HasMaxLength(300);
+            e.Property(r => r.RaciType).HasConversion<int>();
+
+            e.HasIndex(r => r.ProcessId);
+
+            e.HasOne(r => r.Process)
+             .WithMany()
+             .HasForeignKey(r => r.ProcessId)
              .OnDelete(DeleteBehavior.Cascade);
         });
     }
