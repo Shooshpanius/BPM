@@ -13,7 +13,14 @@ interface HomePageProps {
 /** Основная страница приложения: шапка + сайдбар + содержимое раздела. */
 export function HomePage({ onAdmin }: HomePageProps) {
     const { logout, hasRole } = useAuth();
+    const canManageOrg = hasRole('Admin') || hasRole('HR');
     const [section, setSection] = useState<SidebarSection>('contacts');
+
+    const handleSelect = (s: SidebarSection) => {
+        // Обычные пользователи не имеют доступа к разделу «Оргструктура»
+        if (s === 'org-structure' && !canManageOrg) return;
+        setSection(s);
+    };
 
     return (
         <div className="hp-root">
@@ -35,7 +42,7 @@ export function HomePage({ onAdmin }: HomePageProps) {
             </header>
 
             <div className="hp-body">
-                <Sidebar active={section} onSelect={setSection} />
+                <Sidebar active={section} onSelect={handleSelect} />
                 <main className="hp-content">
                     {section === 'contacts' && (
                         <div className="hp-contacts-layout">
