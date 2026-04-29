@@ -17,41 +17,53 @@ import {
 } from '../../api/unitsApi';
 import type { DirectoryOrganizationDto } from '../../api/orgDirectoryApi';
 import { getDirectoryOrganizations } from '../../api/orgDirectoryApi';
+import { getOrgChart, type OrgChartDto } from '../../api/orgChartApi';
 import { DepartmentTree } from '../../components/org/DepartmentTree/DepartmentTree';
 import { DepartmentForm } from '../../components/org/DepartmentTree/DepartmentForm';
 import { DepartmentHistory } from '../../components/org/DepartmentTree/DepartmentHistory';
+import { OrgChartView } from '../../components/org/OrgChartView';
+import { OrgChartTable } from '../../components/org/OrgChartTable';
 import './OrgStructurePage.css';
 
 type StatusFilter = 'active' | 'archived' | 'all';
+type TabId = 'chart' | 'list' | 'manage';
 
-/** Страница управления деревом подразделений. */
+const TABS: { id: TabId; label: string; adminOnly: boolean }[] = [
+    { id: 'chart',  label: 'Органиграмма', adminOnly: false },
+    { id: 'list',   label: 'Список',       adminOnly: false },
+    { id: 'manage', label: 'Управление',   adminOnly: true  },
+];
+
+/** Страница оргструктуры: органиграмма, список и управление подразделениями. */
 export function OrgStructurePage() {
     const { accessToken: token, hasRole } = useAuth();
     const canManage = hasRole('Admin') || hasRole('HR');
 
-    // ─── Данные ───
+    // ─── Общее состояние ───
     const [organizations, setOrganizations] = useState<DirectoryOrganizationDto[]>([]);
     const [selectedOrgId, setSelectedOrgId] = useState<string>('');
+    const [activeTab, setActiveTab] = useState<TabId>('chart');
+
+    // ─── Поиск ───
+    const [search, setSearch] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+    const searchTimer = useRef<number | null>(null);
+
+    // ─── Данные органиграммы ───
+    const [chartData, setChartData] = useState<OrgChartDto | null>(null);
+    const [chartLoading, setChartLoading] = useState(false);
+    const [chartError, setChartError] = useState<string | null>(null);
+
+    // ─── Состояние вкладки «Управление» ───
     const [tree, setTree] = useState<OrgUnitTreeDto[]>([]);
     const [treeLoading, setTreeLoading] = useState(false);
     const [treeError, setTreeError] = useState<string | null>(null);
-
-    // Деталь выбранного узла
     const [selectedUnit, setSelectedUnit] = useState<OrgUnitDto | null>(null);
     const [detailLoading, setDetailLoading] = useState(false);
-
-    // ─── Фильтры ───
-    const [search, setSearch] = useState('');
-    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
-    const searchTimer = useRef<number | null>(null);
-
-    // ─── Форма ───
     type FormMode = { mode: 'create'; parentId?: string } | { mode: 'edit'; unitId: string } | null;
     const [formMode, setFormMode] = useState<FormMode>(null);
     const [editUnitData, setEditUnitData] = useState<OrgUnitDto | null>(null);
-
-    // ─── История ───
     const [historyUnitId, setHistoryUnitId] = useState<string | null>(null);
     const [historyUnitName, setHistoryUnitName] = useState('');
 
@@ -63,10 +75,38 @@ export function OrgStructurePage() {
                 setOrganizations(orgs);
                 if (orgs.length > 0) setSelectedOrgId(orgs[0].id);
             })
-            .catch(() => {/* нет организаций */});
+            .catch(() => { /* нет организаций */ });
     }, [token]);
 
-    // ─── Загрузка дерева ───
+    // ─── Дебаунс поиска ───
+    useEffect(() => {
+        if (searchTimer.current !== null) window.clearTimeout(searchTimer.current);
+        searchTimer.current = window.setTimeout(() => setDebouncedSearch(search), 300);
+        return () => { if (searchTimer.current !== null) window.clearTimeout(searchTimer.current); };
+    }, [search]);
+
+    // ─── Загрузка органиграммы ───
+    const loadChart = useCallback((orgId: string, searchQuery: string) => {
+        if (!token || !orgId) return;
+        setChartLoading(true);
+        setChartError(null);
+        getOrgChart(token, {
+            organizationId: orgId,
+            search: searchQuery || undefined,
+            extended: canManage,
+        })
+            .then(setChartData)
+            .catch(e => setChartError((e as Error).message ?? 'Ошибка загрузки'))
+            .finally(() => setChartLoading(false));
+    }, [token, canManage]);
+
+    useEffect(() => {
+        if ((activeTab === 'chart' || activeTab === 'list') && selectedOrgId) {
+            loadChart(selectedOrgId, debouncedSearch);
+        }
+    }, [activeTab, selectedOrgId, debouncedSearch, loadChart]);
+
+    // ─── Загрузка дерева управления ───
     const loadTree = useCallback((orgId: string, status: StatusFilter, searchQuery: string) => {
         if (!token || !orgId) return;
         setTreeLoading(true);
@@ -78,22 +118,24 @@ export function OrgStructurePage() {
 
         getUnitsTree(token, { organizationId: orgId, status: apiStatus, search: searchQuery || undefined })
             .then(setTree)
-            .catch(e => setTreeError(e.message ?? 'Ошибка загрузки'))
+            .catch(e => setTreeError((e as Error).message ?? 'Ошибка загрузки'))
             .finally(() => setTreeLoading(false));
     }, [token]);
 
     useEffect(() => {
-        if (selectedOrgId) loadTree(selectedOrgId, statusFilter, debouncedSearch);
-    }, [selectedOrgId, statusFilter, debouncedSearch, loadTree]);
+        if (activeTab === 'manage' && selectedOrgId) {
+            loadTree(selectedOrgId, statusFilter, debouncedSearch);
+        }
+    }, [activeTab, selectedOrgId, statusFilter, debouncedSearch, loadTree]);
 
-    // Дебаунс поиска
-    useEffect(() => {
-        if (searchTimer.current !== null) window.clearTimeout(searchTimer.current);
-        searchTimer.current = window.setTimeout(() => setDebouncedSearch(search), 300);
-        return () => { if (searchTimer.current !== null) window.clearTimeout(searchTimer.current); };
-    }, [search]);
+    // ─── Смена организации ───
+    const handleOrgChange = (orgId: string) => {
+        setSelectedOrgId(orgId);
+        setSelectedUnit(null);
+        setSearch('');
+    };
 
-    // ─── Выбор узла ───
+    // ─── Обработчики вкладки «Управление» ───
     const handleSelect = (id: string) => {
         if (!token) return;
         setDetailLoading(true);
@@ -103,7 +145,6 @@ export function OrgStructurePage() {
             .finally(() => setDetailLoading(false));
     };
 
-    // ─── CRUD-операции ───
     const handleAddChild = (parentId: string) => {
         setEditUnitData(null);
         setFormMode({ mode: 'create', parentId });
@@ -159,17 +200,33 @@ export function OrgStructurePage() {
         loadTree(selectedOrgId, statusFilter, debouncedSearch);
     };
 
-    // ─── История ───
     const handleShowHistory = (id: string, name: string) => {
         setHistoryUnitId(id);
         setHistoryUnitName(name);
     };
 
+    const showSearch = activeTab === 'chart' || activeTab === 'list' || activeTab === 'manage';
+
     return (
         <div className="org-root">
-            {/* Заголовок и тулбар */}
+            {/* Тулбар */}
             <div className="org-toolbar">
                 <h1 className="org-title">Оргструктура</h1>
+
+                {/* Табы */}
+                <div className="org-tabs" role="tablist">
+                    {TABS.filter(t => !t.adminOnly || canManage).map(tab => (
+                        <button
+                            key={tab.id}
+                            role="tab"
+                            aria-selected={activeTab === tab.id}
+                            className={`org-tab${activeTab === tab.id ? ' active' : ''}`}
+                            onClick={() => { setActiveTab(tab.id); setSearch(''); }}
+                        >
+                            {tab.label}
+                        </button>
+                    ))}
+                </div>
 
                 <div className="org-toolbar-controls">
                     {/* Выбор организации */}
@@ -177,7 +234,7 @@ export function OrgStructurePage() {
                         <select
                             className="org-select"
                             value={selectedOrgId}
-                            onChange={e => { setSelectedOrgId(e.target.value); setSelectedUnit(null); }}
+                            onChange={e => handleOrgChange(e.target.value)}
                             aria-label="Организация"
                         >
                             {organizations.map(o => (
@@ -186,41 +243,46 @@ export function OrgStructurePage() {
                         </select>
                     )}
 
-                    {/* Фильтр по статусу */}
-                    <div className="org-status-filter" role="group" aria-label="Фильтр по статусу">
-                        {(['active', 'all', 'archived'] as StatusFilter[]).map(s => (
-                            <button
-                                key={s}
-                                className={`org-status-btn${statusFilter === s ? ' active' : ''}`}
-                                onClick={() => setStatusFilter(s)}
-                            >
-                                {s === 'active' ? 'Активные' : s === 'archived' ? 'Архивные' : 'Все'}
-                            </button>
-                        ))}
-                    </div>
+                    {/* Фильтр статуса — только в «Управление» */}
+                    {activeTab === 'manage' && (
+                        <div className="org-status-filter" role="group" aria-label="Фильтр по статусу">
+                            {(['active', 'all', 'archived'] as StatusFilter[]).map(s => (
+                                <button
+                                    key={s}
+                                    className={`org-status-btn${statusFilter === s ? ' active' : ''}`}
+                                    onClick={() => setStatusFilter(s)}
+                                >
+                                    {s === 'active' ? 'Активные' : s === 'archived' ? 'Архивные' : 'Все'}
+                                </button>
+                            ))}
+                        </div>
+                    )}
 
                     {/* Поиск */}
-                    <div className="org-search">
-                        <span className="org-search-icon" aria-hidden="true">
-                            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" width="14" height="14">
-                                <circle cx="8.5" cy="8.5" r="5.5"/>
-                                <path d="M15 15l-3.5-3.5" strokeLinecap="round"/>
-                            </svg>
-                        </span>
-                        <input
-                            className="org-search-input"
-                            type="search"
-                            placeholder="Поиск по названию или коду…"
-                            value={search}
-                            onChange={e => setSearch(e.target.value)}
-                            aria-label="Поиск подразделений"
-                        />
-                        {search && (
-                            <button className="org-search-clear" onClick={() => setSearch('')} aria-label="Очистить">×</button>
-                        )}
-                    </div>
+                    {showSearch && (
+                        <div className="org-search">
+                            <span className="org-search-icon" aria-hidden="true">
+                                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" width="14" height="14">
+                                    <circle cx="8.5" cy="8.5" r="5.5"/>
+                                    <path d="M15 15l-3.5-3.5" strokeLinecap="round"/>
+                                </svg>
+                            </span>
+                            <input
+                                className="org-search-input"
+                                type="search"
+                                placeholder={activeTab === 'manage' ? 'Поиск по названию или коду…' : 'Поиск по ФИО, должности, подразделению…'}
+                                value={search}
+                                onChange={e => setSearch(e.target.value)}
+                                aria-label="Поиск"
+                            />
+                            {search && (
+                                <button className="org-search-clear" onClick={() => setSearch('')} aria-label="Очистить">×</button>
+                            )}
+                        </div>
+                    )}
 
-                    {canManage && (
+                    {/* Кнопка добавления — только в «Управление» */}
+                    {activeTab === 'manage' && canManage && (
                         <button className="org-add-btn" onClick={handleCreate}>
                             + Добавить
                         </button>
@@ -228,121 +290,163 @@ export function OrgStructurePage() {
                 </div>
             </div>
 
-            {/* Основная область */}
-            <div className="org-body">
-                {/* Дерево */}
-                <div className="org-tree-panel">
-                    {treeLoading && <div className="org-status">Загрузка…</div>}
-                    {!treeLoading && treeError && (
-                        <div className="org-status org-status--error">{treeError}</div>
+            {/* ─── Вкладка: Органиграмма ─── */}
+            {activeTab === 'chart' && (
+                <>
+                    {chartLoading && <div className="org-status">Загрузка…</div>}
+                    {!chartLoading && chartError && (
+                        <div className="org-status org-status--error">{chartError}</div>
                     )}
-                    {!treeLoading && !treeError && !selectedOrgId && (
+                    {!chartLoading && !chartError && !selectedOrgId && (
                         <div className="org-status">Выберите организацию</div>
                     )}
-                    {!treeLoading && !treeError && selectedOrgId && (
-                        <DepartmentTree
-                            nodes={tree}
-                            searchQuery={debouncedSearch}
-                            canManage={canManage}
-                            onSelect={handleSelect}
-                            onAddChild={handleAddChild}
-                            onEdit={handleEdit}
-                            onArchive={handleArchive}
-                            onMove={handleMove}
+                    {!chartLoading && !chartError && chartData && (
+                        <OrgChartView
+                            departments={chartData.departments}
+                            unassignedEmployees={chartData.unassignedEmployees}
+                            extended={canManage}
                         />
                     )}
-                </div>
+                </>
+            )}
 
-                {/* Панель деталей */}
-                <div className="org-detail-panel">
-                    {detailLoading && <div className="org-status">Загрузка…</div>}
-                    {!detailLoading && !selectedUnit && (
-                        <div className="org-detail-empty">Выберите подразделение в дереве</div>
+            {/* ─── Вкладка: Список ─── */}
+            {activeTab === 'list' && (
+                <>
+                    {chartLoading && <div className="org-status">Загрузка…</div>}
+                    {!chartLoading && chartError && (
+                        <div className="org-status org-status--error">{chartError}</div>
                     )}
-                    {!detailLoading && selectedUnit && (
-                        <div className="org-detail">
-                            {/* Хлебные крошки */}
-                            {selectedUnit.breadcrumb.length > 0 && (
-                                <nav className="org-breadcrumb" aria-label="Путь">
-                                    {selectedUnit.breadcrumb.map((b, i) => (
-                                        <span key={b.id} className="org-breadcrumb-item">
-                                            {i > 0 && <span className="org-breadcrumb-sep">›</span>}
-                                            {b.name}
-                                        </span>
-                                    ))}
-                                </nav>
-                            )}
+                    {!chartLoading && !chartError && !selectedOrgId && (
+                        <div className="org-status">Выберите организацию</div>
+                    )}
+                    {!chartLoading && !chartError && chartData && (
+                        <OrgChartTable
+                            departments={chartData.departments}
+                            unassignedEmployees={chartData.unassignedEmployees}
+                            search={debouncedSearch}
+                            extended={canManage}
+                        />
+                    )}
+                </>
+            )}
 
-                            <div className="org-detail-header">
-                                <div>
-                                    <h2 className="org-detail-name">{selectedUnit.name}</h2>
-                                    {selectedUnit.shortName && (
-                                        <span className="org-detail-short-name">{selectedUnit.shortName}</span>
+            {/* ─── Вкладка: Управление ─── */}
+            {activeTab === 'manage' && (
+                <div className="org-body">
+                    {/* Дерево */}
+                    <div className="org-tree-panel">
+                        {treeLoading && <div className="org-status">Загрузка…</div>}
+                        {!treeLoading && treeError && (
+                            <div className="org-status org-status--error">{treeError}</div>
+                        )}
+                        {!treeLoading && !treeError && !selectedOrgId && (
+                            <div className="org-status">Выберите организацию</div>
+                        )}
+                        {!treeLoading && !treeError && selectedOrgId && (
+                            <DepartmentTree
+                                nodes={tree}
+                                searchQuery={debouncedSearch}
+                                canManage={canManage}
+                                onSelect={handleSelect}
+                                onAddChild={handleAddChild}
+                                onEdit={handleEdit}
+                                onArchive={handleArchive}
+                                onMove={handleMove}
+                            />
+                        )}
+                    </div>
+
+                    {/* Панель деталей */}
+                    <div className="org-detail-panel">
+                        {detailLoading && <div className="org-status">Загрузка…</div>}
+                        {!detailLoading && !selectedUnit && (
+                            <div className="org-detail-empty">Выберите подразделение в дереве</div>
+                        )}
+                        {!detailLoading && selectedUnit && (
+                            <div className="org-detail">
+                                {selectedUnit.breadcrumb.length > 0 && (
+                                    <nav className="org-breadcrumb" aria-label="Путь">
+                                        {selectedUnit.breadcrumb.map((b, i) => (
+                                            <span key={b.id} className="org-breadcrumb-item">
+                                                {i > 0 && <span className="org-breadcrumb-sep">›</span>}
+                                                {b.name}
+                                            </span>
+                                        ))}
+                                    </nav>
+                                )}
+
+                                <div className="org-detail-header">
+                                    <div>
+                                        <h2 className="org-detail-name">{selectedUnit.name}</h2>
+                                        {selectedUnit.shortName && (
+                                            <span className="org-detail-short-name">{selectedUnit.shortName}</span>
+                                        )}
+                                    </div>
+                                    <span className={`org-detail-status org-detail-status--${selectedUnit.status}`}>
+                                        {selectedUnit.status === DEPARTMENT_STATUS_ACTIVE ? 'Активное' : 'Архивное'}
+                                    </span>
+                                </div>
+
+                                <dl className="org-detail-meta">
+                                    {selectedUnit.code && (
+                                        <>
+                                            <dt>Код</dt>
+                                            <dd><code>{selectedUnit.code}</code></dd>
+                                        </>
+                                    )}
+                                    <dt>Сотрудников</dt>
+                                    <dd>
+                                        {selectedUnit.directEmployeesCount} прямых
+                                        {selectedUnit.totalEmployeesCount !== selectedUnit.directEmployeesCount && (
+                                            <> / {selectedUnit.totalEmployeesCount} всего</>
+                                        )}
+                                    </dd>
+                                    <dt>Создано</dt>
+                                    <dd>{new Date(selectedUnit.createdAt).toLocaleDateString('ru-RU')}</dd>
+                                    {selectedUnit.updatedAt !== selectedUnit.createdAt && (
+                                        <>
+                                            <dt>Обновлено</dt>
+                                            <dd>{new Date(selectedUnit.updatedAt).toLocaleDateString('ru-RU')}</dd>
+                                        </>
+                                    )}
+                                </dl>
+
+                                {selectedUnit.description && (
+                                    <p className="org-detail-description">{selectedUnit.description}</p>
+                                )}
+
+                                <div className="org-detail-actions">
+                                    <button
+                                        className="org-action-btn"
+                                        onClick={() => handleShowHistory(selectedUnit.id, selectedUnit.name)}
+                                    >
+                                        История изменений
+                                    </button>
+                                    {canManage && (
+                                        <>
+                                            <button
+                                                className="org-action-btn org-action-btn--primary"
+                                                onClick={() => handleEdit(selectedUnit.id)}
+                                            >
+                                                Редактировать
+                                            </button>
+                                            {selectedUnit.status === DEPARTMENT_STATUS_ACTIVE && (
+                                                <button
+                                                    className="org-action-btn org-action-btn--danger"
+                                                    onClick={() => handleArchive(selectedUnit.id)}
+                                                >
+                                                    Архивировать
+                                                </button>
+                                            )}
+                                        </>
                                     )}
                                 </div>
-                                <span className={`org-detail-status org-detail-status--${selectedUnit.status}`}>
-                                    {selectedUnit.status === DEPARTMENT_STATUS_ACTIVE ? 'Активное' : 'Архивное'}
-                                </span>
                             </div>
-
-                            <dl className="org-detail-meta">
-                                {selectedUnit.code && (
-                                    <>
-                                        <dt>Код</dt>
-                                        <dd><code>{selectedUnit.code}</code></dd>
-                                    </>
-                                )}
-                                <dt>Сотрудников</dt>
-                                <dd>
-                                    {selectedUnit.directEmployeesCount} прямых
-                                    {selectedUnit.totalEmployeesCount !== selectedUnit.directEmployeesCount && (
-                                        <> / {selectedUnit.totalEmployeesCount} всего</>
-                                    )}
-                                </dd>
-                                <dt>Создано</dt>
-                                <dd>{new Date(selectedUnit.createdAt).toLocaleDateString('ru-RU')}</dd>
-                                {selectedUnit.updatedAt !== selectedUnit.createdAt && (
-                                    <>
-                                        <dt>Обновлено</dt>
-                                        <dd>{new Date(selectedUnit.updatedAt).toLocaleDateString('ru-RU')}</dd>
-                                    </>
-                                )}
-                            </dl>
-
-                            {selectedUnit.description && (
-                                <p className="org-detail-description">{selectedUnit.description}</p>
-                            )}
-
-                            <div className="org-detail-actions">
-                                <button
-                                    className="org-action-btn"
-                                    onClick={() => handleShowHistory(selectedUnit.id, selectedUnit.name)}
-                                >
-                                    История изменений
-                                </button>
-                                {canManage && (
-                                    <>
-                                        <button
-                                            className="org-action-btn org-action-btn--primary"
-                                            onClick={() => handleEdit(selectedUnit.id)}
-                                        >
-                                            Редактировать
-                                        </button>
-                                        {selectedUnit.status === DEPARTMENT_STATUS_ACTIVE && (
-                                            <button
-                                                className="org-action-btn org-action-btn--danger"
-                                                onClick={() => handleArchive(selectedUnit.id)}
-                                            >
-                                                Архивировать
-                                            </button>
-                                        )}
-                                    </>
-                                )}
-                            </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* Форма создания/редактирования */}
             {formMode && (

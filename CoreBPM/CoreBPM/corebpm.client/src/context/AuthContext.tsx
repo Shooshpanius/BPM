@@ -32,10 +32,18 @@ function extractRoles(token: string): string[] {
     return [];
 }
 
+/** Извлекает UserId (sub) из payload JWT-токена. */
+function extractUserId(token: string): string | null {
+    const payload = parseJwtPayload(token);
+    const sub = payload['sub'];
+    return typeof sub === 'string' ? sub : null;
+}
+
 interface AuthState {
     accessToken: string | null;
     isAuthenticated: boolean;
     roles: string[];
+    userId: string | null;
 }
 
 interface AuthContextValue extends AuthState {
@@ -53,6 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         accessToken: null,
         isAuthenticated: false,
         roles: [],
+        userId: null,
     });
 
     const login = useCallback(async (data: LoginRequest) => {
@@ -61,6 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             accessToken: res.accessToken,
             isAuthenticated: true,
             roles: extractRoles(res.accessToken),
+            userId: extractUserId(res.accessToken),
         });
     }, []);
 
@@ -72,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 // игнорируем ошибки при выходе
             }
         }
-        setState({ accessToken: null, isAuthenticated: false, roles: [] });
+        setState({ accessToken: null, isAuthenticated: false, roles: [], userId: null });
     }, [state.accessToken]);
 
     const refresh = useCallback(async (): Promise<boolean> => {
@@ -82,10 +92,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 accessToken: res.accessToken,
                 isAuthenticated: true,
                 roles: extractRoles(res.accessToken),
+                userId: extractUserId(res.accessToken),
             });
             return true;
         } catch {
-            setState({ accessToken: null, isAuthenticated: false, roles: [] });
+            setState({ accessToken: null, isAuthenticated: false, roles: [], userId: null });
             return false;
         }
     }, []);

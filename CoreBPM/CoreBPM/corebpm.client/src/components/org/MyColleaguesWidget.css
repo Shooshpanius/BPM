@@ -1,0 +1,101 @@
+/* ─── MyColleaguesWidget — виджет «Мои коллеги» ─── */
+
+.mcw-root {
+    background: var(--bg-white, #fff);
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 10px;
+    padding: 14px 16px;
+    max-width: 500px;
+}
+
+.mcw-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text, #111827);
+    margin-bottom: 12px;
+}
+
+.mcw-loading {
+    font-size: 12px;
+    color: var(--text-secondary, #9ca3af);
+}
+
+.mcw-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.mcw-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.mcw-group-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-secondary, #6b7280);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.mcw-avatars {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+/* ─── Аватар ─── */
+
+.mcw-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: var(--primary-light, #dbeafe);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: box-shadow 0.15s;
+    border: 2px solid transparent;
+}
+
+.mcw-avatar:hover {
+    box-shadow: 0 0 0 2px var(--primary, #3b82f6);
+}
+
+.mcw-avatar--manager {
+    width: 40px;
+    height: 40px;
+    border-color: var(--warning, #f59e0b);
+    background: var(--warning-light, #fef3c7);
+}
+
+.mcw-avatar--manager .mcw-avatar-initials {
+    color: var(--warning-dark, #b45309);
+}
+
+.mcw-avatar--extra {
+    background: var(--bg, #f3f4f6);
+    cursor: default;
+}
+
+.mcw-avatar--extra:hover {
+    box-shadow: none;
+}
+
+.mcw-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.mcw-avatar-initials {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--primary, #3b82f6);
+    letter-spacing: 0.5px;
+}

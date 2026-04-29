@@ -7,6 +7,41 @@
     background: var(--bg, #f9fafb);
 }
 
+/* ─── Табы ─── */
+.org-tabs {
+    display: flex;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 6px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.org-tab {
+    padding: 5px 14px;
+    font-size: 13px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-secondary, #6b7280);
+    transition: background 0.1s, color 0.1s;
+    white-space: nowrap;
+    font-weight: 500;
+}
+
+.org-tab + .org-tab {
+    border-left: 1px solid var(--border, #e5e7eb);
+}
+
+.org-tab.active {
+    background: var(--primary, #3b82f6);
+    color: #fff;
+}
+
+.org-tab:not(.active):hover {
+    background: var(--bg-hover, #f3f4f6);
+    color: var(--text, #111827);
+}
+
 /* ─── Тулбар ─── */
 .org-toolbar {
     display: flex;

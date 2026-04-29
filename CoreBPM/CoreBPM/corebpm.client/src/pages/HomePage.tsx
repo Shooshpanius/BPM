@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { Sidebar, type SidebarSection } from '../components/Sidebar';
 import { ContactsPage } from './contacts/ContactsPage';
 import { OrgStructurePage } from './org/OrgStructurePage';
+import { MyColleaguesWidget } from '../components/org/MyColleaguesWidget';
 import './HomePage.css';
 
 interface HomePageProps {
@@ -36,7 +37,14 @@ export function HomePage({ onAdmin }: HomePageProps) {
             <div className="hp-body">
                 <Sidebar active={section} onSelect={setSection} />
                 <main className="hp-content">
-                    {section === 'contacts' && <ContactsPage />}
+                    {section === 'contacts' && (
+                        <div className="hp-contacts-layout">
+                            <ContactsPage />
+                            <aside className="hp-aside">
+                                <MyColleaguesWidget />
+                            </aside>
+                        </div>
+                    )}
                     {section === 'org-structure' && <OrgStructurePage />}
                 </main>
             </div>

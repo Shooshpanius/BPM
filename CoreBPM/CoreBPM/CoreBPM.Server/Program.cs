@@ -71,6 +71,7 @@ builder.Services.AddScoped<IOrgDirectoryService, OrgDirectoryService>();
 builder.Services.AddScoped<IOrgUnitsService, OrgUnitsService>();
 builder.Services.AddScoped<IOrgPositionsService, OrgPositionsService>();
 builder.Services.AddScoped<IOrgAssignmentService, OrgAssignmentService>();
+builder.Services.AddScoped<IOrgChartService, OrgChartService>();
 
 var app = builder.Build();
 

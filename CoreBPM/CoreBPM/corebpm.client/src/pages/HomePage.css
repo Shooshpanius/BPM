@@ -98,3 +98,32 @@
     overflow: hidden;
 }
 
+/* Лейаут страницы контактов: список + виджет справа */
+.hp-contacts-layout {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.hp-contacts-layout > :first-child {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.hp-aside {
+    width: 280px;
+    flex-shrink: 0;
+    padding: 16px 12px;
+    border-left: 1px solid var(--border);
+    overflow-y: auto;
+    background: var(--bg);
+}
+
+@media (max-width: 900px) {
+    .hp-aside {
+        display: none;
+    }
+}
+
