@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import * as api from '../../api/bpmApi';
+import * as formsApi from '../../api/formsApi';
+import type { FormListItemDto } from '../../api/formsApi';
 
 interface Props {
     processId: string;
@@ -24,6 +26,8 @@ interface UserTaskConfig {
     priority: PriorityLevel;
     allowDelegation: boolean;
     supervisorControl: boolean;
+    /** ID привязанной формы задачи (из конструктора форм) */
+    formId?: string;
 }
 
 const DEFAULTS: UserTaskConfig = {
@@ -41,6 +45,7 @@ export function UserTaskTab({ processId, token, elementId }: Props) {
     const [config, setConfig] = useState<UserTaskConfig>(DEFAULTS);
     const [saving, setSaving] = useState(false);
     const [dirty, setDirty] = useState(false);
+    const [forms, setForms] = useState<FormListItemDto[]>([]);
 
     // Загружаем конфигурацию из API
     const load = useCallback(async () => {
@@ -59,6 +64,12 @@ export function UserTaskTab({ processId, token, elementId }: Props) {
     }, [token, processId, elementId]);
 
     useEffect(() => { load(); }, [load]);
+
+    // Загружаем список форм
+    useEffect(() => {
+        if (!token) return;
+        formsApi.getForms(token).then(setForms).catch(() => {/* игнорируем */ });
+    }, [token]);
 
     const update = <K extends keyof UserTaskConfig>(key: K, value: UserTaskConfig[K]) => {
         setConfig(prev => ({ ...prev, [key]: value }));
@@ -180,6 +191,24 @@ export function UserTaskTab({ processId, token, elementId }: Props) {
                     />
                     <span>Контроль руководителем</span>
                 </label>
+            </div>
+
+            {/* Форма задачи */}
+            <div className="bpp-group">
+                <div className="bpp-group-title">Форма задачи</div>
+                <div className="bpp-field">
+                    <label className="bpp-label">Форма задачи</label>
+                    <select
+                        className="bpp-select"
+                        value={config.formId ?? ''}
+                        onChange={e => update('formId', e.target.value || undefined)}
+                    >
+                        <option value="">— Не выбрана —</option>
+                        {forms.map(f => (
+                            <option key={f.id} value={f.id}>{f.name}</option>
+                        ))}
+                    </select>
+                </div>
             </div>
 
             <div className="bpp-btn-row">
