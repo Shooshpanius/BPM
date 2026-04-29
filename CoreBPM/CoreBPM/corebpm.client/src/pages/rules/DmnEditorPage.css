@@ -1,0 +1,561 @@
+/* ─── Корень редактора ──────────────────────────────────────────────────────── */
+.de-root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    box-sizing: border-box;
+    background: #f7f8fc;
+    overflow: hidden;
+}
+
+.de-loading {
+    padding: 60px;
+    text-align: center;
+    color: var(--color-text-secondary, #8a93a6);
+}
+
+/* ─── Шапка редактора ────────────────────────────────────────────────────────── */
+.de-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    background: #fff;
+    border-bottom: 1px solid var(--color-border, #dde1e7);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+.de-back-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--color-border, #dde1e7);
+    border-radius: 8px;
+    background: transparent;
+    cursor: pointer;
+    color: var(--color-text-secondary, #5a6072);
+    flex-shrink: 0;
+}
+.de-back-btn:hover { background: #f4f6fb; }
+
+.de-header-title {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.de-table-name {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--color-text-primary, #1a1a2e);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.de-policy-select {
+    padding: 5px 10px;
+    border: 1px solid var(--color-border, #dde1e7);
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    background: #f0f2ff;
+    color: #3a58e0;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.de-readonly-badge {
+    font-size: 0.75rem;
+    padding: 3px 8px;
+    background: #fff3e0;
+    color: #e65100;
+    border-radius: 10px;
+    font-weight: 500;
+}
+
+.de-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.de-btn {
+    padding: 7px 16px;
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+    white-space: nowrap;
+}
+.de-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.de-btn-primary {
+    background: var(--color-primary, #4f6ef7);
+    color: #fff;
+    border: none;
+}
+.de-btn-primary:hover:not(:disabled) { background: #3a58e0; }
+
+.de-btn-secondary {
+    background: transparent;
+    color: var(--color-text-secondary, #5a6072);
+    border: 1px solid var(--color-border, #dde1e7);
+}
+.de-btn-secondary:hover:not(:disabled) { background: #f4f6fb; }
+
+.de-btn-outline {
+    background: transparent;
+    color: var(--color-primary, #4f6ef7);
+    border: 1px solid var(--color-primary, #4f6ef7);
+}
+.de-btn-outline:hover:not(:disabled) { background: #eef1fd; }
+
+/* ─── Ошибка ──────────────────────────────────────────────────────────────────── */
+.de-error {
+    padding: 10px 20px;
+    background: #fdecea;
+    border-bottom: 1px solid #ffcdd2;
+    color: #c62828;
+    font-size: 0.875rem;
+    flex-shrink: 0;
+}
+
+/* ─── Тело редактора (таблица + панель версий) ────────────────────────────────── */
+.de-body {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+}
+
+.de-editor-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* ─── Таблица решений ────────────────────────────────────────────────────────── */
+.de-table-wrap {
+    flex: 1;
+    overflow: auto;
+    padding: 16px;
+}
+
+.de-table {
+    border-collapse: collapse;
+    min-width: 100%;
+    font-size: 0.875rem;
+    background: #fff;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+.de-th {
+    padding: 0;
+    border: 1px solid #e8eaed;
+    background: #f4f6fb;
+    font-weight: 600;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.de-th--input  { background: #eef1fd; }
+.de-th--output { background: #f0f9ec; }
+
+.de-th-num  { width: 40px; min-width: 40px; text-align: center; padding: 10px 8px; }
+.de-th-ann  { min-width: 140px; padding: 0 8px; }
+.de-th-act  { width: 36px; }
+
+.de-col-header {
+    display: flex;
+    flex-direction: column;
+    padding: 6px 10px;
+    gap: 4px;
+    min-width: 120px;
+}
+
+.de-col-kind-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #8a93a6;
+}
+
+.de-col-name {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-text-primary, #1a1a2e);
+}
+
+.de-col-name-input {
+    padding: 3px 6px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    background: transparent;
+    width: 100%;
+    box-sizing: border-box;
+}
+.de-col-name-input:focus {
+    outline: none;
+    border-color: var(--color-primary, #4f6ef7);
+    background: #fff;
+}
+
+.de-col-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.de-col-type-select {
+    font-size: 0.75rem;
+    padding: 2px 6px;
+    border: 1px solid var(--color-border, #dde1e7);
+    border-radius: 4px;
+    background: #fff;
+    cursor: pointer;
+}
+
+.de-col-type-badge {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    background: #f0f2ff;
+    color: #3a58e0;
+    border-radius: 4px;
+}
+
+.de-col-del-btn {
+    width: 20px;
+    height: 20px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: #e53935;
+    cursor: pointer;
+    font-size: 0.75rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.de-col-del-btn:hover { background: #fdecea; }
+
+/* Строки данных */
+.de-td {
+    padding: 0;
+    border: 1px solid #e8eaed;
+    vertical-align: middle;
+}
+
+.de-td--input  { background: #fafbff; }
+.de-td--output { background: #fafff8; }
+
+.de-td-num {
+    text-align: center;
+    color: var(--color-text-secondary, #8a93a6);
+    font-size: 0.75rem;
+    padding: 8px;
+}
+
+.de-td-ann { min-width: 140px; }
+.de-td-act { width: 36px; text-align: center; }
+
+.de-cell-input {
+    width: 100%;
+    padding: 6px 10px;
+    border: none;
+    background: transparent;
+    font-size: 0.875rem;
+    box-sizing: border-box;
+    font-family: 'Fira Code', 'Consolas', monospace;
+}
+.de-cell-input:focus {
+    outline: none;
+    background: #fff;
+    box-shadow: inset 0 0 0 2px var(--color-primary, #4f6ef7);
+}
+
+.de-cell-input--ann { font-family: inherit; }
+
+.de-cell-value {
+    display: block;
+    padding: 6px 10px;
+    font-family: 'Fira Code', 'Consolas', monospace;
+    font-size: 0.875rem;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.de-cell-any { color: #bbbfc8; }
+
+.de-row-del-btn {
+    width: 26px;
+    height: 26px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: #e53935;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: auto;
+}
+.de-row-del-btn:hover { background: #fdecea; }
+
+.de-empty-rows {
+    text-align: center;
+    padding: 40px;
+    color: var(--color-text-secondary, #8a93a6);
+    font-size: 0.875rem;
+}
+
+/* Подсветка совпавших строк */
+.de-row-matched td {
+    background: #fffde7 !important;
+}
+
+/* ─── Кнопки добавления ──────────────────────────────────────────────────────── */
+.de-add-area {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--color-border, #dde1e7);
+    background: #fff;
+    flex-shrink: 0;
+}
+
+.de-add-row-btn {
+    padding: 6px 14px;
+    border: 1px dashed #aaa;
+    border-radius: 6px;
+    background: transparent;
+    font-size: 0.8125rem;
+    color: var(--color-text-secondary, #5a6072);
+    cursor: pointer;
+}
+.de-add-row-btn:hover { background: #f4f6fb; }
+
+.de-add-col-group {
+    display: flex;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.de-add-col-btn {
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+}
+.de-add-col-btn--input {
+    border: 1px dashed #4f6ef7;
+    color: #4f6ef7;
+    background: transparent;
+}
+.de-add-col-btn--input:hover { background: #eef1fd; }
+
+.de-add-col-btn--output {
+    border: 1px dashed #2e7d32;
+    color: #2e7d32;
+    background: transparent;
+}
+.de-add-col-btn--output:hover { background: #f0f9ec; }
+
+/* ─── Панель версий ──────────────────────────────────────────────────────────── */
+.de-versions-panel {
+    width: 240px;
+    flex-shrink: 0;
+    border-left: 1px solid var(--color-border, #dde1e7);
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.de-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--color-border, #dde1e7);
+    flex-shrink: 0;
+}
+
+.de-panel-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-text-primary, #1a1a2e);
+}
+
+.de-panel-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #8a93a6;
+    font-size: 1rem;
+    line-height: 1;
+    padding: 2px;
+}
+.de-panel-close:hover { color: #e53935; }
+
+.de-versions-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+}
+
+.de-version-item {
+    padding: 10px 12px;
+    border-radius: 8px;
+    margin-bottom: 6px;
+    border: 1px solid var(--color-border, #dde1e7);
+    background: #fafafa;
+}
+.de-version-item--active {
+    border-color: var(--color-primary, #4f6ef7);
+    background: #f0f2ff;
+}
+
+.de-version-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.de-version-num { font-weight: 600; font-size: 0.875rem; }
+
+.de-version-status {
+    font-size: 0.7rem;
+    padding: 1px 6px;
+    border-radius: 8px;
+    font-weight: 500;
+}
+.de-version-status--published { background: #e6f4ea; color: #2e7d32; }
+.de-version-status--draft     { background: #fff3e0; color: #e65100; }
+.de-version-status--archived  { background: #f4f6fb; color: #8a93a6; }
+
+.de-version-date {
+    font-size: 0.75rem;
+    color: #8a93a6;
+    margin-bottom: 6px;
+}
+
+.de-version-open-btn {
+    font-size: 0.75rem;
+    padding: 3px 10px;
+    border: 1px solid var(--color-primary, #4f6ef7);
+    color: var(--color-primary, #4f6ef7);
+    border-radius: 4px;
+    background: transparent;
+    cursor: pointer;
+}
+.de-version-open-btn:hover { background: #eef1fd; }
+
+/* ─── Панель тестирования ────────────────────────────────────────────────────── */
+.de-test-panel {
+    border-top: 1px solid var(--color-border, #dde1e7);
+    background: #fff;
+    max-height: 320px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.de-test-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.de-test-inputs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: flex-end;
+}
+
+.de-test-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 140px;
+}
+
+.de-test-label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--color-text-secondary, #5a6072);
+}
+
+.de-test-input {
+    padding: 6px 10px;
+    border: 1px solid var(--color-border, #dde1e7);
+    border-radius: 6px;
+    font-size: 0.875rem;
+}
+.de-test-input:focus { outline: none; border-color: var(--color-primary, #4f6ef7); }
+
+.de-test-empty {
+    color: var(--color-text-secondary, #8a93a6);
+    font-size: 0.875rem;
+    margin: 0;
+}
+
+.de-test-run-btn { align-self: flex-start; }
+
+.de-test-error {
+    border-bottom: none;
+    border-radius: 6px;
+    margin: 0;
+}
+
+.de-test-results {
+    border-top: 1px solid var(--color-border, #dde1e7);
+    padding-top: 10px;
+}
+
+.de-test-results-header {
+    font-size: 0.8125rem;
+    color: var(--color-text-secondary, #5a6072);
+    margin-bottom: 8px;
+}
+
+.de-test-no-match {
+    font-size: 0.875rem;
+    color: #8a93a6;
+    margin: 0;
+}
+
+.de-test-table {
+    border-collapse: collapse;
+    font-size: 0.875rem;
+    width: 100%;
+}
+.de-test-table th, .de-test-table td {
+    border: 1px solid #e8eaed;
+    padding: 6px 10px;
+    text-align: left;
+}
+.de-test-table th {
+    background: #f4f6fb;
+    font-weight: 600;
+}

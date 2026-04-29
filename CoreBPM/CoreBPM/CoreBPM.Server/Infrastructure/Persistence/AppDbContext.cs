@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using CoreBPM.Server.Domain.Auth;
 using CoreBPM.Server.Domain.Bpm;
 using CoreBPM.Server.Domain.Org;
+using CoreBPM.Server.Domain.Rules;
 
 namespace CoreBPM.Server.Infrastructure.Persistence;
 
@@ -24,6 +25,11 @@ public class AppDbContext : DbContext
     public DbSet<BpmElementConfig> BpmElementConfigs => Set<BpmElementConfig>();
     public DbSet<BpmProcessVariable> BpmProcessVariables => Set<BpmProcessVariable>();
     public DbSet<BpmRaciEntry> BpmRaciEntries => Set<BpmRaciEntry>();
+    public DbSet<DmnTable> DmnTables => Set<DmnTable>();
+    public DbSet<DmnTableVersion> DmnTableVersions => Set<DmnTableVersion>();
+    public DbSet<DmnColumn> DmnColumns => Set<DmnColumn>();
+    public DbSet<DmnRow> DmnRows => Set<DmnRow>();
+    public DbSet<DmnCell> DmnCells => Set<DmnCell>();
     public DbSet<AuthAccount> AuthAccounts => Set<AuthAccount>();
     public DbSet<AuthSession> AuthSessions => Set<AuthSession>();
     public DbSet<AuthRole> AuthRoles => Set<AuthRole>();
@@ -385,6 +391,81 @@ public class AppDbContext : DbContext
             e.HasOne(r => r.Process)
              .WithMany()
              .HasForeignKey(r => r.ProcessId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ─── DMN: таблицы бизнес-правил ─────────────────────────────────────────
+
+        modelBuilder.Entity<DmnTable>(e =>
+        {
+            e.ToTable("rules_dmn_tables");
+            e.HasKey(t => t.Id);
+            e.Property(t => t.Name).IsRequired().HasMaxLength(300);
+            e.Property(t => t.Description).HasMaxLength(2000);
+            e.Property(t => t.HitPolicy).HasConversion<int>();
+        });
+
+        modelBuilder.Entity<DmnTableVersion>(e =>
+        {
+            e.ToTable("rules_dmn_table_versions");
+            e.HasKey(v => v.Id);
+            e.Property(v => v.Status).HasConversion<int>();
+
+            e.HasIndex(v => new { v.TableId, v.VersionNumber }).IsUnique();
+
+            e.HasOne(v => v.Table)
+             .WithMany(t => t.Versions)
+             .HasForeignKey(v => v.TableId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<DmnColumn>(e =>
+        {
+            e.ToTable("rules_dmn_columns");
+            e.HasKey(c => c.Id);
+            e.Property(c => c.Name).IsRequired().HasMaxLength(300);
+            e.Property(c => c.ColumnKind).HasConversion<int>();
+            e.Property(c => c.ValueType).HasConversion<int>();
+
+            e.HasIndex(c => new { c.VersionId, c.Order });
+
+            e.HasOne(c => c.Version)
+             .WithMany(v => v.Columns)
+             .HasForeignKey(c => c.VersionId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<DmnRow>(e =>
+        {
+            e.ToTable("rules_dmn_rows");
+            e.HasKey(r => r.Id);
+
+            e.HasIndex(r => new { r.VersionId, r.Order });
+
+            e.HasOne(r => r.Version)
+             .WithMany(v => v.Rows)
+             .HasForeignKey(r => r.VersionId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<DmnCell>(e =>
+        {
+            e.ToTable("rules_dmn_cells");
+            e.HasKey(c => c.Id);
+            e.Property(c => c.Value).HasMaxLength(2000);
+            e.Property(c => c.Annotation).HasMaxLength(1000);
+
+            // Уникальная пара ячейка: строка × колонка
+            e.HasIndex(c => new { c.RowId, c.ColumnId }).IsUnique();
+
+            e.HasOne(c => c.Row)
+             .WithMany(r => r.Cells)
+             .HasForeignKey(c => c.RowId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(c => c.Column)
+             .WithMany(col => col.Cells)
+             .HasForeignKey(c => c.ColumnId)
              .OnDelete(DeleteBehavior.Cascade);
         });
     }

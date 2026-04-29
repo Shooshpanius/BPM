@@ -1,0 +1,269 @@
+.rp-root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 24px;
+    box-sizing: border-box;
+    overflow-y: auto;
+}
+
+.rp-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    flex-shrink: 0;
+}
+
+.rp-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--color-text-primary, #1a1a2e);
+    margin: 0;
+}
+
+.rp-btn-primary {
+    padding: 8px 18px;
+    background: var(--color-primary, #4f6ef7);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.rp-btn-primary:hover:not(:disabled) { background: #3a58e0; }
+.rp-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.rp-btn-secondary {
+    padding: 8px 18px;
+    background: transparent;
+    color: var(--color-text-secondary, #5a6072);
+    border: 1px solid var(--color-border, #dde1e7);
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+}
+.rp-btn-secondary:hover:not(:disabled) { background: #f4f6fb; }
+.rp-btn-secondary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.rp-btn-danger {
+    padding: 8px 18px;
+    background: #e53935;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.rp-btn-danger:hover:not(:disabled) { background: #c62828; }
+.rp-btn-danger:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.rp-btn-icon {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+}
+.rp-btn-open  { color: var(--color-primary, #4f6ef7); }
+.rp-btn-open:hover  { background: #eef1fd; }
+.rp-btn-edit  { color: #5a6072; }
+.rp-btn-edit:hover  { background: #f4f6fb; }
+.rp-btn-delete { color: #e53935; }
+.rp-btn-delete:hover { background: #fdecea; }
+
+/* Список */
+.rp-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.rp-card {
+    display: flex;
+    align-items: center;
+    padding: 16px 20px;
+    background: #fff;
+    border: 1px solid var(--color-border, #dde1e7);
+    border-radius: 10px;
+    transition: box-shadow 0.15s, border-color 0.15s;
+}
+.rp-card:hover {
+    border-color: var(--color-primary, #4f6ef7);
+    box-shadow: 0 2px 12px rgba(79, 110, 247, 0.1);
+}
+
+.rp-card-main {
+    flex: 1;
+    cursor: pointer;
+    min-width: 0;
+}
+.rp-card-main:focus-visible { outline: 2px solid var(--color-primary, #4f6ef7); border-radius: 4px; }
+
+.rp-card-name {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text-primary, #1a1a2e);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.rp-card-desc {
+    font-size: 0.8125rem;
+    color: var(--color-text-secondary, #5a6072);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.rp-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+}
+
+.rp-badge {
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+.rp-badge--policy    { background: #e8eafd; color: #3a58e0; }
+.rp-badge--published { background: #e6f4ea; color: #2e7d32; }
+.rp-badge--draft     { background: #fff3e0; color: #e65100; }
+.rp-badge--archived  { background: #f4f6fb; color: #8a93a6; }
+
+.rp-card-date,
+.rp-card-versions {
+    font-size: 0.75rem;
+    color: var(--color-text-secondary, #8a93a6);
+}
+
+.rp-card-actions {
+    display: flex;
+    gap: 4px;
+    margin-left: 12px;
+    flex-shrink: 0;
+}
+
+/* Состояния */
+.rp-loading {
+    padding: 40px;
+    text-align: center;
+    color: var(--color-text-secondary, #8a93a6);
+}
+
+.rp-error {
+    padding: 16px;
+    background: #fdecea;
+    border: 1px solid #ffcdd2;
+    border-radius: 8px;
+    color: #c62828;
+    margin-bottom: 16px;
+}
+
+/* Пустое состояние */
+.rp-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 80px 20px;
+    text-align: center;
+}
+.rp-empty-icon  { font-size: 3rem; margin-bottom: 16px; opacity: 0.3; }
+.rp-empty-title { font-size: 1.125rem; font-weight: 600; color: var(--color-text-primary, #1a1a2e); margin: 0 0 8px; }
+.rp-empty-sub   { font-size: 0.875rem; color: var(--color-text-secondary, #8a93a6); margin: 0 0 24px; max-width: 380px; }
+
+/* Модальные окна */
+.rp-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.rp-modal {
+    background: #fff;
+    border-radius: 12px;
+    padding: 28px 32px;
+    width: 440px;
+    max-width: 90vw;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+}
+
+.rp-modal--confirm { width: 380px; }
+
+.rp-modal-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--color-text-primary, #1a1a2e);
+    margin: 0 0 20px;
+}
+
+.rp-modal-text {
+    font-size: 0.875rem;
+    color: var(--color-text-secondary, #5a6072);
+    margin: 0 0 20px;
+    line-height: 1.5;
+}
+
+.rp-modal-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+
+.rp-modal-field label {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--color-text-primary, #1a1a2e);
+}
+
+.rp-input {
+    padding: 8px 12px;
+    border: 1px solid var(--color-border, #dde1e7);
+    border-radius: 6px;
+    font-size: 0.875rem;
+    width: 100%;
+    box-sizing: border-box;
+    transition: border-color 0.15s;
+}
+.rp-input:focus { outline: none; border-color: var(--color-primary, #4f6ef7); }
+
+.rp-textarea { resize: vertical; font-family: inherit; }
+
+.rp-modal-error {
+    padding: 10px 12px;
+    background: #fdecea;
+    border: 1px solid #ffcdd2;
+    border-radius: 6px;
+    color: #c62828;
+    font-size: 0.8125rem;
+    margin-bottom: 16px;
+}
+
+.rp-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 4px;
+}
