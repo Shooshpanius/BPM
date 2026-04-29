@@ -140,24 +140,16 @@
 
 /* ─── Панель свойств ─── */
 .bpd-properties-panel {
-    width: 300px;
-    min-width: 240px;
-    max-width: 400px;
+    width: 320px;
+    min-width: 260px;
+    max-width: 420px;
     height: 100%;
     background: #fff;
     border-left: 1px solid var(--color-border, #dde1e7);
-    overflow-y: auto;
+    overflow: hidden;
     flex-shrink: 0;
-}
-
-.bpd-properties-inner {
-    height: 100%;
-}
-
-/* Стили для bpmn-js properties panel */
-.bpd-properties-panel :global(.bio-properties-panel) {
-    font-family: inherit;
-    font-size: 0.8125rem;
+    display: flex;
+    flex-direction: column;
 }
 
 /* Горизонтальный скролл-бар холста */

@@ -61,3 +61,70 @@ public record BpmDiagramDto(
 
 /// <summary>Запрос на сохранение XML-диаграммы.</summary>
 public record SaveDiagramRequest(string DiagramXml);
+
+// ─── Конфигурации элементов ─────────────────────────────────────────────────
+
+/// <summary>DTO конфигурации BPMN-элемента.</summary>
+public record BpmElementConfigDto(
+    string ElementId,
+    string ConfigJson,
+    DateTimeOffset UpdatedAt
+);
+
+/// <summary>Запрос на создание / обновление конфигурации элемента.</summary>
+public record UpsertElementConfigRequest(string ConfigJson);
+
+// ─── Переменные процесса ─────────────────────────────────────────────────────
+
+/// <summary>DTO переменной контекста процесса.</summary>
+public record BpmProcessVariableDto(
+    Guid Id,
+    string Name,
+    BpmVariableType VariableType,
+    string? DefaultValue,
+    bool IsKeyVariable,
+    bool IsInput,
+    bool IsOutput,
+    int SortOrder
+);
+
+/// <summary>Запрос на создание переменной процесса.</summary>
+public record CreateBpmVariableRequest(
+    string Name,
+    BpmVariableType VariableType,
+    string? DefaultValue,
+    bool IsKeyVariable,
+    bool IsInput,
+    bool IsOutput
+);
+
+/// <summary>Запрос на обновление переменной процесса.</summary>
+public record UpdateBpmVariableRequest(
+    string Name,
+    BpmVariableType VariableType,
+    string? DefaultValue,
+    bool IsKeyVariable,
+    bool IsInput,
+    bool IsOutput
+);
+
+/// <summary>Запрос на изменение порядка переменных.</summary>
+public record ReorderVariablesRequest(IReadOnlyList<Guid> OrderedIds);
+
+// ─── RACI-матрица ─────────────────────────────────────────────────────────────
+
+/// <summary>DTO записи RACI-матрицы.</summary>
+public record BpmRaciEntryDto(
+    Guid Id,
+    string Stage,
+    string Role,
+    BpmRaciType RaciType
+);
+
+/// <summary>Запрос на создание / обновление записи RACI.</summary>
+public record UpsertRaciEntryRequest(
+    string Stage,
+    string Role,
+    BpmRaciType RaciType
+);
+

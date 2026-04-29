@@ -77,6 +77,9 @@ builder.Services.AddScoped<IOrgChartService, OrgChartService>();
 
 // Регистрация сервисов BPM (бизнес-процессы)
 builder.Services.AddScoped<IBpmProcessService, BpmProcessService>();
+builder.Services.AddScoped<IBpmElementConfigService, BpmElementConfigService>();
+builder.Services.AddScoped<IBpmVariableService, BpmVariableService>();
+builder.Services.AddScoped<IBpmRaciService, BpmRaciService>();
 
 var app = builder.Build();
 

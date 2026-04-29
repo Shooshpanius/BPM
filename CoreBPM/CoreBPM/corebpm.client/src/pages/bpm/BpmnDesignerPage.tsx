@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import BpmnModeler from 'bpmn-js/lib/Modeler';
-import { BpmnPropertiesPanelModule, BpmnPropertiesProviderModule } from 'bpmn-js-properties-panel';
-import '@bpmn-io/properties-panel/dist/assets/properties-panel.css';
 import { useAuth } from '../../context/AuthContext';
 import * as api from '../../api/bpmApi';
 import type { BpmProcessDto } from '../../api/bpmApi';
+import { BpmPropertiesPanel } from '../../components/bpm/BpmPropertiesPanel';
 import './BpmnDesignerPage.css';
 
 // XML пустой диаграммы BPMN 2.0 по умолчанию
@@ -44,7 +43,6 @@ export function BpmnDesignerPage({ processId, onBack }: BpmnDesignerPageProps) {
     const { accessToken: token } = useAuth();
 
     const containerRef = useRef<HTMLDivElement>(null);
-    const propertiesRef = useRef<HTMLDivElement>(null);
     const modelerRef = useRef<InstanceType<typeof BpmnModeler> | null>(null);
     const autoSaveTimer = useRef<number | null>(null);
 
@@ -52,6 +50,7 @@ export function BpmnDesignerPage({ processId, onBack }: BpmnDesignerPageProps) {
     const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
     const [saveError, setSaveError] = useState<string | null>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
+    const [modelerReady, setModelerReady] = useState(false);
 
     // ─── Сохранение диаграммы ───
 
@@ -77,15 +76,10 @@ export function BpmnDesignerPage({ processId, onBack }: BpmnDesignerPageProps) {
     // ─── Инициализация модельера bpmn-js ───
 
     useEffect(() => {
-        if (!containerRef.current || !propertiesRef.current || !token) return;
+        if (!containerRef.current || !token) return;
 
         const modeler = new BpmnModeler({
             container: containerRef.current,
-            additionalModules: [
-                BpmnPropertiesPanelModule,
-                BpmnPropertiesProviderModule,
-            ],
-            propertiesPanel: { parent: propertiesRef.current },
             keyboard: { bindTo: document },
         });
         modelerRef.current = modeler;
@@ -116,6 +110,7 @@ export function BpmnDesignerPage({ processId, onBack }: BpmnDesignerPageProps) {
                 canvas.zoom('fit-viewport');
 
                 setSaveStatus('saved');
+                setModelerReady(true);
             } catch (e) {
                 setLoadError(e instanceof Error ? e.message : 'Ошибка загрузки диаграммы');
             }
@@ -138,6 +133,7 @@ export function BpmnDesignerPage({ processId, onBack }: BpmnDesignerPageProps) {
             window.removeEventListener('beforeunload', beforeUnload);
             modeler.destroy();
             modelerRef.current = null;
+            setModelerReady(false);
         };
     }, [token, processId]);
 
@@ -251,9 +247,15 @@ export function BpmnDesignerPage({ processId, onBack }: BpmnDesignerPageProps) {
             <div className="bpd-workspace">
                 {/* Холст bpmn-js */}
                 <div ref={containerRef} className="bpd-canvas" />
-                {/* Панель свойств */}
+                {/* Кастомная панель свойств */}
                 <aside className="bpd-properties-panel" aria-label="Панель свойств элемента">
-                    <div ref={propertiesRef} className="bpd-properties-inner" />
+                    {modelerReady && modelerRef.current && token && (
+                        <BpmPropertiesPanel
+                            modeler={modelerRef.current}
+                            processId={processId}
+                            token={token}
+                        />
+                    )}
                 </aside>
             </div>
         </div>
