@@ -4,6 +4,8 @@ using CoreBPM.Server.Application.Bpm.Interfaces;
 using CoreBPM.Server.Application.Bpm.Services;
 using CoreBPM.Server.Application.Org.Interfaces;
 using CoreBPM.Server.Application.Org.Services;
+using CoreBPM.Server.Application.Rules.Interfaces;
+using CoreBPM.Server.Application.Rules.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -80,6 +82,9 @@ builder.Services.AddScoped<IBpmProcessService, BpmProcessService>();
 builder.Services.AddScoped<IBpmElementConfigService, BpmElementConfigService>();
 builder.Services.AddScoped<IBpmVariableService, BpmVariableService>();
 builder.Services.AddScoped<IBpmRaciService, BpmRaciService>();
+
+// Регистрация сервисов Rules (DMN-таблицы бизнес-правил)
+builder.Services.AddScoped<IDmnService, DmnService>();
 
 var app = builder.Build();
 
