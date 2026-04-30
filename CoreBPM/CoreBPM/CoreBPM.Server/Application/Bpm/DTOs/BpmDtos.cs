@@ -555,3 +555,53 @@ public record BpmSchedulerJobDto(
     DateTimeOffset UpdatedAt
 );
 
+
+// ─── Управление экземпляром ───────────────────────────────────────────────────
+
+/// <summary>Запрос на прерывание (отмену) экземпляра процесса.</summary>
+public record CancelInstanceRequest(
+    /// <summary>Обязательная причина прерывания.</summary>
+    string Reason
+);
+
+/// <summary>Запрос на смену ответственного за экземпляр.</summary>
+public record ChangeResponsibleRequest(
+    Guid NewResponsibleUserId
+);
+
+/// <summary>Запрос на обновление значения переменной экземпляра.</summary>
+public record UpdateInstanceVariableRequest(
+    string? ValueJson
+);
+
+/// <summary>Запрос на добавление комментария / вопроса к экземпляру.</summary>
+public record AddCommentRequest(
+    string Text,
+    bool IsQuestion = false
+);
+
+/// <summary>Запрос на добавление участника экземпляра.</summary>
+public record AddParticipantRequest(
+    Guid UserId
+);
+
+/// <summary>DTO записи истории экземпляра.</summary>
+public record BpmInstanceHistoryEntryDto(
+    Guid Id,
+    BpmHistoryEventType EventType,
+    Guid? ActorUserId,
+    string? ActorDisplayName,
+    string? Text,
+    string? MetaJson,
+    DateTimeOffset OccurredAt
+);
+
+/// <summary>DTO участника экземпляра.</summary>
+public record BpmInstanceParticipantDto(
+    Guid Id,
+    Guid UserId,
+    string? DisplayName,
+    Guid? AddedByUserId,
+    string? AddedByDisplayName,
+    DateTimeOffset AddedAt
+);

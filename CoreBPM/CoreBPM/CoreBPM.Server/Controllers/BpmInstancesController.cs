@@ -62,6 +62,132 @@ public class BpmInstancesController : ControllerBase
         CancellationToken ct)
         => Ok(await _service.GetSchedulerJobsAsync(processId, ct));
 
+    // ─── Управление состоянием ────────────────────────────────────────────────
+
+    /// <summary>Прерывает (отменяет) экземпляр с указанием причины.</summary>
+    [HttpPost("api/bpm/instances/{instanceId}/cancel")]
+    [ProducesResponseType(typeof(BpmInstanceDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<BpmInstanceDto>> Cancel(
+        Guid instanceId,
+        [FromBody] CancelInstanceRequest request,
+        CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.CancelInstanceAsync(instanceId, request, userId.Value, ct));
+    }
+
+    /// <summary>Приостанавливает выполнение экземпляра.</summary>
+    [HttpPost("api/bpm/instances/{instanceId}/suspend")]
+    [ProducesResponseType(typeof(BpmInstanceDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<BpmInstanceDto>> Suspend(Guid instanceId, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.SuspendInstanceAsync(instanceId, userId.Value, ct));
+    }
+
+    /// <summary>Возобновляет приостановленный экземпляр.</summary>
+    [HttpPost("api/bpm/instances/{instanceId}/resume")]
+    [ProducesResponseType(typeof(BpmInstanceDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<BpmInstanceDto>> Resume(Guid instanceId, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.ResumeInstanceAsync(instanceId, userId.Value, ct));
+    }
+
+    /// <summary>Изменяет ответственного за экземпляр.</summary>
+    [HttpPut("api/bpm/instances/{instanceId}/responsible")]
+    [ProducesResponseType(typeof(BpmInstanceDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<BpmInstanceDto>> ChangeResponsible(
+        Guid instanceId,
+        [FromBody] ChangeResponsibleRequest request,
+        CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.ChangeResponsibleAsync(instanceId, request, userId.Value, ct));
+    }
+
+    /// <summary>Обновляет значение переменной экземпляра.</summary>
+    [HttpPut("api/bpm/instances/{instanceId}/variables/{variableName}")]
+    [ProducesResponseType(typeof(BpmInstanceVariableDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<BpmInstanceVariableDto>> UpdateVariable(
+        Guid instanceId,
+        string variableName,
+        [FromBody] UpdateInstanceVariableRequest request,
+        CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.UpdateVariableAsync(instanceId, variableName, request, userId.Value, ct));
+    }
+
+    // ─── История ─────────────────────────────────────────────────────────────
+
+    /// <summary>Возвращает журнал событий экземпляра.</summary>
+    [HttpGet("api/bpm/instances/{instanceId}/history")]
+    [ProducesResponseType(typeof(IReadOnlyList<BpmInstanceHistoryEntryDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<BpmInstanceHistoryEntryDto>>> GetHistory(
+        Guid instanceId,
+        CancellationToken ct)
+        => Ok(await _service.GetHistoryAsync(instanceId, ct));
+
+    /// <summary>Добавляет комментарий или вопрос к экземпляру.</summary>
+    [HttpPost("api/bpm/instances/{instanceId}/comments")]
+    [ProducesResponseType(typeof(BpmInstanceHistoryEntryDto), StatusCodes.Status201Created)]
+    public async Task<ActionResult<BpmInstanceHistoryEntryDto>> AddComment(
+        Guid instanceId,
+        [FromBody] AddCommentRequest request,
+        CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        var entry = await _service.AddCommentAsync(instanceId, request, userId.Value, ct);
+        return StatusCode(StatusCodes.Status201Created, entry);
+    }
+
+    // ─── Участники ───────────────────────────────────────────────────────────
+
+    /// <summary>Возвращает список участников экземпляра.</summary>
+    [HttpGet("api/bpm/instances/{instanceId}/participants")]
+    [ProducesResponseType(typeof(IReadOnlyList<BpmInstanceParticipantDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<BpmInstanceParticipantDto>>> GetParticipants(
+        Guid instanceId,
+        CancellationToken ct)
+        => Ok(await _service.GetParticipantsAsync(instanceId, ct));
+
+    /// <summary>Добавляет участника к экземпляру.</summary>
+    [HttpPost("api/bpm/instances/{instanceId}/participants")]
+    [ProducesResponseType(typeof(BpmInstanceParticipantDto), StatusCodes.Status201Created)]
+    public async Task<ActionResult<BpmInstanceParticipantDto>> AddParticipant(
+        Guid instanceId,
+        [FromBody] AddParticipantRequest request,
+        CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        var p = await _service.AddParticipantAsync(instanceId, request, userId.Value, ct);
+        return StatusCode(StatusCodes.Status201Created, p);
+    }
+
+    /// <summary>Удаляет участника из экземпляра.</summary>
+    [HttpDelete("api/bpm/instances/{instanceId}/participants/{participantUserId}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> RemoveParticipant(
+        Guid instanceId,
+        Guid participantUserId,
+        CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        await _service.RemoveParticipantAsync(instanceId, participantUserId, userId.Value, ct);
+        return NoContent();
+    }
+
     // ─── Вспомогательные методы ───────────────────────────────────────────────
 
     private Guid? GetCurrentUserId()

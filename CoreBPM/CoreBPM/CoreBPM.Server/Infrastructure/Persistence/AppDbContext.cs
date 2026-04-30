@@ -29,6 +29,8 @@ public class AppDbContext : DbContext
     public DbSet<BpmInstance> BpmInstances => Set<BpmInstance>();
     public DbSet<BpmInstanceVariable> BpmInstanceVariables => Set<BpmInstanceVariable>();
     public DbSet<BpmSchedulerJob> BpmSchedulerJobs => Set<BpmSchedulerJob>();
+    public DbSet<BpmInstanceHistoryEntry> BpmInstanceHistoryEntries => Set<BpmInstanceHistoryEntry>();
+    public DbSet<BpmInstanceParticipant> BpmInstanceParticipants => Set<BpmInstanceParticipant>();
     public DbSet<BpmTaskForm> BpmTaskForms => Set<BpmTaskForm>();
     public DbSet<BpmTaskFormVersion> BpmTaskFormVersions => Set<BpmTaskFormVersion>();
     public DbSet<BpmInstanceStatusConfig> BpmInstanceStatusConfigs => Set<BpmInstanceStatusConfig>();
@@ -520,6 +522,38 @@ public class AppDbContext : DbContext
              .WithMany()
              .HasForeignKey(j => j.ProcessVersionId)
              .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ─── Журнал истории и участники экземпляра ───────────────────────────────
+
+        modelBuilder.Entity<BpmInstanceHistoryEntry>(e =>
+        {
+            e.ToTable("bpm_instance_history");
+            e.HasKey(h => h.Id);
+            e.Property(h => h.EventType).HasConversion<int>();
+            e.Property(h => h.Text).HasMaxLength(4000);
+            e.Property(h => h.MetaJson).HasColumnType("text");
+
+            e.HasIndex(h => h.InstanceId);
+            e.HasIndex(h => new { h.InstanceId, h.OccurredAt });
+
+            e.HasOne(h => h.Instance)
+             .WithMany()
+             .HasForeignKey(h => h.InstanceId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<BpmInstanceParticipant>(e =>
+        {
+            e.ToTable("bpm_instance_participants");
+            e.HasKey(p => p.Id);
+            e.Property(p => p.DisplayName).HasMaxLength(300);
+            e.HasIndex(p => new { p.InstanceId, p.UserId }).IsUnique();
+
+            e.HasOne(p => p.Instance)
+             .WithMany()
+             .HasForeignKey(p => p.InstanceId)
+             .OnDelete(DeleteBehavior.Cascade);
         });
 
         // ─── DMN: таблицы бизнес-правил ─────────────────────────────────────────

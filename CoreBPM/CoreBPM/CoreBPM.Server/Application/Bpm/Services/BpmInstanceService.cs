@@ -295,4 +295,402 @@ public class BpmInstanceService : IBpmInstanceService
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(input));
         return Convert.ToHexString(bytes).ToLowerInvariant();
     }
+
+    // ─── Управление состоянием ────────────────────────────────────────────────
+
+    /// <inheritdoc />
+    public async Task<BpmInstanceDto> CancelInstanceAsync(
+        Guid instanceId,
+        CancelInstanceRequest request,
+        Guid actorUserId,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(request.Reason))
+            throw new ValidationException("Причина прерывания обязательна");
+
+        var instance = await _db.BpmInstances
+            .Include(i => i.Process)
+            .Include(i => i.ProcessVersion)
+            .Include(i => i.Variables)
+            .FirstOrDefaultAsync(i => i.Id == instanceId, ct)
+            ?? throw new NotFoundException($"Экземпляр {instanceId} не найден");
+
+        if (instance.State == BpmInstanceState.Completed || instance.State == BpmInstanceState.Cancelled)
+            throw new ValidationException($"Нельзя прервать экземпляр в состоянии {instance.State}");
+
+        var now = DateTimeOffset.UtcNow;
+        instance.State = BpmInstanceState.Cancelled;
+        instance.CancelReason = request.Reason.Trim();
+        instance.CancelledAt = now;
+        instance.UpdatedAt = now;
+
+        _db.BpmInstanceHistoryEntries.Add(new BpmInstanceHistoryEntry
+        {
+            Id = Guid.NewGuid(),
+            InstanceId = instanceId,
+            EventType = BpmHistoryEventType.Cancelled,
+            ActorUserId = actorUserId,
+            Text = request.Reason.Trim(),
+            OccurredAt = now,
+        });
+
+        await _db.SaveChangesAsync(ct);
+        return await MapToDtoAsync(instance, ct);
+    }
+
+    /// <inheritdoc />
+    public async Task<BpmInstanceDto> SuspendInstanceAsync(
+        Guid instanceId,
+        Guid actorUserId,
+        CancellationToken ct = default)
+    {
+        var instance = await _db.BpmInstances
+            .Include(i => i.Process)
+            .Include(i => i.ProcessVersion)
+            .Include(i => i.Variables)
+            .FirstOrDefaultAsync(i => i.Id == instanceId, ct)
+            ?? throw new NotFoundException($"Экземпляр {instanceId} не найден");
+
+        if (instance.State != BpmInstanceState.Active)
+            throw new ValidationException("Приостановить можно только активный экземпляр");
+
+        var now = DateTimeOffset.UtcNow;
+        instance.State = BpmInstanceState.Suspended;
+        instance.UpdatedAt = now;
+
+        _db.BpmInstanceHistoryEntries.Add(new BpmInstanceHistoryEntry
+        {
+            Id = Guid.NewGuid(),
+            InstanceId = instanceId,
+            EventType = BpmHistoryEventType.Suspended,
+            ActorUserId = actorUserId,
+            OccurredAt = now,
+        });
+
+        await _db.SaveChangesAsync(ct);
+        return await MapToDtoAsync(instance, ct);
+    }
+
+    /// <inheritdoc />
+    public async Task<BpmInstanceDto> ResumeInstanceAsync(
+        Guid instanceId,
+        Guid actorUserId,
+        CancellationToken ct = default)
+    {
+        var instance = await _db.BpmInstances
+            .Include(i => i.Process)
+            .Include(i => i.ProcessVersion)
+            .Include(i => i.Variables)
+            .FirstOrDefaultAsync(i => i.Id == instanceId, ct)
+            ?? throw new NotFoundException($"Экземпляр {instanceId} не найден");
+
+        if (instance.State != BpmInstanceState.Suspended)
+            throw new ValidationException("Возобновить можно только приостановленный экземпляр");
+
+        var now = DateTimeOffset.UtcNow;
+        instance.State = BpmInstanceState.Active;
+        instance.UpdatedAt = now;
+
+        _db.BpmInstanceHistoryEntries.Add(new BpmInstanceHistoryEntry
+        {
+            Id = Guid.NewGuid(),
+            InstanceId = instanceId,
+            EventType = BpmHistoryEventType.Resumed,
+            ActorUserId = actorUserId,
+            OccurredAt = now,
+        });
+
+        await _db.SaveChangesAsync(ct);
+        return await MapToDtoAsync(instance, ct);
+    }
+
+    /// <inheritdoc />
+    public async Task<BpmInstanceDto> ChangeResponsibleAsync(
+        Guid instanceId,
+        ChangeResponsibleRequest request,
+        Guid actorUserId,
+        CancellationToken ct = default)
+    {
+        var instance = await _db.BpmInstances
+            .Include(i => i.Process)
+            .Include(i => i.ProcessVersion)
+            .Include(i => i.Variables)
+            .FirstOrDefaultAsync(i => i.Id == instanceId, ct)
+            ?? throw new NotFoundException($"Экземпляр {instanceId} не найден");
+
+        if (instance.State == BpmInstanceState.Cancelled || instance.State == BpmInstanceState.Completed)
+            throw new ValidationException("Нельзя изменить ответственного у завершённого или прерванного экземпляра");
+
+        var oldResponsible = instance.ResponsibleUserId;
+        var now = DateTimeOffset.UtcNow;
+
+        var newUser = await _db.OrgUsers.AsNoTracking()
+            .Where(u => u.Id == request.NewResponsibleUserId)
+            .Select(u => new { u.Id, u.DisplayName })
+            .FirstOrDefaultAsync(ct)
+            ?? throw new NotFoundException($"Пользователь {request.NewResponsibleUserId} не найден");
+
+        instance.ResponsibleUserId = request.NewResponsibleUserId;
+        instance.UpdatedAt = now;
+
+        var meta = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            from = oldResponsible,
+            to = request.NewResponsibleUserId,
+            toName = newUser.DisplayName,
+        });
+
+        _db.BpmInstanceHistoryEntries.Add(new BpmInstanceHistoryEntry
+        {
+            Id = Guid.NewGuid(),
+            InstanceId = instanceId,
+            EventType = BpmHistoryEventType.ResponsibleChanged,
+            ActorUserId = actorUserId,
+            Text = $"Ответственный изменён на «{newUser.DisplayName}»",
+            MetaJson = meta,
+            OccurredAt = now,
+        });
+
+        await _db.SaveChangesAsync(ct);
+        return await MapToDtoAsync(instance, ct);
+    }
+
+    /// <inheritdoc />
+    public async Task<BpmInstanceVariableDto> UpdateVariableAsync(
+        Guid instanceId,
+        string variableName,
+        UpdateInstanceVariableRequest request,
+        Guid actorUserId,
+        CancellationToken ct = default)
+    {
+        var instance = await _db.BpmInstances
+            .FirstOrDefaultAsync(i => i.Id == instanceId, ct)
+            ?? throw new NotFoundException($"Экземпляр {instanceId} не найден");
+
+        var variable = await _db.BpmInstanceVariables
+            .FirstOrDefaultAsync(v => v.InstanceId == instanceId && v.Name == variableName, ct);
+
+        var now = DateTimeOffset.UtcNow;
+        var oldValue = variable?.ValueJson;
+
+        if (variable == null)
+        {
+            variable = new BpmInstanceVariable
+            {
+                Id = Guid.NewGuid(),
+                InstanceId = instanceId,
+                Name = variableName.Trim(),
+                ValueJson = request.ValueJson,
+                SetAt = now,
+            };
+            _db.BpmInstanceVariables.Add(variable);
+        }
+        else
+        {
+            variable.ValueJson = request.ValueJson;
+            variable.SetAt = now;
+        }
+
+        var meta = System.Text.Json.JsonSerializer.Serialize(new { name = variableName, from = oldValue, to = request.ValueJson });
+        _db.BpmInstanceHistoryEntries.Add(new BpmInstanceHistoryEntry
+        {
+            Id = Guid.NewGuid(),
+            InstanceId = instanceId,
+            EventType = BpmHistoryEventType.VariableUpdated,
+            ActorUserId = actorUserId,
+            Text = $"Переменная «{variableName}» изменена",
+            MetaJson = meta,
+            OccurredAt = now,
+        });
+
+        instance.UpdatedAt = now;
+        await _db.SaveChangesAsync(ct);
+        return new BpmInstanceVariableDto(variable.Id, variable.Name, variable.ValueJson);
+    }
+
+    // ─── История ──────────────────────────────────────────────────────────────
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<BpmInstanceHistoryEntryDto>> GetHistoryAsync(
+        Guid instanceId,
+        CancellationToken ct = default)
+    {
+        var entries = await _db.BpmInstanceHistoryEntries
+            .AsNoTracking()
+            .Where(e => e.InstanceId == instanceId)
+            .OrderBy(e => e.OccurredAt)
+            .ToListAsync(ct);
+
+        var actorIds = entries
+            .Where(e => e.ActorUserId.HasValue)
+            .Select(e => e.ActorUserId!.Value)
+            .Distinct().ToList();
+
+        var actorNames = await _db.OrgUsers
+            .AsNoTracking()
+            .Where(u => actorIds.Contains(u.Id))
+            .Select(u => new { u.Id, u.DisplayName })
+            .ToListAsync(ct);
+
+        return entries.Select(e => new BpmInstanceHistoryEntryDto(
+            e.Id,
+            e.EventType,
+            e.ActorUserId,
+            actorNames.FirstOrDefault(u => u.Id == e.ActorUserId)?.DisplayName,
+            e.Text,
+            e.MetaJson,
+            e.OccurredAt
+        )).ToList();
+    }
+
+    /// <inheritdoc />
+    public async Task<BpmInstanceHistoryEntryDto> AddCommentAsync(
+        Guid instanceId,
+        AddCommentRequest request,
+        Guid actorUserId,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(request.Text))
+            throw new ValidationException("Текст комментария не может быть пустым");
+
+        var exists = await _db.BpmInstances.AnyAsync(i => i.Id == instanceId, ct);
+        if (!exists) throw new NotFoundException($"Экземпляр {instanceId} не найден");
+
+        var now = DateTimeOffset.UtcNow;
+        var entry = new BpmInstanceHistoryEntry
+        {
+            Id = Guid.NewGuid(),
+            InstanceId = instanceId,
+            EventType = request.IsQuestion ? BpmHistoryEventType.QuestionAdded : BpmHistoryEventType.CommentAdded,
+            ActorUserId = actorUserId,
+            Text = request.Text.Trim(),
+            OccurredAt = now,
+        };
+
+        _db.BpmInstanceHistoryEntries.Add(entry);
+        await _db.SaveChangesAsync(ct);
+
+        var actor = await _db.OrgUsers.AsNoTracking()
+            .Where(u => u.Id == actorUserId)
+            .Select(u => new { u.Id, u.DisplayName })
+            .FirstOrDefaultAsync(ct);
+
+        return new BpmInstanceHistoryEntryDto(
+            entry.Id, entry.EventType, entry.ActorUserId,
+            actor?.DisplayName, entry.Text, entry.MetaJson, entry.OccurredAt);
+    }
+
+    // ─── Участники ────────────────────────────────────────────────────────────
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<BpmInstanceParticipantDto>> GetParticipantsAsync(
+        Guid instanceId,
+        CancellationToken ct = default)
+    {
+        var participants = await _db.BpmInstanceParticipants
+            .AsNoTracking()
+            .Where(p => p.InstanceId == instanceId)
+            .OrderBy(p => p.AddedAt)
+            .ToListAsync(ct);
+
+        var userIds = participants
+            .SelectMany(p => new[] { (Guid?)p.UserId, p.AddedByUserId })
+            .Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToList();
+
+        var userNames = await _db.OrgUsers.AsNoTracking()
+            .Where(u => userIds.Contains(u.Id))
+            .Select(u => new { u.Id, u.DisplayName })
+            .ToListAsync(ct);
+
+        string? GetName(Guid? id) => userNames.FirstOrDefault(u => u.Id == id)?.DisplayName;
+
+        return participants.Select(p => new BpmInstanceParticipantDto(
+            p.Id, p.UserId, GetName(p.UserId), p.AddedByUserId, GetName(p.AddedByUserId), p.AddedAt
+        )).ToList();
+    }
+
+    /// <inheritdoc />
+    public async Task<BpmInstanceParticipantDto> AddParticipantAsync(
+        Guid instanceId,
+        AddParticipantRequest request,
+        Guid actorUserId,
+        CancellationToken ct = default)
+    {
+        var exists = await _db.BpmInstances.AnyAsync(i => i.Id == instanceId, ct);
+        if (!exists) throw new NotFoundException($"Экземпляр {instanceId} не найден");
+
+        var already = await _db.BpmInstanceParticipants
+            .AnyAsync(p => p.InstanceId == instanceId && p.UserId == request.UserId, ct);
+        if (already) throw new ValidationException("Пользователь уже является участником");
+
+        var user = await _db.OrgUsers.AsNoTracking()
+            .Where(u => u.Id == request.UserId)
+            .Select(u => new { u.Id, u.DisplayName })
+            .FirstOrDefaultAsync(ct)
+            ?? throw new NotFoundException($"Пользователь {request.UserId} не найден");
+
+        var now = DateTimeOffset.UtcNow;
+        var participant = new BpmInstanceParticipant
+        {
+            Id = Guid.NewGuid(),
+            InstanceId = instanceId,
+            UserId = request.UserId,
+            DisplayName = user.DisplayName,
+            AddedByUserId = actorUserId,
+            AddedAt = now,
+        };
+
+        _db.BpmInstanceParticipants.Add(participant);
+
+        _db.BpmInstanceHistoryEntries.Add(new BpmInstanceHistoryEntry
+        {
+            Id = Guid.NewGuid(),
+            InstanceId = instanceId,
+            EventType = BpmHistoryEventType.ParticipantAdded,
+            ActorUserId = actorUserId,
+            Text = $"Добавлен участник «{user.DisplayName}»",
+            OccurredAt = now,
+        });
+
+        await _db.SaveChangesAsync(ct);
+
+        var addedBy = await _db.OrgUsers.AsNoTracking()
+            .Where(u => u.Id == actorUserId)
+            .Select(u => new { u.Id, u.DisplayName })
+            .FirstOrDefaultAsync(ct);
+
+        return new BpmInstanceParticipantDto(
+            participant.Id, participant.UserId, user.DisplayName, actorUserId, addedBy?.DisplayName, participant.AddedAt);
+    }
+
+    /// <inheritdoc />
+    public async Task RemoveParticipantAsync(
+        Guid instanceId,
+        Guid participantUserId,
+        Guid actorUserId,
+        CancellationToken ct = default)
+    {
+        var participant = await _db.BpmInstanceParticipants
+            .FirstOrDefaultAsync(p => p.InstanceId == instanceId && p.UserId == participantUserId, ct)
+            ?? throw new NotFoundException("Участник не найден");
+
+        var user = await _db.OrgUsers.AsNoTracking()
+            .Where(u => u.Id == participantUserId)
+            .Select(u => new { u.Id, u.DisplayName })
+            .FirstOrDefaultAsync(ct);
+
+        _db.BpmInstanceParticipants.Remove(participant);
+
+        _db.BpmInstanceHistoryEntries.Add(new BpmInstanceHistoryEntry
+        {
+            Id = Guid.NewGuid(),
+            InstanceId = instanceId,
+            EventType = BpmHistoryEventType.ParticipantRemoved,
+            ActorUserId = actorUserId,
+            Text = $"Удалён участник «{user?.DisplayName ?? participantUserId.ToString()}»",
+            OccurredAt = DateTimeOffset.UtcNow,
+        });
+
+        await _db.SaveChangesAsync(ct);
+    }
 }
