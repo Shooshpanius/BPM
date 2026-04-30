@@ -320,6 +320,18 @@ public class AppDbContext : DbContext
             e.HasKey(p => p.Id);
             e.Property(p => p.Name).IsRequired().HasMaxLength(300);
             e.Property(p => p.Description).HasMaxLength(2000);
+            e.Property(p => p.ExternalStartMethodsJson).IsRequired().HasColumnType("jsonb");
+            e.Property(p => p.ExternalStartAllowedIps).HasMaxLength(1000);
+            e.Property(p => p.ExternalStartTokenHash).HasMaxLength(128);
+            e.Property(p => p.ExternalStartTokenPreview).HasMaxLength(32);
+            e.Property(p => p.InstanceNameMode).HasConversion<int>();
+            e.Property(p => p.InstanceNameTemplate).HasMaxLength(1000);
+            e.Property(p => p.DataClassName).IsRequired().HasMaxLength(200);
+            e.Property(p => p.DataTableName).IsRequired().HasMaxLength(200);
+            e.Property(p => p.ProcessMetricsClassName).IsRequired().HasMaxLength(200);
+            e.Property(p => p.ProcessMetricsTableName).IsRequired().HasMaxLength(200);
+            e.Property(p => p.InstanceMetricsClassName).IsRequired().HasMaxLength(200);
+            e.Property(p => p.InstanceMetricsTableName).IsRequired().HasMaxLength(200);
 
             e.HasQueryFilter(p => !p.IsDeleted);
 

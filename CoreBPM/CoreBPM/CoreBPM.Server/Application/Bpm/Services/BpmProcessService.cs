@@ -9,7 +9,7 @@ using CoreBPM.Server.Infrastructure.Persistence;
 namespace CoreBPM.Server.Application.Bpm.Services;
 
 /// <summary>Реализация сервиса управления бизнес-процессами.</summary>
-public class BpmProcessService : IBpmProcessService
+public partial class BpmProcessService : IBpmProcessService
 {
     private readonly AppDbContext _db;
 
@@ -133,7 +133,8 @@ public class BpmProcessService : IBpmProcessService
                 v.Status,
                 v.CreatedByUserId,
                 v.CreatedAt,
-                v.UpdatedAt))
+                v.UpdatedAt,
+                v.PublishedAt))
             .ToListAsync(ct);
     }
 
@@ -148,7 +149,8 @@ public class BpmProcessService : IBpmProcessService
         var version = await _db.BpmProcessVersions
             .AsNoTracking()
             .Where(v => v.ProcessId == processId)
-            .OrderByDescending(v => v.VersionNumber)
+            .OrderBy(v => v.Status == BpmProcessVersionStatus.Draft ? 0 : 1)
+            .ThenByDescending(v => v.VersionNumber)
             .FirstOrDefaultAsync(ct)
             ?? throw new NotFoundException($"Процесс {processId} не имеет версий");
 
@@ -165,39 +167,27 @@ public class BpmProcessService : IBpmProcessService
         if (!processExists)
             throw new NotFoundException($"Процесс {processId} не найден");
 
-        var draft = await _db.BpmProcessVersions
-            .Where(v => v.ProcessId == processId && v.Status == BpmProcessVersionStatus.Draft)
-            .OrderByDescending(v => v.VersionNumber)
-            .FirstOrDefaultAsync(ct);
-
         var now = DateTimeOffset.UtcNow;
+        var maxVersion = await _db.BpmProcessVersions
+            .Where(v => v.ProcessId == processId)
+            .MaxAsync(v => (int?)v.VersionNumber, ct) ?? 0;
 
-        if (draft != null)
+        var draft = new BpmProcessVersion
         {
-            // Обновляем существующий черновик
-            draft.DiagramXml = request.DiagramXml;
-            draft.UpdatedAt = now;
-        }
-        else
-        {
-            // Создаём новый черновик с инкрементальным номером
-            var maxVersion = await _db.BpmProcessVersions
-                .Where(v => v.ProcessId == processId)
-                .MaxAsync(v => (int?)v.VersionNumber, ct) ?? 0;
+            Id = Guid.NewGuid(),
+            ProcessId = processId,
+            VersionNumber = maxVersion + 1,
+            Status = BpmProcessVersionStatus.Draft,
+            DiagramXml = request.DiagramXml,
+            CreatedByUserId = savedByUserId,
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+        _db.BpmProcessVersions.Add(draft);
 
-            draft = new BpmProcessVersion
-            {
-                Id = Guid.NewGuid(),
-                ProcessId = processId,
-                VersionNumber = maxVersion + 1,
-                Status = BpmProcessVersionStatus.Draft,
-                DiagramXml = request.DiagramXml,
-                CreatedByUserId = savedByUserId,
-                CreatedAt = now,
-                UpdatedAt = now
-            };
-            _db.BpmProcessVersions.Add(draft);
-        }
+        var process = await _db.BpmProcesses.FindAsync(new object[] { processId }, ct);
+        if (process is not null)
+            process.UpdatedAt = now;
 
         await _db.SaveChangesAsync(ct);
 
@@ -227,5 +217,5 @@ public class BpmProcessService : IBpmProcessService
     }
 
     private static BpmDiagramDto MapVersionToDto(BpmProcessVersion v) => new(
-        v.Id, v.VersionNumber, v.Status, v.DiagramXml, v.UpdatedAt);
+        v.Id, v.VersionNumber, v.Status, v.DiagramXml, v.UpdatedAt, v.PublishedAt);
 }

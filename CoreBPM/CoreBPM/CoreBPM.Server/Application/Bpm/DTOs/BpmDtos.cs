@@ -47,7 +47,8 @@ public record BpmProcessVersionInfoDto(
     BpmProcessVersionStatus Status,
     Guid CreatedByUserId,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt
+    DateTimeOffset UpdatedAt,
+    DateTimeOffset? PublishedAt
 );
 
 /// <summary>Диаграмма версии процесса (с XML).</summary>
@@ -56,11 +57,137 @@ public record BpmDiagramDto(
     int VersionNumber,
     BpmProcessVersionStatus Status,
     string? DiagramXml,
-    DateTimeOffset UpdatedAt
+    DateTimeOffset UpdatedAt,
+    DateTimeOffset? PublishedAt
 );
 
 /// <summary>Запрос на сохранение XML-диаграммы.</summary>
 public record SaveDiagramRequest(string DiagramXml);
+
+/// <summary>Запрос на валидацию процесса.</summary>
+public record ValidateBpmProcessRequest(Guid? VersionId);
+
+/// <summary>Результат проверки диаграммы процесса.</summary>
+public record BpmValidationResultDto(
+    Guid VersionId,
+    int VersionNumber,
+    IReadOnlyList<BpmValidationIssueDto> Issues
+);
+
+/// <summary>Ошибка или предупреждение валидации процесса.</summary>
+public record BpmValidationIssueDto(
+    string Severity,
+    string Code,
+    string Message,
+    string? ElementId
+);
+
+/// <summary>Запрос на сравнение двух версий.</summary>
+public record BpmVersionDiffRequest(Guid LeftVersionId, Guid RightVersionId);
+
+/// <summary>Результат сравнения двух версий процесса.</summary>
+public record BpmVersionDiffDto(
+    Guid LeftVersionId,
+    Guid RightVersionId,
+    IReadOnlyList<BpmVersionDiffElementDto> Elements,
+    IReadOnlyList<BpmVersionDiffPropertyDto> Properties
+);
+
+/// <summary>Изменение элемента на диаграмме.</summary>
+public record BpmVersionDiffElementDto(
+    string ChangeType,
+    string ElementId,
+    string ElementType,
+    string? Name
+);
+
+/// <summary>Изменение свойства при сравнении версий.</summary>
+public record BpmVersionDiffPropertyDto(
+    string TargetType,
+    string TargetId,
+    string PropertyName,
+    string? LeftValue,
+    string? RightValue
+);
+
+/// <summary>Настройки процесса.</summary>
+public record BpmProcessSettingsDto(
+    Guid ProcessId,
+    bool LaunchFromPortalEnabled,
+    bool ShowInStartList,
+    bool ExternalStartEnabled,
+    IReadOnlyList<string> ExternalStartMethods,
+    string? ExternalStartAllowedIps,
+    bool HasExternalStartToken,
+    string? ExternalStartTokenPreview,
+    DateTimeOffset? ExternalStartTokenUpdatedAt,
+    BpmInstanceNameMode InstanceNameMode,
+    bool RequestInstanceNameOnStart,
+    string? InstanceNameTemplate,
+    string? KeyVariableName,
+    string DataClassName,
+    string DataTableName,
+    string ProcessMetricsClassName,
+    string ProcessMetricsTableName,
+    string InstanceMetricsClassName,
+    string InstanceMetricsTableName,
+    bool SecondRuntimeEnabled,
+    DateTimeOffset? SecondRuntimeUpgradedAt
+);
+
+/// <summary>Запрос на обновление настроек процесса.</summary>
+public record UpdateBpmProcessSettingsRequest(
+    bool LaunchFromPortalEnabled,
+    bool ShowInStartList,
+    bool ExternalStartEnabled,
+    IReadOnlyList<string>? ExternalStartMethods,
+    string? ExternalStartAllowedIps,
+    BpmInstanceNameMode InstanceNameMode,
+    bool RequestInstanceNameOnStart,
+    string? InstanceNameTemplate,
+    string? KeyVariableName,
+    string? DataClassName,
+    string? DataTableName,
+    string? ProcessMetricsClassName,
+    string? ProcessMetricsTableName,
+    string? InstanceMetricsClassName,
+    string? InstanceMetricsTableName,
+    bool SecondRuntimeEnabled
+);
+
+/// <summary>Результат ротации токена внешнего запуска.</summary>
+public record RotateExternalTokenResponse(
+    string Token,
+    string Preview,
+    DateTimeOffset RotatedAt
+);
+
+/// <summary>Запрос на запуск debug-сессии процесса.</summary>
+public record StartBpmDebugSessionRequest(
+    Guid? VersionId,
+    IReadOnlyDictionary<string, string>? Variables
+);
+
+/// <summary>Событие трассировки debug-сессии.</summary>
+public record BpmDebugEventDto(
+    DateTimeOffset Timestamp,
+    string EventType,
+    string? ElementId,
+    string Message
+);
+
+/// <summary>Состояние debug-сессии процесса.</summary>
+public record BpmDebugSessionDto(
+    Guid SessionId,
+    Guid ProcessId,
+    Guid VersionId,
+    int VersionNumber,
+    bool IsCompleted,
+    string? CurrentElementId,
+    string? CurrentElementType,
+    IReadOnlyDictionary<string, string> Variables,
+    IReadOnlyList<BpmDebugEventDto> Events
+);
 
 // ─── Конфигурации элементов ─────────────────────────────────────────────────
 
@@ -127,4 +254,3 @@ public record UpsertRaciEntryRequest(
     string Role,
     BpmRaciType RaciType
 );
-

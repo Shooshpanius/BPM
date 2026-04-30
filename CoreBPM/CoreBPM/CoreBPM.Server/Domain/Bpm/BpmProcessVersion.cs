@@ -14,10 +14,7 @@ public class BpmProcessVersion
     /// <summary>Статус версии: черновик, активная, устаревшая.</summary>
     public BpmProcessVersionStatus Status { get; set; } = BpmProcessVersionStatus.Draft;
 
-    /// <summary>
-    /// XML-содержимое диаграммы в формате BPMN 2.0.
-    /// Null для только что созданного черновика (пустая схема).
-    /// </summary>
+    /// <summary>XML-содержимое диаграммы в формате BPMN 2.0.</summary>
     public string? DiagramXml { get; set; }
 
     /// <summary>Идентификатор пользователя, создавшего версию.</summary>
@@ -25,6 +22,7 @@ public class BpmProcessVersion
 
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
+    public DateTimeOffset? PublishedAt { get; set; }
 
     // Навигационные свойства
     public BpmProcess Process { get; set; } = null!;
