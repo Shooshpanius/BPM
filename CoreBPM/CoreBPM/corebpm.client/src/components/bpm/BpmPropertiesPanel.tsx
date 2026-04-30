@@ -12,6 +12,7 @@ import { SequenceFlowTab } from './SequenceFlowTab';
 import { NotificationsTab } from './NotificationsTab';
 import { ProcessVariablesTab } from './ProcessVariablesTab';
 import { RaciMatrixTab } from './RaciMatrixTab';
+import { ProcessRolesTab } from './ProcessRolesTab';
 import { ProcessSettingsTab } from './ProcessSettingsTab';
 import { InstanceStatusTab } from './InstanceStatusTab';
 import { LaneTab } from './LaneTab';
@@ -43,7 +44,7 @@ interface Props {
 
 // ─── Конфигурация вкладок ─────────────────────────────────────────────────────
 
-type TabId = 'general' | 'execution' | 'markers' | 'notifications' | 'variables' | 'raci' | 'settings' | 'statuses' | 'escalation' | 'varvisibility' | 'rpa';
+type TabId = 'general' | 'execution' | 'markers' | 'notifications' | 'variables' | 'roles' | 'raci' | 'settings' | 'statuses' | 'escalation' | 'varvisibility' | 'rpa';
 
 interface TabDef {
     id: TabId;
@@ -56,6 +57,7 @@ function getTabsForElement(elementType: string | null): TabDef[] {
         // Ничего не выбрано — показываем уровень процесса
         return [
             { id: 'variables', label: 'Переменные' },
+            { id: 'roles', label: 'Роли' },
             { id: 'raci', label: 'RACI' },
             { id: 'statuses', label: 'Статусы' },
             { id: 'settings', label: 'Настройки' },
@@ -275,6 +277,9 @@ export function BpmPropertiesPanel({ modeler, processId, token }: Props) {
 
             case 'variables':
                 return <ProcessVariablesTab processId={processId} token={token} />;
+
+            case 'roles':
+                return <ProcessRolesTab processId={processId} token={token} />;
 
             case 'raci':
                 return <RaciMatrixTab processId={processId} token={token} />;

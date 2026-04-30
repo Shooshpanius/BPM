@@ -630,3 +630,44 @@ export const updateMessage = (token: string, id: string, data: UpdateMessageRequ
 export const deleteMessage = (token: string, id: string): Promise<void> =>
     fetchJson(`/api/bpm/messages/${id}`, token, { method: 'DELETE' });
 
+// ─── Роли процесса (Владелец/Куратор) ────────────────────────────────────────
+
+export type BpmProcessRoleType = 'Owner' | 'Curator';
+export type BpmAssigneeType = 'User' | 'Position' | 'Department';
+
+export interface BpmProcessRoleConfigDto {
+    id: string;
+    roleType: BpmProcessRoleType;
+    assigneeType: BpmAssigneeType;
+    assigneeId: string;
+    displayName: string;
+    sortOrder: number;
+}
+
+export interface UpsertProcessRoleConfigItem {
+    roleType: BpmProcessRoleType;
+    assigneeType: BpmAssigneeType;
+    assigneeId: string;
+    displayName: string;
+    sortOrder: number;
+}
+
+export interface UpsertProcessRoleConfigsRequest {
+    items: UpsertProcessRoleConfigItem[];
+}
+
+/** Получить список ролей (Владелец/Кураторы) процесса. */
+export const getProcessRoles = (token: string, processId: string): Promise<BpmProcessRoleConfigDto[]> =>
+    fetchJson(`/api/bpm/processes/${processId}/roles`, token);
+
+/** Полностью заменить роли процесса. */
+export const replaceProcessRoles = (
+    token: string,
+    processId: string,
+    data: UpsertProcessRoleConfigsRequest
+): Promise<BpmProcessRoleConfigDto[]> =>
+    fetchJson(`/api/bpm/processes/${processId}/roles`, token, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+    });
+
