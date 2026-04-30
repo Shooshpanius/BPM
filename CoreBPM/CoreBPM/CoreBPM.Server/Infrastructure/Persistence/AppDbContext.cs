@@ -27,6 +27,8 @@ public class AppDbContext : DbContext
     public DbSet<BpmRaciEntry> BpmRaciEntries => Set<BpmRaciEntry>();
     public DbSet<BpmTaskForm> BpmTaskForms => Set<BpmTaskForm>();
     public DbSet<BpmTaskFormVersion> BpmTaskFormVersions => Set<BpmTaskFormVersion>();
+    public DbSet<BpmInstanceStatusConfig> BpmInstanceStatusConfigs => Set<BpmInstanceStatusConfig>();
+    public DbSet<BpmInstanceStatusOption> BpmInstanceStatusOptions => Set<BpmInstanceStatusOption>();
     public DbSet<DmnTable> DmnTables => Set<DmnTable>();
     public DbSet<DmnTableVersion> DmnTableVersions => Set<DmnTableVersion>();
     public DbSet<DmnColumn> DmnColumns => Set<DmnColumn>();
@@ -441,6 +443,40 @@ public class AppDbContext : DbContext
             e.HasOne(v => v.Form)
              .WithMany(f => f.Versions)
              .HasForeignKey(v => v.FormId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ─── Пользовательские статусы экземпляров процесса ──────────────────────
+
+        modelBuilder.Entity<BpmInstanceStatusConfig>(e =>
+        {
+            e.ToTable("bpm_instance_status_configs");
+            e.HasKey(c => c.Id);
+            e.Property(c => c.OnInterruptAction).HasConversion<int>();
+            e.Property(c => c.OnInterruptScriptId).HasMaxLength(500);
+
+            // Один конфиг на процесс
+            e.HasIndex(c => c.ProcessId).IsUnique();
+
+            e.HasOne(c => c.Process)
+             .WithMany()
+             .HasForeignKey(c => c.ProcessId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<BpmInstanceStatusOption>(e =>
+        {
+            e.ToTable("bpm_instance_status_options");
+            e.HasKey(o => o.Id);
+            e.Property(o => o.Name).IsRequired().HasMaxLength(300);
+            e.Property(o => o.Code).IsRequired().HasMaxLength(200);
+
+            // Код уникален в рамках процесса
+            e.HasIndex(o => new { o.ProcessId, o.Code }).IsUnique();
+
+            e.HasOne(o => o.Process)
+             .WithMany()
+             .HasForeignKey(o => o.ProcessId)
              .OnDelete(DeleteBehavior.Cascade);
         });
 

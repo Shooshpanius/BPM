@@ -11,6 +11,7 @@ import { NotificationsTab } from './NotificationsTab';
 import { ProcessVariablesTab } from './ProcessVariablesTab';
 import { RaciMatrixTab } from './RaciMatrixTab';
 import { ProcessSettingsTab } from './ProcessSettingsTab';
+import { InstanceStatusTab } from './InstanceStatusTab';
 import './BpmPropertiesPanel.css';
 
 type BpmnModeler = import('bpmn-js/lib/Modeler').default;
@@ -34,7 +35,7 @@ interface Props {
 
 // ─── Конфигурация вкладок ─────────────────────────────────────────────────────
 
-type TabId = 'general' | 'execution' | 'notifications' | 'variables' | 'raci' | 'settings';
+type TabId = 'general' | 'execution' | 'notifications' | 'variables' | 'raci' | 'settings' | 'statuses';
 
 interface TabDef {
     id: TabId;
@@ -48,6 +49,7 @@ function getTabsForElement(elementType: string | null): TabDef[] {
         return [
             { id: 'variables', label: 'Переменные' },
             { id: 'raci', label: 'RACI' },
+            { id: 'statuses', label: 'Статусы' },
             { id: 'settings', label: 'Настройки' },
         ];
     }
@@ -236,6 +238,9 @@ function renderProcessLevel(tabId: TabId, processId: string, token: string) {
     }
     if (tabId === 'raci') {
         return <RaciMatrixTab processId={processId} token={token} />;
+    }
+    if (tabId === 'statuses') {
+        return <InstanceStatusTab processId={processId} token={token} />;
     }
     if (tabId === 'settings') {
         return <ProcessSettingsTab processId={processId} token={token} />;

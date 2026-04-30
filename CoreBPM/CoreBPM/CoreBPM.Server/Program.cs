@@ -82,6 +82,7 @@ builder.Services.AddScoped<IBpmProcessService, BpmProcessService>();
 builder.Services.AddScoped<IBpmElementConfigService, BpmElementConfigService>();
 builder.Services.AddScoped<IBpmVariableService, BpmVariableService>();
 builder.Services.AddScoped<IBpmRaciService, BpmRaciService>();
+builder.Services.AddScoped<IBpmInstanceStatusService, BpmInstanceStatusService>();
 
 // Регистрация сервисов Rules (DMN-таблицы бизнес-правил)
 builder.Services.AddScoped<IDmnService, DmnService>();
