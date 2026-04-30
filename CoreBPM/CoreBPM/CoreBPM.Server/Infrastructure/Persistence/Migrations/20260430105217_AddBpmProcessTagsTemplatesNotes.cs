@@ -22,7 +22,7 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                 table: "bpm_processes",
                 type: "text",
                 nullable: false,
-                defaultValue: "");
+                defaultValue: "[]");
 
             migrationBuilder.AddColumn<string>(
                 name: "release_notes",

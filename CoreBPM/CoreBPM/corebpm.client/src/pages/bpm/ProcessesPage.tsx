@@ -85,7 +85,7 @@ export function ProcessesPage({ onOpenDesigner, onOpenMonitor }: ProcessesPagePr
         }
     }, [token, selectedOrgId]);
 
-    useEffect(() => { void loadProcesses(); }, [loadProcesses]);
+    useEffect(() => { loadProcesses(); }, [loadProcesses]);
 
     // Все уникальные теги для фильтра
     const allTags = Array.from(new Set(processes.flatMap(p => p.tags ?? []))).sort();
