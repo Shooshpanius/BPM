@@ -36,7 +36,9 @@ export function ScriptsPage() {
                 setOrganizations(orgs);
                 if (orgs.length > 0) setSelectedOrgId(orgs[0].id);
             })
-            .catch(() => {/* молча игнорируем */ });
+            .catch((e: unknown) => {
+                console.error('Не удалось загрузить список организаций:', e);
+            });
     }, [token]);
 
     return (

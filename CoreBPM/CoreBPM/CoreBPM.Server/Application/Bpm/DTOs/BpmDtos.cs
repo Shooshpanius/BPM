@@ -313,7 +313,7 @@ public record BpmScriptModuleDto(
 );
 
 /// <summary>Запрос на сохранение сценария.</summary>
-public record SaveScriptModuleRequest(string ScriptBody, string Language = "CSharp");
+public record SaveScriptModuleRequest(string? ScriptBody, string Language = "CSharp");
 
 /// <summary>Информация о версии процесса со статусом сценария (для списка в разделе «Сценарии»).</summary>
 public record BpmProcessVersionScriptInfoDto(
