@@ -37,10 +37,14 @@ public class BpmSignalsController : ControllerBase
     {
         var claim = User.Claims.FirstOrDefault(c => c.Type == "organizationId" || c.Type == "org")?.Value;
         if (claim != null && Guid.TryParse(claim, out var orgId)) return orgId;
-        // Fallback через аккаунт
+        // Fallback: определяем организацию через запись сотрудника
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        var account = _db.AuthAccounts.AsNoTracking().Include(a => a.User).ThenInclude(u => u!.Employees).FirstOrDefault(a => a.UserId == userId);
-        return account?.User?.Employees.FirstOrDefault()?.OrganizationId ?? Guid.Empty;
+        var empOrgId = _db.OrgPositionAssignments
+            .AsNoTracking()
+            .Where(a => a.UserId == userId)
+            .Select(a => (Guid?)a.OrganizationId)
+            .FirstOrDefault();
+        return empOrgId ?? Guid.Empty;
     }
 
     private static BpmSignalDto ToDto(BpmSignal s) => new(s.Id, s.Name, s.Code, s.Description, s.CreatedAt, s.UpdatedAt);
