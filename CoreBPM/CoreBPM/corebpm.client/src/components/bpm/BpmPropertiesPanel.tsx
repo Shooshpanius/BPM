@@ -15,6 +15,9 @@ import { RaciMatrixTab } from './RaciMatrixTab';
 import { ProcessSettingsTab } from './ProcessSettingsTab';
 import { InstanceStatusTab } from './InstanceStatusTab';
 import { LaneTab } from './LaneTab';
+import { SignalMessageEventTab } from './SignalMessageEventTab';
+import { BoundaryEventTab } from './BoundaryEventTab';
+import { EscalationTab } from './EscalationTab';
 import './BpmPropertiesPanel.css';
 
 type BpmnModeler = import('bpmn-js/lib/Modeler').default;
@@ -38,7 +41,7 @@ interface Props {
 
 // ─── Конфигурация вкладок ─────────────────────────────────────────────────────
 
-type TabId = 'general' | 'execution' | 'markers' | 'notifications' | 'variables' | 'raci' | 'settings' | 'statuses';
+type TabId = 'general' | 'execution' | 'markers' | 'notifications' | 'variables' | 'raci' | 'settings' | 'statuses' | 'escalation';
 
 interface TabDef {
     id: TabId;
@@ -57,7 +60,10 @@ function getTabsForElement(elementType: string | null): TabDef[] {
         ];
     }
     if (elementType === 'bpmn:SequenceFlow') {
-        return [{ id: 'general', label: 'Основное' }];
+        return [
+            { id: 'general', label: 'Основное' },
+            { id: 'escalation', label: 'Эскалация' },
+        ];
     }
     if (elementType === 'bpmn:Lane') {
         return [{ id: 'general', label: 'Основное' }];
@@ -113,11 +119,19 @@ function getTabsForElement(elementType: string | null): TabDef[] {
     if (
         elementType === 'bpmn:StartEvent' ||
         elementType === 'bpmn:IntermediateCatchEvent' ||
-        elementType === 'bpmn:BoundaryEvent'
+        elementType === 'bpmn:IntermediateThrowEvent' ||
+        elementType === 'bpmn:EndEvent'
     ) {
         return [
             { id: 'general', label: 'Основное' },
             { id: 'execution', label: 'Выполнение' },
+        ];
+    }
+    if (elementType === 'bpmn:BoundaryEvent') {
+        return [
+            { id: 'general', label: 'Основное' },
+            { id: 'execution', label: 'Граничное событие' },
+            { id: 'escalation', label: 'Эскалация' },
         ];
     }
     // Прочие элементы: только «Основное»
@@ -128,6 +142,24 @@ function getTabsForElement(elementType: string | null): TabDef[] {
 function isTimerEvent(_elementType: string, businessObject: Record<string, unknown>): boolean {
     const eventDefs = businessObject.eventDefinitions as Array<{ $type: string }> | undefined;
     return Boolean(eventDefs?.some(d => d.$type === 'bpmn:TimerEventDefinition'));
+}
+
+/** Проверяет, является ли событие сигнальным */
+function isSignalEvent(_elementType: string, businessObject: Record<string, unknown>): boolean {
+    const eventDefs = businessObject.eventDefinitions as Array<{ $type: string }> | undefined;
+    return Boolean(eventDefs?.some(d => d.$type === 'bpmn:SignalEventDefinition'));
+}
+
+/** Проверяет, является ли событие сообщением */
+function isMessageEvent(_elementType: string, businessObject: Record<string, unknown>): boolean {
+    const eventDefs = businessObject.eventDefinitions as Array<{ $type: string }> | undefined;
+    return Boolean(eventDefs?.some(d => d.$type === 'bpmn:MessageEventDefinition'));
+}
+
+/** Проверяет, является ли событие throw (генерирующим) */
+function isThrowEvent(elementType: string): boolean {
+    return elementType === 'bpmn:IntermediateThrowEvent' ||
+        elementType === 'bpmn:EndEvent';
 }
 
 // ─── Компонент ───────────────────────────────────────────────────────────────
@@ -202,7 +234,19 @@ export function BpmPropertiesPanel({ modeler, processId, token }: Props) {
                 if (isTimerEvent(elType, bo)) {
                     return <TimerEventTab element={selectedElement} modeler={modeler} />;
                 }
+                if (isSignalEvent(elType, bo)) {
+                    return <SignalMessageEventTab processId={processId} token={token} elementId={elId} isThrow={isThrowEvent(elType)} defaultKind="signal" />;
+                }
+                if (isMessageEvent(elType, bo)) {
+                    return <SignalMessageEventTab processId={processId} token={token} elementId={elId} isThrow={isThrowEvent(elType)} defaultKind="message" />;
+                }
+                if (elType === 'bpmn:BoundaryEvent') {
+                    return <BoundaryEventTab processId={processId} token={token} elementId={elId} />;
+                }
                 return <GeneralTab element={selectedElement} modeler={modeler} />;
+
+            case 'escalation':
+                return <EscalationTab processId={processId} token={token} elementId={elId} />;
 
             case 'markers':
                 return <TaskMarkersTab processId={processId} token={token} elementId={elId} />;

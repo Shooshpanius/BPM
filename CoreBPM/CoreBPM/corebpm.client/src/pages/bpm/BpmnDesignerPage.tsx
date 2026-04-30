@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import BpmnModeler from 'bpmn-js/lib/Modeler';
+import minimapModule from 'diagram-js-minimap';
+import { layoutProcess } from 'bpmn-auto-layout';
 import { useAuth } from '../../context/AuthContext';
 import * as api from '../../api/bpmApi';
 import type {
@@ -87,6 +89,19 @@ export function BpmnDesignerPage({ processId, onBack }: BpmnDesignerPageProps) {
     const [debugSession, setDebugSession] = useState<BpmDebugSessionDto | null>(null);
     const [debugError, setDebugError] = useState<string | null>(null);
     const [busyDocument, setBusyDocument] = useState(false);
+
+    // ─── Миникарта ───────────────────────────────────────────────────────────
+    const [minimapVisible, setMinimapVisible] = useState(true);
+
+    // ─── Поиск по диаграмме ───────────────────────────────────────────────────
+    const [showSearch, setShowSearch] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchResults, setSearchResults] = useState<{ id: string; name: string; type: string }[]>([]);
+    const [searchIndex, setSearchIndex] = useState(0);
+    const searchInputRef = useRef<HTMLInputElement>(null);
+
+    // ─── Авто-раскладка ───────────────────────────────────────────────────────
+    const [layouting, setLayouting] = useState(false);
 
     // ─── Блокировка диаграммы ─────────────────────────────────────────────────
     const [lockInfo, setLockInfo] = useState<DiagramLockDto | null>(null);
@@ -253,6 +268,7 @@ export function BpmnDesignerPage({ processId, onBack }: BpmnDesignerPageProps) {
         const modeler = new BpmnModeler({
             container: containerRef.current,
             keyboard: { bindTo: document },
+            additionalModules: [minimapModule],
         });
         modelerRef.current = modeler;
 
@@ -415,6 +431,88 @@ export function BpmnDesignerPage({ processId, onBack }: BpmnDesignerPageProps) {
         onBack();
     };
 
+    // ─── Авто-раскладка ───────────────────────────────────────────────────────
+
+    const handleAutoLayout = async () => {
+        if (!modelerRef.current || isReadOnly) return;
+        setLayouting(true);
+        try {
+            const { xml: currentXml } = await modelerRef.current.saveXML({ format: true });
+            const laidOutXml = await layoutProcess(currentXml);
+            await modelerRef.current.importXML(laidOutXml);
+            const canvas = modelerRef.current.get<{ zoom: (v: string) => void }>('canvas');
+            canvas.zoom('fit-viewport');
+            setSaveStatus('unsaved');
+        } catch { /* не критично */ }
+        finally { setLayouting(false); }
+    };
+
+    // ─── Миникарта: синхронизация видимости ───────────────────────────────────
+
+    useEffect(() => {
+        if (!modelerReady || !modelerRef.current) return;
+        try {
+            const minimap = modelerRef.current.get<{ open: () => void; close: () => void } | null>('minimap');
+            if (minimap) {
+                if (minimapVisible) minimap.open(); else minimap.close();
+            }
+        } catch { /* миникарта может быть недоступна */ }
+    }, [minimapVisible, modelerReady]);
+
+    // ─── Поиск по диаграмме ───────────────────────────────────────────────────
+
+    const handleSearch = (query: string) => {
+        setSearchQuery(query);
+        setSearchIndex(0);
+        if (!query.trim() || !modelerRef.current) {
+            setSearchResults([]);
+            return;
+        }
+        try {
+            const elementRegistry = modelerRef.current.get<{
+                getAll: () => Array<{ id: string; type: string; businessObject?: { name?: string; $type?: string } }>;
+            }>('elementRegistry');
+            const q = query.toLowerCase();
+            const results = elementRegistry.getAll()
+                .filter(el => {
+                    const name = el.businessObject?.name ?? '';
+                    const type = el.type ?? '';
+                    return name.toLowerCase().includes(q) || type.toLowerCase().includes(q);
+                })
+                .map(el => ({
+                    id: el.id,
+                    name: el.businessObject?.name ?? el.id,
+                    type: el.type,
+                }));
+            setSearchResults(results);
+        } catch { setSearchResults([]); }
+    };
+
+    const navigateSearch = (delta: number) => {
+        if (searchResults.length === 0) return;
+        const next = (searchIndex + delta + searchResults.length) % searchResults.length;
+        setSearchIndex(next);
+        focusElement(searchResults[next].id);
+    };
+
+    // ─── Глобальный Ctrl+F ────────────────────────────────────────────────────
+
+    useEffect(() => {
+        const handler = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+                e.preventDefault();
+                setShowSearch(prev => !prev);
+                setTimeout(() => searchInputRef.current?.focus(), 50);
+            }
+            if (e.key === 'Escape' && showSearch) {
+                setShowSearch(false);
+                setSearchResults([]);
+            }
+        };
+        window.addEventListener('keydown', handler);
+        return () => window.removeEventListener('keydown', handler);
+    }, [showSearch]);
+
     const statusLabel = isReadOnly ? 'Просмотр версии' : STATUS_LABELS[saveStatus];
 
     return (
@@ -441,6 +539,28 @@ export function BpmnDesignerPage({ processId, onBack }: BpmnDesignerPageProps) {
                     <button className="bpd-tool-btn bpd-tool-btn--wide" onClick={handleDownloadDocument} disabled={busyDocument}>
                         {busyDocument ? 'PDF…' : 'PDF'}
                     </button>
+                    <button
+                        className="bpd-tool-btn bpd-tool-btn--wide"
+                        onClick={handleAutoLayout}
+                        disabled={layouting || isReadOnly}
+                        title="Автоматически упорядочить элементы схемы"
+                    >
+                        {layouting ? 'Раскладка…' : '⊞ Упорядочить'}
+                    </button>
+                    <button
+                        className={`bpd-tool-btn bpd-tool-btn--wide${minimapVisible ? ' active' : ''}`}
+                        onClick={() => setMinimapVisible(v => !v)}
+                        title="Показать / скрыть миникарту"
+                    >
+                        🗺 Миникарта
+                    </button>
+                    <button
+                        className={`bpd-tool-btn bpd-tool-btn--wide${showSearch ? ' active' : ''}`}
+                        onClick={() => { setShowSearch(v => !v); setTimeout(() => searchInputRef.current?.focus(), 50); }}
+                        title="Поиск по диаграмме (Ctrl+F)"
+                    >
+                        🔍 Поиск
+                    </button>
                 </div>
                 <div className="bpd-toolbar-sep" role="separator" />
                 <button
@@ -456,6 +576,31 @@ export function BpmnDesignerPage({ processId, onBack }: BpmnDesignerPageProps) {
 
             {loadError && <div className="bpd-load-error">Не удалось загрузить диаграмму: {loadError}</div>}
             {saveError && <div className="bpd-save-error">{saveError}</div>}
+
+            {/* Панель поиска по диаграмме */}
+            {showSearch && (
+                <div className="bpd-search-bar" role="search">
+                    <input
+                        ref={searchInputRef}
+                        className="bpd-search-input"
+                        type="text"
+                        placeholder="Поиск по имени или типу элемента…"
+                        value={searchQuery}
+                        onChange={e => handleSearch(e.target.value)}
+                    />
+                    <span className="bpd-search-count">
+                        {searchResults.length > 0 ? `${searchIndex + 1} / ${searchResults.length}` : searchQuery ? '0 / 0' : ''}
+                    </span>
+                    <button className="bpd-mini-btn" onClick={() => navigateSearch(-1)} disabled={searchResults.length === 0} title="Предыдущее">↑</button>
+                    <button className="bpd-mini-btn" onClick={() => navigateSearch(1)} disabled={searchResults.length === 0} title="Следующее">↓</button>
+                    <button className="bpd-mini-btn" onClick={() => { setShowSearch(false); setSearchQuery(''); setSearchResults([]); }}>✕</button>
+                    {searchResults.length > 0 && (
+                        <span style={{ fontSize: 11, color: '#6b7280', marginLeft: 8 }}>
+                            {searchResults[searchIndex]?.name ?? searchResults[searchIndex]?.id}
+                        </span>
+                    )}
+                </div>
+            )}
 
             {/* Предупреждение о конкурентном редактировании */}
             {lockInfo && !lockAcquired && (

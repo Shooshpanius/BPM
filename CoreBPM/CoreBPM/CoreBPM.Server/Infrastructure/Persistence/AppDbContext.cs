@@ -34,6 +34,8 @@ public class AppDbContext : DbContext
     public DbSet<BpmDesignerExtension> BpmDesignerExtensions => Set<BpmDesignerExtension>();
     public DbSet<BpmGlobalModule> BpmGlobalModules => Set<BpmGlobalModule>();
     public DbSet<BpmGlobalModuleFile> BpmGlobalModuleFiles => Set<BpmGlobalModuleFile>();
+    public DbSet<BpmSignal> BpmSignals => Set<BpmSignal>();
+    public DbSet<BpmMessage> BpmMessages => Set<BpmMessage>();
     public DbSet<DmnTable> DmnTables => Set<DmnTable>();
     public DbSet<DmnTableVersion> DmnTableVersions => Set<DmnTableVersion>();
     public DbSet<DmnColumn> DmnColumns => Set<DmnColumn>();
@@ -638,6 +640,36 @@ public class AppDbContext : DbContext
              .WithMany(m => m.Files)
              .HasForeignKey(f => f.ModuleId)
              .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ─── Реестр сигналов BPMN ───────────────────────────────────────────────
+
+        modelBuilder.Entity<BpmSignal>(e =>
+        {
+            e.ToTable("bpm_signals");
+            e.HasKey(s => s.Id);
+            e.Property(s => s.Name).IsRequired().HasMaxLength(200);
+            e.Property(s => s.Code).IsRequired().HasMaxLength(100);
+            e.Property(s => s.Description).HasMaxLength(1000);
+
+            // Код уникален в рамках организации
+            e.HasIndex(s => new { s.OrganizationId, s.Code }).IsUnique();
+            e.HasIndex(s => s.OrganizationId);
+        });
+
+        // ─── Реестр сообщений BPMN ──────────────────────────────────────────────
+
+        modelBuilder.Entity<BpmMessage>(e =>
+        {
+            e.ToTable("bpm_messages");
+            e.HasKey(m => m.Id);
+            e.Property(m => m.Name).IsRequired().HasMaxLength(200);
+            e.Property(m => m.Code).IsRequired().HasMaxLength(100);
+            e.Property(m => m.Description).HasMaxLength(1000);
+
+            // Код уникален в рамках организации
+            e.HasIndex(m => new { m.OrganizationId, m.Code }).IsUnique();
+            e.HasIndex(m => m.OrganizationId);
         });
     }
 

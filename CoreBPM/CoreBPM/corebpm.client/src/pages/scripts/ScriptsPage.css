@@ -577,3 +577,69 @@
     gap: 10px;
     margin-top: 16px;
 }
+
+/* ─── Руководство «Запущенные экземпляры» ─── */
+.scripts-live-guide {
+    padding: 24px 28px;
+    max-width: 760px;
+}
+
+.scripts-live-guide-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.scripts-live-guide-header h2 {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 600;
+}
+
+.scripts-live-guide-badge {
+    padding: 2px 10px;
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fcd34d;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+}
+
+.scripts-live-guide-section {
+    margin-bottom: 20px;
+}
+
+.scripts-live-guide-section h3 {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    margin: 0 0 8px 0;
+    color: var(--color-text, #1e2532);
+}
+
+.scripts-live-guide-section p {
+    font-size: 0.875rem;
+    color: var(--color-text-secondary, #5a6072);
+    line-height: 1.6;
+    margin: 0;
+}
+
+.scripts-live-guide-list {
+    padding-left: 20px;
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--color-text-secondary, #5a6072);
+    line-height: 1.8;
+}
+
+.scripts-live-guide-section--info {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    padding: 12px 16px;
+}
+
+.scripts-live-guide-section--info p {
+    color: #1e40af;
+}

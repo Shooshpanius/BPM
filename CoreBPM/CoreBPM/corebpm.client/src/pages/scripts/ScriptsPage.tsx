@@ -10,7 +10,7 @@ import type {
 } from '../../api/scriptsApi';
 import './ScriptsPage.css';
 
-type ScriptsTab = 'processes' | 'extensions' | 'global-modules';
+type ScriptsTab = 'processes' | 'extensions' | 'global-modules' | 'live-instances';
 
 const VERSION_STATUS_LABELS: Record<string, string> = {
     Draft: 'Черновик',
@@ -77,6 +77,12 @@ export function ScriptsPage() {
                 >
                     Глобальные модули
                 </button>
+                <button
+                    className={`scripts-tab${tab === 'live-instances' ? ' active' : ''}`}
+                    onClick={() => setTab('live-instances')}
+                >
+                    Запущенные экземпляры
+                </button>
             </div>
 
             <div className="scripts-content">
@@ -89,7 +95,8 @@ export function ScriptsPage() {
                 {tab === 'global-modules' && selectedOrgId && (
                     <GlobalModulesTab orgId={selectedOrgId} />
                 )}
-                {!selectedOrgId && (
+                {tab === 'live-instances' && <LiveInstancesGuideTab />}
+                {!selectedOrgId && tab !== 'live-instances' && (
                     <p className="scripts-empty">Выберите организацию</p>
                 )}
             </div>
@@ -919,6 +926,73 @@ function GlobalModulesTab({ orgId }: GlobalModulesTabProps) {
                     </div>
                 </div>
             )}
+        </div>
+    );
+}
+
+// ─── Вкладка «Запущенные экземпляры» ────────────────────────────────────────
+
+/**
+ * LiveInstancesGuideTab — инструкция по редактированию сценариев запущенных экземпляров.
+ * Будет расширена после реализации FR-BPM-02.5 (движок выполнения процессов).
+ */
+function LiveInstancesGuideTab() {
+    return (
+        <div className="scripts-live-guide">
+            <div className="scripts-live-guide-header">
+                <h2>Редактирование сценариев запущенных экземпляров</h2>
+                <span className="scripts-live-guide-badge">Ожидает FR-BPM-02.5</span>
+            </div>
+
+            <div className="scripts-live-guide-section">
+                <h3>Что это?</h3>
+                <p>
+                    Данная функциональность позволит вносить исправления в сценарии (скрипты C#)
+                    непосредственно во время работы запущенных экземпляров процесса — без
+                    необходимости создавать новую версию и публиковать её.
+                </p>
+            </div>
+
+            <div className="scripts-live-guide-section">
+                <h3>Как это будет работать</h3>
+                <ol className="scripts-live-guide-list">
+                    <li>
+                        Откройте вкладку «Процессы» и выберите версию с запущенными экземплярами.
+                    </li>
+                    <li>
+                        В редакторе кода нажмите «Применить к запущенным экземплярам» — изменения
+                        применяются только к экземплярам, ещё не перешедшим через Script Task.
+                    </li>
+                    <li>
+                        Система создаёт снапшот «патча» для экземпляров: при следующем
+                        выполнении Script Task будет использован обновлённый код.
+                    </li>
+                    <li>
+                        История патчей доступна на странице конкретного экземпляра (FR-BPM-02).
+                    </li>
+                </ol>
+            </div>
+
+            <div className="scripts-live-guide-section">
+                <h3>Зависимости</h3>
+                <ul className="scripts-live-guide-list">
+                    <li>
+                        <strong>FR-BPM-02.5</strong> — движок выполнения процессов должен поддерживать
+                        механизм «патчей» (горячая замена кода без перезапуска экземпляра).
+                    </li>
+                    <li>
+                        <strong>FR-BPM-02</strong> — необходима реализация хранилища и API экземпляров
+                        для отображения информации о состоянии.
+                    </li>
+                </ul>
+            </div>
+
+            <div className="scripts-live-guide-section scripts-live-guide-section--info">
+                <p>
+                    До реализации FR-BPM-02.5 для внесения изменений создавайте новую версию процесса
+                    через раздел «Процессы» → «Версии» → «Откат» или публикацию нового черновика.
+                </p>
+            </div>
         </div>
     );
 }

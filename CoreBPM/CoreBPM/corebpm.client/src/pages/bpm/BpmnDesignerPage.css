@@ -387,3 +387,44 @@
         max-width: 160px;
     }
 }
+
+/* ─── Поиск по диаграмме ─── */
+.bpd-search-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: #fffbe6;
+    border-bottom: 1px solid #f5a623;
+    flex-shrink: 0;
+    z-index: 9;
+}
+
+.bpd-search-input {
+    flex: 1;
+    max-width: 320px;
+    padding: 4px 8px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    outline: none;
+}
+
+.bpd-search-input:focus {
+    border-color: var(--color-primary, #4361ee);
+    box-shadow: 0 0 0 2px rgba(67,97,238,0.15);
+}
+
+.bpd-search-count {
+    font-size: 0.8125rem;
+    color: #6b7280;
+    min-width: 50px;
+    text-align: center;
+}
+
+/* Кнопки тулбара: активный вариант (для миникарты, поиска) */
+.bpd-tool-btn.active {
+    background: #e0e7ff;
+    color: var(--color-primary, #4361ee);
+    border-color: var(--color-primary, #4361ee);
+}

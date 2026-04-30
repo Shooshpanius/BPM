@@ -6,10 +6,11 @@ import './ProcessesPage.css';
 
 interface ProcessesPageProps {
     onOpenDesigner: (processId: string) => void;
+    onOpenMonitor?: (processId: string, processName: string) => void;
 }
 
 /** Страница списка бизнес-процессов с созданием и удалением. */
-export function ProcessesPage({ onOpenDesigner }: ProcessesPageProps) {
+export function ProcessesPage({ onOpenDesigner, onOpenMonitor }: ProcessesPageProps) {
     const { accessToken: token } = useAuth();
 
     const [organizations, setOrganizations] = useState<{ id: string; name: string }[]>([]);
@@ -176,6 +177,17 @@ export function ProcessesPage({ onOpenDesigner }: ProcessesPageProps) {
                                 >
                                     ✎
                                 </button>
+                                {onOpenMonitor && (
+                                    <button
+                                        className="pp-btn-icon"
+                                        title="Монитор экземпляров"
+                                        onClick={() => onOpenMonitor(p.id, p.name)}
+                                        aria-label="Монитор экземпляров"
+                                        style={{ fontSize: 14 }}
+                                    >
+                                        ⊞
+                                    </button>
+                                )}
                                 <button
                                     className="pp-btn-icon pp-btn-delete"
                                     title="Удалить процесс"

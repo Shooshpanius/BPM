@@ -539,3 +539,70 @@ export const acquireDiagramLock = (token: string, processId: string): Promise<Ac
 /** Снять блокировку диаграммы (идемпотентно). */
 export const releaseDiagramLock = (token: string, processId: string): Promise<void> =>
     fetchJson(`/api/bpm/processes/${processId}/diagram/lock`, token, { method: 'DELETE' });
+
+// ─── Реестр сигналов BPMN ────────────────────────────────────────────────────
+
+export interface BpmSignalDto {
+    id: string;
+    name: string;
+    code: string;
+    description?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface CreateSignalRequest { name: string; code?: string; description?: string; }
+export interface UpdateSignalRequest { name: string; code: string; description?: string; }
+
+/** Список сигналов организации. */
+export const getSignals = (token: string, organizationId?: string): Promise<BpmSignalDto[]> =>
+    fetchJson(`/api/bpm/signals${organizationId ? `?organizationId=${organizationId}` : ''}`, token);
+
+/** Создать сигнал. */
+export const createSignal = (token: string, data: CreateSignalRequest, organizationId?: string): Promise<BpmSignalDto> =>
+    fetchJson(`/api/bpm/signals${organizationId ? `?organizationId=${organizationId}` : ''}`, token, {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+
+/** Обновить сигнал. */
+export const updateSignal = (token: string, id: string, data: UpdateSignalRequest): Promise<BpmSignalDto> =>
+    fetchJson(`/api/bpm/signals/${id}`, token, { method: 'PUT', body: JSON.stringify(data) });
+
+/** Удалить сигнал. */
+export const deleteSignal = (token: string, id: string): Promise<void> =>
+    fetchJson(`/api/bpm/signals/${id}`, token, { method: 'DELETE' });
+
+// ─── Реестр сообщений BPMN ───────────────────────────────────────────────────
+
+export interface BpmMessageDto {
+    id: string;
+    name: string;
+    code: string;
+    description?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface CreateMessageRequest { name: string; code?: string; description?: string; }
+export interface UpdateMessageRequest { name: string; code: string; description?: string; }
+
+/** Список сообщений организации. */
+export const getMessages = (token: string, organizationId?: string): Promise<BpmMessageDto[]> =>
+    fetchJson(`/api/bpm/messages${organizationId ? `?organizationId=${organizationId}` : ''}`, token);
+
+/** Создать сообщение. */
+export const createMessage = (token: string, data: CreateMessageRequest, organizationId?: string): Promise<BpmMessageDto> =>
+    fetchJson(`/api/bpm/messages${organizationId ? `?organizationId=${organizationId}` : ''}`, token, {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+
+/** Обновить сообщение. */
+export const updateMessage = (token: string, id: string, data: UpdateMessageRequest): Promise<BpmMessageDto> =>
+    fetchJson(`/api/bpm/messages/${id}`, token, { method: 'PUT', body: JSON.stringify(data) });
+
+/** Удалить сообщение. */
+export const deleteMessage = (token: string, id: string): Promise<void> =>
+    fetchJson(`/api/bpm/messages/${id}`, token, { method: 'DELETE' });
+
