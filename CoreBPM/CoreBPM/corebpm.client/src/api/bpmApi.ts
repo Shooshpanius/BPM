@@ -671,3 +671,89 @@ export const replaceProcessRoles = (
         body: JSON.stringify(data),
     });
 
+
+// ─── Экземпляры процессов ─────────────────────────────────────────────────────
+
+export type BpmInstanceState = 'Active' | 'Completed' | 'Cancelled' | 'Suspended';
+export type BpmInstanceLaunchSource = 'Manual' | 'Webhook' | 'Scheduler' | 'Message' | 'Signal' | 'CallActivity' | 'Batch';
+
+export interface BpmInstanceVariableDto {
+    id: string;
+    name: string;
+    valueJson?: string;
+}
+
+export interface BpmInstanceListItemDto {
+    id: string;
+    processId: string;
+    processName: string;
+    processVersionId: string;
+    processVersionNumber: number;
+    name: string;
+    state: BpmInstanceState;
+    launchSource: BpmInstanceLaunchSource;
+    initiatorUserId?: string;
+    initiatorDisplayName?: string;
+    responsibleUserId?: string;
+    responsibleDisplayName?: string;
+    startedAt: string;
+    completedAt?: string;
+    cancelledAt?: string;
+}
+
+export interface BpmInstanceDto extends BpmInstanceListItemDto {
+    parentInstanceId?: string;
+    externalReference?: string;
+    cancelReason?: string;
+    updatedAt: string;
+    variables: BpmInstanceVariableDto[];
+}
+
+export interface CreateInstanceRequest {
+    name?: string;
+    variables?: Record<string, string | null>;
+    externalReference?: string;
+}
+
+export interface BpmSchedulerJobDto {
+    id: string;
+    processId: string;
+    processVersionId: string;
+    elementId: string;
+    timerType: string;
+    timerValue: string;
+    timeZone?: string;
+    isActive: boolean;
+    lastFiredAt?: string;
+    nextFireAt?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+/** Список экземпляров процесса. */
+export const getInstances = (
+    token: string,
+    processId: string,
+    page = 1,
+    pageSize = 50
+): Promise<BpmInstanceListItemDto[]> =>
+    fetchJson(`/api/bpm/processes/${processId}/instances?page=${page}&pageSize=${pageSize}`, token);
+
+/** Запустить новый экземпляр процесса. */
+export const createInstance = (
+    token: string,
+    processId: string,
+    data: CreateInstanceRequest
+): Promise<BpmInstanceDto> =>
+    fetchJson(`/api/bpm/processes/${processId}/instances`, token, {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+
+/** Получить экземпляр по ID. */
+export const getInstance = (token: string, instanceId: string): Promise<BpmInstanceDto> =>
+    fetchJson(`/api/bpm/instances/${instanceId}`, token);
+
+/** Получить задания планировщика для процесса. */
+export const getSchedulerJobs = (token: string, processId: string): Promise<BpmSchedulerJobDto[]> =>
+    fetchJson(`/api/bpm/processes/${processId}/scheduler-jobs`, token);
