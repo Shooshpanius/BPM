@@ -25,6 +25,7 @@ public class AppDbContext : DbContext
     public DbSet<BpmElementConfig> BpmElementConfigs => Set<BpmElementConfig>();
     public DbSet<BpmProcessVariable> BpmProcessVariables => Set<BpmProcessVariable>();
     public DbSet<BpmRaciEntry> BpmRaciEntries => Set<BpmRaciEntry>();
+    public DbSet<BpmProcessRoleConfig> BpmProcessRoleConfigs => Set<BpmProcessRoleConfig>();
     public DbSet<BpmTaskForm> BpmTaskForms => Set<BpmTaskForm>();
     public DbSet<BpmTaskFormVersion> BpmTaskFormVersions => Set<BpmTaskFormVersion>();
     public DbSet<BpmInstanceStatusConfig> BpmInstanceStatusConfigs => Set<BpmInstanceStatusConfig>();
@@ -425,6 +426,25 @@ public class AppDbContext : DbContext
             e.Property(r => r.Stage).IsRequired().HasMaxLength(300);
             e.Property(r => r.Role).IsRequired().HasMaxLength(300);
             e.Property(r => r.RaciType).HasConversion<int>();
+
+            e.HasIndex(r => r.ProcessId);
+
+            e.HasOne(r => r.Process)
+             .WithMany()
+             .HasForeignKey(r => r.ProcessId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ─── Роли процесса (Владелец/Куратор) ────────────────────────────────────
+
+        modelBuilder.Entity<BpmProcessRoleConfig>(e =>
+        {
+            e.ToTable("bpm_process_role_configs");
+            e.HasKey(r => r.Id);
+            e.Property(r => r.RoleType).HasConversion<int>();
+            e.Property(r => r.AssigneeType).HasConversion<int>();
+            e.Property(r => r.AssigneeId).IsRequired().HasMaxLength(100);
+            e.Property(r => r.DisplayName).IsRequired().HasMaxLength(500);
 
             e.HasIndex(r => r.ProcessId);
 

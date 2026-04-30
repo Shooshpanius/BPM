@@ -82,6 +82,7 @@ builder.Services.AddScoped<IBpmProcessService, BpmProcessService>();
 builder.Services.AddScoped<IBpmElementConfigService, BpmElementConfigService>();
 builder.Services.AddScoped<IBpmVariableService, BpmVariableService>();
 builder.Services.AddScoped<IBpmRaciService, BpmRaciService>();
+builder.Services.AddScoped<IBpmProcessRoleService, BpmProcessRoleService>();
 builder.Services.AddScoped<IBpmInstanceStatusService, BpmInstanceStatusService>();
 builder.Services.AddScoped<IBpmDiagramLockService, BpmDiagramLockService>();
 

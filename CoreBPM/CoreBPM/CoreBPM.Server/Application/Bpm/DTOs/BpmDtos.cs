@@ -444,3 +444,29 @@ public record AcquireLockResponse(
     DiagramLockDto? Lock
 );
 
+// ─── Роли в процессе ─────────────────────────────────────────────────────────
+
+/// <summary>DTO настройки роли в определении процесса.</summary>
+public record BpmProcessRoleConfigDto(
+    Guid Id,
+    BpmProcessRoleType RoleType,
+    BpmAssigneeType AssigneeType,
+    string AssigneeId,
+    string DisplayName,
+    int SortOrder
+);
+
+/// <summary>Запрос на замену всех ролей процесса.</summary>
+public record UpsertProcessRoleConfigsRequest(
+    IReadOnlyList<UpsertProcessRoleConfigItem> Items
+);
+
+/// <summary>Элемент запроса на создание/обновление одной записи роли процесса.</summary>
+public record UpsertProcessRoleConfigItem(
+    BpmProcessRoleType RoleType,
+    BpmAssigneeType AssigneeType,
+    string AssigneeId,
+    string DisplayName,
+    int SortOrder
+);
+
