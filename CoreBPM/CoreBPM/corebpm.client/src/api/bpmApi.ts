@@ -6,6 +6,47 @@ export type BpmVariableType = 'String' | 'Int' | 'Decimal' | 'Bool' | 'Date' | '
 
 export type BpmRaciType = 'R' | 'A' | 'C' | 'I';
 
+// ─── Статусы экземпляров процесса ────────────────────────────────────────────
+
+export type BpmInterruptAction = 'KeepCurrent' | 'Reset' | 'MoveToNext' | 'RunScript';
+
+export interface InstanceStatusOptionDto {
+    id: string;
+    name: string;
+    code: string;
+    sortOrder: number;
+}
+
+export interface InstanceStatusConfigDto {
+    linkedVariableId?: string;
+    linkedVariableName?: string;
+    onInterruptAction: BpmInterruptAction;
+    onInterruptScriptId?: string;
+    options: InstanceStatusOptionDto[];
+}
+
+export interface UpdateStatusConfigRequest {
+    linkedVariableId?: string;
+    onInterruptAction: BpmInterruptAction;
+    onInterruptScriptId?: string;
+    createVariable: boolean;
+    newVariableName?: string;
+}
+
+export interface CreateStatusOptionRequest {
+    name: string;
+    code?: string;
+}
+
+export interface UpdateStatusOptionRequest {
+    name: string;
+    code: string;
+}
+
+export interface ReorderStatusOptionsRequest {
+    orderedIds: string[];
+}
+
 export interface BpmProcessListItemDto {
     id: string;
     organizationId: string;
@@ -426,4 +467,42 @@ export const replaceRaci = (token: string, processId: string, entries: UpsertRac
     fetchJson(`/api/bpm/processes/${processId}/raci`, token, {
         method: 'PUT',
         body: JSON.stringify(entries),
+    });
+
+// ─── Пользовательские статусы экземпляров ────────────────────────────────────
+
+/** Получить конфигурацию статусов процесса. */
+export const getStatusConfig = (token: string, processId: string): Promise<InstanceStatusConfigDto> =>
+    fetchJson(`/api/bpm/processes/${processId}/status-config`, token);
+
+/** Обновить конфигурацию статусов. */
+export const updateStatusConfig = (token: string, processId: string, data: UpdateStatusConfigRequest): Promise<InstanceStatusConfigDto> =>
+    fetchJson(`/api/bpm/processes/${processId}/status-config`, token, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+    });
+
+/** Создать вариант статуса. */
+export const createStatusOption = (token: string, processId: string, data: CreateStatusOptionRequest): Promise<InstanceStatusOptionDto> =>
+    fetchJson(`/api/bpm/processes/${processId}/status-config/options`, token, {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+
+/** Обновить вариант статуса. */
+export const updateStatusOption = (token: string, processId: string, optionId: string, data: UpdateStatusOptionRequest): Promise<InstanceStatusOptionDto> =>
+    fetchJson(`/api/bpm/processes/${processId}/status-config/options/${optionId}`, token, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+    });
+
+/** Удалить вариант статуса. */
+export const deleteStatusOption = (token: string, processId: string, optionId: string): Promise<void> =>
+    fetchJson(`/api/bpm/processes/${processId}/status-config/options/${optionId}`, token, { method: 'DELETE' });
+
+/** Изменить порядок вариантов статусов. */
+export const reorderStatusOptions = (token: string, processId: string, orderedIds: string[]): Promise<void> =>
+    fetchJson(`/api/bpm/processes/${processId}/status-config/options/reorder`, token, {
+        method: 'PUT',
+        body: JSON.stringify({ orderedIds }),
     });
