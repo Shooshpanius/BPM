@@ -13,6 +13,13 @@
     overflow: hidden;
 }
 
+/* На мобильных устройствах сайдбар скрывается (заменяется нижней навигацией) */
+@media (max-width: 767px) {
+    .sidebar {
+        display: none;
+    }
+}
+
 .sidebar-divider {
     width: 36px;
     height: 1px;

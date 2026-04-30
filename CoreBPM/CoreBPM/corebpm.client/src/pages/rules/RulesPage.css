@@ -267,3 +267,20 @@
     gap: 10px;
     margin-top: 4px;
 }
+
+/* ─── Мобильная версия ───────────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+    .rp-root { padding: 14px 12px; }
+
+    .rp-header {
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 14px;
+    }
+
+    .rp-card {
+        padding: 12px 14px;
+    }
+
+    .rp-card-meta { flex-wrap: wrap; }
+}

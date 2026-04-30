@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useMobile } from '../hooks/useMobile';
 import { Sidebar, type SidebarSection } from '../components/Sidebar';
+import { MobileNav } from '../components/MobileNav';
 import { ContactsPage } from './contacts/ContactsPage';
 import { OrgStructurePage } from './org/OrgStructurePage';
 import { ProcessesPage } from './bpm/ProcessesPage';
@@ -18,10 +20,11 @@ interface HomePageProps {
     onAdmin: () => void;
 }
 
-/** Основная страница приложения: шапка + сайдбар + содержимое раздела. */
+/** Основная страница приложения: шапка + сайдбар/нижняя навигация + содержимое раздела. */
 export function HomePage({ onAdmin }: HomePageProps) {
     const { logout, hasRole } = useAuth();
     const canManageOrg = hasRole('Admin') || hasRole('HR');
+    const isMobile = useMobile();
     const [section, setSection] = useState<SidebarSection>('contacts');
     const [designerProcessId, setDesignerProcessId] = useState<string | null>(null);
     const [monitorProcess, setMonitorProcess] = useState<{ id: string; name: string } | null>(null);
@@ -53,7 +56,7 @@ export function HomePage({ onAdmin }: HomePageProps) {
     };
 
     return (
-        <div className="hp-root">
+        <div className={`hp-root${isMobile ? ' hp-root--mobile' : ''}`}>
             <header className="hp-header">
                 <div className="hp-header-brand">
                     <span className="hp-logo-icon" aria-hidden="true">⬡</span>
@@ -62,7 +65,7 @@ export function HomePage({ onAdmin }: HomePageProps) {
                 <nav className="hp-header-nav">
                     {hasRole('Admin') && (
                         <button className="hp-admin-btn" onClick={onAdmin}>
-                            Администрирование
+                            {isMobile ? 'Адм.' : 'Администрирование'}
                         </button>
                     )}
                     <button className="hp-logout-btn" onClick={logout}>
@@ -72,7 +75,7 @@ export function HomePage({ onAdmin }: HomePageProps) {
             </header>
 
             <div className="hp-body">
-                <Sidebar active={section} onSelect={handleSelect} />
+                {!isMobile && <Sidebar active={section} onSelect={handleSelect} />}
                 <main className="hp-content">
                     {section === 'contacts' && (
                         <div className="hp-contacts-layout">
@@ -119,6 +122,7 @@ export function HomePage({ onAdmin }: HomePageProps) {
                     {section === 'bpm-scripts' && <ScriptsPage />}
                 </main>
             </div>
+            {isMobile && <MobileNav active={section} onSelect={handleSelect} />}
         </div>
     );
 }
