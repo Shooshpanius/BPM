@@ -13,6 +13,10 @@ import type {
 import { BpmPropertiesPanel } from '../../components/bpm/BpmPropertiesPanel';
 import './BpmnDesignerPage.css';
 
+const DEFAULT_START_EVENT_X = 156;
+const DEFAULT_START_EVENT_Y = 182;
+const DEFAULT_START_EVENT_SIZE = 36;
+
 const EMPTY_DIAGRAM = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn2:definitions
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -28,7 +32,7 @@ const EMPTY_DIAGRAM = `<?xml version="1.0" encoding="UTF-8"?>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
       <bpmndi:BPMNShape id="_BPMNShape_StartEvent_2" bpmnElement="StartEvent_1">
-        <dc:Bounds x="156" y="182" width="36" height="36" />
+        <dc:Bounds x="${DEFAULT_START_EVENT_X}" y="${DEFAULT_START_EVENT_Y}" width="${DEFAULT_START_EVENT_SIZE}" height="${DEFAULT_START_EVENT_SIZE}" />
       </bpmndi:BPMNShape>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

@@ -53,6 +53,7 @@ public partial class BpmProcessService : IBpmProcessService
         if (!orgExists)
             throw new NotFoundException($"Организация {request.OrganizationId} не найдена");
 
+        var technicalNames = GenerateTechnicalNames(request.Name);
         var now = DateTimeOffset.UtcNow;
         var process = new BpmProcess
         {
@@ -61,6 +62,15 @@ public partial class BpmProcessService : IBpmProcessService
             Name = request.Name.Trim(),
             Description = request.Description?.Trim(),
             CreatedByUserId = createdByUserId,
+            LaunchFromPortalEnabled = true,
+            ShowInStartList = true,
+            RequestInstanceNameOnStart = true,
+            DataClassName = technicalNames.DataClassName,
+            DataTableName = technicalNames.DataTableName,
+            ProcessMetricsClassName = technicalNames.ProcessMetricsClassName,
+            ProcessMetricsTableName = technicalNames.ProcessMetricsTableName,
+            InstanceMetricsClassName = technicalNames.InstanceMetricsClassName,
+            InstanceMetricsTableName = technicalNames.InstanceMetricsTableName,
             CreatedAt = now,
             UpdatedAt = now
         };
@@ -95,9 +105,21 @@ public partial class BpmProcessService : IBpmProcessService
         var process = await _db.BpmProcesses.FindAsync(new object[] { processId }, ct)
             ?? throw new NotFoundException($"Процесс {processId} не найден");
 
+        var oldName = process.Name;
         process.Name = request.Name.Trim();
         process.Description = request.Description?.Trim();
         process.UpdatedAt = DateTimeOffset.UtcNow;
+
+        if (string.Equals(process.DataClassName, GenerateTechnicalNames(oldName).DataClassName, StringComparison.Ordinal))
+        {
+            var technicalNames = GenerateTechnicalNames(process.Name);
+            process.DataClassName = technicalNames.DataClassName;
+            process.DataTableName = technicalNames.DataTableName;
+            process.ProcessMetricsClassName = technicalNames.ProcessMetricsClassName;
+            process.ProcessMetricsTableName = technicalNames.ProcessMetricsTableName;
+            process.InstanceMetricsClassName = technicalNames.InstanceMetricsClassName;
+            process.InstanceMetricsTableName = technicalNames.InstanceMetricsTableName;
+        }
 
         await _db.SaveChangesAsync(ct);
 
