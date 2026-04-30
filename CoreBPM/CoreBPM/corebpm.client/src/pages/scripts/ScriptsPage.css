@@ -643,3 +643,17 @@
 .scripts-live-guide-section--info p {
     color: #1e40af;
 }
+
+
+/* ─── Мобильная версия ───────────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+    .scripts-root { padding: 14px 12px; }
+
+    .scripts-header {
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 10px;
+    }
+
+    .scripts-org-select { flex: 1; min-width: 0; }
+}

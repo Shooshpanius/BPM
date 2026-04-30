@@ -407,3 +407,110 @@
     color: #e05c5c;
     opacity: 1;
 }
+
+/* ─────────────── Мобильная версия (< 767px) ─────────────── */
+@media (max-width: 767px) {
+    /* Панель дерева скрывается на мобильных */
+    .contacts-tree-panel {
+        display: none;
+    }
+
+    /* Карточки в одну колонку */
+    .emp-grid {
+        grid-template-columns: 1fr;
+    }
+
+    /* Строка поиска */
+    .contacts-search-bar {
+        padding: 8px 12px;
+        gap: 8px;
+    }
+}
+
+/* ─── Мобильный overlay и drawer для оргдерева ─── */
+.contacts-mobile-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 200;
+    /* Анимация появления */
+    animation: contacts-overlay-in 0.18s ease-out;
+}
+
+@keyframes contacts-overlay-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+.contacts-mobile-drawer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 82%;
+    max-width: 320px;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.18);
+    animation: contacts-drawer-in 0.22s ease-out;
+}
+
+@keyframes contacts-drawer-in {
+    from { transform: translateX(-100%); }
+    to   { transform: translateX(0); }
+}
+
+.contacts-mobile-drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-h);
+}
+
+.contacts-mobile-drawer-close {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 1.4rem;
+    line-height: 1;
+    color: var(--text);
+    padding: 0 4px;
+    font-family: inherit;
+    opacity: 0.6;
+    transition: opacity 0.15s;
+}
+
+.contacts-mobile-drawer-close:hover {
+    opacity: 1;
+}
+
+/* Кнопка открытия дерева в строке поиска (только мобильная) */
+.contacts-tree-btn {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.contacts-tree-btn:hover {
+    border-color: var(--accent-border);
+    color: var(--accent);
+    background: var(--accent-bg);
+}
+

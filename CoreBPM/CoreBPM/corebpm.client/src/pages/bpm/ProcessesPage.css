@@ -314,3 +314,29 @@
 .pp-card--template { border-left: 3px solid #a78bfa; }
 .pp-template-icon { font-style: normal; }
 .pp-modal-field--inline { display: flex; align-items: center; gap: 8px; }
+
+/* ─── Мобильная версия ───────────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+    .pp-root { padding: 14px 12px; }
+
+    .pp-header {
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 14px;
+    }
+
+    .pp-header-actions {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+
+    .pp-org-select { flex: 1; min-width: 0; }
+
+    .pp-card {
+        padding: 12px 14px;
+    }
+
+    .pp-card-meta {
+        flex-wrap: wrap;
+    }
+}

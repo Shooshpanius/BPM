@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useMobile } from '../../hooks/useMobile';
 import * as api from '../../api/orgDirectoryApi';
 import type {
     DirectoryOrganizationDto,
@@ -20,6 +21,10 @@ function getInitials(emp: DirectoryEmployeeDto): string {
 /** Страница адресной книги: дерево оргструктуры + карточки сотрудников + поиск. */
 export function ContactsPage() {
     const { accessToken: token } = useAuth();
+    const isMobile = useMobile();
+
+    // Мобильное состояние — отображение drawer с деревом
+    const [showMobileTree, setShowMobileTree] = useState(false);
 
     // Данные дерева
     const [organizations, setOrganizations] = useState<DirectoryOrganizationDto[]>([]);
@@ -258,7 +263,7 @@ export function ContactsPage() {
 
     return (
         <div className="contacts-root">
-            {/* Панель дерева */}
+            {/* Панель дерева (десктоп) */}
             <aside className="contacts-tree-panel" aria-label="Оргструктура">
                 <div className="tree-header">Оргструктура</div>
                 <div className="tree-scroll">
@@ -266,10 +271,53 @@ export function ContactsPage() {
                 </div>
             </aside>
 
+            {/* Мобильный drawer с деревом оргструктуры */}
+            {isMobile && showMobileTree && (
+                <div
+                    className="contacts-mobile-overlay"
+                    onClick={() => setShowMobileTree(false)}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Оргструктура"
+                >
+                    <div
+                        className="contacts-mobile-drawer"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="contacts-mobile-drawer-header">
+                            <span>Оргструктура</span>
+                            <button
+                                className="contacts-mobile-drawer-close"
+                                onClick={() => setShowMobileTree(false)}
+                                aria-label="Закрыть"
+                            >
+                                ×
+                            </button>
+                        </div>
+                        <div className="tree-scroll">
+                            {renderTree()}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Панель сотрудников */}
             <section className="contacts-main-panel">
                 {/* Строка поиска */}
                 <div className="contacts-search-bar">
+                    {/* Кнопка открытия drawer с деревом (только на мобильных) */}
+                    {isMobile && (
+                        <button
+                            className="contacts-tree-btn"
+                            onClick={() => setShowMobileTree(true)}
+                            aria-label="Открыть оргструктуру"
+                            title="Оргструктура"
+                        >
+                            <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18" aria-hidden="true">
+                                <path fillRule="evenodd" d="M3 3a1 1 0 000 2h14a1 1 0 100-2H3zm0 6a1 1 0 000 2h10a1 1 0 100-2H3zm0 6a1 1 0 100 2h6a1 1 0 100-2H3z" clipRule="evenodd"/>
+                            </svg>
+                        </button>
+                    )}
                     <div className="contacts-search-field">
                         <span className="search-icon" aria-hidden="true">
                             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" width="16" height="16"><circle cx="8.5" cy="8.5" r="5.5"/><path d="M15 15l-3.5-3.5" strokeLinecap="round"/></svg>

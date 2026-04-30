@@ -127,3 +127,36 @@
     }
 }
 
+/* ─────────────── Мобильная версия (< 768px) ─────────────── */
+@media (max-width: 767px) {
+    /* Шапка становится компактнее */
+    .hp-header {
+        height: 44px;
+        padding: 0 1rem;
+    }
+
+    .hp-logo-name {
+        font-size: 0.9rem;
+    }
+
+    /* Тело занимает всю ширину (без сайдбара) */
+    .hp-body {
+        /* sidebar скрыт через JS, дополнительный сброс не нужен */
+    }
+
+    /* Контент получает отступ снизу под нижнюю навигацию */
+    .hp-root--mobile .hp-content {
+        padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+    }
+
+    /* Скрываем виджет aside на мобильных */
+    .hp-aside {
+        display: none;
+    }
+
+    /* Контакты — убираем aside-разрыв */
+    .hp-contacts-layout {
+        flex-direction: column;
+    }
+}
+
