@@ -10,7 +10,7 @@ public partial class BpmProcessService
     public async Task<BpmDiagramDto> GetVersionAsync(Guid processId, Guid versionId, CancellationToken ct = default)
         => MapVersionToDto(await GetVersionEntityAsync(processId, versionId, ct, asNoTracking: true));
 
-    public async Task<BpmProcessVersionInfoDto> PublishVersionAsync(Guid processId, Guid versionId, CancellationToken ct = default)
+    public async Task<BpmProcessVersionInfoDto> PublishVersionAsync(Guid processId, Guid versionId, string? releaseNotes, CancellationToken ct = default)
     {
         var version = await GetVersionEntityAsync(processId, versionId, ct);
         var validation = await ValidateProcessAsync(processId, versionId, ct);
@@ -32,6 +32,7 @@ public partial class BpmProcessService
         version.Status = BpmProcessVersionStatus.Active;
         version.PublishedAt = now;
         version.UpdatedAt = now;
+        version.ReleaseNotes = releaseNotes?.Trim();
 
         var process = await _db.BpmProcesses.FindAsync(new object[] { processId }, ct);
         if (process is not null)
@@ -148,7 +149,4 @@ public partial class BpmProcessService
         return await query.FirstOrDefaultAsync(v => v.Id == versionId && v.ProcessId == processId, ct)
             ?? throw new NotFoundException($"Версия {versionId} процесса {processId} не найдена");
     }
-
-    private static BpmProcessVersionInfoDto MapVersionInfo(BpmProcessVersion v)
-        => new(v.Id, v.VersionNumber, v.Status, v.CreatedByUserId, v.CreatedAt, v.UpdatedAt, v.PublishedAt);
 }

@@ -56,6 +56,8 @@ export interface BpmProcessListItemDto {
     totalVersions: number;
     createdAt: string;
     updatedAt: string;
+    tags: string[];
+    isTemplate: boolean;
 }
 
 export interface BpmProcessDto {
@@ -68,6 +70,8 @@ export interface BpmProcessDto {
     totalVersions: number;
     createdAt: string;
     updatedAt: string;
+    tags: string[];
+    isTemplate: boolean;
 }
 
 export interface BpmProcessVersionInfoDto {
@@ -78,6 +82,7 @@ export interface BpmProcessVersionInfoDto {
     createdAt: string;
     updatedAt: string;
     publishedAt?: string;
+    releaseNotes?: string;
 }
 
 export interface BpmDiagramDto {
@@ -87,6 +92,7 @@ export interface BpmDiagramDto {
     diagramXml?: string;
     updatedAt: string;
     publishedAt?: string;
+    releaseNotes?: string;
 }
 
 export type BpmInstanceNameMode = 'Manual' | 'KeyVariable' | 'Template';
@@ -290,7 +296,7 @@ export const getProcess = (token: string, processId: string): Promise<BpmProcess
 /** Создать новый процесс. */
 export const createProcess = (
     token: string,
-    data: { organizationId: string; name: string; description?: string }
+    data: { organizationId: string; name: string; description?: string; tags?: string[]; isTemplate?: boolean }
 ): Promise<BpmProcessDto> =>
     fetchJson('/api/bpm/processes', token, {
         method: 'POST',
@@ -301,7 +307,7 @@ export const createProcess = (
 export const updateProcess = (
     token: string,
     processId: string,
-    data: { name: string; description?: string }
+    data: { name: string; description?: string; tags?: string[]; isTemplate?: boolean }
 ): Promise<BpmProcessDto> =>
     fetchJson(`/api/bpm/processes/${processId}`, token, {
         method: 'PUT',
@@ -332,8 +338,26 @@ export const saveDiagram = (token: string, processId: string, diagramXml: string
     });
 
 /** Опубликовать версию процесса. */
-export const publishProcessVersion = (token: string, processId: string, versionId: string): Promise<BpmProcessVersionInfoDto> =>
-    fetchJson(`/api/bpm/processes/${processId}/versions/${versionId}/publish`, token, { method: 'POST' });
+export const publishProcessVersion = (token: string, processId: string, versionId: string, releaseNotes?: string): Promise<BpmProcessVersionInfoDto> =>
+    fetchJson(`/api/bpm/processes/${processId}/versions/${versionId}/publish`, token, {
+        method: 'POST',
+        body: JSON.stringify({ releaseNotes }),
+    });
+
+/** Получить список шаблонов процессов. */
+export const getProcessTemplates = (token: string, organizationId: string): Promise<BpmProcessListItemDto[]> =>
+    fetchJson(`/api/bpm/processes/templates?organizationId=${organizationId}`, token);
+
+/** Создать процесс из шаблона. */
+export const createProcessFromTemplate = (
+    token: string,
+    templateId: string,
+    data: { organizationId: string; name: string; description?: string }
+): Promise<BpmProcessDto> =>
+    fetchJson(`/api/bpm/processes/${templateId}/from-template`, token, {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
 
 /** Создать новый черновик откатом к выбранной версии. */
 export const rollbackProcessVersion = (token: string, processId: string, versionId: string): Promise<BpmDiagramDto> =>
@@ -506,3 +530,103 @@ export const reorderStatusOptions = (token: string, processId: string, orderedId
         method: 'PUT',
         body: JSON.stringify({ orderedIds }),
     });
+
+// ─── Блокировки диаграмм ─────────────────────────────────────────────────────
+
+export interface DiagramLockDto {
+    processId: string;
+    lockedByUserId: string;
+    lockedByDisplayName: string;
+    lockedAt: string;
+    lockedUntil: string;
+}
+
+export interface AcquireLockResponse {
+    isAcquired: boolean;
+    lock?: DiagramLockDto;
+}
+
+/** Получить информацию об активной блокировке диаграммы (null если не заблокирована). */
+export const getDiagramLock = async (token: string, processId: string): Promise<DiagramLockDto | null> => {
+    const res = await fetch(`/api/bpm/processes/${processId}/diagram/lock`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.status === 204) return null;
+    if (!res.ok) return null;
+    return res.json() as Promise<DiagramLockDto>;
+};
+
+/** Захватить (или продлить) блокировку диаграммы. */
+export const acquireDiagramLock = (token: string, processId: string): Promise<AcquireLockResponse> =>
+    fetchJson(`/api/bpm/processes/${processId}/diagram/lock`, token, { method: 'PUT' });
+
+/** Снять блокировку диаграммы (идемпотентно). */
+export const releaseDiagramLock = (token: string, processId: string): Promise<void> =>
+    fetchJson(`/api/bpm/processes/${processId}/diagram/lock`, token, { method: 'DELETE' });
+
+// ─── Реестр сигналов BPMN ────────────────────────────────────────────────────
+
+export interface BpmSignalDto {
+    id: string;
+    name: string;
+    code: string;
+    description?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface CreateSignalRequest { name: string; code?: string; description?: string; }
+export interface UpdateSignalRequest { name: string; code: string; description?: string; }
+
+/** Список сигналов организации. */
+export const getSignals = (token: string, organizationId?: string): Promise<BpmSignalDto[]> =>
+    fetchJson(`/api/bpm/signals${organizationId ? `?organizationId=${organizationId}` : ''}`, token);
+
+/** Создать сигнал. */
+export const createSignal = (token: string, data: CreateSignalRequest, organizationId?: string): Promise<BpmSignalDto> =>
+    fetchJson(`/api/bpm/signals${organizationId ? `?organizationId=${organizationId}` : ''}`, token, {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+
+/** Обновить сигнал. */
+export const updateSignal = (token: string, id: string, data: UpdateSignalRequest): Promise<BpmSignalDto> =>
+    fetchJson(`/api/bpm/signals/${id}`, token, { method: 'PUT', body: JSON.stringify(data) });
+
+/** Удалить сигнал. */
+export const deleteSignal = (token: string, id: string): Promise<void> =>
+    fetchJson(`/api/bpm/signals/${id}`, token, { method: 'DELETE' });
+
+// ─── Реестр сообщений BPMN ───────────────────────────────────────────────────
+
+export interface BpmMessageDto {
+    id: string;
+    name: string;
+    code: string;
+    description?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface CreateMessageRequest { name: string; code?: string; description?: string; }
+export interface UpdateMessageRequest { name: string; code: string; description?: string; }
+
+/** Список сообщений организации. */
+export const getMessages = (token: string, organizationId?: string): Promise<BpmMessageDto[]> =>
+    fetchJson(`/api/bpm/messages${organizationId ? `?organizationId=${organizationId}` : ''}`, token);
+
+/** Создать сообщение. */
+export const createMessage = (token: string, data: CreateMessageRequest, organizationId?: string): Promise<BpmMessageDto> =>
+    fetchJson(`/api/bpm/messages${organizationId ? `?organizationId=${organizationId}` : ''}`, token, {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+
+/** Обновить сообщение. */
+export const updateMessage = (token: string, id: string, data: UpdateMessageRequest): Promise<BpmMessageDto> =>
+    fetchJson(`/api/bpm/messages/${id}`, token, { method: 'PUT', body: JSON.stringify(data) });
+
+/** Удалить сообщение. */
+export const deleteMessage = (token: string, id: string): Promise<void> =>
+    fetchJson(`/api/bpm/messages/${id}`, token, { method: 'DELETE' });
+

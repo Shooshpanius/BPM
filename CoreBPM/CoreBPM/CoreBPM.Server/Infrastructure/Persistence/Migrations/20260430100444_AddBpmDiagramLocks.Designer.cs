@@ -3,6 +3,7 @@ using System;
 using CoreBPM.Server.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260430100444_AddBpmDiagramLocks")]
+    partial class AddBpmDiagramLocks
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -554,55 +557,6 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                     b.ToTable("bpm_instance_status_options", (string)null);
                 });
 
-            modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmMessage", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("code");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)")
-                        .HasColumnName("description");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("name");
-
-                    b.Property<Guid>("OrganizationId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("organization_id");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id")
-                        .HasName("pk_bpm_messages");
-
-                    b.HasIndex("OrganizationId")
-                        .HasDatabaseName("ix_bpm_messages_organization_id");
-
-                    b.HasIndex("OrganizationId", "Code")
-                        .IsUnique()
-                        .HasDatabaseName("ix_bpm_messages_organization_id_code");
-
-                    b.ToTable("bpm_messages", (string)null);
-                });
-
             modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmProcess", b =>
                 {
                     b.Property<Guid>("Id")
@@ -688,10 +642,6 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_deleted");
 
-                    b.Property<bool>("IsTemplate")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_template");
-
                     b.Property<bool>("LaunchFromPortalEnabled")
                         .HasColumnType("boolean")
                         .HasColumnName("launch_from_portal_enabled");
@@ -733,11 +683,6 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                     b.Property<bool>("ShowInStartList")
                         .HasColumnType("boolean")
                         .HasColumnName("show_in_start_list");
-
-                    b.Property<string>("TagsJson")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("tags_json");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -842,10 +787,6 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("published_at");
 
-                    b.Property<string>("ReleaseNotes")
-                        .HasColumnType("text")
-                        .HasColumnName("release_notes");
-
                     b.Property<int>("Status")
                         .HasColumnType("integer")
                         .HasColumnName("status");
@@ -949,55 +890,6 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_bpm_script_modules_process_version_id");
 
                     b.ToTable("bpm_script_modules", (string)null);
-                });
-
-            modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmSignal", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("code");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)")
-                        .HasColumnName("description");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("name");
-
-                    b.Property<Guid>("OrganizationId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("organization_id");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id")
-                        .HasName("pk_bpm_signals");
-
-                    b.HasIndex("OrganizationId")
-                        .HasDatabaseName("ix_bpm_signals_organization_id");
-
-                    b.HasIndex("OrganizationId", "Code")
-                        .IsUnique()
-                        .HasDatabaseName("ix_bpm_signals_organization_id_code");
-
-                    b.ToTable("bpm_signals", (string)null);
                 });
 
             modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmTaskForm", b =>

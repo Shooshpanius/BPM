@@ -5,6 +5,7 @@ import { ContactsPage } from './contacts/ContactsPage';
 import { OrgStructurePage } from './org/OrgStructurePage';
 import { ProcessesPage } from './bpm/ProcessesPage';
 import { BpmnDesignerPage } from './bpm/BpmnDesignerPage';
+import { ProcessMonitorPage } from './bpm/ProcessMonitorPage';
 import { RulesPage } from './rules/RulesPage';
 import { DmnEditorPage } from './rules/DmnEditorPage';
 import { FormsPage } from './forms/FormsPage';
@@ -23,6 +24,7 @@ export function HomePage({ onAdmin }: HomePageProps) {
     const canManageOrg = hasRole('Admin') || hasRole('HR');
     const [section, setSection] = useState<SidebarSection>('contacts');
     const [designerProcessId, setDesignerProcessId] = useState<string | null>(null);
+    const [monitorProcess, setMonitorProcess] = useState<{ id: string; name: string } | null>(null);
     const [dmnEditorTableId, setDmnEditorTableId] = useState<string | null>(null);
     const [formBuilderId, setFormBuilderId] = useState<string | null>(null);
 
@@ -30,13 +32,20 @@ export function HomePage({ onAdmin }: HomePageProps) {
         // Обычные пользователи не имеют доступа к разделу «Оргструктура»
         if (s === 'org-structure' && !canManageOrg) return;
         setDesignerProcessId(null);
+        setMonitorProcess(null);
         setDmnEditorTableId(null);
         setFormBuilderId(null);
         setSection(s);
     };
 
     const handleOpenDesigner = (processId: string) => {
+        setMonitorProcess(null);
         setDesignerProcessId(processId);
+    };
+
+    const handleOpenMonitor = (processId: string, processName: string) => {
+        setDesignerProcessId(null);
+        setMonitorProcess({ id: processId, name: processName });
     };
 
     const handleBackFromDesigner = () => {
@@ -80,7 +89,16 @@ export function HomePage({ onAdmin }: HomePageProps) {
                                 processId={designerProcessId}
                                 onBack={handleBackFromDesigner}
                               />
-                            : <ProcessesPage onOpenDesigner={handleOpenDesigner} />
+                            : monitorProcess
+                                ? <ProcessMonitorPage
+                                    processId={monitorProcess.id}
+                                    processName={monitorProcess.name}
+                                    onBack={() => setMonitorProcess(null)}
+                                  />
+                                : <ProcessesPage
+                                    onOpenDesigner={handleOpenDesigner}
+                                    onOpenMonitor={handleOpenMonitor}
+                                  />
                     )}
                     {section === 'bpm-rules' && (
                         dmnEditorTableId

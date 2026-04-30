@@ -4,6 +4,8 @@ import { GeneralTab } from './GeneralTab';
 import { UserTaskTab } from './UserTaskTab';
 import { ServiceTaskTab } from './ServiceTaskTab';
 import { ScriptTaskTab } from './ScriptTaskTab';
+import { BusinessRuleTaskTab } from './BusinessRuleTaskTab';
+import { TaskMarkersTab } from './TaskMarkersTab';
 import { GatewayTab } from './GatewayTab';
 import { TimerEventTab } from './TimerEventTab';
 import { SequenceFlowTab } from './SequenceFlowTab';
@@ -12,6 +14,12 @@ import { ProcessVariablesTab } from './ProcessVariablesTab';
 import { RaciMatrixTab } from './RaciMatrixTab';
 import { ProcessSettingsTab } from './ProcessSettingsTab';
 import { InstanceStatusTab } from './InstanceStatusTab';
+import { LaneTab } from './LaneTab';
+import { VariableVisibilityTab } from './VariableVisibilityTab';
+import { RpaTaskTab } from './RpaTaskTab';
+import { SignalMessageEventTab } from './SignalMessageEventTab';
+import { BoundaryEventTab } from './BoundaryEventTab';
+import { EscalationTab } from './EscalationTab';
 import './BpmPropertiesPanel.css';
 
 type BpmnModeler = import('bpmn-js/lib/Modeler').default;
@@ -35,7 +43,7 @@ interface Props {
 
 // ─── Конфигурация вкладок ─────────────────────────────────────────────────────
 
-type TabId = 'general' | 'execution' | 'notifications' | 'variables' | 'raci' | 'settings' | 'statuses';
+type TabId = 'general' | 'execution' | 'markers' | 'notifications' | 'variables' | 'raci' | 'settings' | 'statuses' | 'escalation' | 'varvisibility' | 'rpa';
 
 interface TabDef {
     id: TabId;
@@ -54,7 +62,16 @@ function getTabsForElement(elementType: string | null): TabDef[] {
         ];
     }
     if (elementType === 'bpmn:SequenceFlow') {
-        return [{ id: 'general', label: 'Основное' }];
+        return [
+            { id: 'general', label: 'Основное' },
+            { id: 'escalation', label: 'Эскалация' },
+        ];
+    }
+    if (elementType === 'bpmn:Lane') {
+        return [
+            { id: 'general', label: 'Основное' },
+            { id: 'varvisibility', label: 'Видимость переменных' },
+        ];
     }
     if (
         elementType === 'bpmn:ExclusiveGateway' ||
@@ -69,29 +86,65 @@ function getTabsForElement(elementType: string | null): TabDef[] {
         return [
             { id: 'general', label: 'Основное' },
             { id: 'execution', label: 'Выполнение' },
+            { id: 'markers', label: 'Маркеры' },
             { id: 'notifications', label: 'Уведомления' },
+        ];
+    }
+    if (elementType === 'bpmn:BusinessRuleTask') {
+        return [
+            { id: 'general', label: 'Основное' },
+            { id: 'execution', label: 'Правило' },
+            { id: 'markers', label: 'Маркеры' },
         ];
     }
     if (
         elementType === 'bpmn:ServiceTask' ||
-        elementType === 'bpmn:ScriptTask' ||
-        elementType === 'bpmn:BusinessRuleTask' ||
         elementType === 'bpmn:SendTask' ||
         elementType === 'bpmn:ReceiveTask'
     ) {
         return [
             { id: 'general', label: 'Основное' },
             { id: 'execution', label: 'Выполнение' },
+            { id: 'markers', label: 'Маркеры' },
+        ];
+    }
+    if (elementType === 'bpmn:ScriptTask') {
+        return [
+            { id: 'general', label: 'Основное' },
+            { id: 'execution', label: 'Скрипт' },
+            { id: 'markers', label: 'Маркеры' },
+        ];
+    }
+    // RPA-задача (кастомный тип расширения)
+    if (elementType === 'bpmn:Task' || (elementType && elementType.includes('RpaTask'))) {
+        return [
+            { id: 'general', label: 'Основное' },
+            { id: 'rpa', label: 'RPA-агент' },
+            { id: 'markers', label: 'Маркеры' },
+        ];
+    }
+    if (elementType === 'bpmn:ManualTask') {
+        return [
+            { id: 'general', label: 'Основное' },
+            { id: 'markers', label: 'Маркеры' },
         ];
     }
     if (
         elementType === 'bpmn:StartEvent' ||
         elementType === 'bpmn:IntermediateCatchEvent' ||
-        elementType === 'bpmn:BoundaryEvent'
+        elementType === 'bpmn:IntermediateThrowEvent' ||
+        elementType === 'bpmn:EndEvent'
     ) {
         return [
             { id: 'general', label: 'Основное' },
             { id: 'execution', label: 'Выполнение' },
+        ];
+    }
+    if (elementType === 'bpmn:BoundaryEvent') {
+        return [
+            { id: 'general', label: 'Основное' },
+            { id: 'execution', label: 'Граничное событие' },
+            { id: 'escalation', label: 'Эскалация' },
         ];
     }
     // Прочие элементы: только «Основное»
@@ -102,6 +155,24 @@ function getTabsForElement(elementType: string | null): TabDef[] {
 function isTimerEvent(_elementType: string, businessObject: Record<string, unknown>): boolean {
     const eventDefs = businessObject.eventDefinitions as Array<{ $type: string }> | undefined;
     return Boolean(eventDefs?.some(d => d.$type === 'bpmn:TimerEventDefinition'));
+}
+
+/** Проверяет, является ли событие сигнальным */
+function isSignalEvent(_elementType: string, businessObject: Record<string, unknown>): boolean {
+    const eventDefs = businessObject.eventDefinitions as Array<{ $type: string }> | undefined;
+    return Boolean(eventDefs?.some(d => d.$type === 'bpmn:SignalEventDefinition'));
+}
+
+/** Проверяет, является ли событие сообщением */
+function isMessageEvent(_elementType: string, businessObject: Record<string, unknown>): boolean {
+    const eventDefs = businessObject.eventDefinitions as Array<{ $type: string }> | undefined;
+    return Boolean(eventDefs?.some(d => d.$type === 'bpmn:MessageEventDefinition'));
+}
+
+/** Проверяет, является ли событие throw (генерирующим) */
+function isThrowEvent(elementType: string): boolean {
+    return elementType === 'bpmn:IntermediateThrowEvent' ||
+        elementType === 'bpmn:EndEvent';
 }
 
 // ─── Компонент ───────────────────────────────────────────────────────────────
@@ -152,11 +223,17 @@ export function BpmPropertiesPanel({ modeler, processId, token }: Props) {
                 if (elType === 'bpmn:SequenceFlow') {
                     return <SequenceFlowTab element={selectedElement} modeler={modeler} />;
                 }
+                if (elType === 'bpmn:Lane') {
+                    return <LaneTab processId={processId} token={token} elementId={elId} />;
+                }
                 return <GeneralTab element={selectedElement} modeler={modeler} />;
 
             case 'execution':
                 if (elType === 'bpmn:UserTask') {
                     return <UserTaskTab processId={processId} token={token} elementId={elId} />;
+                }
+                if (elType === 'bpmn:BusinessRuleTask') {
+                    return <BusinessRuleTaskTab processId={processId} token={token} elementId={elId} />;
                 }
                 if (elType === 'bpmn:ServiceTask' || elType === 'bpmn:SendTask' || elType === 'bpmn:ReceiveTask') {
                     return <ServiceTaskTab processId={processId} token={token} elementId={elId} />;
@@ -170,7 +247,28 @@ export function BpmPropertiesPanel({ modeler, processId, token }: Props) {
                 if (isTimerEvent(elType, bo)) {
                     return <TimerEventTab element={selectedElement} modeler={modeler} />;
                 }
+                if (isSignalEvent(elType, bo)) {
+                    return <SignalMessageEventTab processId={processId} token={token} elementId={elId} isThrow={isThrowEvent(elType)} defaultKind="signal" />;
+                }
+                if (isMessageEvent(elType, bo)) {
+                    return <SignalMessageEventTab processId={processId} token={token} elementId={elId} isThrow={isThrowEvent(elType)} defaultKind="message" />;
+                }
+                if (elType === 'bpmn:BoundaryEvent') {
+                    return <BoundaryEventTab processId={processId} token={token} elementId={elId} />;
+                }
                 return <GeneralTab element={selectedElement} modeler={modeler} />;
+
+            case 'escalation':
+                return <EscalationTab processId={processId} token={token} elementId={elId} />;
+
+            case 'varvisibility':
+                return <VariableVisibilityTab processId={processId} token={token} elementId={elId} />;
+
+            case 'rpa':
+                return <RpaTaskTab processId={processId} token={token} elementId={elId} />;
+
+            case 'markers':
+                return <TaskMarkersTab processId={processId} token={token} elementId={elId} />;
 
             case 'notifications':
                 return <NotificationsTab processId={processId} token={token} elementId={elId} />;
@@ -256,3 +354,4 @@ function renderProcessLevel(tabId: TabId, processId: string, token: string) {
         </div>
     );
 }
+

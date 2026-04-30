@@ -17,6 +17,12 @@ public class BpmProcess
     /// <summary>Идентификатор пользователя, создавшего процесс.</summary>
     public Guid CreatedByUserId { get; set; }
 
+    /// <summary>Теги процесса (JSON-массив строк).</summary>
+    public string TagsJson { get; set; } = "[]";
+
+    /// <summary>Является ли процесс шаблоном.</summary>
+    public bool IsTemplate { get; set; } = false;
+
     /// <summary>Разрешён ручной запуск с портала.</summary>
     public bool LaunchFromPortalEnabled { get; set; } = true;
 
