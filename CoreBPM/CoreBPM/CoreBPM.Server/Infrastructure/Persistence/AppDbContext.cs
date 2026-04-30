@@ -29,6 +29,10 @@ public class AppDbContext : DbContext
     public DbSet<BpmTaskFormVersion> BpmTaskFormVersions => Set<BpmTaskFormVersion>();
     public DbSet<BpmInstanceStatusConfig> BpmInstanceStatusConfigs => Set<BpmInstanceStatusConfig>();
     public DbSet<BpmInstanceStatusOption> BpmInstanceStatusOptions => Set<BpmInstanceStatusOption>();
+    public DbSet<BpmScriptModule> BpmScriptModules => Set<BpmScriptModule>();
+    public DbSet<BpmDesignerExtension> BpmDesignerExtensions => Set<BpmDesignerExtension>();
+    public DbSet<BpmGlobalModule> BpmGlobalModules => Set<BpmGlobalModule>();
+    public DbSet<BpmGlobalModuleFile> BpmGlobalModuleFiles => Set<BpmGlobalModuleFile>();
     public DbSet<DmnTable> DmnTables => Set<DmnTable>();
     public DbSet<DmnTableVersion> DmnTableVersions => Set<DmnTableVersion>();
     public DbSet<DmnColumn> DmnColumns => Set<DmnColumn>();
@@ -552,6 +556,69 @@ public class AppDbContext : DbContext
             e.HasOne(c => c.Column)
              .WithMany(col => col.Cells)
              .HasForeignKey(c => c.ColumnId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ─── Сценарии процессов ──────────────────────────────────────────────────
+
+        modelBuilder.Entity<BpmScriptModule>(e =>
+        {
+            e.ToTable("bpm_script_modules");
+            e.HasKey(s => s.Id);
+            e.Property(s => s.ScriptBody).HasColumnType("text");
+            e.Property(s => s.Language).IsRequired().HasMaxLength(50);
+
+            // Один модуль на версию процесса
+            e.HasIndex(s => s.ProcessVersionId).IsUnique();
+
+            e.HasOne(s => s.ProcessVersion)
+             .WithOne(v => v.ScriptModule)
+             .HasForeignKey<BpmScriptModule>(s => s.ProcessVersionId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ─── Пользовательские расширения дизайнера ───────────────────────────────
+
+        modelBuilder.Entity<BpmDesignerExtension>(e =>
+        {
+            e.ToTable("bpm_designer_extensions");
+            e.HasKey(ex => ex.Id);
+            e.Property(ex => ex.Name).IsRequired().HasMaxLength(300);
+            e.Property(ex => ex.Description).HasMaxLength(2000);
+            e.Property(ex => ex.FolderPath).HasMaxLength(500);
+            e.Property(ex => ex.ScriptBody).HasColumnType("text");
+
+            e.HasQueryFilter(ex => !ex.IsDeleted);
+
+            e.HasIndex(ex => ex.OrganizationId);
+        });
+
+        // ─── Глобальные модули ───────────────────────────────────────────────────
+
+        modelBuilder.Entity<BpmGlobalModule>(e =>
+        {
+            e.ToTable("bpm_global_modules");
+            e.HasKey(m => m.Id);
+            e.Property(m => m.Name).IsRequired().HasMaxLength(300);
+            e.Property(m => m.Description).HasMaxLength(2000);
+
+            e.HasQueryFilter(m => !m.IsDeleted);
+
+            e.HasIndex(m => m.OrganizationId);
+        });
+
+        modelBuilder.Entity<BpmGlobalModuleFile>(e =>
+        {
+            e.ToTable("bpm_global_module_files");
+            e.HasKey(f => f.Id);
+            e.Property(f => f.FileName).IsRequired().HasMaxLength(300);
+            e.Property(f => f.ScriptBody).HasColumnType("text");
+
+            e.HasIndex(f => new { f.ModuleId, f.Order });
+
+            e.HasOne(f => f.Module)
+             .WithMany(m => m.Files)
+             .HasForeignKey(f => f.ModuleId)
              .OnDelete(DeleteBehavior.Cascade);
         });
     }

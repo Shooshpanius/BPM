@@ -26,4 +26,7 @@ public class BpmProcessVersion
 
     // Навигационные свойства
     public BpmProcess Process { get; set; } = null!;
+
+    /// <summary>Модуль C#-сценариев версии (создаётся лениво).</summary>
+    public BpmScriptModule? ScriptModule { get; set; }
 }

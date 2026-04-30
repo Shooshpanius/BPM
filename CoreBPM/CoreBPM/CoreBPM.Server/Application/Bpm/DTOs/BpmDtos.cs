@@ -299,3 +299,109 @@ public record UpdateStatusOptionRequest(
 
 /// <summary>Запрос на изменение порядка вариантов статусов.</summary>
 public record ReorderStatusOptionsRequest(IReadOnlyList<Guid> OrderedIds);
+
+// ─── Сценарии процессов ──────────────────────────────────────────────────────
+
+/// <summary>DTO модуля сценариев версии процесса.</summary>
+public record BpmScriptModuleDto(
+    Guid Id,
+    Guid ProcessVersionId,
+    string ScriptBody,
+    string Language,
+    DateTimeOffset UpdatedAt,
+    DateTimeOffset? PublishedAt
+);
+
+/// <summary>Запрос на сохранение сценария.</summary>
+public record SaveScriptModuleRequest(string ScriptBody, string Language = "CSharp");
+
+/// <summary>Информация о версии процесса со статусом сценария (для списка в разделе «Сценарии»).</summary>
+public record BpmProcessVersionScriptInfoDto(
+    Guid ProcessId,
+    string ProcessName,
+    Guid VersionId,
+    int VersionNumber,
+    BpmProcessVersionStatus VersionStatus,
+    bool HasScript,
+    DateTimeOffset? ScriptPublishedAt
+);
+
+// ─── Пользовательские расширения дизайнера ──────────────────────────────────
+
+/// <summary>DTO пользовательского расширения палитры дизайнера.</summary>
+public record BpmDesignerExtensionDto(
+    Guid Id,
+    Guid OrganizationId,
+    string Name,
+    string? Description,
+    string? FolderPath,
+    string ScriptBody,
+    bool IsPublished,
+    Guid CreatedByUserId,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt
+);
+
+/// <summary>Запрос на создание расширения.</summary>
+public record CreateDesignerExtensionRequest(
+    Guid OrganizationId,
+    string Name,
+    string? Description,
+    string? FolderPath,
+    string ScriptBody
+);
+
+/// <summary>Запрос на обновление расширения.</summary>
+public record UpdateDesignerExtensionRequest(
+    string Name,
+    string? Description,
+    string? FolderPath,
+    string ScriptBody
+);
+
+// ─── Глобальные модули ───────────────────────────────────────────────────────
+
+/// <summary>DTO глобального модуля (краткая версия).</summary>
+public record BpmGlobalModuleDto(
+    Guid Id,
+    Guid OrganizationId,
+    string Name,
+    string? Description,
+    bool IsPublished,
+    int FilesCount,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt,
+    DateTimeOffset? PublishedAt
+);
+
+/// <summary>Запрос на создание глобального модуля.</summary>
+public record CreateGlobalModuleRequest(
+    Guid OrganizationId,
+    string Name,
+    string? Description
+);
+
+/// <summary>Запрос на обновление глобального модуля.</summary>
+public record UpdateGlobalModuleRequest(
+    string Name,
+    string? Description
+);
+
+/// <summary>DTO файла глобального модуля.</summary>
+public record BpmGlobalModuleFileDto(
+    Guid Id,
+    Guid ModuleId,
+    string FileName,
+    string ScriptBody,
+    int Order,
+    DateTimeOffset UpdatedAt
+);
+
+/// <summary>Запрос на создание файла модуля.</summary>
+public record CreateGlobalModuleFileRequest(string FileName, string ScriptBody);
+
+/// <summary>Запрос на обновление файла модуля.</summary>
+public record UpdateGlobalModuleFileRequest(string FileName, string ScriptBody);
+
+/// <summary>Запрос на изменение порядка файлов модуля.</summary>
+public record ReorderGlobalModuleFilesRequest(IReadOnlyList<Guid> OrderedIds);

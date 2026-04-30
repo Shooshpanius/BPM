@@ -9,6 +9,7 @@ import { RulesPage } from './rules/RulesPage';
 import { DmnEditorPage } from './rules/DmnEditorPage';
 import { FormsPage } from './forms/FormsPage';
 import { FormBuilderPage } from './forms/FormBuilderPage';
+import { ScriptsPage } from './scripts/ScriptsPage';
 import { MyColleaguesWidget } from '../components/org/MyColleaguesWidget';
 import './HomePage.css';
 
@@ -97,6 +98,7 @@ export function HomePage({ onAdmin }: HomePageProps) {
                               />
                             : <FormsPage onOpenBuilder={setFormBuilderId} />
                     )}
+                    {section === 'bpm-scripts' && <ScriptsPage />}
                 </main>
             </div>
         </div>
