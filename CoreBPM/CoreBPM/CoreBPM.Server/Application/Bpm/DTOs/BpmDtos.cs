@@ -470,3 +470,88 @@ public record UpsertProcessRoleConfigItem(
     int SortOrder
 );
 
+// ─── Экземпляры процесса ─────────────────────────────────────────────────────
+
+/// <summary>Краткое представление экземпляра процесса для списка.</summary>
+public record BpmInstanceListItemDto(
+    Guid Id,
+    Guid ProcessId,
+    string ProcessName,
+    Guid ProcessVersionId,
+    int ProcessVersionNumber,
+    string Name,
+    BpmInstanceState State,
+    BpmInstanceLaunchSource LaunchSource,
+    Guid? InitiatorUserId,
+    string? InitiatorDisplayName,
+    Guid? ResponsibleUserId,
+    string? ResponsibleDisplayName,
+    DateTimeOffset StartedAt,
+    DateTimeOffset? CompletedAt,
+    DateTimeOffset? CancelledAt
+);
+
+/// <summary>Полное представление экземпляра процесса.</summary>
+public record BpmInstanceDto(
+    Guid Id,
+    Guid ProcessId,
+    string ProcessName,
+    Guid ProcessVersionId,
+    int ProcessVersionNumber,
+    string Name,
+    BpmInstanceState State,
+    BpmInstanceLaunchSource LaunchSource,
+    Guid? InitiatorUserId,
+    string? InitiatorDisplayName,
+    Guid? ResponsibleUserId,
+    string? ResponsibleDisplayName,
+    Guid? ParentInstanceId,
+    string? ExternalReference,
+    string? CancelReason,
+    DateTimeOffset StartedAt,
+    DateTimeOffset? CompletedAt,
+    DateTimeOffset? CancelledAt,
+    DateTimeOffset UpdatedAt,
+    IReadOnlyList<BpmInstanceVariableDto> Variables
+);
+
+/// <summary>DTO переменной экземпляра.</summary>
+public record BpmInstanceVariableDto(
+    Guid Id,
+    string Name,
+    string? ValueJson
+);
+
+/// <summary>Запрос на создание (запуск) экземпляра процесса.</summary>
+public record CreateInstanceRequest(
+    /// <summary>Название экземпляра (если не задана схема автоформирования).</summary>
+    string? Name,
+    /// <summary>Начальные значения переменных: словарь имя→JSON-значение.</summary>
+    IDictionary<string, string?>? Variables,
+    /// <summary>Внешний идентификатор корреляции (для вебхуков).</summary>
+    string? ExternalReference = null
+);
+
+/// <summary>Запрос на создание экземпляра через вебхук.</summary>
+public record WebhookLaunchRequest(
+    /// <summary>Словарь переменных из тела запроса внешней системы.</summary>
+    IDictionary<string, string?>? Variables,
+    string? ExternalReference = null
+);
+
+/// <summary>DTO задания планировщика (таймерное стартовое событие).</summary>
+public record BpmSchedulerJobDto(
+    Guid Id,
+    Guid ProcessId,
+    Guid ProcessVersionId,
+    string ElementId,
+    string TimerType,
+    string TimerValue,
+    string? TimeZone,
+    bool IsActive,
+    DateTimeOffset? LastFiredAt,
+    DateTimeOffset? NextFireAt,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt
+);
+

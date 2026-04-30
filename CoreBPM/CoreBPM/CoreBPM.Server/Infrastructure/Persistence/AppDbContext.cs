@@ -26,6 +26,9 @@ public class AppDbContext : DbContext
     public DbSet<BpmProcessVariable> BpmProcessVariables => Set<BpmProcessVariable>();
     public DbSet<BpmRaciEntry> BpmRaciEntries => Set<BpmRaciEntry>();
     public DbSet<BpmProcessRoleConfig> BpmProcessRoleConfigs => Set<BpmProcessRoleConfig>();
+    public DbSet<BpmInstance> BpmInstances => Set<BpmInstance>();
+    public DbSet<BpmInstanceVariable> BpmInstanceVariables => Set<BpmInstanceVariable>();
+    public DbSet<BpmSchedulerJob> BpmSchedulerJobs => Set<BpmSchedulerJob>();
     public DbSet<BpmTaskForm> BpmTaskForms => Set<BpmTaskForm>();
     public DbSet<BpmTaskFormVersion> BpmTaskFormVersions => Set<BpmTaskFormVersion>();
     public DbSet<BpmInstanceStatusConfig> BpmInstanceStatusConfigs => Set<BpmInstanceStatusConfig>();
@@ -452,6 +455,71 @@ public class AppDbContext : DbContext
              .WithMany()
              .HasForeignKey(r => r.ProcessId)
              .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ─── Экземпляры процессов ─────────────────────────────────────────────────
+
+        modelBuilder.Entity<BpmInstance>(e =>
+        {
+            e.ToTable("bpm_instances");
+            e.HasKey(i => i.Id);
+            e.Property(i => i.Name).IsRequired().HasMaxLength(500);
+            e.Property(i => i.State).HasConversion<int>();
+            e.Property(i => i.LaunchSource).HasConversion<int>();
+            e.Property(i => i.ExternalReference).HasMaxLength(300);
+            e.Property(i => i.CancelReason).HasMaxLength(2000);
+
+            e.HasIndex(i => i.ProcessId);
+            e.HasIndex(i => i.State);
+            e.HasIndex(i => i.InitiatorUserId);
+            e.HasIndex(i => new { i.ProcessId, i.StartedAt });
+
+            e.HasOne(i => i.Process)
+             .WithMany()
+             .HasForeignKey(i => i.ProcessId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasOne(i => i.ProcessVersion)
+             .WithMany()
+             .HasForeignKey(i => i.ProcessVersionId)
+             .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<BpmInstanceVariable>(e =>
+        {
+            e.ToTable("bpm_instance_variables");
+            e.HasKey(v => v.Id);
+            e.Property(v => v.Name).IsRequired().HasMaxLength(200);
+
+            e.HasIndex(v => v.InstanceId);
+
+            e.HasOne(v => v.Instance)
+             .WithMany(i => i.Variables)
+             .HasForeignKey(v => v.InstanceId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<BpmSchedulerJob>(e =>
+        {
+            e.ToTable("bpm_scheduler_jobs");
+            e.HasKey(j => j.Id);
+            e.Property(j => j.ElementId).IsRequired().HasMaxLength(200);
+            e.Property(j => j.TimerType).IsRequired().HasMaxLength(50);
+            e.Property(j => j.TimerValue).IsRequired().HasMaxLength(500);
+            e.Property(j => j.TimeZone).HasMaxLength(100);
+
+            e.HasIndex(j => j.ProcessId);
+            e.HasIndex(j => new { j.IsActive, j.NextFireAt });
+
+            e.HasOne(j => j.Process)
+             .WithMany()
+             .HasForeignKey(j => j.ProcessId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(j => j.ProcessVersion)
+             .WithMany()
+             .HasForeignKey(j => j.ProcessVersionId)
+             .OnDelete(DeleteBehavior.Restrict);
         });
 
         // ─── DMN: таблицы бизнес-правил ─────────────────────────────────────────
