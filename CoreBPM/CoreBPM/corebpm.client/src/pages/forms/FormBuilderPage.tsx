@@ -330,12 +330,6 @@ export function FormBuilderPage({ formId, onBack }: FormBuilderPageProps) {
 
     // ─── Мутации схемы ───────────────────────────────────────────────────────
 
-    const updateSchema = (updater: (prev: FormSchema) => FormSchema) => {
-        setSchema(prev => updater(prev));
-        setDirty(true);
-        setSelectedFieldId(null);
-    };
-
     const addSection = () => {
         setSchema(prev => ({ sections: [...prev.sections, makeSection()] }));
         setDirty(true);

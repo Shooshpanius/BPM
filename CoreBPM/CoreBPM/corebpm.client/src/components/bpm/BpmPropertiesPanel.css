@@ -256,6 +256,59 @@
     margin-top: 8px;
 }
 
+.bpp-inline-checks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.bpp-token-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 6px;
+    background: #f8fafc;
+}
+
+.bpp-error-box,
+.bpp-success-box {
+    margin-bottom: 12px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+}
+
+.bpp-error-box {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #b91c1c;
+}
+
+.bpp-success-box {
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    color: #065f46;
+}
+
+.bpp-success-box code {
+    display: block;
+    margin-top: 6px;
+    padding: 8px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.7);
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    word-break: break-all;
+}
+
+.bpp-muted {
+    font-size: 11px;
+    color: #9ca3af;
+    align-self: center;
+}
+
 /* Таблица переменных */
 .bpp-table-wrap {
     overflow-x: auto;
