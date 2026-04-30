@@ -105,7 +105,7 @@ export function ProcessRolesTab({ processId, token }: Props) {
             }
         }, 300);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [searchQuery, searchMode, addingRole]);
+    }, [searchQuery, searchMode, addingRole, token]);
 
     // ─── Мутации ──────────────────────────────────────────────────────────────
 
