@@ -1,0 +1,617 @@
+/* ─── Корень ────────────────────────────────────────────────────────────────── */
+.fb-root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    background: #f4f6fb;
+}
+
+/* ─── Шапка ─────────────────────────────────────────────────────────────────── */
+.fb-topbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 20px;
+    background: #fff;
+    border-bottom: 1px solid var(--color-border, #dde1e7);
+    flex-shrink: 0;
+}
+
+.fb-back-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--color-primary, #4f6ef7);
+    font-size: 0.875rem;
+    font-weight: 500;
+    padding: 4px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+.fb-back-btn:hover { background: #eef1fd; }
+
+.fb-form-name {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text-primary, #1a1a2e);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.fb-topbar-actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.fb-btn-primary {
+    padding: 7px 16px;
+    background: var(--color-primary, #4f6ef7);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.fb-btn-primary:hover:not(:disabled) { background: #3a58e0; }
+.fb-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.fb-btn-secondary {
+    padding: 7px 14px;
+    background: transparent;
+    color: var(--color-text-secondary, #5a6072);
+    border: 1px solid var(--color-border, #dde1e7);
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+}
+.fb-btn-secondary:hover { background: #f4f6fb; }
+
+.fb-btn-publish {
+    padding: 7px 16px;
+    background: #2e7d32;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.fb-btn-publish:hover:not(:disabled) { background: #1b5e20; }
+.fb-btn-publish:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.fb-error {
+    padding: 10px 20px;
+    background: #fdecea;
+    border-bottom: 1px solid #ffcdd2;
+    color: #c62828;
+    font-size: 0.875rem;
+    flex-shrink: 0;
+}
+
+/* ─── Редактор (три панели) ──────────────────────────────────────────────────── */
+.fb-editor {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    min-height: 0;
+}
+
+/* ─── Палитра ────────────────────────────────────────────────────────────────── */
+.fb-palette {
+    width: 200px;
+    flex-shrink: 0;
+    background: #fff;
+    border-right: 1px solid var(--color-border, #dde1e7);
+    overflow-y: auto;
+    padding: 12px 8px;
+}
+
+.fb-palette-group {
+    margin-bottom: 16px;
+}
+
+.fb-palette-group-title {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #8a93a6;
+    padding: 0 4px;
+    margin-bottom: 6px;
+}
+
+.fb-palette-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    cursor: grab;
+    font-size: 0.8125rem;
+    color: var(--color-text-primary, #1a1a2e);
+    border: 1px solid transparent;
+    transition: background 0.1s, border-color 0.1s;
+    user-select: none;
+}
+.fb-palette-item:hover {
+    background: #f0f4ff;
+    border-color: #c5d0fa;
+}
+.fb-palette-item:active { cursor: grabbing; }
+
+.fb-palette-icon {
+    font-size: 1rem;
+    width: 20px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.fb-palette-label { line-height: 1.3; }
+
+/* ─── Холст ──────────────────────────────────────────────────────────────────── */
+.fb-canvas {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.fb-canvas-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    text-align: center;
+    color: #8a93a6;
+}
+.fb-canvas-empty-icon { font-size: 2.5rem; margin-bottom: 12px; opacity: 0.4; }
+.fb-canvas-empty-sub  { font-size: 0.8125rem; margin-top: 4px; }
+
+/* ─── Секция ─────────────────────────────────────────────────────────────────── */
+.fb-section {
+    background: #fff;
+    border: 1px solid var(--color-border, #dde1e7);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.fb-section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: #f8f9fc;
+    border-bottom: 1px solid var(--color-border, #dde1e7);
+}
+
+.fb-section-title-input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-text-primary, #1a1a2e);
+}
+.fb-section-title-input:focus { outline: none; }
+.fb-section-title-input::placeholder { color: #bcc3d1; font-weight: 400; }
+
+.fb-section-cols-row {
+    display: flex;
+    gap: 4px;
+}
+
+.fb-section-col-btn {
+    width: 28px;
+    height: 28px;
+    border: 1px solid #dde1e7;
+    border-radius: 4px;
+    background: #fff;
+    font-size: 0.75rem;
+    cursor: pointer;
+    font-weight: 500;
+    color: #5a6072;
+}
+.fb-section-col-btn.active {
+    background: var(--color-primary, #4f6ef7);
+    color: #fff;
+    border-color: var(--color-primary, #4f6ef7);
+}
+
+.fb-section-remove {
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: transparent;
+    color: #aaa;
+    font-size: 1rem;
+    cursor: pointer;
+    border-radius: 4px;
+    line-height: 1;
+}
+.fb-section-remove:hover { background: #fdecea; color: #e53935; }
+
+.fb-row {
+    display: grid;
+    padding: 10px 14px;
+    gap: 8px;
+    min-height: 48px;
+}
+
+.fb-section-drop-hint {
+    padding: 24px;
+    text-align: center;
+    font-size: 0.8125rem;
+    color: #bcc3d1;
+    border: 2px dashed #dde1e7;
+    margin: 12px;
+    border-radius: 8px;
+}
+
+/* ─── Чипы полей ─────────────────────────────────────────────────────────────── */
+.fb-field-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    border: 1px solid #dde1e7;
+    border-radius: 8px;
+    background: #fafbff;
+    cursor: pointer;
+    font-size: 0.8125rem;
+    color: var(--color-text-primary, #1a1a2e);
+    transition: border-color 0.15s, background 0.15s;
+    min-height: 38px;
+}
+.fb-field-chip:hover { border-color: var(--color-primary, #4f6ef7); background: #f0f4ff; }
+.fb-field-chip--selected { border-color: var(--color-primary, #4f6ef7); background: #eef1fd; }
+.fb-field-chip--dragging { opacity: 0.5; box-shadow: 0 4px 16px rgba(79, 110, 247, 0.25); }
+
+.fb-field-drag {
+    cursor: grab;
+    color: #bcc3d1;
+    font-size: 1rem;
+    line-height: 1;
+    flex-shrink: 0;
+}
+.fb-field-drag:active { cursor: grabbing; }
+
+.fb-field-icon  { font-size: 0.9rem; flex-shrink: 0; }
+.fb-field-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.fb-field-remove {
+    width: 20px;
+    height: 20px;
+    border: none;
+    background: transparent;
+    color: #aaa;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+.fb-field-remove:hover { background: #fdecea; color: #e53935; }
+
+/* ─── Кнопка добавления секции ───────────────────────────────────────────────── */
+.fb-add-section-btn {
+    align-self: flex-start;
+    padding: 8px 18px;
+    background: transparent;
+    border: 2px dashed var(--color-primary, #4f6ef7);
+    border-radius: 8px;
+    color: var(--color-primary, #4f6ef7);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.fb-add-section-btn:hover { background: #eef1fd; }
+
+/* ─── Правая панель свойств ──────────────────────────────────────────────────── */
+.fb-props-panel {
+    width: 260px;
+    flex-shrink: 0;
+    background: #fff;
+    border-left: 1px solid var(--color-border, #dde1e7);
+    overflow-y: auto;
+}
+
+.fb-props {
+    padding: 16px;
+}
+
+.fb-props-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #8a93a6;
+    margin-bottom: 16px;
+}
+
+.fb-props-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-bottom: 14px;
+}
+
+.fb-props-field label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--color-text-primary, #1a1a2e);
+}
+
+.fb-props-input {
+    padding: 6px 10px;
+    border: 1px solid #dde1e7;
+    border-radius: 5px;
+    font-size: 0.8125rem;
+    width: 100%;
+    box-sizing: border-box;
+    font-family: inherit;
+}
+.fb-props-input:focus { outline: none; border-color: var(--color-primary, #4f6ef7); }
+
+.fb-props-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8125rem;
+    color: var(--color-text-primary, #1a1a2e);
+    margin-bottom: 10px;
+    cursor: pointer;
+}
+
+.fb-props-empty {
+    padding: 24px 16px;
+    font-size: 0.8125rem;
+    color: #bcc3d1;
+    text-align: center;
+    line-height: 1.6;
+}
+
+/* ─── Нижняя панель версий ───────────────────────────────────────────────────── */
+.fb-versions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 20px;
+    background: #fff;
+    border-top: 1px solid var(--color-border, #dde1e7);
+    flex-shrink: 0;
+    overflow-x: auto;
+}
+
+.fb-versions-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #8a93a6;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.fb-versions-list {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.fb-version-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border: 1px solid #dde1e7;
+    border-radius: 16px;
+    background: #f8f9fc;
+    font-size: 0.75rem;
+}
+.fb-version-chip--active { border-color: var(--color-primary, #4f6ef7); background: #eef1fd; }
+
+.fb-version-num {
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--color-primary, #4f6ef7);
+}
+.fb-version-num:hover { text-decoration: underline; }
+.fb-version-num:focus-visible { outline: 1px solid var(--color-primary); border-radius: 2px; }
+
+.fb-version-status {
+    font-size: 0.6875rem;
+    padding: 1px 6px;
+    border-radius: 8px;
+}
+.fb-version-status--published { background: #e6f4ea; color: #2e7d32; }
+.fb-version-status--draft     { background: #fff3e0; color: #e65100; }
+.fb-version-status--archived  { background: #f4f6fb; color: #8a93a6; }
+
+.fb-version-rollback {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: #8a93a6;
+    font-size: 0.875rem;
+    padding: 0 2px;
+    line-height: 1;
+}
+.fb-version-rollback:hover { color: var(--color-primary, #4f6ef7); }
+
+/* ─── Предпросмотр ───────────────────────────────────────────────────────────── */
+.fb-preview-root {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+    display: flex;
+    justify-content: center;
+}
+
+.fb-preview-panel {
+    width: 100%;
+    max-width: 720px;
+    background: #fff;
+    border-radius: 12px;
+    padding: 28px 32px;
+    border: 1px solid var(--color-border, #dde1e7);
+}
+
+.fb-preview-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--color-text-primary, #1a1a2e);
+    margin: 0 0 20px;
+    border-bottom: 1px solid #dde1e7;
+    padding-bottom: 12px;
+}
+
+.fb-preview-empty {
+    color: #8a93a6;
+    font-size: 0.875rem;
+    text-align: center;
+    padding: 40px 0;
+}
+
+.fb-preview-section {
+    margin-bottom: 24px;
+}
+
+.fb-preview-section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text-primary, #1a1a2e);
+    margin: 0 0 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #eee;
+}
+
+.fb-preview-row {
+    display: grid;
+    gap: 16px;
+    margin-bottom: 12px;
+}
+
+.fb-preview-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.fb-preview-label {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--color-text-primary, #1a1a2e);
+}
+
+.fb-preview-req { color: #e53935; margin-left: 3px; }
+
+/* Поля предпросмотра */
+.fb-prev-input {
+    padding: 8px 12px;
+    border: 1px solid #dde1e7;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    background: #f8f9fc;
+    color: #aaa;
+    width: 100%;
+    box-sizing: border-box;
+    font-family: inherit;
+}
+textarea.fb-prev-input { resize: none; }
+
+.fb-prev-checkbox,
+.fb-prev-radio-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.875rem;
+    color: var(--color-text-primary, #1a1a2e);
+    cursor: default;
+}
+
+.fb-prev-radios {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.fb-prev-file-btn {
+    padding: 8px 14px;
+    border: 1px dashed #dde1e7;
+    border-radius: 6px;
+    background: #f8f9fc;
+    color: #8a93a6;
+    font-size: 0.8125rem;
+    cursor: not-allowed;
+    align-self: flex-start;
+}
+
+.fb-prev-label {
+    font-size: 0.875rem;
+    color: var(--color-text-secondary, #5a6072);
+    margin: 0;
+}
+
+.fb-prev-section-header {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text-primary, #1a1a2e);
+    margin: 0;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 6px;
+}
+
+.fb-prev-divider {
+    border: none;
+    border-top: 1px solid #eee;
+    margin: 4px 0;
+}
+
+.fb-prev-html {
+    padding: 8px 12px;
+    background: #f8f9fc;
+    border: 1px solid #dde1e7;
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    color: #5a6072;
+}
+
+.fb-prev-approval {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.fb-prev-approve {
+    padding: 8px 16px;
+    background: #e6f4ea;
+    border: 1px solid #a5d6a7;
+    border-radius: 6px;
+    color: #2e7d32;
+    font-size: 0.875rem;
+    cursor: not-allowed;
+    align-self: flex-start;
+}
+
+.fb-prev-reject {
+    padding: 8px 16px;
+    background: #fdecea;
+    border: 1px solid #ef9a9a;
+    border-radius: 6px;
+    color: #c62828;
+    font-size: 0.875rem;
+    cursor: not-allowed;
+    align-self: flex-start;
+}

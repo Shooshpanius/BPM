@@ -86,6 +86,9 @@ builder.Services.AddScoped<IBpmRaciService, BpmRaciService>();
 // Регистрация сервисов Rules (DMN-таблицы бизнес-правил)
 builder.Services.AddScoped<IDmnService, DmnService>();
 
+// Регистрация сервисов Forms (конструктор форм задач FR-BPM-01.4)
+builder.Services.AddScoped<IFormService, FormService>();
+
 var app = builder.Build();
 
 // ExceptionHandlingMiddleware должен быть первым

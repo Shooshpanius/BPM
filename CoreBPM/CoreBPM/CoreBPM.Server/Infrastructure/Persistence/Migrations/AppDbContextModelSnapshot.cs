@@ -460,6 +460,92 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                     b.ToTable("bpm_raci_entries", (string)null);
                 });
 
+            modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmTaskForm", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("ElementId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("element_id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid?>("ProcessId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("process_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_bpm_task_forms");
+
+                    b.HasIndex("ProcessId")
+                        .HasDatabaseName("ix_bpm_task_forms_process_id");
+
+                    b.ToTable("bpm_task_forms", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmTaskFormVersion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("FormId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("form_id");
+
+                    b.Property<DateTimeOffset?>("PublishedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("published_at");
+
+                    b.Property<string>("Schema")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("schema");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<int>("VersionNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("version_number");
+
+                    b.HasKey("Id")
+                        .HasName("pk_bpm_task_form_versions");
+
+                    b.HasIndex("FormId", "VersionNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ix_bpm_task_form_versions_form_id_version_number");
+
+                    b.ToTable("bpm_task_form_versions", (string)null);
+                });
+
             modelBuilder.Entity("CoreBPM.Server.Domain.Org.OrgDepartment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1207,6 +1293,29 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                     b.Navigation("Process");
                 });
 
+            modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmTaskForm", b =>
+                {
+                    b.HasOne("CoreBPM.Server.Domain.Bpm.BpmProcess", "Process")
+                        .WithMany()
+                        .HasForeignKey("ProcessId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_bpm_task_forms_bpm_processes_process_id");
+
+                    b.Navigation("Process");
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmTaskFormVersion", b =>
+                {
+                    b.HasOne("CoreBPM.Server.Domain.Bpm.BpmTaskForm", "Form")
+                        .WithMany("Versions")
+                        .HasForeignKey("FormId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_bpm_task_form_versions_bpm_task_forms_form_id");
+
+                    b.Navigation("Form");
+                });
+
             modelBuilder.Entity("CoreBPM.Server.Domain.Org.OrgDepartment", b =>
                 {
                     b.HasOne("CoreBPM.Server.Domain.Org.OrgOrganization", "Organization")
@@ -1420,6 +1529,11 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                 });
 
             modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmProcess", b =>
+                {
+                    b.Navigation("Versions");
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmTaskForm", b =>
                 {
                     b.Navigation("Versions");
                 });
