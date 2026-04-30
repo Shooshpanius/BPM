@@ -15,6 +15,8 @@ import { RaciMatrixTab } from './RaciMatrixTab';
 import { ProcessSettingsTab } from './ProcessSettingsTab';
 import { InstanceStatusTab } from './InstanceStatusTab';
 import { LaneTab } from './LaneTab';
+import { VariableVisibilityTab } from './VariableVisibilityTab';
+import { RpaTaskTab } from './RpaTaskTab';
 import { SignalMessageEventTab } from './SignalMessageEventTab';
 import { BoundaryEventTab } from './BoundaryEventTab';
 import { EscalationTab } from './EscalationTab';
@@ -41,7 +43,7 @@ interface Props {
 
 // ─── Конфигурация вкладок ─────────────────────────────────────────────────────
 
-type TabId = 'general' | 'execution' | 'markers' | 'notifications' | 'variables' | 'raci' | 'settings' | 'statuses' | 'escalation';
+type TabId = 'general' | 'execution' | 'markers' | 'notifications' | 'variables' | 'raci' | 'settings' | 'statuses' | 'escalation' | 'varvisibility' | 'rpa';
 
 interface TabDef {
     id: TabId;
@@ -66,7 +68,10 @@ function getTabsForElement(elementType: string | null): TabDef[] {
         ];
     }
     if (elementType === 'bpmn:Lane') {
-        return [{ id: 'general', label: 'Основное' }];
+        return [
+            { id: 'general', label: 'Основное' },
+            { id: 'varvisibility', label: 'Видимость переменных' },
+        ];
     }
     if (
         elementType === 'bpmn:ExclusiveGateway' ||
@@ -107,6 +112,14 @@ function getTabsForElement(elementType: string | null): TabDef[] {
         return [
             { id: 'general', label: 'Основное' },
             { id: 'execution', label: 'Скрипт' },
+            { id: 'markers', label: 'Маркеры' },
+        ];
+    }
+    // RPA-задача (кастомный тип расширения)
+    if (elementType === 'bpmn:Task' || (elementType && elementType.includes('RpaTask'))) {
+        return [
+            { id: 'general', label: 'Основное' },
+            { id: 'rpa', label: 'RPA-агент' },
             { id: 'markers', label: 'Маркеры' },
         ];
     }
@@ -247,6 +260,12 @@ export function BpmPropertiesPanel({ modeler, processId, token }: Props) {
 
             case 'escalation':
                 return <EscalationTab processId={processId} token={token} elementId={elId} />;
+
+            case 'varvisibility':
+                return <VariableVisibilityTab processId={processId} token={token} elementId={elId} />;
+
+            case 'rpa':
+                return <RpaTaskTab processId={processId} token={token} elementId={elId} />;
 
             case 'markers':
                 return <TaskMarkersTab processId={processId} token={token} elementId={elId} />;

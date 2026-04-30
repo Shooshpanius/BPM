@@ -10,7 +10,7 @@ import type {
 } from '../../api/scriptsApi';
 import './ScriptsPage.css';
 
-type ScriptsTab = 'processes' | 'extensions' | 'global-modules' | 'live-instances';
+type ScriptsTab = 'processes' | 'extensions' | 'global-modules' | 'live-instances' | 'objects';
 
 const VERSION_STATUS_LABELS: Record<string, string> = {
     Draft: 'Черновик',
@@ -78,6 +78,12 @@ export function ScriptsPage() {
                     Глобальные модули
                 </button>
                 <button
+                    className={`scripts-tab${tab === 'objects' ? ' active' : ''}`}
+                    onClick={() => setTab('objects')}
+                >
+                    Объекты
+                </button>
+                <button
                     className={`scripts-tab${tab === 'live-instances' ? ' active' : ''}`}
                     onClick={() => setTab('live-instances')}
                 >
@@ -95,8 +101,9 @@ export function ScriptsPage() {
                 {tab === 'global-modules' && selectedOrgId && (
                     <GlobalModulesTab orgId={selectedOrgId} />
                 )}
+                {tab === 'objects' && <DictObjectsGuideTab />}
                 {tab === 'live-instances' && <LiveInstancesGuideTab />}
-                {!selectedOrgId && tab !== 'live-instances' && (
+                {!selectedOrgId && tab !== 'live-instances' && tab !== 'objects' && (
                     <p className="scripts-empty">Выберите организацию</p>
                 )}
             </div>
@@ -992,6 +999,79 @@ function LiveInstancesGuideTab() {
                     До реализации FR-BPM-02.5 для внесения изменений создавайте новую версию процесса
                     через раздел «Процессы» → «Версии» → «Откат» или публикацию нового черновика.
                 </p>
+            </div>
+        </div>
+    );
+}
+
+/**
+ * DictObjectsGuideTab — вкладка «Объекты» (просмотр типов объектов из FR-DICT).
+ * Отображает информацию о доступных типах объектов для использования в сценариях.
+ * Полная интеграция будет реализована после FR-DICT.
+ */
+function DictObjectsGuideTab() {
+    return (
+        <div className="scripts-live-guide">
+            <div className="scripts-live-guide-header">
+                <h2>Объекты (справочники)</h2>
+                <span className="scripts-live-guide-badge">Ожидает FR-DICT</span>
+            </div>
+
+            <div className="scripts-live-guide-section scripts-live-guide-section--info">
+                <p>
+                    Вкладка «Объекты» позволит просматривать типы объектов из модуля справочников
+                    (FR-DICT) и использовать их в сценариях процессов.
+                </p>
+            </div>
+
+            <div className="scripts-live-guide-section">
+                <h3>Что будет доступно</h3>
+                <ul className="scripts-live-guide-list">
+                    <li>
+                        <strong>Просмотр типов объектов</strong> — список всех типов объектов,
+                        доступных в системе: название, код, поля, связи.
+                    </li>
+                    <li>
+                        <strong>Генерация C#-классов</strong> — автоматическое создание типизированных
+                        C# DTO для использования в скриптах процессов.
+                    </li>
+                    <li>
+                        <strong>CRUD-операции в сценариях</strong> — примеры кода для чтения,
+                        создания и обновления экземпляров объектов через SDK сценариев.
+                    </li>
+                    <li>
+                        <strong>Ссылочные переменные</strong> — переменные процесса типа
+                        <code> Object</code> могут ссылаться на экземпляр объекта справочника.
+                    </li>
+                </ul>
+            </div>
+
+            <div className="scripts-live-guide-section">
+                <h3>Пример использования (предварительный)</h3>
+                <pre className="scripts-live-guide-code">{`// Получение экземпляра объекта в сценарии
+var client = await Context.Objects
+    .GetAsync<CrmClient>(Variables["ClientId"]);
+
+// Обновление поля
+client.Status = "Active";
+await Context.Objects.SaveAsync(client);
+
+// Запись результата в переменную
+Variables["ClientName"] = client.Name;`}</pre>
+            </div>
+
+            <div className="scripts-live-guide-section">
+                <h3>Зависимости</h3>
+                <ul className="scripts-live-guide-list">
+                    <li>
+                        <strong>FR-DICT</strong> — модуль справочников (объектная модель) должен быть
+                        реализован для получения списка типов и их схем.
+                    </li>
+                    <li>
+                        <strong>FR-BPM SDK</strong> — методы <code>Context.Objects.*</code> будут
+                        добавлены в SDK сценариев при реализации движка выполнения.
+                    </li>
+                </ul>
             </div>
         </div>
     );

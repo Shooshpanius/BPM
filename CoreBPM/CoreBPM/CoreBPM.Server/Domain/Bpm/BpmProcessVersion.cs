@@ -24,6 +24,9 @@ public class BpmProcessVersion
     public DateTimeOffset UpdatedAt { get; set; }
     public DateTimeOffset? PublishedAt { get; set; }
 
+    /// <summary>Комментарий к публикации версии (что изменилось).</summary>
+    public string? ReleaseNotes { get; set; }
+
     // Навигационные свойства
     public BpmProcess Process { get; set; } = null!;
 

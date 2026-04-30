@@ -85,6 +85,8 @@ export function BpmnDesignerPage({ processId, onBack }: BpmnDesignerPageProps) {
     const [validationResult, setValidationResult] = useState<BpmValidationResultDto | null>(null);
     const [validating, setValidating] = useState(false);
     const [publishing, setPublishing] = useState(false);
+    const [showPublishDialog, setShowPublishDialog] = useState(false);
+    const [publishReleaseNotes, setPublishReleaseNotes] = useState('');
     const [showDebug, setShowDebug] = useState(false);
     const [debugSession, setDebugSession] = useState<BpmDebugSessionDto | null>(null);
     const [debugError, setDebugError] = useState<string | null>(null);
@@ -338,13 +340,28 @@ export function BpmnDesignerPage({ processId, onBack }: BpmnDesignerPageProps) {
 
     const handlePublish = async () => {
         if (!token || !currentDiagram) return;
+        // Сначала валидируем
         setPublishing(true);
         setSaveError(null);
         try {
             const validation = await api.validateProcess(token, processId, currentDiagram.versionId);
             setValidationResult(validation);
             if (validation.issues.some(i => i.severity === 'Error')) return;
-            await api.publishProcessVersion(token, processId, currentDiagram.versionId);
+        } finally {
+            setPublishing(false);
+        }
+        // Открываем диалог комментария
+        setPublishReleaseNotes('');
+        setShowPublishDialog(true);
+    };
+
+    const handlePublishConfirm = async () => {
+        if (!token || !currentDiagram) return;
+        setShowPublishDialog(false);
+        setPublishing(true);
+        setSaveError(null);
+        try {
+            await api.publishProcessVersion(token, processId, currentDiagram.versionId, publishReleaseNotes || undefined);
             const refreshed = await refreshVersions();
             const latest = refreshed.find(v => v.id === currentDiagram.versionId);
             if (latest) setCurrentDiagram(prev => prev ? { ...prev, status: latest.status, publishedAt: latest.publishedAt } : prev);
@@ -668,6 +685,11 @@ export function BpmnDesignerPage({ processId, onBack }: BpmnDesignerPageProps) {
                                             <span>v{v.versionNumber}</span>
                                             <span>{VERSION_STATUS_LABELS[v.status]}</span>
                                         </button>
+                                        {v.releaseNotes && (
+                                            <div style={{ padding: '2px 8px 4px 8px', fontSize: 11, color: '#6b7280', fontStyle: 'italic' }}>
+                                                {v.releaseNotes}
+                                            </div>
+                                        )}
                                         <div className="bpd-version-actions">
                                             <button className="bpd-mini-btn" onClick={() => handleLoadVersion(v.id)}>Открыть</button>
                                             <button className="bpd-mini-btn" onClick={() => handleRollback(v.id)}>Откатить</button>
@@ -730,6 +752,30 @@ export function BpmnDesignerPage({ processId, onBack }: BpmnDesignerPageProps) {
                     )}
                 </aside>
             </div>
+
+            {/* Диалог публикации версии */}
+            {showPublishDialog && (
+                <div className="bpd-overlay" role="dialog" aria-modal="true" aria-label="Публикация версии">
+                    <div className="bpd-modal">
+                        <h3 className="bpd-modal-title">Публикация версии {currentDiagram?.versionNumber}</h3>
+                        <p className="bpd-modal-hint">Опционально укажите, что изменилось в этой версии.</p>
+                        <textarea
+                            className="bpd-input"
+                            rows={4}
+                            placeholder="Что изменилось…"
+                            value={publishReleaseNotes}
+                            onChange={e => setPublishReleaseNotes(e.target.value)}
+                            style={{ width: '100%', marginBottom: 12 }}
+                        />
+                        <div className="bpd-modal-actions">
+                            <button className="bpd-tool-btn" onClick={() => setShowPublishDialog(false)}>Отмена</button>
+                            <button className="bpd-tool-btn bpd-tool-btn--primary" onClick={handlePublishConfirm}>
+                                Опубликовать
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

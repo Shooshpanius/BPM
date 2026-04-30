@@ -96,8 +96,9 @@ public class BpmProcessesController : ControllerBase
     public async Task<ActionResult<BpmProcessVersionInfoDto>> Publish(
         Guid processId,
         Guid versionId,
+        [FromBody] PublishVersionRequest? request,
         CancellationToken ct)
-        => Ok(await _service.PublishVersionAsync(processId, versionId, ct));
+        => Ok(await _service.PublishVersionAsync(processId, versionId, request?.ReleaseNotes, ct));
 
     /// <summary>Создаёт новый черновик-копию из исторической версии.</summary>
     [HttpPost("{processId:guid}/versions/{versionId:guid}/rollback")]
@@ -226,6 +227,31 @@ public class BpmProcessesController : ControllerBase
     {
         var result = await _service.GenerateDocumentAsync(processId, ct);
         return File(result.Content, "application/pdf", result.FileName);
+    }
+
+    /// <summary>Возвращает список шаблонов процессов организации.</summary>
+    [HttpGet("templates")]
+    [ProducesResponseType(typeof(IReadOnlyList<BpmProcessListItemDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<BpmProcessListItemDto>>> GetTemplates(
+        [FromQuery] Guid organizationId,
+        CancellationToken ct)
+        => Ok(await _service.GetTemplatesAsync(organizationId, ct));
+
+    /// <summary>Создаёт новый процесс на основе выбранного шаблона.</summary>
+    [HttpPost("{templateId:guid}/from-template")]
+    [ProducesResponseType(typeof(BpmProcessDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<BpmProcessDto>> CreateFromTemplate(
+        Guid templateId,
+        [FromBody] CreateProcessFromTemplateRequest request,
+        CancellationToken ct)
+    {
+        var userId = GetCurrentUserId()
+            ?? throw new UnauthorizedAccessException("Не удалось определить идентификатор пользователя");
+
+        var result = await _service.CreateFromTemplateAsync(templateId, request, userId, ct);
+        return CreatedAtAction(nameof(GetById), new { processId = result.Id }, result);
     }
 
     // ─── Вспомогательные методы ───

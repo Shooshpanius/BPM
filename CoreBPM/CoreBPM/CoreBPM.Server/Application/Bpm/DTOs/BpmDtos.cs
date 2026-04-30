@@ -11,7 +11,9 @@ public record BpmProcessListItemDto(
     int? ActiveVersionNumber,
     int TotalVersions,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt
+    DateTimeOffset UpdatedAt,
+    IReadOnlyList<string> Tags,
+    bool IsTemplate
 );
 
 /// <summary>Полное представление процесса.</summary>
@@ -24,18 +26,31 @@ public record BpmProcessDto(
     int? ActiveVersionNumber,
     int TotalVersions,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt
+    DateTimeOffset UpdatedAt,
+    IReadOnlyList<string> Tags,
+    bool IsTemplate
 );
 
 /// <summary>Запрос на создание процесса.</summary>
 public record CreateBpmProcessRequest(
     Guid OrganizationId,
     string Name,
-    string? Description
+    string? Description,
+    IReadOnlyList<string>? Tags,
+    bool IsTemplate = false
 );
 
 /// <summary>Запрос на обновление метаданных процесса.</summary>
 public record UpdateBpmProcessRequest(
+    string Name,
+    string? Description,
+    IReadOnlyList<string>? Tags,
+    bool IsTemplate = false
+);
+
+/// <summary>Запрос на создание процесса из шаблона.</summary>
+public record CreateProcessFromTemplateRequest(
+    Guid OrganizationId,
     string Name,
     string? Description
 );
@@ -48,7 +63,8 @@ public record BpmProcessVersionInfoDto(
     Guid CreatedByUserId,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
-    DateTimeOffset? PublishedAt
+    DateTimeOffset? PublishedAt,
+    string? ReleaseNotes
 );
 
 /// <summary>Диаграмма версии процесса (с XML).</summary>
@@ -58,11 +74,15 @@ public record BpmDiagramDto(
     BpmProcessVersionStatus Status,
     string? DiagramXml,
     DateTimeOffset UpdatedAt,
-    DateTimeOffset? PublishedAt
+    DateTimeOffset? PublishedAt,
+    string? ReleaseNotes
 );
 
 /// <summary>Запрос на сохранение XML-диаграммы.</summary>
 public record SaveDiagramRequest(string DiagramXml);
+
+/// <summary>Запрос на публикацию версии (с опциональным комментарием).</summary>
+public record PublishVersionRequest(string? ReleaseNotes);
 
 /// <summary>Запрос на валидацию процесса.</summary>
 public record ValidateBpmProcessRequest(Guid? VersionId);

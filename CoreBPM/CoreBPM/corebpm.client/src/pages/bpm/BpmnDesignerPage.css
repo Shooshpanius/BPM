@@ -428,3 +428,20 @@
     color: var(--color-primary, #4361ee);
     border-color: var(--color-primary, #4361ee);
 }
+
+/* ─── Диалог публикации ───────────────────────────────────────────────────────── */
+.bpd-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+    display: flex; align-items: center; justify-content: center; z-index: 1000;
+}
+.bpd-modal {
+    background: #fff; border-radius: 10px; padding: 24px 28px; width: 420px; max-width: 90vw;
+    box-shadow: 0 4px 32px rgba(0,0,0,.18);
+}
+.bpd-modal-title { font-size: 1rem; font-weight: 600; margin: 0 0 8px; color: #111827; }
+.bpd-modal-hint { font-size: 0.8125rem; color: #6b7280; margin: 0 0 12px; }
+.bpd-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+.bpd-tool-btn--primary {
+    background: var(--color-primary, #4f6ef7); color: #fff; border-color: var(--color-primary, #4f6ef7);
+}
+.bpd-tool-btn--primary:hover { opacity: 0.9; }

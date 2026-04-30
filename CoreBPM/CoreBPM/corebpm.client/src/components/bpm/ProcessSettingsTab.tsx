@@ -282,6 +282,19 @@ export function ProcessSettingsTab({ processId, token }: Props) {
                 </button>
                 {!dirty && <span className="bpp-muted">Сохранено</span>}
             </div>
+
+            {/* PDF-регламент: шаблон администратора (ожидает FR-ADM) */}
+            <div className="bpp-group">
+                <div className="bpp-group-title">PDF-регламент: шаблон</div>
+                <div style={{ background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 6, padding: '10px 12px', fontSize: 12 }}>
+                    <strong>⏳ Ожидает FR-ADM</strong>
+                    <p style={{ margin: '6px 0 0', color: '#78350f' }}>
+                        Загрузка кастомного Word/.docx-шаблона регламента будет доступна после реализации
+                        модуля администрирования (FR-ADM). До этого используется встроенный шаблон
+                        при нажатии «Скачать PDF-регламент» в панели версий.
+                    </p>
+                </div>
+            </div>
         </div>
     );
 }

@@ -55,6 +55,7 @@ public partial class BpmProcessService : IBpmProcessService
 
         var technicalNames = GenerateTechnicalNames(request.Name);
         var now = DateTimeOffset.UtcNow;
+        var tagsJson = System.Text.Json.JsonSerializer.Serialize(request.Tags ?? Array.Empty<string>());
         var process = new BpmProcess
         {
             Id = Guid.NewGuid(),
@@ -62,6 +63,8 @@ public partial class BpmProcessService : IBpmProcessService
             Name = request.Name.Trim(),
             Description = request.Description?.Trim(),
             CreatedByUserId = createdByUserId,
+            TagsJson = tagsJson,
+            IsTemplate = request.IsTemplate,
             LaunchFromPortalEnabled = true,
             ShowInStartList = true,
             RequestInstanceNameOnStart = true,
@@ -108,6 +111,8 @@ public partial class BpmProcessService : IBpmProcessService
         var oldName = process.Name;
         process.Name = request.Name.Trim();
         process.Description = request.Description?.Trim();
+        process.TagsJson = System.Text.Json.JsonSerializer.Serialize(request.Tags ?? Array.Empty<string>());
+        process.IsTemplate = request.IsTemplate;
         process.UpdatedAt = DateTimeOffset.UtcNow;
 
         if (string.Equals(process.DataClassName, GenerateTechnicalNames(oldName).DataClassName, StringComparison.Ordinal))
@@ -139,6 +144,85 @@ public partial class BpmProcessService : IBpmProcessService
     }
 
     /// <inheritdoc />
+    public async Task<IReadOnlyList<BpmProcessListItemDto>> GetTemplatesAsync(Guid organizationId, CancellationToken ct = default)
+    {
+        var templates = await _db.BpmProcesses
+            .AsNoTracking()
+            .Where(p => p.OrganizationId == organizationId && p.IsTemplate && !p.IsDeleted)
+            .Include(p => p.Versions)
+            .OrderBy(p => p.Name)
+            .ToListAsync(ct);
+
+        return templates.Select(MapToListItem).ToList();
+    }
+
+    /// <inheritdoc />
+    public async Task<BpmProcessDto> CreateFromTemplateAsync(Guid templateId, CreateProcessFromTemplateRequest request, Guid createdByUserId, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(request.Name))
+            throw new ValidationException("Название процесса обязательно");
+
+        var template = await _db.BpmProcesses
+            .AsNoTracking()
+            .Include(p => p.Versions)
+            .FirstOrDefaultAsync(p => p.Id == templateId && p.IsTemplate, ct)
+            ?? throw new NotFoundException($"Шаблон {templateId} не найден");
+
+        // Копируем активную версию шаблона или последний черновик
+        var sourceVersion = template.Versions.FirstOrDefault(v => v.Status == BpmProcessVersionStatus.Active)
+            ?? template.Versions.OrderByDescending(v => v.VersionNumber).FirstOrDefault();
+
+        var orgExists = await _db.OrgOrganizations.AnyAsync(o => o.Id == request.OrganizationId, ct);
+        if (!orgExists)
+            throw new NotFoundException($"Организация {request.OrganizationId} не найдена");
+
+        var technicalNames = GenerateTechnicalNames(request.Name);
+        var now = DateTimeOffset.UtcNow;
+        var process = new BpmProcess
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = request.OrganizationId,
+            Name = request.Name.Trim(),
+            Description = request.Description?.Trim() ?? template.Description,
+            CreatedByUserId = createdByUserId,
+            TagsJson = "[]",
+            IsTemplate = false,
+            LaunchFromPortalEnabled = template.LaunchFromPortalEnabled,
+            ShowInStartList = template.ShowInStartList,
+            RequestInstanceNameOnStart = template.RequestInstanceNameOnStart,
+            InstanceNameMode = template.InstanceNameMode,
+            InstanceNameTemplate = template.InstanceNameTemplate,
+            DataClassName = technicalNames.DataClassName,
+            DataTableName = technicalNames.DataTableName,
+            ProcessMetricsClassName = technicalNames.ProcessMetricsClassName,
+            ProcessMetricsTableName = technicalNames.ProcessMetricsTableName,
+            InstanceMetricsClassName = technicalNames.InstanceMetricsClassName,
+            InstanceMetricsTableName = technicalNames.InstanceMetricsTableName,
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+
+        var initialDraft = new BpmProcessVersion
+        {
+            Id = Guid.NewGuid(),
+            ProcessId = process.Id,
+            VersionNumber = 1,
+            Status = BpmProcessVersionStatus.Draft,
+            DiagramXml = sourceVersion?.DiagramXml,
+            CreatedByUserId = createdByUserId,
+            ReleaseNotes = $"Создан из шаблона «{template.Name}»",
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+
+        process.Versions.Add(initialDraft);
+        _db.BpmProcesses.Add(process);
+        await _db.SaveChangesAsync(ct);
+
+        return await GetProcessByIdAsync(process.Id, ct);
+    }
+
+    /// <inheritdoc />
     public async Task<IReadOnlyList<BpmProcessVersionInfoDto>> GetVersionsAsync(Guid processId, CancellationToken ct = default)
     {
         var processExists = await _db.BpmProcesses.AnyAsync(p => p.Id == processId, ct);
@@ -156,7 +240,8 @@ public partial class BpmProcessService : IBpmProcessService
                 v.CreatedByUserId,
                 v.CreatedAt,
                 v.UpdatedAt,
-                v.PublishedAt))
+                v.PublishedAt,
+                v.ReleaseNotes))
             .ToListAsync(ct);
     }
 
@@ -221,23 +306,30 @@ public partial class BpmProcessService : IBpmProcessService
     private static BpmProcessListItemDto MapToListItem(BpmProcess p)
     {
         var active = p.Versions.FirstOrDefault(v => v.Status == BpmProcessVersionStatus.Active);
+        var tags = System.Text.Json.JsonSerializer.Deserialize<List<string>>(p.TagsJson) ?? new List<string>();
         return new BpmProcessListItemDto(
             p.Id, p.OrganizationId, p.Name, p.Description,
             active?.VersionNumber,
             p.Versions.Count,
-            p.CreatedAt, p.UpdatedAt);
+            p.CreatedAt, p.UpdatedAt,
+            tags, p.IsTemplate);
     }
 
     private static BpmProcessDto MapToDto(BpmProcess p)
     {
         var active = p.Versions.FirstOrDefault(v => v.Status == BpmProcessVersionStatus.Active);
+        var tags = System.Text.Json.JsonSerializer.Deserialize<List<string>>(p.TagsJson) ?? new List<string>();
         return new BpmProcessDto(
             p.Id, p.OrganizationId, p.Name, p.Description, p.CreatedByUserId,
             active?.VersionNumber,
             p.Versions.Count,
-            p.CreatedAt, p.UpdatedAt);
+            p.CreatedAt, p.UpdatedAt,
+            tags, p.IsTemplate);
     }
 
     private static BpmDiagramDto MapVersionToDto(BpmProcessVersion v) => new(
-        v.Id, v.VersionNumber, v.Status, v.DiagramXml, v.UpdatedAt, v.PublishedAt);
+        v.Id, v.VersionNumber, v.Status, v.DiagramXml, v.UpdatedAt, v.PublishedAt, v.ReleaseNotes);
+
+    private static BpmProcessVersionInfoDto MapVersionInfo(BpmProcessVersion v) => new(
+        v.Id, v.VersionNumber, v.Status, v.CreatedByUserId, v.CreatedAt, v.UpdatedAt, v.PublishedAt, v.ReleaseNotes);
 }

@@ -56,6 +56,8 @@ export interface BpmProcessListItemDto {
     totalVersions: number;
     createdAt: string;
     updatedAt: string;
+    tags: string[];
+    isTemplate: boolean;
 }
 
 export interface BpmProcessDto {
@@ -68,6 +70,8 @@ export interface BpmProcessDto {
     totalVersions: number;
     createdAt: string;
     updatedAt: string;
+    tags: string[];
+    isTemplate: boolean;
 }
 
 export interface BpmProcessVersionInfoDto {
@@ -78,6 +82,7 @@ export interface BpmProcessVersionInfoDto {
     createdAt: string;
     updatedAt: string;
     publishedAt?: string;
+    releaseNotes?: string;
 }
 
 export interface BpmDiagramDto {
@@ -87,6 +92,7 @@ export interface BpmDiagramDto {
     diagramXml?: string;
     updatedAt: string;
     publishedAt?: string;
+    releaseNotes?: string;
 }
 
 export type BpmInstanceNameMode = 'Manual' | 'KeyVariable' | 'Template';
@@ -290,7 +296,7 @@ export const getProcess = (token: string, processId: string): Promise<BpmProcess
 /** Создать новый процесс. */
 export const createProcess = (
     token: string,
-    data: { organizationId: string; name: string; description?: string }
+    data: { organizationId: string; name: string; description?: string; tags?: string[]; isTemplate?: boolean }
 ): Promise<BpmProcessDto> =>
     fetchJson('/api/bpm/processes', token, {
         method: 'POST',
@@ -301,7 +307,7 @@ export const createProcess = (
 export const updateProcess = (
     token: string,
     processId: string,
-    data: { name: string; description?: string }
+    data: { name: string; description?: string; tags?: string[]; isTemplate?: boolean }
 ): Promise<BpmProcessDto> =>
     fetchJson(`/api/bpm/processes/${processId}`, token, {
         method: 'PUT',
@@ -332,8 +338,26 @@ export const saveDiagram = (token: string, processId: string, diagramXml: string
     });
 
 /** Опубликовать версию процесса. */
-export const publishProcessVersion = (token: string, processId: string, versionId: string): Promise<BpmProcessVersionInfoDto> =>
-    fetchJson(`/api/bpm/processes/${processId}/versions/${versionId}/publish`, token, { method: 'POST' });
+export const publishProcessVersion = (token: string, processId: string, versionId: string, releaseNotes?: string): Promise<BpmProcessVersionInfoDto> =>
+    fetchJson(`/api/bpm/processes/${processId}/versions/${versionId}/publish`, token, {
+        method: 'POST',
+        body: JSON.stringify({ releaseNotes }),
+    });
+
+/** Получить список шаблонов процессов. */
+export const getProcessTemplates = (token: string, organizationId: string): Promise<BpmProcessListItemDto[]> =>
+    fetchJson(`/api/bpm/processes/templates?organizationId=${organizationId}`, token);
+
+/** Создать процесс из шаблона. */
+export const createProcessFromTemplate = (
+    token: string,
+    templateId: string,
+    data: { organizationId: string; name: string; description?: string }
+): Promise<BpmProcessDto> =>
+    fetchJson(`/api/bpm/processes/${templateId}/from-template`, token, {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
 
 /** Создать новый черновик откатом к выбранной версии. */
 export const rollbackProcessVersion = (token: string, processId: string, versionId: string): Promise<BpmDiagramDto> =>
