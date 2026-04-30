@@ -77,6 +77,7 @@ export function BusinessRuleTaskTab({ processId, token, elementId }: Props) {
             setOutputColumns([]);
             return;
         }
+        const currentVersionId = config.versionId;
         const fetchColumns = async () => {
             try {
                 const versions = await getDmnVersions(token, config.tableId!);
@@ -85,14 +86,16 @@ export function BusinessRuleTaskTab({ processId, token, elementId }: Props) {
                 const version = await getDmnVersion(token, config.tableId!, published.id);
                 setInputColumns(version.columns.filter(c => c.columnKind === 'Input'));
                 setOutputColumns(version.columns.filter(c => c.columnKind === 'Output'));
-                // Обновляем versionId в конфиге
-                if (config.versionId !== published.id) {
+                // Обновляем versionId в конфиге если он изменился
+                if (currentVersionId !== published.id) {
                     setConfig(prev => ({ ...prev, versionId: published.id }));
                 }
             } catch { /* игнорируем ошибки загрузки */ }
         };
         fetchColumns();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+    // config.versionId намеренно не включён: обновление versionId внутри эффекта
+    // не должно вызывать его повторный запуск
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [token, config.tableId]);
 
     const update = <K extends keyof BusinessRuleConfig>(key: K, value: BusinessRuleConfig[K]) => {

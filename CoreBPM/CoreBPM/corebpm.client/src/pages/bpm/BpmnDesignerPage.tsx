@@ -140,7 +140,9 @@ export function BpmnDesignerPage({ processId, onBack }: BpmnDesignerPageProps) {
         };
     }, [token, processId, lockAcquired]);
 
-    // Освобождаем блокировку при размонтировании страницы
+    // Освобождаем блокировку при размонтировании страницы.
+    // Пустой массив зависимостей намеренен: cleanup должен выполниться только при размонтировании.
+    // Актуальные значения token/processId/lockAcquired читаются через ref-ы, чтобы избежать stale closure.
     useEffect(() => {
         return () => {
             if (token && lockAcquiredRef.current) {
@@ -148,7 +150,7 @@ export function BpmnDesignerPage({ processId, onBack }: BpmnDesignerPageProps) {
                 api.releaseDiagramLock(token, processId).catch(() => {/* игнорируем */ });
             }
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- cleanup при размонтировании, ref-ы обеспечивают актуальные значения
     }, []);
 
     const clearMarkers = useCallback(() => {
