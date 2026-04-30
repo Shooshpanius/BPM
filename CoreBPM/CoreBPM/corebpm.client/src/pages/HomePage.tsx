@@ -8,6 +8,7 @@ import { OrgStructurePage } from './org/OrgStructurePage';
 import { ProcessesPage } from './bpm/ProcessesPage';
 import { BpmnDesignerPage } from './bpm/BpmnDesignerPage';
 import { ProcessMonitorPage } from './bpm/ProcessMonitorPage';
+import { InstancePage } from './bpm/InstancePage';
 import { RulesPage } from './rules/RulesPage';
 import { DmnEditorPage } from './rules/DmnEditorPage';
 import { FormsPage } from './forms/FormsPage';
@@ -28,6 +29,7 @@ export function HomePage({ onAdmin }: HomePageProps) {
     const [section, setSection] = useState<SidebarSection>('contacts');
     const [designerProcessId, setDesignerProcessId] = useState<string | null>(null);
     const [monitorProcess, setMonitorProcess] = useState<{ id: string; name: string } | null>(null);
+    const [openInstanceId, setOpenInstanceId] = useState<string | null>(null);
     const [dmnEditorTableId, setDmnEditorTableId] = useState<string | null>(null);
     const [formBuilderId, setFormBuilderId] = useState<string | null>(null);
 
@@ -38,21 +40,28 @@ export function HomePage({ onAdmin }: HomePageProps) {
         setMonitorProcess(null);
         setDmnEditorTableId(null);
         setFormBuilderId(null);
+        setOpenInstanceId(null);
         setSection(s);
     };
 
     const handleOpenDesigner = (processId: string) => {
         setMonitorProcess(null);
+        setOpenInstanceId(null);
         setDesignerProcessId(processId);
     };
 
     const handleOpenMonitor = (processId: string, processName: string) => {
         setDesignerProcessId(null);
+        setOpenInstanceId(null);
         setMonitorProcess({ id: processId, name: processName });
     };
 
-    const handleBackFromDesigner = () => {
-        setDesignerProcessId(null);
+    const handleOpenInstance = (instanceId: string) => {
+        setOpenInstanceId(instanceId);
+    };
+
+    const handleBackFromInstance = () => {
+        setOpenInstanceId(null);
     };
 
     return (
@@ -90,18 +99,24 @@ export function HomePage({ onAdmin }: HomePageProps) {
                         designerProcessId
                             ? <BpmnDesignerPage
                                 processId={designerProcessId}
-                                onBack={handleBackFromDesigner}
+                                onBack={() => setDesignerProcessId(null)}
                               />
-                            : monitorProcess
-                                ? <ProcessMonitorPage
-                                    processId={monitorProcess.id}
-                                    processName={monitorProcess.name}
-                                    onBack={() => setMonitorProcess(null)}
+                            : openInstanceId
+                                ? <InstancePage
+                                    instanceId={openInstanceId}
+                                    onBack={handleBackFromInstance}
                                   />
-                                : <ProcessesPage
-                                    onOpenDesigner={handleOpenDesigner}
-                                    onOpenMonitor={handleOpenMonitor}
-                                  />
+                                : monitorProcess
+                                    ? <ProcessMonitorPage
+                                        processId={monitorProcess.id}
+                                        processName={monitorProcess.name}
+                                        onBack={() => setMonitorProcess(null)}
+                                        onOpenInstance={handleOpenInstance}
+                                      />
+                                    : <ProcessesPage
+                                        onOpenDesigner={handleOpenDesigner}
+                                        onOpenMonitor={handleOpenMonitor}
+                                      />
                     )}
                     {section === 'bpm-rules' && (
                         dmnEditorTableId

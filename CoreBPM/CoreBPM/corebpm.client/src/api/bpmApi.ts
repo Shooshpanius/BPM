@@ -757,3 +757,75 @@ export const getInstance = (token: string, instanceId: string): Promise<BpmInsta
 /** Получить задания планировщика для процесса. */
 export const getSchedulerJobs = (token: string, processId: string): Promise<BpmSchedulerJobDto[]> =>
     fetchJson(`/api/bpm/processes/${processId}/scheduler-jobs`, token);
+
+// ─── Управление экземпляром (FR-BPM-02.2) ────────────────────────────────────
+
+export type BpmHistoryEventType =
+    | 'Started' | 'Cancelled' | 'Completed' | 'Suspended' | 'Resumed'
+    | 'ResponsibleChanged' | 'CommentAdded' | 'QuestionAdded'
+    | 'VariableUpdated' | 'ParticipantAdded' | 'ParticipantRemoved';
+
+export interface BpmInstanceHistoryEntryDto {
+    id: string;
+    eventType: BpmHistoryEventType;
+    actorUserId?: string;
+    actorDisplayName?: string;
+    text?: string;
+    metaJson?: string;
+    occurredAt: string;
+}
+
+export interface BpmInstanceParticipantDto {
+    id: string;
+    userId: string;
+    displayName?: string;
+    addedByUserId?: string;
+    addedByDisplayName?: string;
+    addedAt: string;
+}
+
+export interface CancelInstanceRequest { reason: string; }
+export interface ChangeResponsibleRequest { newResponsibleUserId: string; }
+export interface UpdateInstanceVariableRequest { valueJson?: string | null; }
+export interface AddCommentRequest { text: string; isQuestion?: boolean; }
+export interface AddParticipantRequest { userId: string; }
+
+/** Прервать экземпляр. */
+export const cancelInstance = (token: string, instanceId: string, data: CancelInstanceRequest): Promise<BpmInstanceDto> =>
+    fetchJson(`/api/bpm/instances/${instanceId}/cancel`, token, { method: 'POST', body: JSON.stringify(data) });
+
+/** Приостановить экземпляр. */
+export const suspendInstance = (token: string, instanceId: string): Promise<BpmInstanceDto> =>
+    fetchJson(`/api/bpm/instances/${instanceId}/suspend`, token, { method: 'POST', body: '{}' });
+
+/** Возобновить экземпляр. */
+export const resumeInstance = (token: string, instanceId: string): Promise<BpmInstanceDto> =>
+    fetchJson(`/api/bpm/instances/${instanceId}/resume`, token, { method: 'POST', body: '{}' });
+
+/** Изменить ответственного. */
+export const changeResponsible = (token: string, instanceId: string, data: ChangeResponsibleRequest): Promise<BpmInstanceDto> =>
+    fetchJson(`/api/bpm/instances/${instanceId}/responsible`, token, { method: 'PUT', body: JSON.stringify(data) });
+
+/** Обновить переменную экземпляра. */
+export const updateInstanceVariable = (token: string, instanceId: string, variableName: string, data: UpdateInstanceVariableRequest): Promise<BpmInstanceVariableDto> =>
+    fetchJson(`/api/bpm/instances/${instanceId}/variables/${encodeURIComponent(variableName)}`, token, { method: 'PUT', body: JSON.stringify(data) });
+
+/** Журнал истории экземпляра. */
+export const getInstanceHistory = (token: string, instanceId: string): Promise<BpmInstanceHistoryEntryDto[]> =>
+    fetchJson(`/api/bpm/instances/${instanceId}/history`, token);
+
+/** Добавить комментарий / вопрос. */
+export const addComment = (token: string, instanceId: string, data: AddCommentRequest): Promise<BpmInstanceHistoryEntryDto> =>
+    fetchJson(`/api/bpm/instances/${instanceId}/comments`, token, { method: 'POST', body: JSON.stringify(data) });
+
+/** Список участников экземпляра. */
+export const getParticipants = (token: string, instanceId: string): Promise<BpmInstanceParticipantDto[]> =>
+    fetchJson(`/api/bpm/instances/${instanceId}/participants`, token);
+
+/** Добавить участника. */
+export const addParticipant = (token: string, instanceId: string, data: AddParticipantRequest): Promise<BpmInstanceParticipantDto> =>
+    fetchJson(`/api/bpm/instances/${instanceId}/participants`, token, { method: 'POST', body: JSON.stringify(data) });
+
+/** Удалить участника. */
+export const removeParticipant = (token: string, instanceId: string, participantUserId: string): Promise<void> =>
+    fetchJson(`/api/bpm/instances/${instanceId}/participants/${participantUserId}`, token, { method: 'DELETE' });
