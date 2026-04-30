@@ -506,3 +506,36 @@ export const reorderStatusOptions = (token: string, processId: string, orderedId
         method: 'PUT',
         body: JSON.stringify({ orderedIds }),
     });
+
+// ─── Блокировки диаграмм ─────────────────────────────────────────────────────
+
+export interface DiagramLockDto {
+    processId: string;
+    lockedByUserId: string;
+    lockedByDisplayName: string;
+    lockedAt: string;
+    lockedUntil: string;
+}
+
+export interface AcquireLockResponse {
+    isAcquired: boolean;
+    lock?: DiagramLockDto;
+}
+
+/** Получить информацию об активной блокировке диаграммы (null если не заблокирована). */
+export const getDiagramLock = async (token: string, processId: string): Promise<DiagramLockDto | null> => {
+    const res = await fetch(`/api/bpm/processes/${processId}/diagram/lock`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.status === 204) return null;
+    if (!res.ok) return null;
+    return res.json() as Promise<DiagramLockDto>;
+};
+
+/** Захватить (или продлить) блокировку диаграммы. */
+export const acquireDiagramLock = (token: string, processId: string): Promise<AcquireLockResponse> =>
+    fetchJson(`/api/bpm/processes/${processId}/diagram/lock`, token, { method: 'PUT' });
+
+/** Снять блокировку диаграммы (идемпотентно). */
+export const releaseDiagramLock = (token: string, processId: string): Promise<void> =>
+    fetchJson(`/api/bpm/processes/${processId}/diagram/lock`, token, { method: 'DELETE' });

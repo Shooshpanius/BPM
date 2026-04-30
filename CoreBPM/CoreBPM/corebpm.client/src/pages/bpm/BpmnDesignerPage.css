@@ -142,6 +142,19 @@
 .bpd-load-error { background: #fdecea; color: #c62828; border-bottom: 1px solid #ffcdd2; }
 .bpd-save-error { background: #fff3e0; color: #e65100; border-bottom: 1px solid #ffe0b2; }
 
+/* ─── Предупреждение о блокировке диаграммы ─── */
+.bpd-lock-warning {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    font-size: 0.8125rem;
+    background: #fff8e1;
+    color: #7c4a00;
+    border-bottom: 1px solid #ffe082;
+    flex-shrink: 0;
+}
+
 .bpd-panel {
     padding: 12px 16px;
     border-bottom: 1px solid #e5e7eb;

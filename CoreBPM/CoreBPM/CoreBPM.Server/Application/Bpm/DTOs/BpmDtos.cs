@@ -405,3 +405,22 @@ public record UpdateGlobalModuleFileRequest(string FileName, string ScriptBody);
 
 /// <summary>Запрос на изменение порядка файлов модуля.</summary>
 public record ReorderGlobalModuleFilesRequest(IReadOnlyList<Guid> OrderedIds);
+
+// ─── Блокировки диаграмм ─────────────────────────────────────────────────────
+
+/// <summary>Информация об активной блокировке диаграммы процесса.</summary>
+public record DiagramLockDto(
+    Guid ProcessId,
+    Guid LockedByUserId,
+    string LockedByDisplayName,
+    DateTimeOffset LockedAt,
+    DateTimeOffset LockedUntil
+);
+
+/// <summary>Ответ на попытку захвата блокировки диаграммы.</summary>
+public record AcquireLockResponse(
+    /// <summary>true — блокировка успешно захвачена (или продлена).</summary>
+    bool IsAcquired,
+    DiagramLockDto? Lock
+);
+

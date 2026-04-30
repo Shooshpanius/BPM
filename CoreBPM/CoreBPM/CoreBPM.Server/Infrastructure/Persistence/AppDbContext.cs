@@ -29,6 +29,7 @@ public class AppDbContext : DbContext
     public DbSet<BpmTaskFormVersion> BpmTaskFormVersions => Set<BpmTaskFormVersion>();
     public DbSet<BpmInstanceStatusConfig> BpmInstanceStatusConfigs => Set<BpmInstanceStatusConfig>();
     public DbSet<BpmInstanceStatusOption> BpmInstanceStatusOptions => Set<BpmInstanceStatusOption>();
+    public DbSet<BpmDiagramLock> BpmDiagramLocks => Set<BpmDiagramLock>();
     public DbSet<BpmScriptModule> BpmScriptModules => Set<BpmScriptModule>();
     public DbSet<BpmDesignerExtension> BpmDesignerExtensions => Set<BpmDesignerExtension>();
     public DbSet<BpmGlobalModule> BpmGlobalModules => Set<BpmGlobalModule>();
@@ -359,6 +360,23 @@ public class AppDbContext : DbContext
             e.HasOne(v => v.Process)
              .WithMany(p => p.Versions)
              .HasForeignKey(v => v.ProcessId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Таблица мягких блокировок диаграмм
+        modelBuilder.Entity<BpmDiagramLock>(e =>
+        {
+            e.ToTable("bpm_diagram_locks");
+            e.HasKey(l => l.Id);
+            e.Property(l => l.LockedByDisplayName).IsRequired().HasMaxLength(300);
+
+            // Один замок на процесс
+            e.HasIndex(l => l.ProcessId).IsUnique();
+            e.HasIndex(l => l.LockedUntil);
+
+            e.HasOne(l => l.Process)
+             .WithMany()
+             .HasForeignKey(l => l.ProcessId)
              .OnDelete(DeleteBehavior.Cascade);
         });
 

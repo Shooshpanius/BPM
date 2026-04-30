@@ -3,12 +3,14 @@ import BpmnModeler from 'bpmn-js/lib/Modeler';
 import { useAuth } from '../../context/AuthContext';
 import * as api from '../../api/bpmApi';
 import type {
+    AcquireLockResponse,
     BpmDebugSessionDto,
     BpmDiagramDto,
     BpmProcessDto,
     BpmProcessVersionInfoDto,
     BpmValidationResultDto,
     BpmVersionDiffDto,
+    DiagramLockDto,
 } from '../../api/bpmApi';
 import { BpmPropertiesPanel } from '../../components/bpm/BpmPropertiesPanel';
 import './BpmnDesignerPage.css';
@@ -86,9 +88,68 @@ export function BpmnDesignerPage({ processId, onBack }: BpmnDesignerPageProps) {
     const [debugError, setDebugError] = useState<string | null>(null);
     const [busyDocument, setBusyDocument] = useState(false);
 
+    // ─── Блокировка диаграммы ─────────────────────────────────────────────────
+    const [lockInfo, setLockInfo] = useState<DiagramLockDto | null>(null);
+    const [lockAcquired, setLockAcquired] = useState(false);
+    const lockHeartbeatRef = useRef<number | null>(null);
+    const lockAcquiredRef = useRef(false);
+    useEffect(() => { lockAcquiredRef.current = lockAcquired; }, [lockAcquired]);
+
     const latestVersionId = versions[0]?.id;
     const isReadOnly = !currentDiagram || currentDiagram.status !== 'Draft' || currentDiagram.versionId !== latestVersionId;
     useEffect(() => { isReadOnlyRef.current = isReadOnly; }, [isReadOnly]);
+
+    // ─── Попытка захвата блокировки после загрузки данных ─────────────────────
+    const acquireLock = useCallback(async () => {
+        if (!token) return;
+        try {
+            const result: AcquireLockResponse = await api.acquireDiagramLock(token, processId);
+            setLockAcquired(result.isAcquired);
+            if (!result.isAcquired && result.lock) {
+                setLockInfo(result.lock);
+            } else {
+                setLockInfo(null);
+            }
+        } catch { /* игнорируем — блокировка не критична */ }
+    }, [token, processId]);
+
+    const releaseLock = useCallback(async () => {
+        if (!token || !lockAcquired) return;
+        try {
+            await api.releaseDiagramLock(token, processId);
+            setLockAcquired(false);
+        } catch { /* игнорируем */ }
+    }, [token, processId, lockAcquired]);
+
+    // Захватываем блокировку при монтировании страницы
+    useEffect(() => {
+        acquireLock();
+    }, [acquireLock]);
+
+    // Heartbeat — продлеваем блокировку каждые 30 секунд
+    useEffect(() => {
+        if (!token || !lockAcquired) return;
+        lockHeartbeatRef.current = window.setInterval(async () => {
+            try {
+                const ok = await api.acquireDiagramLock(token, processId);
+                if (!ok.isAcquired) setLockAcquired(false);
+            } catch { /* игнорируем */ }
+        }, 30000);
+        return () => {
+            if (lockHeartbeatRef.current) clearInterval(lockHeartbeatRef.current);
+        };
+    }, [token, processId, lockAcquired]);
+
+    // Освобождаем блокировку при размонтировании страницы
+    useEffect(() => {
+        return () => {
+            if (token && lockAcquiredRef.current) {
+                // fire-and-forget
+                api.releaseDiagramLock(token, processId).catch(() => {/* игнорируем */ });
+            }
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const clearMarkers = useCallback(() => {
         const canvas = modelerRef.current?.get<{ removeMarker: (elementId: string, marker: string) => void }>('canvas');
@@ -348,6 +409,7 @@ export function BpmnDesignerPage({ processId, onBack }: BpmnDesignerPageProps) {
 
     const handleBackClick = () => {
         if (saveStatus === 'unsaved' && !window.confirm('Есть несохранённые изменения. Покинуть страницу?')) return;
+        releaseLock();
         onBack();
     };
 
@@ -392,6 +454,17 @@ export function BpmnDesignerPage({ processId, onBack }: BpmnDesignerPageProps) {
 
             {loadError && <div className="bpd-load-error">Не удалось загрузить диаграмму: {loadError}</div>}
             {saveError && <div className="bpd-save-error">{saveError}</div>}
+
+            {/* Предупреждение о конкурентном редактировании */}
+            {lockInfo && !lockAcquired && (
+                <div className="bpd-lock-warning" role="alert">
+                    ⚠️ Диаграмма сейчас редактируется пользователем <strong>{lockInfo.lockedByDisplayName}</strong>.
+                    Ваши изменения могут быть перезаписаны. Сохранение заблокировано.
+                    <button className="bpd-mini-btn" style={{ marginLeft: 12 }} onClick={acquireLock}>
+                        Попробовать перехватить
+                    </button>
+                </div>
+            )}
 
             {validationResult && (
                 <div className="bpd-panel">

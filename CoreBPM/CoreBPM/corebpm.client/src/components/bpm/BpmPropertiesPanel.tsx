@@ -4,6 +4,8 @@ import { GeneralTab } from './GeneralTab';
 import { UserTaskTab } from './UserTaskTab';
 import { ServiceTaskTab } from './ServiceTaskTab';
 import { ScriptTaskTab } from './ScriptTaskTab';
+import { BusinessRuleTaskTab } from './BusinessRuleTaskTab';
+import { TaskMarkersTab } from './TaskMarkersTab';
 import { GatewayTab } from './GatewayTab';
 import { TimerEventTab } from './TimerEventTab';
 import { SequenceFlowTab } from './SequenceFlowTab';
@@ -12,6 +14,7 @@ import { ProcessVariablesTab } from './ProcessVariablesTab';
 import { RaciMatrixTab } from './RaciMatrixTab';
 import { ProcessSettingsTab } from './ProcessSettingsTab';
 import { InstanceStatusTab } from './InstanceStatusTab';
+import { LaneTab } from './LaneTab';
 import './BpmPropertiesPanel.css';
 
 type BpmnModeler = import('bpmn-js/lib/Modeler').default;
@@ -35,7 +38,7 @@ interface Props {
 
 // ─── Конфигурация вкладок ─────────────────────────────────────────────────────
 
-type TabId = 'general' | 'execution' | 'notifications' | 'variables' | 'raci' | 'settings' | 'statuses';
+type TabId = 'general' | 'execution' | 'markers' | 'notifications' | 'variables' | 'raci' | 'settings' | 'statuses';
 
 interface TabDef {
     id: TabId;
@@ -56,6 +59,9 @@ function getTabsForElement(elementType: string | null): TabDef[] {
     if (elementType === 'bpmn:SequenceFlow') {
         return [{ id: 'general', label: 'Основное' }];
     }
+    if (elementType === 'bpmn:Lane') {
+        return [{ id: 'general', label: 'Основное' }];
+    }
     if (
         elementType === 'bpmn:ExclusiveGateway' ||
         elementType === 'bpmn:InclusiveGateway'
@@ -69,19 +75,39 @@ function getTabsForElement(elementType: string | null): TabDef[] {
         return [
             { id: 'general', label: 'Основное' },
             { id: 'execution', label: 'Выполнение' },
+            { id: 'markers', label: 'Маркеры' },
             { id: 'notifications', label: 'Уведомления' },
+        ];
+    }
+    if (elementType === 'bpmn:BusinessRuleTask') {
+        return [
+            { id: 'general', label: 'Основное' },
+            { id: 'execution', label: 'Правило' },
+            { id: 'markers', label: 'Маркеры' },
         ];
     }
     if (
         elementType === 'bpmn:ServiceTask' ||
-        elementType === 'bpmn:ScriptTask' ||
-        elementType === 'bpmn:BusinessRuleTask' ||
         elementType === 'bpmn:SendTask' ||
         elementType === 'bpmn:ReceiveTask'
     ) {
         return [
             { id: 'general', label: 'Основное' },
             { id: 'execution', label: 'Выполнение' },
+            { id: 'markers', label: 'Маркеры' },
+        ];
+    }
+    if (elementType === 'bpmn:ScriptTask') {
+        return [
+            { id: 'general', label: 'Основное' },
+            { id: 'execution', label: 'Скрипт' },
+            { id: 'markers', label: 'Маркеры' },
+        ];
+    }
+    if (elementType === 'bpmn:ManualTask') {
+        return [
+            { id: 'general', label: 'Основное' },
+            { id: 'markers', label: 'Маркеры' },
         ];
     }
     if (
@@ -152,11 +178,17 @@ export function BpmPropertiesPanel({ modeler, processId, token }: Props) {
                 if (elType === 'bpmn:SequenceFlow') {
                     return <SequenceFlowTab element={selectedElement} modeler={modeler} />;
                 }
+                if (elType === 'bpmn:Lane') {
+                    return <LaneTab processId={processId} token={token} elementId={elId} />;
+                }
                 return <GeneralTab element={selectedElement} modeler={modeler} />;
 
             case 'execution':
                 if (elType === 'bpmn:UserTask') {
                     return <UserTaskTab processId={processId} token={token} elementId={elId} />;
+                }
+                if (elType === 'bpmn:BusinessRuleTask') {
+                    return <BusinessRuleTaskTab processId={processId} token={token} elementId={elId} />;
                 }
                 if (elType === 'bpmn:ServiceTask' || elType === 'bpmn:SendTask' || elType === 'bpmn:ReceiveTask') {
                     return <ServiceTaskTab processId={processId} token={token} elementId={elId} />;
@@ -171,6 +203,9 @@ export function BpmPropertiesPanel({ modeler, processId, token }: Props) {
                     return <TimerEventTab element={selectedElement} modeler={modeler} />;
                 }
                 return <GeneralTab element={selectedElement} modeler={modeler} />;
+
+            case 'markers':
+                return <TaskMarkersTab processId={processId} token={token} elementId={elId} />;
 
             case 'notifications':
                 return <NotificationsTab processId={processId} token={token} elementId={elId} />;
@@ -256,3 +291,4 @@ function renderProcessLevel(tabId: TabId, processId: string, token: string) {
         </div>
     );
 }
+
