@@ -84,6 +84,11 @@ builder.Services.AddScoped<IBpmVariableService, BpmVariableService>();
 builder.Services.AddScoped<IBpmRaciService, BpmRaciService>();
 builder.Services.AddScoped<IBpmInstanceStatusService, BpmInstanceStatusService>();
 
+// Регистрация сервисов Scripts (сценарии, расширения, глобальные модули FR-BPM-01.7)
+builder.Services.AddScoped<IBpmScriptService, BpmScriptService>();
+builder.Services.AddScoped<IBpmExtensionService, BpmExtensionService>();
+builder.Services.AddScoped<IBpmGlobalModuleService, BpmGlobalModuleService>();
+
 // Регистрация сервисов Rules (DMN-таблицы бизнес-правил)
 builder.Services.AddScoped<IDmnService, DmnService>();
 
