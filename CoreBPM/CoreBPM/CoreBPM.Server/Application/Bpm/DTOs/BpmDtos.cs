@@ -254,3 +254,48 @@ public record UpsertRaciEntryRequest(
     string Role,
     BpmRaciType RaciType
 );
+
+// ─── Пользовательские статусы экземпляров процесса ───────────────────────────
+
+/// <summary>DTO одного варианта пользовательского статуса экземпляра процесса.</summary>
+public record InstanceStatusOptionDto(
+    Guid Id,
+    string Name,
+    string Code,
+    int SortOrder
+);
+
+/// <summary>DTO конфигурации статусов экземпляра процесса.</summary>
+public record InstanceStatusConfigDto(
+    Guid? LinkedVariableId,
+    string? LinkedVariableName,
+    BpmInterruptAction OnInterruptAction,
+    string? OnInterruptScriptId,
+    IReadOnlyList<InstanceStatusOptionDto> Options
+);
+
+/// <summary>Запрос на обновление конфигурации статусов.</summary>
+public record UpdateStatusConfigRequest(
+    Guid? LinkedVariableId,
+    BpmInterruptAction OnInterruptAction,
+    string? OnInterruptScriptId,
+    /// <summary>Если true — создать новую переменную типа List с именем NewVariableName и привязать её.</summary>
+    bool CreateVariable,
+    string? NewVariableName
+);
+
+/// <summary>Запрос на создание нового варианта статуса.</summary>
+public record CreateStatusOptionRequest(
+    string Name,
+    /// <summary>Если null — код генерируется автоматически транслитерацией из Name.</summary>
+    string? Code
+);
+
+/// <summary>Запрос на обновление варианта статуса.</summary>
+public record UpdateStatusOptionRequest(
+    string Name,
+    string Code
+);
+
+/// <summary>Запрос на изменение порядка вариантов статусов.</summary>
+public record ReorderStatusOptionsRequest(IReadOnlyList<Guid> OrderedIds);
