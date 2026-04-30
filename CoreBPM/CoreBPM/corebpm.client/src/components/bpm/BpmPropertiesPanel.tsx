@@ -10,6 +10,7 @@ import { SequenceFlowTab } from './SequenceFlowTab';
 import { NotificationsTab } from './NotificationsTab';
 import { ProcessVariablesTab } from './ProcessVariablesTab';
 import { RaciMatrixTab } from './RaciMatrixTab';
+import { ProcessSettingsTab } from './ProcessSettingsTab';
 import './BpmPropertiesPanel.css';
 
 type BpmnModeler = import('bpmn-js/lib/Modeler').default;
@@ -33,7 +34,7 @@ interface Props {
 
 // ─── Конфигурация вкладок ─────────────────────────────────────────────────────
 
-type TabId = 'general' | 'execution' | 'notifications' | 'variables' | 'raci';
+type TabId = 'general' | 'execution' | 'notifications' | 'variables' | 'raci' | 'settings';
 
 interface TabDef {
     id: TabId;
@@ -47,6 +48,7 @@ function getTabsForElement(elementType: string | null): TabDef[] {
         return [
             { id: 'variables', label: 'Переменные' },
             { id: 'raci', label: 'RACI' },
+            { id: 'settings', label: 'Настройки' },
         ];
     }
     if (elementType === 'bpmn:SequenceFlow') {
@@ -177,6 +179,9 @@ export function BpmPropertiesPanel({ modeler, processId, token }: Props) {
             case 'raci':
                 return <RaciMatrixTab processId={processId} token={token} />;
 
+            case 'settings':
+                return <ProcessSettingsTab processId={processId} token={token} />;
+
             default:
                 return null;
         }
@@ -231,6 +236,9 @@ function renderProcessLevel(tabId: TabId, processId: string, token: string) {
     }
     if (tabId === 'raci') {
         return <RaciMatrixTab processId={processId} token={token} />;
+    }
+    if (tabId === 'settings') {
+        return <ProcessSettingsTab processId={processId} token={token} />;
     }
     return (
         <div className="bpp-empty">

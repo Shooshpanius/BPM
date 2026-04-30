@@ -36,6 +36,7 @@ export interface BpmProcessVersionInfoDto {
     createdByUserId: string;
     createdAt: string;
     updatedAt: string;
+    publishedAt?: string;
 }
 
 export interface BpmDiagramDto {
@@ -44,6 +45,117 @@ export interface BpmDiagramDto {
     status: BpmProcessVersionStatus;
     diagramXml?: string;
     updatedAt: string;
+    publishedAt?: string;
+}
+
+export type BpmInstanceNameMode = 'Manual' | 'KeyVariable' | 'Template';
+
+export interface BpmValidationIssueDto {
+    severity: 'Error' | 'Warning';
+    code: string;
+    message: string;
+    elementId?: string;
+}
+
+export interface BpmValidationResultDto {
+    versionId: string;
+    versionNumber: number;
+    issues: BpmValidationIssueDto[];
+}
+
+export interface BpmVersionDiffElementDto {
+    changeType: 'Added' | 'Removed' | 'Changed';
+    elementId: string;
+    elementType: string;
+    name?: string;
+}
+
+export interface BpmVersionDiffPropertyDto {
+    targetType: string;
+    targetId: string;
+    propertyName: string;
+    leftValue?: string;
+    rightValue?: string;
+}
+
+export interface BpmVersionDiffDto {
+    leftVersionId: string;
+    rightVersionId: string;
+    elements: BpmVersionDiffElementDto[];
+    properties: BpmVersionDiffPropertyDto[];
+}
+
+export interface BpmProcessSettingsDto {
+    processId: string;
+    launchFromPortalEnabled: boolean;
+    showInStartList: boolean;
+    externalStartEnabled: boolean;
+    externalStartMethods: string[];
+    externalStartAllowedIps?: string;
+    hasExternalStartToken: boolean;
+    externalStartTokenPreview?: string;
+    externalStartTokenUpdatedAt?: string;
+    instanceNameMode: BpmInstanceNameMode;
+    requestInstanceNameOnStart: boolean;
+    instanceNameTemplate?: string;
+    keyVariableName?: string;
+    dataClassName: string;
+    dataTableName: string;
+    processMetricsClassName: string;
+    processMetricsTableName: string;
+    instanceMetricsClassName: string;
+    instanceMetricsTableName: string;
+    secondRuntimeEnabled: boolean;
+    secondRuntimeUpgradedAt?: string;
+}
+
+export interface UpdateBpmProcessSettingsRequest {
+    launchFromPortalEnabled: boolean;
+    showInStartList: boolean;
+    externalStartEnabled: boolean;
+    externalStartMethods: string[];
+    externalStartAllowedIps?: string;
+    instanceNameMode: BpmInstanceNameMode;
+    requestInstanceNameOnStart: boolean;
+    instanceNameTemplate?: string;
+    keyVariableName?: string;
+    dataClassName?: string;
+    dataTableName?: string;
+    processMetricsClassName?: string;
+    processMetricsTableName?: string;
+    instanceMetricsClassName?: string;
+    instanceMetricsTableName?: string;
+    secondRuntimeEnabled: boolean;
+}
+
+export interface RotateExternalTokenResponse {
+    token: string;
+    preview: string;
+    rotatedAt: string;
+}
+
+export interface StartBpmDebugSessionRequest {
+    versionId?: string;
+    variables?: Record<string, string>;
+}
+
+export interface BpmDebugEventDto {
+    timestamp: string;
+    eventType: string;
+    elementId?: string;
+    message: string;
+}
+
+export interface BpmDebugSessionDto {
+    sessionId: string;
+    processId: string;
+    versionId: string;
+    versionNumber: number;
+    isCompleted: boolean;
+    currentElementId?: string;
+    currentElementType?: string;
+    variables: Record<string, string>;
+    events: BpmDebugEventDto[];
 }
 
 // ─── Конфигурации элементов ──────────────────────────────────────────────────
@@ -163,6 +275,10 @@ export const deleteProcess = (token: string, processId: string): Promise<void> =
 export const getProcessVersions = (token: string, processId: string): Promise<BpmProcessVersionInfoDto[]> =>
     fetchJson(`/api/bpm/processes/${processId}/versions`, token);
 
+/** Получить конкретную версию процесса. */
+export const getProcessVersion = (token: string, processId: string, versionId: string): Promise<BpmDiagramDto> =>
+    fetchJson(`/api/bpm/processes/${processId}/versions/${versionId}`, token);
+
 /** Получить текущую диаграмму процесса. */
 export const getDiagram = (token: string, processId: string): Promise<BpmDiagramDto> =>
     fetchJson(`/api/bpm/processes/${processId}/diagram`, token);
@@ -173,6 +289,78 @@ export const saveDiagram = (token: string, processId: string, diagramXml: string
         method: 'PUT',
         body: JSON.stringify({ diagramXml }),
     });
+
+/** Опубликовать версию процесса. */
+export const publishProcessVersion = (token: string, processId: string, versionId: string): Promise<BpmProcessVersionInfoDto> =>
+    fetchJson(`/api/bpm/processes/${processId}/versions/${versionId}/publish`, token, { method: 'POST' });
+
+/** Создать новый черновик откатом к выбранной версии. */
+export const rollbackProcessVersion = (token: string, processId: string, versionId: string): Promise<BpmDiagramDto> =>
+    fetchJson(`/api/bpm/processes/${processId}/versions/${versionId}/rollback`, token, { method: 'POST' });
+
+/** Провалидировать процесс. */
+export const validateProcess = (token: string, processId: string, versionId?: string): Promise<BpmValidationResultDto> =>
+    fetchJson(`/api/bpm/processes/${processId}/validate`, token, {
+        method: 'POST',
+        body: JSON.stringify({ versionId }),
+    });
+
+/** Сравнить две версии процесса. */
+export const diffProcessVersions = (token: string, processId: string, leftVersionId: string, rightVersionId: string): Promise<BpmVersionDiffDto> =>
+    fetchJson(`/api/bpm/processes/${processId}/diff`, token, {
+        method: 'POST',
+        body: JSON.stringify({ leftVersionId, rightVersionId }),
+    });
+
+/** Получить настройки процесса. */
+export const getProcessSettings = (token: string, processId: string): Promise<BpmProcessSettingsDto> =>
+    fetchJson(`/api/bpm/processes/${processId}/settings`, token);
+
+/** Обновить настройки процесса. */
+export const updateProcessSettings = (token: string, processId: string, data: UpdateBpmProcessSettingsRequest): Promise<BpmProcessSettingsDto> =>
+    fetchJson(`/api/bpm/processes/${processId}/settings`, token, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+    });
+
+/** Ротировать токен внешнего запуска. */
+export const rotateExternalToken = (token: string, processId: string): Promise<RotateExternalTokenResponse> =>
+    fetchJson(`/api/bpm/processes/${processId}/settings/external-token:rotate`, token, { method: 'POST' });
+
+/** Запустить debug-сессию процесса. */
+export const startDebugSession = (token: string, processId: string, data: StartBpmDebugSessionRequest): Promise<BpmDebugSessionDto> =>
+    fetchJson(`/api/bpm/processes/${processId}/debug`, token, {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+
+/** Получить debug-сессию процесса. */
+export const getDebugSession = (token: string, processId: string, sessionId: string): Promise<BpmDebugSessionDto> =>
+    fetchJson(`/api/bpm/processes/${processId}/debug/${sessionId}`, token);
+
+/** Выполнить шаг debug-сессии. */
+export const stepDebugSession = (token: string, processId: string, sessionId: string): Promise<BpmDebugSessionDto> =>
+    fetchJson(`/api/bpm/processes/${processId}/debug/${sessionId}/step`, token, { method: 'POST' });
+
+/** Завершить текущую задачу в debug-сессии. */
+export const completeDebugTask = (token: string, processId: string, sessionId: string): Promise<BpmDebugSessionDto> =>
+    fetchJson(`/api/bpm/processes/${processId}/debug/${sessionId}/complete`, token, { method: 'POST' });
+
+/** Пропустить текущую задачу в debug-сессии. */
+export const skipDebugTask = (token: string, processId: string, sessionId: string): Promise<BpmDebugSessionDto> =>
+    fetchJson(`/api/bpm/processes/${processId}/debug/${sessionId}/skip`, token, { method: 'POST' });
+
+/** Скачать PDF-регламент процесса. */
+export async function downloadProcessDocument(token: string, processId: string): Promise<Blob> {
+    const res = await fetch(`/api/bpm/processes/${processId}/document`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error(text || `HTTP ${res.status}`);
+    }
+    return res.blob();
+}
 
 // ─── Конфигурации элементов ──────────────────────────────────────────────────
 
@@ -239,4 +427,3 @@ export const replaceRaci = (token: string, processId: string, entries: UpsertRac
         method: 'PUT',
         body: JSON.stringify(entries),
     });
-
