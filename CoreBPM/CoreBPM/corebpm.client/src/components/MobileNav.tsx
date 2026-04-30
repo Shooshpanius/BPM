@@ -15,7 +15,6 @@ export function MobileNav({ active, onSelect }: MobileNavProps) {
     return (
         <nav className="mobile-nav" aria-label="Разделы системы">
             <MobileNavItem
-                id="contacts"
                 label="Контакты"
                 active={active === 'contacts'}
                 onClick={() => onSelect('contacts')}
@@ -29,7 +28,6 @@ export function MobileNav({ active, onSelect }: MobileNavProps) {
                 }
             />
             <MobileNavItem
-                id="bpm-processes"
                 label="Процессы"
                 active={active === 'bpm-processes'}
                 onClick={() => onSelect('bpm-processes')}
@@ -45,7 +43,6 @@ export function MobileNav({ active, onSelect }: MobileNavProps) {
                 }
             />
             <MobileNavItem
-                id="bpm-rules"
                 label="Правила"
                 active={active === 'bpm-rules'}
                 onClick={() => onSelect('bpm-rules')}
@@ -60,7 +57,6 @@ export function MobileNav({ active, onSelect }: MobileNavProps) {
                 }
             />
             <MobileNavItem
-                id="bpm-forms"
                 label="Формы"
                 active={active === 'bpm-forms'}
                 onClick={() => onSelect('bpm-forms')}
@@ -74,7 +70,6 @@ export function MobileNav({ active, onSelect }: MobileNavProps) {
                 }
             />
             <MobileNavItem
-                id="bpm-scripts"
                 label="Сценарии"
                 active={active === 'bpm-scripts'}
                 onClick={() => onSelect('bpm-scripts')}
@@ -87,7 +82,6 @@ export function MobileNav({ active, onSelect }: MobileNavProps) {
             />
             {canManageOrg && (
                 <MobileNavItem
-                    id="org-structure"
                     label="Оргструктура"
                     active={active === 'org-structure'}
                     onClick={() => onSelect('org-structure')}
@@ -109,7 +103,6 @@ export function MobileNav({ active, onSelect }: MobileNavProps) {
 }
 
 interface MobileNavItemProps {
-    id: string;
     label: string;
     active: boolean;
     onClick: () => void;
