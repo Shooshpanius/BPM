@@ -929,3 +929,67 @@ public record SendMessageRequest(
     /// <summary>Ключ корреляции (опционально).</summary>
     string? CorrelationKey = null
 );
+
+// ─── FR-BPM-03.1: Предложения по улучшению ──────────────────────────────────
+
+/// <summary>Запрос на создание предложения по улучшению процесса.</summary>
+public record CreateImprovementRequest(
+    string Subject,
+    string? Description,
+    Guid? SourceInstanceId = null,
+    string? SourceTaskElementId = null
+);
+
+/// <summary>Запрос на принятие предложения (владелец процесса).</summary>
+public record AcceptImprovementRequest(
+    Guid AssignedUserId,
+    DateTimeOffset DueDate,
+    string? Comment = null
+);
+
+/// <summary>Запрос на отклонение предложения (владелец процесса).</summary>
+public record RejectImprovementRequest(
+    string? Comment = null
+);
+
+/// <summary>Запрос на завершение реализации улучшения (исполнитель).</summary>
+public record CompleteImprovementRequest(
+    string Resolution
+);
+
+/// <summary>Полное представление предложения по улучшению.</summary>
+public record ImprovementDto(
+    Guid Id,
+    Guid ProcessId,
+    string ProcessName,
+    string Subject,
+    string? Description,
+    CoreBPM.Server.Domain.Bpm.BpmImprovementStatus Status,
+    Guid InitiatorUserId,
+    string InitiatorDisplayName,
+    Guid? AssignedUserId,
+    string? AssignedDisplayName,
+    DateTimeOffset? DueDate,
+    string? ReviewComment,
+    string? Resolution,
+    Guid? SourceInstanceId,
+    string? SourceTaskElementId,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt,
+    DateTimeOffset? ReviewedAt,
+    DateTimeOffset? CompletedAt
+);
+
+/// <summary>Запись монитора улучшений — процесс с количеством предложений по статусам.</summary>
+public record ImprovementMonitorItemDto(
+    Guid ProcessId,
+    string ProcessName,
+    int PendingCount,
+    int AcceptedCount,
+    int InProgressCount,
+    int CompletedCount,
+    int RejectedCount,
+    int TotalCount,
+    IReadOnlyList<string> Owners,
+    IReadOnlyList<string> Curators
+);

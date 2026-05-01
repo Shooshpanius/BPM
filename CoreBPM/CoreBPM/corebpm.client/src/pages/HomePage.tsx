@@ -20,6 +20,7 @@ import { ExecutionQueuePage } from './bpm/ExecutionQueuePage';
 import ProcessDocumentationPage from './bpm/ProcessDocumentationPage';
 import { MigrationPackagesPage } from './bpm/MigrationPackagesPage';
 import { MigrationPackageDetailPage } from './bpm/MigrationPackageDetailPage';
+import { ImprovementsPage } from './bpm/ImprovementsPage';
 import { MyColleaguesWidget } from '../components/org/MyColleaguesWidget';
 import './HomePage.css';
 
@@ -166,6 +167,7 @@ export function HomePage({ onAdmin }: HomePageProps) {
                             : <FormsPage onOpenBuilder={setFormBuilderId} />
                     )}
                     {section === 'bpm-scripts' && <ScriptsPage />}
+                    {section === 'bpm-improvements' && <ImprovementsPage />}
                     {section === 'bpm-queue' && <ExecutionQueuePage />}
                     {section === 'bpm-documentation' && <ProcessDocumentationPage />}
                     {section === 'bpm-migration' && (

@@ -47,6 +47,7 @@ public class AppDbContext : DbContext
     public DbSet<BpmDesignerExtension> BpmDesignerExtensions => Set<BpmDesignerExtension>();
     public DbSet<BpmGlobalModule> BpmGlobalModules => Set<BpmGlobalModule>();
     public DbSet<BpmGlobalModuleFile> BpmGlobalModuleFiles => Set<BpmGlobalModuleFile>();
+    public DbSet<BpmImprovement> BpmImprovements => Set<BpmImprovement>();
     public DbSet<BpmSignal> BpmSignals => Set<BpmSignal>();
     public DbSet<BpmMessage> BpmMessages => Set<BpmMessage>();
     public DbSet<DmnTable> DmnTables => Set<DmnTable>();
@@ -929,6 +930,22 @@ public class AppDbContext : DbContext
             e.HasOne(c => c.Instance)
              .WithMany()
              .HasForeignKey(c => c.InstanceId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<BpmImprovement>(e =>
+        {
+            e.ToTable("bpm_improvements");
+            e.HasKey(i => i.Id);
+            e.Property(i => i.Subject).IsRequired().HasMaxLength(500);
+            e.Property(i => i.SourceTaskElementId).HasMaxLength(200);
+
+            e.HasIndex(i => i.ProcessId);
+            e.HasIndex(i => i.InitiatorUserId);
+            e.HasIndex(i => i.Status);
+
+            e.HasOne(i => i.Process)
+             .WithMany()
+             .HasForeignKey(i => i.ProcessId)
              .OnDelete(DeleteBehavior.Cascade);
         });
     }
