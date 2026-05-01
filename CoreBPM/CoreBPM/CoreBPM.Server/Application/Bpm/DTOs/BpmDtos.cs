@@ -758,3 +758,70 @@ public record DocSnapshotDto(
     DateTimeOffset GeneratedAt,
     string HtmlContent
 );
+
+// ──────────────────────────────────────────────────────────────────────────────
+// FR-BPM-02.7: Пакеты миграции версий
+// ──────────────────────────────────────────────────────────────────────────────
+
+/// <summary>Краткое представление пакета миграции для списка.</summary>
+public record MigrationPackageListItemDto(
+    Guid Id,
+    string Name,
+    Guid CreatedByUserId,
+    string CreatedByUserName,
+    BpmMigrationPackageStatus Status,
+    bool IsActive,
+    DateTimeOffset CreatedAt,
+    int TotalItems,
+    int MigratedItems,
+    int ErrorItems
+);
+
+/// <summary>Полное представление пакета миграции с суммарной статистикой.</summary>
+public record MigrationPackageDetailDto(
+    Guid Id,
+    string Name,
+    Guid CreatedByUserId,
+    string CreatedByUserName,
+    BpmMigrationPackageStatus Status,
+    bool IsActive,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? CompletedAt,
+    int TotalItems,
+    int MigratedItems,
+    int ErrorItems,
+    int PendingItems
+);
+
+/// <summary>Представление элемента пакета миграции.</summary>
+public record MigrationItemDto(
+    Guid Id,
+    Guid PackageId,
+    Guid InstanceId,
+    string InstanceName,
+    Guid ProcessId,
+    string ProcessName,
+    Guid TargetVersionId,
+    int TargetVersionNumber,
+    BpmMigrationItemStatus Status,
+    string? ErrorComment,
+    string? ManualChangeUrl,
+    DateTimeOffset? ProcessedAt
+);
+
+/// <summary>Запрос на создание пакета миграции.</summary>
+public record CreateMigrationPackageRequest(
+    string Name,
+    IReadOnlyList<MigrationItemRequest> Items
+);
+
+/// <summary>Элемент запроса на создание пакета миграции.</summary>
+public record MigrationItemRequest(
+    Guid InstanceId,
+    Guid TargetVersionId
+);
+
+/// <summary>Запрос на ручную обработку элемента миграции.</summary>
+public record ManualMigrateItemRequest(
+    string? ManualChangeUrl
+);

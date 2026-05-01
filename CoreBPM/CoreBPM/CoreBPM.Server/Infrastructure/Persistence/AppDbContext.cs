@@ -34,6 +34,8 @@ public class AppDbContext : DbContext
     public DbSet<BpmSavedFilter> BpmSavedFilters => Set<BpmSavedFilter>();
     public DbSet<BpmExecutionJob> BpmExecutionJobs => Set<BpmExecutionJob>();
     public DbSet<BpmProcessDocSnapshot> BpmProcessDocSnapshots => Set<BpmProcessDocSnapshot>();
+    public DbSet<BpmVersionMigrationPackage> BpmVersionMigrationPackages => Set<BpmVersionMigrationPackage>();
+    public DbSet<BpmVersionMigrationItem> BpmVersionMigrationItems => Set<BpmVersionMigrationItem>();
     public DbSet<BpmTaskForm> BpmTaskForms => Set<BpmTaskForm>();
     public DbSet<BpmTaskFormVersion> BpmTaskFormVersions => Set<BpmTaskFormVersion>();
     public DbSet<BpmInstanceStatusConfig> BpmInstanceStatusConfigs => Set<BpmInstanceStatusConfig>();
@@ -846,6 +848,48 @@ public class AppDbContext : DbContext
             // Код уникален в рамках организации
             e.HasIndex(m => new { m.OrganizationId, m.Code }).IsUnique();
             e.HasIndex(m => m.OrganizationId);
+        });
+
+        modelBuilder.Entity<BpmVersionMigrationPackage>(e =>
+        {
+            e.ToTable("bpm_version_migration_packages");
+            e.HasKey(p => p.Id);
+            e.Property(p => p.Name).IsRequired().HasMaxLength(300);
+            e.Property(p => p.Status).HasConversion<int>();
+            e.HasIndex(p => p.Status);
+            e.HasIndex(p => p.CreatedByUserId);
+        });
+
+        modelBuilder.Entity<BpmVersionMigrationItem>(e =>
+        {
+            e.ToTable("bpm_version_migration_items");
+            e.HasKey(i => i.Id);
+            e.Property(i => i.Status).HasConversion<int>();
+            e.Property(i => i.ErrorComment).HasMaxLength(2000);
+            e.Property(i => i.ManualChangeUrl).HasMaxLength(1000);
+            e.HasIndex(i => i.PackageId);
+            e.HasIndex(i => i.InstanceId);
+            e.HasIndex(i => i.Status);
+
+            e.HasOne(i => i.Package)
+             .WithMany(p => p.Items)
+             .HasForeignKey(i => i.PackageId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(i => i.Instance)
+             .WithMany()
+             .HasForeignKey(i => i.InstanceId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasOne(i => i.Process)
+             .WithMany()
+             .HasForeignKey(i => i.ProcessId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasOne(i => i.TargetVersion)
+             .WithMany()
+             .HasForeignKey(i => i.TargetVersionId)
+             .OnDelete(DeleteBehavior.Restrict);
         });
     }
 

@@ -91,6 +91,9 @@ builder.Services.AddScoped<IBpmMonitorService, BpmMonitorService>();
 builder.Services.AddScoped<IBpmQueueService, BpmQueueService>();
 builder.Services.AddScoped<IBpmDocumentationService, BpmDocumentationService>();
 
+// Регистрация сервиса миграции версий (FR-BPM-02.7)
+builder.Services.AddScoped<IBpmMigrationService, BpmMigrationService>();
+
 // Регистрация сервисов Scripts (сценарии, расширения, глобальные модули FR-BPM-01.7)
 builder.Services.AddScoped<IBpmScriptService, BpmScriptService>();
 builder.Services.AddScoped<IBpmExtensionService, BpmExtensionService>();
