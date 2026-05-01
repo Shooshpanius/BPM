@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using CoreBPM.Server.Application.Bpm.DTOs;
 using CoreBPM.Server.Application.Bpm.Interfaces;
 
@@ -87,5 +88,43 @@ public class BpmProcessAnalyticsController : ControllerBase
         var bytes = await _service.ExportSummaryToExcelAsync(from, to, ct);
         var fileName = $"analytics_summary_{DateTimeOffset.UtcNow:yyyyMMdd_HHmm}.xlsx";
         return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+    }
+
+    /// <summary>Возвращает тренд KPI процесса по периодам (FR-BPM-03.2).</summary>
+    [HttpGet("api/analytics/processes/{processId:guid}/trend")]
+    [ProducesResponseType(typeof(IReadOnlyList<ProcessTrendPointDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<IReadOnlyList<ProcessTrendPointDto>>> GetTrend(
+        Guid processId,
+        [FromQuery] string granularity = "week",
+        [FromQuery] DateTimeOffset? from = null,
+        [FromQuery] DateTimeOffset? to = null,
+        CancellationToken ct = default)
+        => Ok(await _service.GetProcessTrendAsync(processId, granularity, from, to, ct));
+
+    /// <summary>Возвращает список последних KPI-алертов (Admin).</summary>
+    [HttpGet("api/admin/kpi-alerts")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(typeof(IReadOnlyList<KpiAlertDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<KpiAlertDto>>> GetKpiAlerts(
+        [FromQuery] int limit = 50,
+        CancellationToken ct = default)
+    {
+        var db = HttpContext.RequestServices.GetRequiredService<Infrastructure.Persistence.AppDbContext>();
+        var alerts = await db.BpmKpiAlerts
+            .AsNoTracking()
+            .OrderByDescending(a => a.DetectedAt)
+            .Take(Math.Clamp(limit, 1, 200))
+            .Select(a => new KpiAlertDto(
+                a.Id,
+                a.ProcessId,
+                a.ProcessName,
+                a.AvgCycleTimeMinutes,
+                a.TargetCycleTimeMinutes,
+                a.ExceedPercent,
+                a.DetectedAt))
+            .ToListAsync(ct);
+
+        return Ok(alerts);
     }
 }

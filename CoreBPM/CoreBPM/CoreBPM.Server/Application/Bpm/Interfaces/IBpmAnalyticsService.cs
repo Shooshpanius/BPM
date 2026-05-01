@@ -22,4 +22,12 @@ public interface IBpmAnalyticsService
 
     /// <summary>Генерирует файл Excel со сводным отчётом по всем процессам за период.</summary>
     Task<byte[]> ExportSummaryToExcelAsync(DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
+
+    /// <summary>Возвращает тренд KPI процесса с разбивкой по периодам (FR-BPM-03.2).</summary>
+    Task<IReadOnlyList<ProcessTrendPointDto>> GetProcessTrendAsync(
+        Guid processId,
+        string granularity,
+        DateTimeOffset? from,
+        DateTimeOffset? to,
+        CancellationToken ct = default);
 }

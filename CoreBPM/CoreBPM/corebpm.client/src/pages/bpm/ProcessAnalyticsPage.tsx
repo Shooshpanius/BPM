@@ -33,7 +33,7 @@ interface Props {
     onBack: () => void;
 }
 
-type Tab = 'overview' | 'heatmap' | 'funnel' | 'compare';
+type Tab = 'overview' | 'heatmap' | 'funnel' | 'compare' | 'trend';
 
 // ─── Компонент ───────────────────────────────────────────────────────────────
 
@@ -57,6 +57,8 @@ export function ProcessAnalyticsPage({ processId, processName, onBack }: Props) 
     const [heatmap, setHeatmap] = useState<api.NodeHeatMapDto[]>([]);
     const [funnel, setFunnel] = useState<api.ProcessFunnelStepDto[]>([]);
     const [comparison, setComparison] = useState<api.ProcessVersionComparisonDto | null>(null);
+    const [trend, setTrend] = useState<api.ProcessTrendPointDto[]>([]);
+    const [trendGranularity, setTrendGranularity] = useState<'day' | 'week' | 'month'>('week');
 
     // Состояние загрузки
     const [loading, setLoading] = useState(false);
@@ -174,6 +176,26 @@ export function ProcessAnalyticsPage({ processId, processName, onBack }: Props) 
         if (tab === 'compare') loadComparison();
     }, [tab, loadComparison]);
 
+    // ─── Загрузка «Тренд» ────────────────────────────────────────────────────
+
+    const loadTrend = useCallback(async () => {
+        if (!token) return;
+        setLoading(true);
+        setError(null);
+        try {
+            const data = await api.getProcessTrend(token, processId, trendGranularity, fromDate || undefined, toDate || undefined);
+            setTrend(data);
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'Ошибка загрузки');
+        } finally {
+            setLoading(false);
+        }
+    }, [token, processId, trendGranularity, fromDate, toDate]);
+
+    useEffect(() => {
+        if (tab === 'trend') loadTrend();
+    }, [tab, loadTrend]);
+
     // ─── Render ──────────────────────────────────────────────────────────────
 
     const periodBar = (
@@ -193,7 +215,7 @@ export function ProcessAnalyticsPage({ processId, processName, onBack }: Props) 
             </div>
 
             <div className="pa-tabs">
-                {(['overview', 'heatmap', 'funnel', 'compare'] as Tab[]).map(t => (
+                {(['overview', 'heatmap', 'funnel', 'compare', 'trend'] as Tab[]).map(t => (
                     <button
                         key={t}
                         className={`pa-tab${tab === t ? ' active' : ''}`}
@@ -209,6 +231,7 @@ export function ProcessAnalyticsPage({ processId, processName, onBack }: Props) 
                 {tab === 'heatmap' && renderHeatmap()}
                 {tab === 'funnel' && renderFunnel()}
                 {tab === 'compare' && renderCompare()}
+                {tab === 'trend' && renderTrend()}
             </div>
         </div>
     );
@@ -405,6 +428,108 @@ export function ProcessAnalyticsPage({ processId, processName, onBack }: Props) 
             </>
         );
     }
+
+    // ─── Вкладка «Тренд» ─────────────────────────────────────────────────────
+
+    function renderTrend() {
+        const maxAvg = trend.length > 0 ? Math.max(...trend.map(p => p.avgCycleTimeMinutes), 1) : 1;
+        const maxInstances = trend.length > 0 ? Math.max(...trend.map(p => p.totalInstances), 1) : 1;
+
+        return (
+            <>
+                <div className="pa-period">
+                    <label>Гранулярность:</label>
+                    <select
+                        value={trendGranularity}
+                        onChange={e => setTrendGranularity(e.target.value as 'day' | 'week' | 'month')}
+                    >
+                        <option value="day">День</option>
+                        <option value="week">Неделя</option>
+                        <option value="month">Месяц</option>
+                    </select>
+                    <label>Период:</label>
+                    <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} />
+                    <span>—</span>
+                    <input type="date" value={toDate} onChange={e => setToDate(e.target.value)} />
+                    <button className="pa-btn-load" onClick={loadTrend}>Обновить</button>
+                </div>
+                {loading && <div className="pa-loading">Загрузка…</div>}
+                {error && <div className="pa-error">{error}</div>}
+                {!loading && !error && trend.length === 0 && (
+                    <div className="pa-empty">Нет данных за выбранный период</div>
+                )}
+                {!loading && !error && trend.length > 0 && (
+                    <>
+                        {/* SVG-линейный график avg cycle time */}
+                        <div className="pa-trend-title">Среднее время цикла (мин)</div>
+                        <TrendLineChart
+                            points={trend.map(p => ({
+                                label: p.periodStart.slice(0, 10),
+                                value: p.avgCycleTimeMinutes,
+                                maxValue: maxAvg,
+                            }))}
+                            color="#3b7dd8"
+                        />
+
+                        <div className="pa-trend-title" style={{ marginTop: '1.5rem' }}>% выполнено в срок</div>
+                        <TrendLineChart
+                            points={trend.map(p => ({
+                                label: p.periodStart.slice(0, 10),
+                                value: p.onTimePercent,
+                                maxValue: 100,
+                            }))}
+                            color="#22b573"
+                        />
+
+                        {/* Таблица */}
+                        <div className="pa-table" style={{ marginTop: '1.5rem' }}>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Период</th>
+                                        <th>Экземпляров</th>
+                                        <th>Avg цикл (мин)</th>
+                                        <th>% в срок</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {trend.map((p, i) => (
+                                        <tr key={i}>
+                                            <td>{p.periodStart.slice(0, 10)}</td>
+                                            <td>{p.totalInstances}</td>
+                                            <td>{fmtMin(p.avgCycleTimeMinutes)}</td>
+                                            <td>
+                                                <span style={{
+                                                    color: p.onTimePercent >= 80 ? '#22b573' : p.onTimePercent >= 50 ? '#f59e0b' : '#ef4444',
+                                                    fontWeight: 600,
+                                                }}>
+                                                    {p.onTimePercent}%
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Мини-гистограмма экземпляров */}
+                        <div className="pa-trend-title" style={{ marginTop: '1.5rem' }}>Количество экземпляров по периодам</div>
+                        <div className="pa-trend-bars">
+                            {trend.map((p, i) => (
+                                <div key={i} className="pa-trend-bar-col" title={`${p.periodStart.slice(0, 10)}: ${p.totalInstances} экз.`}>
+                                    <div
+                                        className="pa-trend-bar"
+                                        style={{ height: `${Math.round((p.totalInstances / maxInstances) * 80)}px` }}
+                                    />
+                                    <div className="pa-trend-bar-label">{p.totalInstances}</div>
+                                </div>
+                            ))}
+                        </div>
+                    </>
+                )}
+            </>
+        );
+    }
 }
 
 // ─── Вспомогательные компоненты ──────────────────────────────────────────────
@@ -451,7 +576,67 @@ const TAB_LABELS: Record<string, string> = {
     heatmap: 'Тепловая карта',
     funnel: 'Воронка',
     compare: 'Сравнение версий',
+    trend: 'Тренд',
 };
+
+// ─── SVG линейный график тренда ──────────────────────────────────────────────
+
+interface TrendPoint {
+    label: string;
+    value: number;
+    maxValue: number;
+}
+
+function TrendLineChart({ points, color }: { points: TrendPoint[]; color: string }) {
+    if (points.length === 0) return null;
+
+    const W = 700;
+    const H = 120;
+    const PAD_X = 40;
+    const PAD_Y = 16;
+    const chartW = W - PAD_X * 2;
+    const chartH = H - PAD_Y * 2;
+
+    const maxVal = Math.max(...points.map(p => p.value), points[0].maxValue * 0.01, 1);
+
+    const cx = (i: number) => PAD_X + (i / Math.max(points.length - 1, 1)) * chartW;
+    const cy = (v: number) => PAD_Y + chartH - (v / maxVal) * chartH;
+
+    const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${cx(i).toFixed(1)} ${cy(p.value).toFixed(1)}`).join(' ');
+
+    return (
+        <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', maxWidth: W, height: H, display: 'block', overflow: 'visible' }}>
+            {/* Горизонтальные сетки */}
+            {[0, 0.25, 0.5, 0.75, 1].map(f => (
+                <line key={f} x1={PAD_X} x2={W - PAD_X}
+                    y1={PAD_Y + chartH * (1 - f)} y2={PAD_Y + chartH * (1 - f)}
+                    stroke="#e2e8f0" strokeWidth="1" />
+            ))}
+            {/* Линия */}
+            <path d={pathD} fill="none" stroke={color} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+            {/* Точки */}
+            {points.map((p, i) => (
+                <circle key={i} cx={cx(i)} cy={cy(p.value)} r={4} fill={color}>
+                    <title>{`${p.label}: ${p.value}`}</title>
+                </circle>
+            ))}
+            {/* Подписи X */}
+            {points.filter((_, i) => points.length <= 10 || i % Math.ceil(points.length / 10) === 0).map((p, _, arr) => {
+                const origIdx = points.indexOf(p);
+                return (
+                    <text key={origIdx} x={cx(origIdx)} y={H - 2}
+                        textAnchor="middle" fontSize="10" fill="#8896a5">
+                        {p.label.slice(5)} {/* MM-DD */}
+                    </text>
+                );
+            })}
+            {/* Подпись Y max */}
+            <text x={PAD_X - 4} y={PAD_Y + 4} textAnchor="end" fontSize="10" fill="#8896a5">
+                {Math.round(maxVal)}
+            </text>
+        </svg>
+    );
+}
 
 interface CompareRow {
     label: string;

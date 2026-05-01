@@ -197,3 +197,23 @@ export async function getImprovementMonitorMy(token: string): Promise<Improvemen
 export async function getImprovementMonitorFull(token: string): Promise<ImprovementMonitorItemDto[]> {
     return apiFetch('/api/bpm/improvements/monitor/full', token);
 }
+
+
+/** Скачивает CSV-файл с предложениями по улучшению. */
+export function exportImprovements(token: string): void {
+    fetch('/api/bpm/improvements/export', {
+        headers: { Authorization: `Bearer ${token}` },
+    })
+        .then(res => {
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return res.blob();
+        })
+        .then(blob => {
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `improvements_${new Date().toISOString().slice(0, 10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+        })
+        .catch(err => console.error('Ошибка экспорта предложений:', err));
+}

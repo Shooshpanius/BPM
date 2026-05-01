@@ -134,6 +134,20 @@ public class BpmImprovementsController : ControllerBase
     public async Task<ActionResult<IReadOnlyList<ImprovementMonitorItemDto>>> MonitorFull(CancellationToken ct)
         => Ok(await _service.GetMonitorFullAsync(ct));
 
+    /// <summary>Экспортирует список предложений по улучшению в CSV-файл (FR-BPM-03.1).</summary>
+    [HttpGet("api/bpm/improvements/export")]
+    [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Export(CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        var isAdmin = User.IsInRole("Admin");
+
+        var bytes = await _service.ExportToCsvAsync(userId.Value, isAdmin, ct);
+        var fileName = $"improvements_{DateTimeOffset.UtcNow:yyyy-MM-dd}.csv";
+        return File(bytes, "text/csv; charset=utf-8", fileName);
+    }
+
     private Guid? GetCurrentUserId()
     {
         var sub = User.FindFirstValue(ClaimTypes.NameIdentifier)

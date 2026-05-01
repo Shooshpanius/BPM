@@ -420,4 +420,92 @@ public class BpmAnalyticsService : IBpmAnalyticsService
         }
         return result;
     }
+
+    // ─── Тренд KPI процесса ──────────────────────────────────────────────────
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<ProcessTrendPointDto>> GetProcessTrendAsync(
+        Guid processId,
+        string granularity,
+        DateTimeOffset? from,
+        DateTimeOffset? to,
+        CancellationToken ct = default)
+    {
+        var process = await _db.BpmProcesses.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == processId && !p.IsDeleted, ct)
+            ?? throw new NotFoundException("Процесс не найден");
+
+        var query = _db.BpmInstances.AsNoTracking()
+            .Where(i => i.ProcessId == processId
+                        && i.State == BpmInstanceState.Completed
+                        && i.CompletedAt != null);
+
+        if (from.HasValue) query = query.Where(i => i.StartedAt >= from.Value);
+        if (to.HasValue)   query = query.Where(i => i.StartedAt <= to.Value);
+
+        var instances = await query
+            .Select(i => new { i.StartedAt, i.CompletedAt })
+            .ToListAsync(ct);
+
+        if (instances.Count == 0) return [];
+
+        // Определяем шаг группировки
+        TimeSpan step = granularity?.ToLower() switch
+        {
+            "day"   => TimeSpan.FromDays(1),
+            "month" => TimeSpan.FromDays(30),
+            _       => TimeSpan.FromDays(7), // week по умолчанию
+        };
+
+        // Начало первого периода
+        var minDate = instances.Min(i => i.StartedAt);
+        var maxDate = instances.Max(i => i.StartedAt);
+
+        // Привязываем начало к понедельнику/месяцу/дню в зависимости от гранулярности
+        DateTimeOffset periodStart = granularity?.ToLower() switch
+        {
+            "month" => new DateTimeOffset(minDate.Year, minDate.Month, 1, 0, 0, 0, TimeSpan.Zero),
+            "day"   => new DateTimeOffset(minDate.Year, minDate.Month, minDate.Day, 0, 0, 0, TimeSpan.Zero),
+            _       => minDate.AddDays(-(int)minDate.DayOfWeek).Date == default
+                            ? minDate
+                            : new DateTimeOffset(
+                                  minDate.AddDays(-(int)minDate.DayOfWeek + (int)DayOfWeek.Monday).Date,
+                                  TimeSpan.Zero),
+        };
+
+        var result = new List<ProcessTrendPointDto>();
+
+        while (periodStart <= maxDate)
+        {
+            var periodEnd = granularity?.ToLower() == "month"
+                ? periodStart.AddMonths(1)
+                : periodStart.Add(step);
+
+            var bucket = instances
+                .Where(i => i.StartedAt >= periodStart && i.StartedAt < periodEnd)
+                .ToList();
+
+            if (bucket.Count > 0)
+            {
+                var cycleTimes = bucket
+                    .Select(i => (i.CompletedAt!.Value - i.StartedAt).TotalMinutes)
+                    .ToList();
+
+                double avg = cycleTimes.Average();
+                double onTime = process.TargetCycleTimeMinutes.HasValue
+                    ? cycleTimes.Count(t => t <= process.TargetCycleTimeMinutes.Value) * 100.0 / cycleTimes.Count
+                    : 0;
+
+                result.Add(new ProcessTrendPointDto(
+                    periodStart,
+                    bucket.Count,
+                    Math.Round(avg, 2),
+                    Math.Round(onTime, 1)));
+            }
+
+            periodStart = granularity?.ToLower() == "month" ? periodStart.AddMonths(1) : periodStart.Add(step);
+        }
+
+        return result;
+    }
 }

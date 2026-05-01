@@ -324,3 +324,46 @@
     color: var(--color-text-secondary, #5a6072);
     font-size: 0.875rem;
 }
+
+/* ─── Тренд ────────────────────────────────────────────────────────────────── */
+.pa-trend-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-text-secondary, #5a6072);
+    margin-bottom: 0.25rem;
+}
+.pa-trend-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    padding: 8px 0 24px;
+    border-bottom: 1px solid #e2e8f0;
+    overflow-x: auto;
+}
+.pa-trend-bar-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 28px;
+}
+.pa-trend-bar {
+    width: 20px;
+    background: #3b7dd8;
+    border-radius: 3px 3px 0 0;
+    min-height: 4px;
+}
+.pa-trend-bar-label {
+    font-size: 0.65rem;
+    color: #8896a5;
+    margin-top: 2px;
+}
+.pa-btn-load {
+    padding: 0.25rem 0.75rem;
+    background: var(--color-primary, #3b7dd8);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.8125rem;
+}
+.pa-btn-load:hover { opacity: 0.85; }

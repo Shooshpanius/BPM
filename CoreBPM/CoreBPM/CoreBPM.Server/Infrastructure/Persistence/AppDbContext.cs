@@ -48,6 +48,7 @@ public class AppDbContext : DbContext
     public DbSet<BpmGlobalModule> BpmGlobalModules => Set<BpmGlobalModule>();
     public DbSet<BpmGlobalModuleFile> BpmGlobalModuleFiles => Set<BpmGlobalModuleFile>();
     public DbSet<BpmImprovement> BpmImprovements => Set<BpmImprovement>();
+    public DbSet<BpmKpiAlert> BpmKpiAlerts => Set<BpmKpiAlert>();
     public DbSet<BpmSignal> BpmSignals => Set<BpmSignal>();
     public DbSet<BpmMessage> BpmMessages => Set<BpmMessage>();
     public DbSet<DmnTable> DmnTables => Set<DmnTable>();
@@ -947,6 +948,15 @@ public class AppDbContext : DbContext
              .WithMany()
              .HasForeignKey(i => i.ProcessId)
              .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<BpmKpiAlert>(e =>
+        {
+            e.ToTable("bpm_kpi_alerts");
+            e.HasKey(a => a.Id);
+            e.Property(a => a.ProcessName).IsRequired().HasMaxLength(300);
+            e.HasIndex(a => a.ProcessId);
+            e.HasIndex(a => a.DetectedAt);
         });
     }
 

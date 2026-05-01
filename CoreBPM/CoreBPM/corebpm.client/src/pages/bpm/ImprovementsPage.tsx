@@ -7,7 +7,7 @@ import type {
     BpmImprovementStatus,
     ImprovementMonitorItemDto,
 } from '../../api/improvementsApi';
-import { IMPROVEMENT_STATUS_LABELS, IMPROVEMENT_STATUS_BADGE } from '../../api/improvementsApi';
+import { IMPROVEMENT_STATUS_LABELS, IMPROVEMENT_STATUS_BADGE, exportImprovements } from '../../api/improvementsApi';
 import { CreateImprovementDialog } from '../../components/bpm/CreateImprovementDialog';
 import { getDirectoryEmployees } from '../../api/orgDirectoryApi';
 import type { DirectoryEmployeeDto } from '../../api/orgDirectoryApi';
@@ -185,9 +185,15 @@ export function ImprovementsPage() {
         <div className="imp-root">
             <div className="imp-header">
                 <h1 className="imp-title">Улучшения</h1>
-                <button className="imp-btn-primary" onClick={() => setShowCreate(true)}>
-                    + Предложить улучшение
-                </button>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button className="imp-btn-secondary" onClick={() => token && exportImprovements(token)}
+                        title="Экспорт в CSV">
+                        ⬇ CSV
+                    </button>
+                    <button className="imp-btn-primary" onClick={() => setShowCreate(true)}>
+                        + Предложить улучшение
+                    </button>
+                </div>
             </div>
 
             {/* Вкладки */}

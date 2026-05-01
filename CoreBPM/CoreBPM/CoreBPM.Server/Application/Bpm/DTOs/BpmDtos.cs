@@ -1069,3 +1069,22 @@ public record ProcessFunnelStepDto(
     int PassedCount,
     double DropOffPercent
 );
+
+/// <summary>Точка тренда KPI процесса за период (FR-BPM-03.2).</summary>
+public record ProcessTrendPointDto(
+    DateTimeOffset PeriodStart,
+    int TotalInstances,
+    double AvgCycleTimeMinutes,
+    double OnTimePercent
+);
+
+/// <summary>DTO для KPI-алерта превышения порогового значения (FR-BPM-03.2).</summary>
+public record KpiAlertDto(
+    Guid Id,
+    Guid ProcessId,
+    string ProcessName,
+    double AvgCycleTimeMinutes,
+    double TargetCycleTimeMinutes,
+    double ExceedPercent,
+    DateTimeOffset DetectedAt
+);

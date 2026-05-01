@@ -144,6 +144,44 @@ export const getAnalyticsSummary = (
         token,
     );
 
+// ─── Тренд KPI ───────────────────────────────────────────────────────────────
+
+export interface ProcessTrendPointDto {
+    periodStart: string;
+    totalInstances: number;
+    avgCycleTimeMinutes: number;
+    onTimePercent: number;
+}
+
+export const getProcessTrend = (
+    token: string,
+    processId: string,
+    granularity?: string,
+    from?: string,
+    to?: string,
+): Promise<ProcessTrendPointDto[]> =>
+    apiFetch(
+        `/api/analytics/processes/${processId}/trend${buildQs({ granularity, from, to })}`,
+        token,
+    );
+
+// ─── KPI-алерты ──────────────────────────────────────────────────────────────
+
+export interface KpiAlertDto {
+    id: string;
+    processId: string;
+    processName: string;
+    avgCycleTimeMinutes: number;
+    targetCycleTimeMinutes: number;
+    exceedPercent: number;
+    detectedAt: string;
+}
+
+export const getKpiAlerts = (token: string, limit = 50): Promise<KpiAlertDto[]> =>
+    apiFetch(`/api/admin/kpi-alerts${buildQs({ limit: String(limit) })}`, token);
+
+// ─── Excel-экспорт сводного отчёта ───────────────────────────────────────────
+
 export const exportAnalyticsSummary = (
     token: string,
     from?: string,

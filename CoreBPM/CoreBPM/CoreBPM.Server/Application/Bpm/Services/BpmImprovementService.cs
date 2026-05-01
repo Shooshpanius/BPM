@@ -436,4 +436,77 @@ public class BpmImprovementService : IBpmImprovementService
         if (!isOwner)
             throw new ForbiddenException("Рассматривать предложения может только владелец процесса или администратор.");
     }
+
+    // ─── CSV-экспорт ─────────────────────────────────────────────────────────
+
+    private static readonly Dictionary<BpmImprovementStatus, string> StatusLabels = new()
+    {
+        [BpmImprovementStatus.Pending]    = "Ожидает рассмотрения",
+        [BpmImprovementStatus.Accepted]   = "Принято",
+        [BpmImprovementStatus.InProgress] = "В работе",
+        [BpmImprovementStatus.Completed]  = "Завершено",
+        [BpmImprovementStatus.Rejected]   = "Отклонено",
+    };
+
+    /// <inheritdoc />
+    public async Task<byte[]> ExportToCsvAsync(
+        Guid userId,
+        bool isAdmin,
+        CancellationToken ct = default)
+    {
+        var query = _db.BpmImprovements.AsNoTracking()
+            .Include(i => i.Process);
+
+        // Не-администраторы видят только свои предложения
+        IQueryable<BpmImprovement> filtered = isAdmin
+            ? query
+            : query.Where(i => i.InitiatorUserId == userId);
+
+        var items = await filtered
+            .OrderByDescending(i => i.CreatedAt)
+            .Select(i => new
+            {
+                ProcessName    = i.Process != null ? i.Process.Name : string.Empty,
+                i.Subject,
+                i.Status,
+                i.InitiatorUserId,
+                i.CreatedAt,
+                i.CompletedAt,
+                i.Resolution,
+            })
+            .ToListAsync(ct);
+
+        // Собираем имена инициаторов
+        var userIds = items.Select(i => i.InitiatorUserId).Distinct().ToList();
+        var userNames = await _db.OrgUsers.AsNoTracking()
+            .Where(u => userIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => $"{u.LastName} {u.FirstName}".Trim(), ct);
+
+        // Формируем CSV
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("Процесс;Тема;Статус;Инициатор;Дата создания;Дата завершения;Резолюция");
+
+        foreach (var item in items)
+        {
+            var initiator = userNames.TryGetValue(item.InitiatorUserId, out var name) ? name : item.InitiatorUserId.ToString();
+            var status    = StatusLabels.TryGetValue(item.Status, out var lbl) ? lbl : item.Status.ToString();
+            var created   = item.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+            var completed = item.CompletedAt?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? string.Empty;
+            var resolution = EscapeCsv(item.Resolution ?? string.Empty);
+
+            sb.AppendLine(
+                $"{EscapeCsv(item.ProcessName)};{EscapeCsv(item.Subject)};{status};{EscapeCsv(initiator)};{created};{completed};{resolution}");
+        }
+
+        return System.Text.Encoding.UTF8.GetPreamble()
+            .Concat(System.Text.Encoding.UTF8.GetBytes(sb.ToString()))
+            .ToArray();
+    }
+
+    private static string EscapeCsv(string value)
+    {
+        if (value.Contains(';') || value.Contains('"') || value.Contains('\n'))
+            return $"\"{value.Replace("\"", "\"\"")}\"";
+        return value;
+    }
 }

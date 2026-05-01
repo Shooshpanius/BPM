@@ -70,4 +70,13 @@ public interface IBpmImprovementService
     /// <summary>Возвращает полный монитор улучшений по всем процессам. Только для Admin.</summary>
     Task<IReadOnlyList<ImprovementMonitorItemDto>> GetMonitorFullAsync(
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Генерирует CSV-файл со списком предложений по улучшению (FR-BPM-03.1).
+    /// Столбцы: процесс, тема, статус, инициатор, дата создания, дата завершения, резолюция.
+    /// </summary>
+    Task<byte[]> ExportToCsvAsync(
+        Guid userId,
+        bool isAdmin,
+        CancellationToken ct = default);
 }
