@@ -1,3 +1,4 @@
+using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
 using CoreBPM.Server.Application.Bpm.DTOs;
 using CoreBPM.Server.Application.Bpm.Interfaces;
@@ -258,6 +259,76 @@ public class BpmAnalyticsService : IBpmAnalyticsService
         }
 
         return result.OrderByDescending(r => r.TotalInstances).ToList();
+    }
+
+    // ─── Экспорт в Excel ─────────────────────────────────────────────────────
+
+    /// <inheritdoc />
+    public async Task<byte[]> ExportSummaryToExcelAsync(
+        DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default)
+    {
+        var items = await GetAnalyticsSummaryAsync(from, to, ct);
+
+        using var workbook  = new XLWorkbook();
+        var ws = workbook.Worksheets.Add("Аналитика процессов");
+
+        // Заголовки
+        var headers = new[]
+        {
+            "Процесс",
+            "Экземпляров",
+            "Avg цикл (мин)",
+            "% в срок",
+            "% ошибок",
+            "Целевое время цикла (мин)",
+            "Целевой % в срок",
+            "Откл. avg от цели (мин)",
+        };
+
+        for (int col = 1; col <= headers.Length; col++)
+        {
+            var cell = ws.Cell(1, col);
+            cell.Value = headers[col - 1];
+            cell.Style.Font.Bold = true;
+            cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#2563EB");
+            cell.Style.Font.FontColor = XLColor.White;
+        }
+
+        // Данные
+        int row = 2;
+        foreach (var item in items)
+        {
+            double? deltaAvg = item.TargetCycleTimeMinutes.HasValue
+                ? item.AvgCycleTimeMinutes - item.TargetCycleTimeMinutes.Value
+                : null;
+
+            ws.Cell(row, 1).Value = item.ProcessName;
+            ws.Cell(row, 2).Value = item.TotalInstances;
+            ws.Cell(row, 3).Value = Math.Round(item.AvgCycleTimeMinutes, 2);
+            ws.Cell(row, 4).Value = item.OnTimePercent;
+            ws.Cell(row, 5).Value = item.FaultedPercent;
+            ws.Cell(row, 6).Value = item.TargetCycleTimeMinutes.HasValue
+                ? (XLCellValue)item.TargetCycleTimeMinutes.Value : Blank.Value;
+            ws.Cell(row, 7).Value = item.TargetOnTimePercent.HasValue
+                ? (XLCellValue)item.TargetOnTimePercent.Value : Blank.Value;
+            ws.Cell(row, 8).Value = deltaAvg.HasValue
+                ? (XLCellValue)Math.Round(deltaAvg.Value, 2) : Blank.Value;
+
+            // Подсветка отклонения: красный если avg > цель, зелёный если <= цель
+            if (deltaAvg.HasValue)
+            {
+                var deltaCell = ws.Cell(row, 8);
+                deltaCell.Style.Font.FontColor = deltaAvg.Value > 0 ? XLColor.Red : XLColor.Green;
+            }
+
+            row++;
+        }
+
+        ws.Columns().AdjustToContents();
+
+        using var ms = new MemoryStream();
+        workbook.SaveAs(ms);
+        return ms.ToArray();
     }
 
     // ─── Вспомогательные методы ──────────────────────────────────────────────

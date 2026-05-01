@@ -23,6 +23,31 @@
     font-size: 1.0625rem;
     font-weight: 600;
     color: var(--color-text, #1a1d23);
+    flex: 1;
+}
+
+.as-export-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    background: #2563eb;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.as-export-btn:hover:not(:disabled) {
+    background: #1d4ed8;
+}
+
+.as-export-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
 }
 
 .as-body {

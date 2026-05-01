@@ -11,10 +11,12 @@ namespace CoreBPM.Server.Application.Bpm.Services;
 public class BpmImprovementService : IBpmImprovementService
 {
     private readonly AppDbContext _db;
+    private readonly IBpmNotificationService _notifications;
 
-    public BpmImprovementService(AppDbContext db)
+    public BpmImprovementService(AppDbContext db, IBpmNotificationService notifications)
     {
         _db = db;
+        _notifications = notifications;
     }
 
     /// <inheritdoc />
@@ -168,6 +170,15 @@ public class BpmImprovementService : IBpmImprovementService
         improvement.UpdatedAt = now;
 
         await _db.SaveChangesAsync(ct);
+
+        await _notifications.NotifyImprovementStatusChangedAsync(
+            improvement.Id,
+            improvement.Subject,
+            improvement.Process.Name,
+            "Accepted",
+            improvement.InitiatorUserId,
+            ct);
+
         return await BuildDtoAsync(improvement, improvement.Process.Name, ct);
     }
 
@@ -198,6 +209,15 @@ public class BpmImprovementService : IBpmImprovementService
         improvement.UpdatedAt = now;
 
         await _db.SaveChangesAsync(ct);
+
+        await _notifications.NotifyImprovementStatusChangedAsync(
+            improvement.Id,
+            improvement.Subject,
+            improvement.Process.Name,
+            "Rejected",
+            improvement.InitiatorUserId,
+            ct);
+
         return await BuildDtoAsync(improvement, improvement.Process.Name, ct);
     }
 
@@ -227,6 +247,15 @@ public class BpmImprovementService : IBpmImprovementService
         improvement.UpdatedAt = now;
 
         await _db.SaveChangesAsync(ct);
+
+        await _notifications.NotifyImprovementStatusChangedAsync(
+            improvement.Id,
+            improvement.Subject,
+            improvement.Process.Name,
+            "Completed",
+            improvement.InitiatorUserId,
+            ct);
+
         return await BuildDtoAsync(improvement, improvement.Process.Name, ct);
     }
 

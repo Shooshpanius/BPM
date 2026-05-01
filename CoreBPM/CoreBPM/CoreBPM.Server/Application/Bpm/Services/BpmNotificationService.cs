@@ -114,4 +114,34 @@ public class BpmNotificationService : IBpmNotificationService
             .Group($"user:{userId}")
             .SendAsync("bpm:notification", new { type = eventType, data = payload }, ct);
     }
+
+    /// <inheritdoc />
+    public async Task NotifyImprovementStatusChangedAsync(
+        Guid improvementId,
+        string subject,
+        string processName,
+        string newStatus,
+        Guid initiatorUserId,
+        CancellationToken ct = default)
+    {
+        var payload = new
+        {
+            type = "ImprovementStatusChanged",
+            improvementId,
+            subject,
+            processName,
+            newStatus,
+            occurredAt = DateTimeOffset.UtcNow,
+        };
+
+        // Уведомляем инициатора предложения
+        await _hub.Clients
+            .Group($"user:{initiatorUserId}")
+            .SendAsync("bpm:notification", payload, ct);
+
+        // Уведомляем всех администраторов
+        await _hub.Clients
+            .Group(BpmNotificationHub.AdminGroup)
+            .SendAsync("bpm:notification", payload, ct);
+    }
 }

@@ -171,6 +171,18 @@ function buildNotification(data: Record<string, unknown>): BpmNotification {
                 message = `Пакет миграции «${data.packageName ?? ''}» успешно завершён: переведено ${data.migrated ?? 0} из ${data.total ?? 0}`;
             }
             break;
+        case 'ImprovementStatusChanged': {
+            const statusLabels: Record<string, string> = {
+                Accepted: 'принято',
+                Rejected: 'отклонено',
+                Completed: 'завершено',
+            };
+            const statusLabel = typeof data.newStatus === 'string'
+                ? (statusLabels[data.newStatus] ?? data.newStatus)
+                : '';
+            message = `Предложение «${data.subject ?? ''}» по процессу «${data.processName ?? ''}» ${statusLabel}`;
+            break;
+        }
         default:
             message = typeof data.message === 'string' ? data.message : `Уведомление: ${type}`;
     }
@@ -189,6 +201,7 @@ function toastColor(type: string): string {
     switch (type) {
         case 'JobFailed': return '#ef4444';
         case 'MigrationPackageCompleted': return '#10b981';
+        case 'ImprovementStatusChanged': return '#f59e0b';
         default: return '#3b82f6';
     }
 }

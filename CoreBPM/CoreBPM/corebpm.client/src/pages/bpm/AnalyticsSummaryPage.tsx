@@ -56,6 +56,14 @@ export function AnalyticsSummaryPage({ onOpenProcess }: Props) {
         <div className="as-root">
             <div className="as-header">
                 <span className="as-title">📊 Аналитика: сводный отчёт</span>
+                <button
+                    className="as-export-btn"
+                    disabled={items.length === 0}
+                    title="Экспортировать таблицу в Excel"
+                    onClick={() => api.exportAnalyticsSummary(token!, fromDate || undefined, toDate || undefined)}
+                >
+                    📥 Экспорт в Excel
+                </button>
             </div>
 
             <div className="as-body">

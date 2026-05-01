@@ -19,4 +19,7 @@ public interface IBpmAnalyticsService
 
     /// <summary>Возвращает сводный отчёт по всем процессам организации за период.</summary>
     Task<IReadOnlyList<ProcessAnalyticsSummaryItemDto>> GetAnalyticsSummaryAsync(DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
+
+    /// <summary>Генерирует файл Excel со сводным отчётом по всем процессам за период.</summary>
+    Task<byte[]> ExportSummaryToExcelAsync(DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
 }

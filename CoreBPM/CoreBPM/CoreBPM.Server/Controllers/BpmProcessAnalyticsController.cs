@@ -74,4 +74,18 @@ public class BpmProcessAnalyticsController : ControllerBase
         [FromQuery] DateTimeOffset? to,
         CancellationToken ct)
         => Ok(await _service.GetAnalyticsSummaryAsync(from, to, ct));
+
+    /// <summary>Экспортирует сводный отчёт по всем процессам в файл Excel (Admin).</summary>
+    [HttpGet("api/analytics/summary/export")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ExportSummary(
+        [FromQuery] DateTimeOffset? from,
+        [FromQuery] DateTimeOffset? to,
+        CancellationToken ct)
+    {
+        var bytes = await _service.ExportSummaryToExcelAsync(from, to, ct);
+        var fileName = $"analytics_summary_{DateTimeOffset.UtcNow:yyyyMMdd_HHmm}.xlsx";
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+    }
 }

@@ -143,3 +143,27 @@ export const getAnalyticsSummary = (
         `/api/analytics/summary${buildQs({ from, to })}`,
         token,
     );
+
+export const exportAnalyticsSummary = (
+    token: string,
+    from?: string,
+    to?: string,
+): void => {
+    // Формируем URL с параметрами; токен передаём через query (файловая загрузка)
+    const qs = buildQs({ from, to });
+    const url = `/api/analytics/summary/export${qs}`;
+    // Создаём временный скрытый link с заголовком Authorization через fetch + Blob
+    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+        .then(res => {
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return res.blob();
+        })
+        .then(blob => {
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `analytics_summary_${new Date().toISOString().slice(0, 10)}.xlsx`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+        })
+        .catch(err => console.error('Ошибка экспорта:', err));
+};
