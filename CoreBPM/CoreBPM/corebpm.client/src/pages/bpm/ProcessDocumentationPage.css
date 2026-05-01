@@ -1,0 +1,332 @@
+.proc-doc-page {
+    padding: 24px 32px;
+    max-width: 1100px;
+}
+
+.proc-doc-header {
+    margin-bottom: 20px;
+}
+
+.proc-doc-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1e40af;
+    margin: 0 0 4px;
+}
+
+.proc-doc-subtitle {
+    font-size: 14px;
+    color: #6b7280;
+    margin: 0;
+}
+
+/* Вкладки */
+.proc-doc-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid #e5e7eb;
+    margin-bottom: 16px;
+}
+
+.proc-doc-tab {
+    padding: 8px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    cursor: pointer;
+    color: #6b7280;
+    margin-bottom: -2px;
+    transition: color .15s, border-color .15s;
+}
+
+.proc-doc-tab:hover { color: #1e40af; }
+.proc-doc-tab.active { color: #1e40af; border-bottom-color: #1e40af; }
+
+/* Тулбар */
+.proc-doc-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.proc-doc-check {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #374151;
+    cursor: pointer;
+}
+
+.proc-doc-btn-load {
+    padding: 7px 16px;
+    background: #1e40af;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background .15s;
+}
+
+.proc-doc-btn-load:hover:not(:disabled) { background: #1e3a8a; }
+.proc-doc-btn-load:disabled { background: #93c5fd; cursor: default; }
+
+/* Сообщения */
+.proc-doc-error {
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fca5a5;
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 13px;
+    margin-bottom: 12px;
+}
+
+.proc-doc-empty {
+    padding: 48px 24px;
+    text-align: center;
+    color: #9ca3af;
+    font-size: 14px;
+}
+
+/* Список процессов */
+.proc-doc-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Карточка процесса */
+.proc-doc-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+    transition: box-shadow .15s;
+}
+
+.proc-doc-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+.proc-doc-card.deleted { opacity: .65; border-color: #fca5a5; }
+
+.proc-doc-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    cursor: pointer;
+    user-select: none;
+    background: #f9fafb;
+    gap: 12px;
+}
+
+.proc-doc-card-head:hover { background: #f3f4f6; }
+
+.proc-doc-card-info {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
+}
+
+.proc-doc-card-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #111827;
+}
+
+.proc-doc-card-desc {
+    font-size: 12px;
+    color: #6b7280;
+    margin-left: 4px;
+}
+
+.proc-doc-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.badge-deleted { background: #fee2e2; color: #991b1b; }
+.badge-tag     { background: #dbeafe; color: #1d4ed8; }
+
+.proc-doc-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.proc-doc-versions-count {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.proc-doc-card-chevron {
+    font-size: 11px;
+    color: #9ca3af;
+}
+
+/* Тело карточки */
+.proc-doc-card-body {
+    padding: 16px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.proc-doc-no-versions {
+    font-size: 13px;
+    color: #9ca3af;
+    text-align: center;
+    padding: 16px;
+}
+
+.proc-doc-pdf-row {
+    margin-bottom: 12px;
+}
+
+.proc-doc-btn-pdf {
+    padding: 6px 14px;
+    background: #f3f4f6;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    color: #374151;
+    transition: background .15s;
+}
+
+.proc-doc-btn-pdf:hover { background: #e5e7eb; }
+
+/* Таблица версий */
+.proc-doc-versions-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.proc-doc-versions-table th {
+    background: #f3f4f6;
+    text-align: left;
+    padding: 7px 10px;
+    border: 1px solid #e5e7eb;
+    font-weight: 600;
+    color: #374151;
+    font-size: 12px;
+}
+
+.proc-doc-versions-table td {
+    padding: 7px 10px;
+    border: 1px solid #e5e7eb;
+    vertical-align: middle;
+}
+
+.proc-doc-versions-table tr:nth-child(even) td { background: #f9fafb; }
+
+.proc-doc-version-num {
+    font-weight: 700;
+    color: #1e40af;
+}
+
+.proc-doc-cell-date {
+    white-space: nowrap;
+    font-size: 12px;
+    color: #374151;
+}
+
+.proc-doc-cell-notes {
+    color: #374151;
+    max-width: 320px;
+}
+
+.proc-doc-muted {
+    color: #9ca3af;
+    font-size: 12px;
+}
+
+.proc-doc-btn-view {
+    padding: 4px 12px;
+    background: #1e40af;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background .15s;
+}
+
+.proc-doc-btn-view:hover { background: #1e3a8a; }
+
+/* ─── Просмотр снапшота ─── */
+.proc-doc-snapshot-page {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+.proc-doc-snapshot-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 20px;
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+    flex-shrink: 0;
+}
+
+.proc-doc-btn-back {
+    padding: 6px 14px;
+    background: #f3f4f6;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    color: #374151;
+    transition: background .15s;
+}
+
+.proc-doc-btn-back:hover { background: #e5e7eb; }
+
+.proc-doc-snapshot-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    font-size: 14px;
+    color: #111827;
+}
+
+.proc-doc-snapshot-ver {
+    background: #dbeafe;
+    color: #1d4ed8;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.proc-doc-snapshot-date {
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+.proc-doc-snapshot-iframe {
+    flex: 1;
+    width: 100%;
+    border: none;
+    min-height: calc(100vh - 140px);
+}
+
+.proc-doc-snapshot-loading {
+    padding: 64px;
+    text-align: center;
+    color: #9ca3af;
+    font-size: 14px;
+}

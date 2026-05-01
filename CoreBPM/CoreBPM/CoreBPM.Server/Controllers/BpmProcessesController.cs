@@ -98,7 +98,10 @@ public class BpmProcessesController : ControllerBase
         Guid versionId,
         [FromBody] PublishVersionRequest? request,
         CancellationToken ct)
-        => Ok(await _service.PublishVersionAsync(processId, versionId, request?.ReleaseNotes, ct));
+    {
+        var userId = GetCurrentUserId() ?? Guid.Empty;
+        return Ok(await _service.PublishVersionAsync(processId, versionId, request?.ReleaseNotes, userId, ct));
+    }
 
     /// <summary>Создаёт новый черновик-копию из исторической версии.</summary>
     [HttpPost("{processId:guid}/versions/{versionId:guid}/rollback")]

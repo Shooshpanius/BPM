@@ -33,6 +33,7 @@ public class AppDbContext : DbContext
     public DbSet<BpmInstanceParticipant> BpmInstanceParticipants => Set<BpmInstanceParticipant>();
     public DbSet<BpmSavedFilter> BpmSavedFilters => Set<BpmSavedFilter>();
     public DbSet<BpmExecutionJob> BpmExecutionJobs => Set<BpmExecutionJob>();
+    public DbSet<BpmProcessDocSnapshot> BpmProcessDocSnapshots => Set<BpmProcessDocSnapshot>();
     public DbSet<BpmTaskForm> BpmTaskForms => Set<BpmTaskForm>();
     public DbSet<BpmTaskFormVersion> BpmTaskFormVersions => Set<BpmTaskFormVersion>();
     public DbSet<BpmInstanceStatusConfig> BpmInstanceStatusConfigs => Set<BpmInstanceStatusConfig>();

@@ -33,7 +33,7 @@ public interface IBpmProcessService
     Task<BpmDiagramDto> SaveDiagramAsync(Guid processId, SaveDiagramRequest request, Guid savedByUserId, CancellationToken ct = default);
 
     /// <summary>Публикует указанную версию процесса.</summary>
-    Task<BpmProcessVersionInfoDto> PublishVersionAsync(Guid processId, Guid versionId, string? releaseNotes, CancellationToken ct = default);
+    Task<BpmProcessVersionInfoDto> PublishVersionAsync(Guid processId, Guid versionId, string? releaseNotes, Guid userId, CancellationToken ct = default);
 
     /// <summary>Возвращает список шаблонов организации.</summary>
     Task<IReadOnlyList<BpmProcessListItemDto>> GetTemplatesAsync(Guid organizationId, CancellationToken ct = default);

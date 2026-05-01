@@ -1042,3 +1042,51 @@ export const getNodeAnalytics = (
     if (to) q.set('to', to);
     return fetchJson(`/api/analytics/nodes?${q}`, token);
 };
+
+// ─── Документирование процессов (FR-BPM-02.6) ────────────────────────────────
+
+export interface ProcessDocVersionDto {
+    versionId: string;
+    versionNumber: number;
+    publishedAt?: string;
+    publishedByUserId: string;
+    releaseNotes?: string;
+    hasSnapshot: boolean;
+}
+
+export interface ProcessDocumentationItemDto {
+    processId: string;
+    processName: string;
+    processDescription?: string;
+    isDeleted: boolean;
+    tags: string[];
+    publishedVersions: ProcessDocVersionDto[];
+}
+
+export interface DocSnapshotDto {
+    snapshotId: string;
+    processId: string;
+    processName: string;
+    processVersionId: string;
+    versionNumber: number;
+    generatedAt: string;
+    htmlContent: string;
+}
+
+/** Документация «Мои процессы» (Владелец/Куратор). */
+export const getMyDocumentation = (token: string): Promise<ProcessDocumentationItemDto[]> =>
+    fetchJson('/api/bpm/documentation/my', token);
+
+/** Полная документация (Admin). */
+export const getAllDocumentation = (token: string, includeDeleted = false): Promise<ProcessDocumentationItemDto[]> =>
+    fetchJson(`/api/bpm/documentation/all?includeDeleted=${includeDeleted}`, token);
+
+/** HTML-снапшот документации версии процесса. */
+export const getDocSnapshot = (token: string, processId: string, versionId: string): Promise<DocSnapshotDto> =>
+    fetchJson(`/api/bpm/processes/${processId}/versions/${versionId}/snapshot`, token);
+
+/** Пересоздать снапшот (Admin). */
+export const regenerateDocSnapshot = (token: string, processId: string, versionId: string): Promise<void> =>
+    fetchJson(`/api/bpm/processes/${processId}/versions/${versionId}/snapshot/regenerate`, token, {
+        method: 'POST',
+    });

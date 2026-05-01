@@ -725,3 +725,36 @@ public record NodeAnalyticsDto(
 
 /// <summary>Запрос на перенос времени запуска таймера.</summary>
 public record RescheduleTimerRequest(DateTimeOffset NewRunAt);
+
+// ─── Документирование процессов (FR-BPM-02.6) ────────────────────────────────
+
+/// <summary>Процесс в подразделе «Документирование» с его опубликованными версиями.</summary>
+public record ProcessDocumentationItemDto(
+    Guid ProcessId,
+    string ProcessName,
+    string? ProcessDescription,
+    bool IsDeleted,
+    string[] Tags,
+    IReadOnlyList<ProcessDocVersionDto> PublishedVersions
+);
+
+/// <summary>Запись об опубликованной версии в таблице документации.</summary>
+public record ProcessDocVersionDto(
+    Guid VersionId,
+    int VersionNumber,
+    DateTimeOffset? PublishedAt,
+    Guid PublishedByUserId,
+    string? ReleaseNotes,
+    bool HasSnapshot
+);
+
+/// <summary>HTML-снапшот документации версии процесса.</summary>
+public record DocSnapshotDto(
+    Guid SnapshotId,
+    Guid ProcessId,
+    string ProcessName,
+    Guid ProcessVersionId,
+    int VersionNumber,
+    DateTimeOffset GeneratedAt,
+    string HtmlContent
+);

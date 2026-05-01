@@ -17,6 +17,7 @@ import { FormsPage } from './forms/FormsPage';
 import { FormBuilderPage } from './forms/FormBuilderPage';
 import { ScriptsPage } from './scripts/ScriptsPage';
 import { ExecutionQueuePage } from './bpm/ExecutionQueuePage';
+import ProcessDocumentationPage from './bpm/ProcessDocumentationPage';
 import { MyColleaguesWidget } from '../components/org/MyColleaguesWidget';
 import './HomePage.css';
 
@@ -162,6 +163,7 @@ export function HomePage({ onAdmin }: HomePageProps) {
                     )}
                     {section === 'bpm-scripts' && <ScriptsPage />}
                     {section === 'bpm-queue' && <ExecutionQueuePage />}
+                    {section === 'bpm-documentation' && <ProcessDocumentationPage />}
                 </main>
             </div>
             {isMobile && <MobileNav active={section} onSelect={handleSelect} />}

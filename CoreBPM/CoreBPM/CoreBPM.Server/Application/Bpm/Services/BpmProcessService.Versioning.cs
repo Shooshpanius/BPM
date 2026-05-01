@@ -10,7 +10,7 @@ public partial class BpmProcessService
     public async Task<BpmDiagramDto> GetVersionAsync(Guid processId, Guid versionId, CancellationToken ct = default)
         => MapVersionToDto(await GetVersionEntityAsync(processId, versionId, ct, asNoTracking: true));
 
-    public async Task<BpmProcessVersionInfoDto> PublishVersionAsync(Guid processId, Guid versionId, string? releaseNotes, CancellationToken ct = default)
+    public async Task<BpmProcessVersionInfoDto> PublishVersionAsync(Guid processId, Guid versionId, string? releaseNotes, Guid userId, CancellationToken ct = default)
     {
         var version = await GetVersionEntityAsync(processId, versionId, ct);
         var validation = await ValidateProcessAsync(processId, versionId, ct);
@@ -39,6 +39,17 @@ public partial class BpmProcessService
             process.UpdatedAt = now;
 
         await _db.SaveChangesAsync(ct);
+
+        // Генерируем HTML-снапшот документации при публикации версии
+        try
+        {
+            await _documentation.GenerateAndSaveSnapshotAsync(processId, versionId, userId, ct);
+        }
+        catch
+        {
+            // Не блокируем публикацию при ошибке генерации документации
+        }
+
         return MapVersionInfo(version);
     }
 
