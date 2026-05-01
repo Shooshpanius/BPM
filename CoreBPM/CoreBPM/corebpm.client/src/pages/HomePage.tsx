@@ -21,6 +21,8 @@ import ProcessDocumentationPage from './bpm/ProcessDocumentationPage';
 import { MigrationPackagesPage } from './bpm/MigrationPackagesPage';
 import { MigrationPackageDetailPage } from './bpm/MigrationPackageDetailPage';
 import { ImprovementsPage } from './bpm/ImprovementsPage';
+import { AnalyticsSummaryPage } from './bpm/AnalyticsSummaryPage';
+import { ProcessAnalyticsPage } from './bpm/ProcessAnalyticsPage';
 import { MyColleaguesWidget } from '../components/org/MyColleaguesWidget';
 import './HomePage.css';
 
@@ -40,6 +42,7 @@ export function HomePage({ onAdmin }: HomePageProps) {
     const [dmnEditorTableId, setDmnEditorTableId] = useState<string | null>(null);
     const [formBuilderId, setFormBuilderId] = useState<string | null>(null);
     const [migrationPackageId, setMigrationPackageId] = useState<string | null>(null);
+    const [analyticsProcess, setAnalyticsProcess] = useState<{ id: string; name: string } | null>(null);
 
     const handleSelect = (s: SidebarSection) => {
         // Обычные пользователи не имеют доступа к разделу «Оргструктура»
@@ -50,6 +53,7 @@ export function HomePage({ onAdmin }: HomePageProps) {
         setFormBuilderId(null);
         setOpenInstanceId(null);
         setMigrationPackageId(null);
+        setAnalyticsProcess(null);
         setSection(s);
     };
 
@@ -168,6 +172,17 @@ export function HomePage({ onAdmin }: HomePageProps) {
                     )}
                     {section === 'bpm-scripts' && <ScriptsPage />}
                     {section === 'bpm-improvements' && <ImprovementsPage />}
+                    {section === 'bpm-analytics' && (
+                        analyticsProcess
+                            ? <ProcessAnalyticsPage
+                                processId={analyticsProcess.id}
+                                processName={analyticsProcess.name}
+                                onBack={() => setAnalyticsProcess(null)}
+                              />
+                            : <AnalyticsSummaryPage
+                                onOpenProcess={(id, name) => setAnalyticsProcess({ id, name })}
+                              />
+                    )}
                     {section === 'bpm-queue' && <ExecutionQueuePage />}
                     {section === 'bpm-documentation' && <ProcessDocumentationPage />}
                     {section === 'bpm-migration' && (

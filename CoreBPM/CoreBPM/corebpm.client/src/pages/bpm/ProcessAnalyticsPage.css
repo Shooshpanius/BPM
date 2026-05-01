@@ -1,0 +1,326 @@
+/* ─── Аналитика процесса (FR-BPM-03.2) ─── */
+
+.pa-root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #f8f9fc;
+    overflow: hidden;
+}
+
+.pa-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 20px;
+    height: 52px;
+    background: #fff;
+    border-bottom: 1px solid var(--color-border, #dde1e7);
+    flex-shrink: 0;
+}
+
+.pa-back-btn {
+    padding: 5px 10px;
+    background: transparent;
+    border: 1px solid var(--color-border, #dde1e7);
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    color: var(--color-text-secondary, #5a6072);
+    cursor: pointer;
+    white-space: nowrap;
+}
+.pa-back-btn:hover { background: #f0f2f5; }
+
+.pa-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text, #1a1d23);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pa-tabs {
+    display: flex;
+    gap: 0;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--color-border, #dde1e7);
+    background: #fff;
+    flex-shrink: 0;
+}
+
+.pa-tab {
+    padding: 10px 16px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    font-size: 0.875rem;
+    color: var(--color-text-secondary, #5a6072);
+    cursor: pointer;
+    white-space: nowrap;
+}
+.pa-tab:hover { color: var(--color-primary, #3366ff); }
+.pa-tab.active {
+    color: var(--color-primary, #3366ff);
+    border-bottom-color: var(--color-primary, #3366ff);
+    font-weight: 600;
+}
+
+.pa-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+/* ─── Период ─── */
+.pa-period {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+.pa-period label {
+    font-size: 0.8125rem;
+    color: var(--color-text-secondary, #5a6072);
+}
+.pa-period input[type="date"] {
+    padding: 5px 8px;
+    border: 1px solid var(--color-border, #dde1e7);
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    background: #fff;
+}
+.pa-period select {
+    padding: 5px 8px;
+    border: 1px solid var(--color-border, #dde1e7);
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    background: #fff;
+    cursor: pointer;
+}
+
+/* ─── KPI-карточки ─── */
+.pa-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.pa-kpi-card {
+    background: #fff;
+    border: 1px solid var(--color-border, #dde1e7);
+    border-radius: 10px;
+    padding: 14px 16px;
+}
+.pa-kpi-card.good  { border-left: 4px solid #22c55e; }
+.pa-kpi-card.bad   { border-left: 4px solid #ef4444; }
+.pa-kpi-card.neutral { border-left: 4px solid #94a3b8; }
+
+.pa-kpi-label {
+    font-size: 0.75rem;
+    color: var(--color-text-secondary, #5a6072);
+    margin-bottom: 4px;
+}
+.pa-kpi-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--color-text, #1a1d23);
+    line-height: 1.2;
+}
+.pa-kpi-target {
+    font-size: 0.75rem;
+    color: var(--color-text-secondary, #5a6072);
+    margin-top: 2px;
+}
+
+/* ─── Гистограмма ─── */
+.pa-histogram {
+    background: #fff;
+    border: 1px solid var(--color-border, #dde1e7);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 24px;
+}
+.pa-histogram-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: var(--color-text, #1a1d23);
+}
+.pa-histogram-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    height: 100px;
+}
+.pa-histogram-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100%;
+    justify-content: flex-end;
+}
+.pa-histogram-bar {
+    width: 100%;
+    background: var(--color-primary, #3366ff);
+    border-radius: 3px 3px 0 0;
+    min-height: 2px;
+    opacity: 0.8;
+    transition: opacity 0.15s;
+}
+.pa-histogram-bar:hover { opacity: 1; }
+.pa-histogram-tick {
+    font-size: 0.6rem;
+    color: var(--color-text-secondary, #5a6072);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    text-align: center;
+}
+
+/* ─── Таблица тепловой карты ─── */
+.pa-table {
+    background: #fff;
+    border: 1px solid var(--color-border, #dde1e7);
+    border-radius: 10px;
+    overflow: hidden;
+}
+.pa-table table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+.pa-table th {
+    background: #f8f9fc;
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--color-text-secondary, #5a6072);
+    border-bottom: 1px solid var(--color-border, #dde1e7);
+    white-space: nowrap;
+}
+.pa-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #f0f2f5;
+    vertical-align: middle;
+}
+.pa-table tr:last-child td { border-bottom: none; }
+
+.pa-heat-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.pa-heat-bar {
+    height: 10px;
+    border-radius: 5px;
+    background: linear-gradient(90deg, #22c55e 0%, #eab308 50%, #ef4444 100%);
+    flex-shrink: 0;
+}
+
+/* ─── Воронка ─── */
+.pa-funnel {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.pa-funnel-step {
+    background: #fff;
+    border: 1px solid var(--color-border, #dde1e7);
+    border-radius: 8px;
+    padding: 10px 16px;
+    display: grid;
+    grid-template-columns: 1fr auto auto auto;
+    align-items: center;
+    gap: 16px;
+}
+.pa-funnel-name {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-text, #1a1d23);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.pa-funnel-reached { font-size: 0.8125rem; color: #3366ff; }
+.pa-funnel-passed  { font-size: 0.8125rem; color: #22c55e; }
+.pa-funnel-dropoff { font-size: 0.8125rem; font-weight: 600; }
+.pa-funnel-dropoff.high { color: #ef4444; }
+.pa-funnel-dropoff.mid  { color: #eab308; }
+.pa-funnel-dropoff.low  { color: #22c55e; }
+
+/* ─── Сравнение версий ─── */
+.pa-compare-selectors {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+.pa-compare-selectors label {
+    font-size: 0.8125rem;
+    color: var(--color-text-secondary, #5a6072);
+}
+.pa-compare-selectors select {
+    padding: 5px 10px;
+    border: 1px solid var(--color-border, #dde1e7);
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    background: #fff;
+    cursor: pointer;
+}
+
+.pa-compare-table {
+    background: #fff;
+    border: 1px solid var(--color-border, #dde1e7);
+    border-radius: 10px;
+    overflow: hidden;
+}
+.pa-compare-table table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+.pa-compare-table th {
+    background: #f8f9fc;
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--color-text-secondary, #5a6072);
+    border-bottom: 1px solid var(--color-border, #dde1e7);
+}
+.pa-compare-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #f0f2f5;
+}
+.pa-compare-table tr:last-child td { border-bottom: none; }
+.pa-delta-positive { color: #22c55e; font-weight: 600; }
+.pa-delta-negative { color: #ef4444; font-weight: 600; }
+.pa-delta-neutral  { color: var(--color-text-secondary, #5a6072); }
+
+/* ─── Состояния ─── */
+.pa-loading {
+    padding: 40px;
+    text-align: center;
+    color: var(--color-text-secondary, #5a6072);
+    font-size: 0.9375rem;
+}
+.pa-error {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    padding: 16px;
+    color: #b91c1c;
+    font-size: 0.875rem;
+}
+.pa-empty {
+    padding: 40px;
+    text-align: center;
+    color: var(--color-text-secondary, #5a6072);
+    font-size: 0.875rem;
+}
