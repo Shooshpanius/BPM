@@ -894,3 +894,46 @@ export const updateSavedFilter = (token: string, filterId: string, data: SaveFil
 /** Удалить сохранённый фильтр. */
 export const deleteSavedFilter = (token: string, filterId: string): Promise<void> =>
     fetchJson(`/api/bpm/saved-filters/${filterId}`, token, { method: 'DELETE' });
+
+// ─── Монитор процессов (FR-BPM-02.4) ─────────────────────────────────────────
+
+export interface BpmProcessMonitorItemDto {
+    processId: string;
+    processName: string;
+    processDescription?: string;
+    activeVersionNumber?: number;
+    publishedAt?: string;
+    activeCount: number;
+    suspendedCount: number;
+    completedCount: number;
+    cancelledCount: number;
+    owners: string[];
+    curators: string[];
+}
+
+export interface BpmProcessStatsDto {
+    activeCount: number;
+    suspendedCount: number;
+    completedCount: number;
+    cancelledCount: number;
+    totalCount: number;
+    processName: string;
+    processDescription?: string;
+    activeVersionNumber?: number;
+    publishedAt?: string;
+    createdAt: string;
+    owners: string[];
+    curators: string[];
+}
+
+/** «Мой монитор» — процессы, где пользователь Владелец/Куратор, со статистикой. */
+export const getMyMonitorProcesses = (token: string): Promise<BpmProcessMonitorItemDto[]> =>
+    fetchJson('/api/bpm/monitor/my', token);
+
+/** «Полный монитор» — все процессы системы со статистикой (Admin). */
+export const getFullMonitorProcesses = (token: string): Promise<BpmProcessMonitorItemDto[]> =>
+    fetchJson('/api/bpm/monitor/full', token);
+
+/** Детальная статистика для страницы монитора конкретного процесса. */
+export const getProcessStats = (token: string, processId: string): Promise<BpmProcessStatsDto> =>
+    fetchJson(`/api/bpm/processes/${processId}/stats`, token);

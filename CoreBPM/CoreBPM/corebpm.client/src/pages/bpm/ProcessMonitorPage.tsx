@@ -1,7 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import * as api from '../../api/bpmApi';
-import type { BpmInstanceListItemDto, BpmInstanceState, InstanceStatusOptionDto } from '../../api/bpmApi';
+import type {
+    BpmInstanceListItemDto,
+    BpmInstanceState,
+    InstanceStatusOptionDto,
+    BpmProcessStatsDto,
+} from '../../api/bpmApi';
 import './ProcessMonitorPage.css';
 
 // ─── Утилиты ─────────────────────────────────────────────────────────────────
@@ -60,6 +65,7 @@ export function ProcessMonitorPage({ processId, processName, onBack, onOpenInsta
     const [statusOptions, setStatusOptions] = useState<InstanceStatusOptionDto[]>([]);
     const [filterState, setFilterState] = useState<BpmInstanceState | ''>('');
     const [instances, setInstances] = useState<BpmInstanceListItemDto[]>([]);
+    const [stats, setStats] = useState<BpmProcessStatsDto | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [page, setPage] = useState(1);
@@ -72,12 +78,14 @@ export function ProcessMonitorPage({ processId, processName, onBack, onOpenInsta
         setLoading(true);
         setError(null);
         try {
-            const [statusConfig, insts] = await Promise.all([
+            const [statusConfig, insts, processStats] = await Promise.all([
                 api.getStatusConfig(token, processId).catch(() => ({ options: [] })),
                 api.getInstances(token, processId, page, PAGE_SIZE),
+                api.getProcessStats(token, processId).catch(() => null),
             ]);
             setStatusOptions(statusConfig.options ?? []);
             setInstances(insts);
+            setStats(processStats);
         } catch (e) {
             setError(e instanceof Error ? e.message : 'Ошибка загрузки');
         } finally {
@@ -95,6 +103,8 @@ export function ProcessMonitorPage({ processId, processName, onBack, onOpenInsta
 
     // ─── Kanban-группировка по состоянию ─────────────────────────────────────
 
+    const ALWAYS_SHOWN_STATES: (BpmInstanceState | '')[] = ['Active' as BpmInstanceState];
+
     const kanbanColumns: { state: BpmInstanceState | ''; label: string; items: BpmInstanceListItemDto[] }[] =
         ([
             { state: 'Active' as BpmInstanceState, label: 'Выполняется' },
@@ -104,7 +114,7 @@ export function ProcessMonitorPage({ processId, processName, onBack, onOpenInsta
         ]).map(col => ({
             ...col,
             items: instances.filter(i => i.state === col.state),
-        })).filter(col => col.items.length > 0 || col.state === 'Active');
+        })).filter(col => col.items.length > 0 || ALWAYS_SHOWN_STATES.includes(col.state));
 
     return (
         <div className="pmon-root">
@@ -126,6 +136,39 @@ export function ProcessMonitorPage({ processId, processName, onBack, onOpenInsta
                     >⊞ Kanban</button>
                 </div>
             </div>
+
+            {/* Информационная панель процесса */}
+            {stats && (
+                <div className="pmon-info-panel">
+                    <div className="pmon-info-stats">
+                        <InfoStat label="Активных" value={stats.activeCount} cls="info-stat--active" />
+                        <InfoStat label="На паузе" value={stats.suspendedCount} cls="info-stat--suspended" />
+                        <InfoStat label="Завершено" value={stats.completedCount} cls="info-stat--completed" />
+                        <InfoStat label="Прервано" value={stats.cancelledCount} cls="info-stat--cancelled" />
+                        <InfoStat label="Всего" value={stats.totalCount} cls="info-stat--total" />
+                    </div>
+                    {(stats.owners.length > 0 || stats.curators.length > 0 || stats.activeVersionNumber != null) && (
+                        <div className="pmon-info-meta">
+                            {stats.activeVersionNumber != null && (
+                                <span className="pmon-meta-item">
+                                    <span className="pmon-meta-label">Версия:</span> v{stats.activeVersionNumber}
+                                    {stats.publishedAt && ` (${new Date(stats.publishedAt).toLocaleDateString('ru-RU')})`}
+                                </span>
+                            )}
+                            {stats.owners.length > 0 && (
+                                <span className="pmon-meta-item">
+                                    <span className="pmon-meta-label">Владелец:</span> {stats.owners.join(', ')}
+                                </span>
+                            )}
+                            {stats.curators.length > 0 && (
+                                <span className="pmon-meta-item">
+                                    <span className="pmon-meta-label">Кураторы:</span> {stats.curators.join(', ')}
+                                </span>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Фильтры */}
             <div className="pmon-filters">
@@ -277,6 +320,17 @@ export function ProcessMonitorPage({ processId, processName, onBack, onOpenInsta
                     ))}
                 </div>
             )}
+        </div>
+    );
+}
+
+// ─── Вспомогательный компонент статистики ────────────────────────────────────
+
+function InfoStat({ label, value, cls }: { label: string; value: number; cls: string }) {
+    return (
+        <div className={`pmon-info-stat ${cls}`}>
+            <span className="pmon-info-stat-value">{value}</span>
+            <span className="pmon-info-stat-label">{label}</span>
         </div>
     );
 }

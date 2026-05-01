@@ -2,7 +2,7 @@ import { useAuth } from '../context/AuthContext';
 import { APP_VERSION, LAST_PR_DATE } from '../version';
 import './Sidebar.css';
 
-export type SidebarSection = 'contacts' | 'org-structure' | 'bpm-processes' | 'bpm-my-processes' | 'bpm-rules' | 'bpm-forms' | 'bpm-scripts';
+export type SidebarSection = 'contacts' | 'org-structure' | 'bpm-processes' | 'bpm-my-processes' | 'bpm-monitor' | 'bpm-rules' | 'bpm-forms' | 'bpm-scripts';
 
 interface SidebarProps {
     active: SidebarSection;
@@ -57,6 +57,19 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
                         <circle cx="12" cy="8" r="4"/>
                         <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
                         <path d="M16 11l1.5 1.5L21 9"/>
+                    </svg>
+                }
+            />
+            <SidebarItem
+                id="bpm-monitor"
+                label="Монитор"
+                active={active === 'bpm-monitor'}
+                onClick={() => onSelect('bpm-monitor')}
+                icon={
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <rect x="2" y="3" width="20" height="14" rx="2"/>
+                        <path d="M8 21h8M12 17v4"/>
+                        <path d="M7 8h2v5H7zM11 6h2v7h-2zM15 10h2v3h-2z"/>
                     </svg>
                 }
             />

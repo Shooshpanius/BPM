@@ -643,3 +643,36 @@ public record SaveFilterRequest(
     string Name,
     string FiltersJson
 );
+
+// ─── Монитор процессов (FR-BPM-02.4) ─────────────────────────────────────────
+
+/// <summary>Элемент списка монитора процессов: процесс + статистика экземпляров.</summary>
+public record BpmProcessMonitorItemDto(
+    Guid ProcessId,
+    string ProcessName,
+    string? ProcessDescription,
+    int? ActiveVersionNumber,
+    DateTimeOffset? PublishedAt,
+    int ActiveCount,
+    int SuspendedCount,
+    int CompletedCount,
+    int CancelledCount,
+    IReadOnlyList<string> Owners,
+    IReadOnlyList<string> Curators
+);
+
+/// <summary>Детальная статистика экземпляров для страницы монитора процесса.</summary>
+public record BpmProcessStatsDto(
+    int ActiveCount,
+    int SuspendedCount,
+    int CompletedCount,
+    int CancelledCount,
+    int TotalCount,
+    string ProcessName,
+    string? ProcessDescription,
+    int? ActiveVersionNumber,
+    DateTimeOffset? PublishedAt,
+    DateTimeOffset CreatedAt,
+    IReadOnlyList<string> Owners,
+    IReadOnlyList<string> Curators
+);
