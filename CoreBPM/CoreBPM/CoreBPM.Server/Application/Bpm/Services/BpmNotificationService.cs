@@ -39,6 +39,40 @@ public class BpmNotificationService : IBpmNotificationService
     }
 
     /// <inheritdoc />
+    public async Task NotifyMigrationPackageCompletedAsync(
+        Guid packageId,
+        string packageName,
+        bool hasErrors,
+        int total,
+        int migrated,
+        int failed,
+        Guid createdByUserId,
+        CancellationToken ct = default)
+    {
+        var payload = new
+        {
+            type = "MigrationPackageCompleted",
+            packageId,
+            packageName,
+            hasErrors,
+            total,
+            migrated,
+            failed,
+            occurredAt = DateTimeOffset.UtcNow,
+        };
+
+        // Уведомляем всех администраторов
+        await _hub.Clients
+            .Group(BpmNotificationHub.AdminGroup)
+            .SendAsync("bpm:notification", payload, ct);
+
+        // Уведомляем создателя пакета (если он не является администратором)
+        await _hub.Clients
+            .Group($"user:{createdByUserId}")
+            .SendAsync("bpm:notification", payload, ct);
+    }
+
+    /// <inheritdoc />
     public async Task NotifyUserAsync(
         Guid userId,
         string eventType,

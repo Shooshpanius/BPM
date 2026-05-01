@@ -164,6 +164,13 @@ function buildNotification(data: Record<string, unknown>): BpmNotification {
             message = `Ошибка задания: ${data.processName ?? ''}${data.instanceName ? ` / ${data.instanceName}` : ''}`;
             if (data.error) message += ` — ${data.error}`;
             break;
+        case 'MigrationPackageCompleted':
+            if (data.hasErrors) {
+                message = `Пакет миграции «${data.packageName ?? ''}» завершён с ошибками: переведено ${data.migrated ?? 0} / ${data.total ?? 0}, с ошибками ${data.failed ?? 0}`;
+            } else {
+                message = `Пакет миграции «${data.packageName ?? ''}» успешно завершён: переведено ${data.migrated ?? 0} из ${data.total ?? 0}`;
+            }
+            break;
         default:
             message = typeof data.message === 'string' ? data.message : `Уведомление: ${type}`;
     }
@@ -181,6 +188,7 @@ function buildNotification(data: Record<string, unknown>): BpmNotification {
 function toastColor(type: string): string {
     switch (type) {
         case 'JobFailed': return '#ef4444';
+        case 'MigrationPackageCompleted': return '#10b981';
         default: return '#3b82f6';
     }
 }

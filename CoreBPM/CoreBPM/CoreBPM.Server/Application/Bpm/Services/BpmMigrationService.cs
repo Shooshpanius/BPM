@@ -11,10 +11,12 @@ namespace CoreBPM.Server.Application.Bpm.Services;
 public class BpmMigrationService : IBpmMigrationService
 {
     private readonly AppDbContext _db;
+    private readonly IBpmNotificationService _notify;
 
-    public BpmMigrationService(AppDbContext db)
+    public BpmMigrationService(AppDbContext db, IBpmNotificationService notify)
     {
         _db = db;
+        _notify = notify;
     }
 
     /// <inheritdoc />
@@ -223,6 +225,32 @@ public class BpmMigrationService : IBpmMigrationService
         package.CompletedAt = DateTimeOffset.UtcNow;
         package.UpdatedAt = DateTimeOffset.UtcNow;
         await _db.SaveChangesAsync(ct);
+
+        // Собираем итоговую статистику для уведомления
+        var stats = await _db.BpmVersionMigrationItems
+            .AsNoTracking()
+            .Where(i => i.PackageId == packageId)
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                Total = g.Count(),
+                Migrated = g.Count(i => i.Status == BpmMigrationItemStatus.Migrated),
+                Failed = g.Count(i =>
+                    i.Status == BpmMigrationItemStatus.CriticalError ||
+                    i.Status == BpmMigrationItemStatus.OtherError ||
+                    i.Status == BpmMigrationItemStatus.RequiresManualHandling),
+            })
+            .FirstOrDefaultAsync(ct);
+
+        await _notify.NotifyMigrationPackageCompletedAsync(
+            packageId,
+            package.Name,
+            hasErrors,
+            stats?.Total ?? 0,
+            stats?.Migrated ?? 0,
+            stats?.Failed ?? 0,
+            package.CreatedByUserId,
+            ct);
     }
 
     /// <inheritdoc />
