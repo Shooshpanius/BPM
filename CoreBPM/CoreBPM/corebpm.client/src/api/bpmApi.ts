@@ -1203,7 +1203,7 @@ export const getBpmDashboard = (token: string): Promise<BpmDashboardDto> =>
 
 // ─── Движок выполнения BPMN (FR-BPM Execution Engine) ────────────────────────
 
-export type BpmTokenStatus = 'Active' | 'WaitingUserAction' | 'WaitingSignal' | 'WaitingMessage' | 'Completed' | 'WaitingJoin' | 'WaitingTimer';
+export type BpmTokenStatus = 'Active' | 'WaitingUserAction' | 'WaitingSignal' | 'WaitingMessage' | 'Completed' | 'WaitingJoin' | 'WaitingTimer' | 'WaitingCallActivity';
 
 export interface BpmTokenDto {
     id: string;

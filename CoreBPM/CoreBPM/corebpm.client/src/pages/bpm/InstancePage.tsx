@@ -148,6 +148,11 @@ export function InstancePage({ instanceId, onBack }: Props) {
     const [tokens, setTokens] = useState<BpmTokenDto[]>([]);
     const [completingToken, setCompletingToken] = useState<string | null>(null);
 
+    // ─── Диалог выходных переменных UserTask ─────────────────────────────────
+    const [completeDialogElementId, setCompleteDialogElementId] = useState<string | null>(null);
+    const [completeDialogVars, setCompleteDialogVars] = useState<Record<string, string>>({});
+    const [processVarDefs, setProcessVarDefs] = useState<api.BpmProcessVariableDto[]>([]);
+
     const isActive = instance?.state === 'Active';
     const isSuspended = instance?.state === 'Suspended';
     const canManage = instance?.state !== 'Cancelled' && instance?.state !== 'Completed';
@@ -294,11 +299,49 @@ export function InstancePage({ instanceId, onBack }: Props) {
 
     // ─── Завершение UserTask ──────────────────────────────────────────────────
 
-    const handleCompleteToken = async (elementId: string) => {
-        if (!token) return;
-        setCompletingToken(elementId);
+    const handleOpenCompleteDialog = async (elementId: string) => {
+        if (!token || !instance) return;
+        // Загружаем переменные процесса (только IsOutput)
         try {
-            await api.completeToken(token, instanceId, elementId, {});
+            const vars = await api.getVariables(token, instance.processId);
+            const outputVars = vars.filter(v => v.isOutput);
+            setProcessVarDefs(outputVars);
+            // Инициализируем значения из текущих переменных экземпляра
+            const initVals: Record<string, string> = {};
+            outputVars.forEach(v => {
+                const current = instance.variables.find(iv => iv.name === v.name);
+                // Убираем JSON-кавычки для строковых значений
+                const rawJson = current?.valueJson ?? '';
+                const strVal = rawJson.startsWith('"') && rawJson.endsWith('"')
+                    ? rawJson.slice(1, -1)
+                    : (rawJson === 'null' ? '' : rawJson);
+                initVals[v.name] = strVal || v.defaultValue || '';
+            });
+            setCompleteDialogVars(initVals);
+        } catch {
+            setProcessVarDefs([]);
+            setCompleteDialogVars({});
+        }
+        setCompleteDialogElementId(elementId);
+    };
+
+    const handleCancelCompleteDialog = () => {
+        setCompleteDialogElementId(null);
+        setCompleteDialogVars({});
+    };
+
+    const handleConfirmCompleteToken = async () => {
+        if (!token || !completeDialogElementId) return;
+        setCompletingToken(completeDialogElementId);
+        try {
+            // Передаём выходные переменные при завершении
+            const outputVars: Record<string, string | null> = {};
+            Object.entries(completeDialogVars).forEach(([k, v]) => {
+                outputVars[k] = v === '' ? null : v;
+            });
+            await api.completeToken(token, instanceId, completeDialogElementId, outputVars);
+            setCompleteDialogElementId(null);
+            setCompleteDialogVars({});
             await loadAll();
         } catch (e) { setError(e instanceof Error ? e.message : 'Ошибка выполнения задания'); }
         finally { setCompletingToken(null); }
@@ -411,7 +454,7 @@ export function InstancePage({ instanceId, onBack }: Props) {
                     <OverviewTab
                         instance={instance}
                         tokens={tokens}
-                        onCompleteToken={canManage ? handleCompleteToken : undefined}
+                        onCompleteToken={canManage ? handleOpenCompleteDialog : undefined}
                         completingToken={completingToken}
                     />
                 )}
@@ -578,6 +621,55 @@ export function InstancePage({ instanceId, onBack }: Props) {
                     </div>
                 </div>
             )}
+
+            {/* Диалог завершения UserTask с выходными переменными */}
+            {completeDialogElementId && (
+                <div className="inst-modal-overlay" onClick={handleCancelCompleteDialog}>
+                    <div className="inst-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
+                        <h2 className="inst-modal-title">Выполнить задачу</h2>
+                        {processVarDefs.length === 0 ? (
+                            <p style={{ color: '#6b7280', marginBottom: 16 }}>
+                                Нет выходных переменных — задача будет выполнена без дополнительных данных.
+                            </p>
+                        ) : (
+                            <div>
+                                <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 12 }}>
+                                    Заполните значения выходных переменных задачи:
+                                </p>
+                                {processVarDefs.map(v => (
+                                    <div key={v.id} className="inst-modal-field">
+                                        <label htmlFor={`complete-var-${v.name}`}>{v.name}</label>
+                                        <input
+                                            id={`complete-var-${v.name}`}
+                                            className="inst-modal-input"
+                                            type="text"
+                                            value={completeDialogVars[v.name] ?? ''}
+                                            placeholder={v.defaultValue ?? ''}
+                                            onChange={e => setCompleteDialogVars(prev => ({ ...prev, [v.name]: e.target.value }))}
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        <div className="inst-modal-actions">
+                            <button
+                                className="inst-btn-secondary"
+                                onClick={handleCancelCompleteDialog}
+                                disabled={completingToken === completeDialogElementId}
+                            >
+                                Отмена
+                            </button>
+                            <button
+                                className="inst-btn-primary"
+                                onClick={handleConfirmCompleteToken}
+                                disabled={completingToken === completeDialogElementId}
+                            >
+                                {completingToken === completeDialogElementId ? 'Выполнение…' : '✓ Выполнить'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -599,6 +691,7 @@ const TOKEN_STATUS_LABELS: Record<api.BpmTokenStatus, string> = {
     WaitingMessage: 'Ожидает сообщение',
     WaitingJoin: 'Ожидает схождения',
     WaitingTimer: 'Ожидает таймер',
+    WaitingCallActivity: 'Ожидает подпроцесс',
     Completed: 'Завершён',
 };
 
@@ -609,6 +702,7 @@ const TOKEN_STATUS_CLASS: Record<api.BpmTokenStatus, string> = {
     WaitingMessage: 'inst-token-message',
     WaitingJoin: 'inst-token-waiting',
     WaitingTimer: 'inst-token-signal',
+    WaitingCallActivity: 'inst-token-signal',
     Completed: 'inst-token-completed',
 };
 
@@ -1053,6 +1147,7 @@ const TOKEN_FILL_COLOR: Record<api.BpmTokenStatus, string | null> = {
     WaitingMessage: '#8b5cf6',
     WaitingJoin: '#6b7280',
     WaitingTimer: '#06b6d4',
+    WaitingCallActivity: '#0ea5e9',
     Completed: null, // не подсвечиваем завершённые
 };
 

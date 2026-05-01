@@ -5,6 +5,8 @@ using Microsoft.Extensions.Logging;
 using CoreBPM.Server.Application.Bpm.DTOs;
 using CoreBPM.Server.Application.Bpm.Interfaces;
 using CoreBPM.Server.Application.Bpm.Scripting;
+using CoreBPM.Server.Application.Rules.DTOs;
+using CoreBPM.Server.Application.Rules.Interfaces;
 using CoreBPM.Server.Domain.Bpm;
 using CoreBPM.Server.Infrastructure.Persistence;
 
@@ -25,6 +27,7 @@ public class BpmExecutionEngine : IBpmExecutionEngine
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IBpmScriptExecutor _scriptExecutor;
     private readonly IBpmNotificationService _notificationService;
+    private readonly IDmnService _dmnService;
     private readonly ILogger<BpmExecutionEngine> _logger;
 
     public BpmExecutionEngine(
@@ -32,12 +35,14 @@ public class BpmExecutionEngine : IBpmExecutionEngine
         IHttpClientFactory httpClientFactory,
         IBpmScriptExecutor scriptExecutor,
         IBpmNotificationService notificationService,
+        IDmnService dmnService,
         ILogger<BpmExecutionEngine> logger)
     {
         _db = db;
         _httpClientFactory = httpClientFactory;
         _scriptExecutor = scriptExecutor;
         _notificationService = notificationService;
+        _dmnService = dmnService;
         _logger = logger;
     }
 
@@ -474,7 +479,7 @@ public class BpmExecutionEngine : IBpmExecutionEngine
 
             case "endEvent":
             case "terminateEvent":
-                await HandleEndEventAsync(instance, elementId, elementName, now, ct);
+                await HandleEndEventAsync(instance, elementId, elementName, now, ct, model);
                 break;
 
             case "userTask":
@@ -508,20 +513,11 @@ public class BpmExecutionEngine : IBpmExecutionEngine
                 break;
 
             case "callActivity":
-                // В MVP — логируем как выполненный узел и двигаемся дальше
-                await CreateOrUpdateTokenAsync(instance.Id, elementId, elementType, elementName, BpmTokenStatus.Completed, now, ct);
-                _db.BpmInstanceHistoryEntries.Add(new BpmInstanceHistoryEntry
-                {
-                    Id = Guid.NewGuid(),
-                    InstanceId = instance.Id,
-                    EventType = BpmHistoryEventType.NodeExecuted,
-                    ElementId = elementId,
-                    ElementName = elementName,
-                    Text = $"CallActivity «{elementName ?? elementId}» (заглушка, исполнение отложено)",
-                    OccurredAt = now,
-                });
-                await _db.SaveChangesAsync(ct);
-                await AdvanceFromAsync(instance.Id, elementId, ct);
+                await HandleCallActivityAsync(instance, model, elementId, elementName, now, ct);
+                break;
+
+            case "subProcess":
+                await HandleSubProcessAsync(instance, model, elementId, elementName, now, ct);
                 break;
 
             default:
@@ -538,8 +534,38 @@ public class BpmExecutionEngine : IBpmExecutionEngine
         string elementId,
         string? elementName,
         DateTimeOffset now,
-        CancellationToken ct)
+        CancellationToken ct,
+        ProcessModel? model = null)
     {
+        // Проверяем, является ли этот endEvent концом embedded subProcess
+        if (model != null)
+        {
+            var endEventNode = model.AllElements.FirstOrDefault(e => e.Id == elementId);
+            if (endEventNode?.ContainerElementId != null)
+            {
+                // Это конец subProcess — завершаем только subprocess-контейнер и продвигаем от него
+                var subProcessId = endEventNode.ContainerElementId;
+                await CreateOrUpdateTokenAsync(instance.Id, elementId, "endEvent", elementName, BpmTokenStatus.Completed, now, ct);
+
+                _db.BpmInstanceHistoryEntries.Add(new BpmInstanceHistoryEntry
+                {
+                    Id = Guid.NewGuid(),
+                    InstanceId = instance.Id,
+                    EventType = BpmHistoryEventType.NodeExecuted,
+                    ElementId = elementId,
+                    ElementName = elementName,
+                    Text = $"Подпроцесс завершён (endEvent «{elementName ?? elementId}»)",
+                    OccurredAt = now,
+                });
+                await _db.SaveChangesAsync(ct);
+
+                // Завершаем токен самого subProcess и продвигаемся от него
+                await CompleteTokenAsync(instance.Id, subProcessId, now, ct);
+                await AdvanceFromAsync(instance.Id, subProcessId, ct);
+                return;
+            }
+        }
+
         await CreateOrUpdateTokenAsync(instance.Id, elementId, "endEvent", elementName, BpmTokenStatus.Completed, now, ct);
 
         // Завершаем экземпляр (перезагружаем для отслеживания)
@@ -563,6 +589,209 @@ public class BpmExecutionEngine : IBpmExecutionEngine
         });
 
         await _db.SaveChangesAsync(ct);
+
+        // Если это дочерний экземпляр (callActivity) — продвигаем родительский поток
+        if (tracked?.ParentInstanceId != null)
+        {
+            await ResumeParentCallActivityAsync(tracked.ParentInstanceId.Value, instance.Id, now, ct);
+        }
+    }
+
+    private async Task ResumeParentCallActivityAsync(
+        Guid parentInstanceId,
+        Guid childInstanceId,
+        DateTimeOffset now,
+        CancellationToken ct)
+    {
+        // Ищем токен родителя в статусе WaitingCallActivity
+        var callActivityToken = await _db.BpmTokens
+            .FirstOrDefaultAsync(t =>
+                t.InstanceId == parentInstanceId &&
+                t.Status == BpmTokenStatus.WaitingCallActivity, ct);
+
+        if (callActivityToken == null)
+        {
+            _logger.LogWarning(
+                "ResumeParent: не найден WaitingCallActivity токен в родительском экземпляре {ParentId} для дочернего {ChildId}",
+                parentInstanceId, childInstanceId);
+            return;
+        }
+
+        var callActivityElementId = callActivityToken.ElementId;
+        callActivityToken.Status = BpmTokenStatus.Completed;
+        callActivityToken.CompletedAt = now;
+
+        _db.BpmInstanceHistoryEntries.Add(new BpmInstanceHistoryEntry
+        {
+            Id = Guid.NewGuid(),
+            InstanceId = parentInstanceId,
+            EventType = BpmHistoryEventType.NodeExecuted,
+            ElementId = callActivityElementId,
+            ElementName = callActivityToken.ElementName,
+            Text = $"CallActivity «{callActivityToken.ElementName ?? callActivityElementId}» завершён (дочерний экземпляр {childInstanceId})",
+            OccurredAt = now,
+        });
+
+        await _db.SaveChangesAsync(ct);
+
+        // Продвигаем родительский поток
+        await AdvanceFromAsync(parentInstanceId, callActivityElementId, ct);
+    }
+
+    private async Task HandleCallActivityAsync(
+        BpmInstance instance,
+        ProcessModel model,
+        string elementId,
+        string? elementName,
+        DateTimeOffset now,
+        CancellationToken ct)
+    {
+        var callActivityNode = model.AllElements.FirstOrDefault(e => e.Id == elementId);
+        var calledElement = callActivityNode?.CalledElement;
+
+        // Ищем вызываемый процесс: сначала по GUID, потом по Name, затем по DataClassName
+        BpmProcess? calledProcess = null;
+        if (!string.IsNullOrWhiteSpace(calledElement))
+        {
+            if (Guid.TryParse(calledElement, out var calledProcessId))
+            {
+                calledProcess = await _db.BpmProcesses.AsNoTracking()
+                    .FirstOrDefaultAsync(p => p.Id == calledProcessId && !p.IsDeleted, ct);
+            }
+            calledProcess ??= await _db.BpmProcesses.AsNoTracking()
+                .FirstOrDefaultAsync(p =>
+                    (p.Name == calledElement || p.DataClassName == calledElement) && !p.IsDeleted, ct);
+        }
+
+        if (calledProcess == null)
+        {
+            _logger.LogWarning(
+                "CallActivity [{ElementId}]: вызываемый процесс «{CalledElement}» не найден — узел обрабатывается как выполненный",
+                elementId, calledElement ?? "(не задан)");
+            await CreateOrUpdateTokenAsync(instance.Id, elementId, "callActivity", elementName, BpmTokenStatus.Completed, now, ct);
+            _db.BpmInstanceHistoryEntries.Add(new BpmInstanceHistoryEntry
+            {
+                Id = Guid.NewGuid(),
+                InstanceId = instance.Id,
+                EventType = BpmHistoryEventType.NodeExecuted,
+                ElementId = elementId,
+                ElementName = elementName,
+                Text = $"CallActivity «{elementName ?? elementId}»: вызываемый процесс не найден, пропуск",
+                OccurredAt = now,
+            });
+            await _db.SaveChangesAsync(ct);
+            await AdvanceFromAsync(instance.Id, elementId, ct);
+            return;
+        }
+
+        // Ищем активную версию вызываемого процесса
+        var calledVersion = await _db.BpmProcessVersions
+            .AsNoTracking()
+            .Where(v => v.ProcessId == calledProcess.Id && v.Status == BpmProcessVersionStatus.Active)
+            .OrderByDescending(v => v.VersionNumber)
+            .FirstOrDefaultAsync(ct);
+
+        if (calledVersion == null)
+        {
+            _logger.LogWarning(
+                "CallActivity [{ElementId}]: процесс «{ProcessName}» не имеет активной версии — пропуск",
+                elementId, calledProcess.Name);
+            await CreateOrUpdateTokenAsync(instance.Id, elementId, "callActivity", elementName, BpmTokenStatus.Completed, now, ct);
+            _db.BpmInstanceHistoryEntries.Add(new BpmInstanceHistoryEntry
+            {
+                Id = Guid.NewGuid(),
+                InstanceId = instance.Id,
+                EventType = BpmHistoryEventType.NodeExecuted,
+                ElementId = elementId,
+                ElementName = elementName,
+                Text = $"CallActivity «{elementName ?? elementId}»: нет активной версии процесса, пропуск",
+                OccurredAt = now,
+            });
+            await _db.SaveChangesAsync(ct);
+            await AdvanceFromAsync(instance.Id, elementId, ct);
+            return;
+        }
+
+        // Создаём дочерний экземпляр
+        var childInstance = new BpmInstance
+        {
+            Id = Guid.NewGuid(),
+            ProcessId = calledProcess.Id,
+            ProcessVersionId = calledVersion.Id,
+            Name = $"{calledProcess.Name} (из {instance.Name})",
+            State = BpmInstanceState.Active,
+            LaunchSource = BpmInstanceLaunchSource.CallActivity,
+            InitiatorUserId = instance.InitiatorUserId,
+            ResponsibleUserId = instance.ResponsibleUserId,
+            ParentInstanceId = instance.Id,
+            StartedAt = now,
+            UpdatedAt = now,
+        };
+        _db.BpmInstances.Add(childInstance);
+
+        // Устанавливаем токен родителя в ожидание
+        await CreateOrUpdateTokenAsync(instance.Id, elementId, "callActivity", elementName, BpmTokenStatus.WaitingCallActivity, now, ct);
+
+        _db.BpmInstanceHistoryEntries.Add(new BpmInstanceHistoryEntry
+        {
+            Id = Guid.NewGuid(),
+            InstanceId = instance.Id,
+            EventType = BpmHistoryEventType.NodeExecuted,
+            ElementId = elementId,
+            ElementName = elementName,
+            Text = $"CallActivity «{elementName ?? elementId}» запустил дочерний процесс «{calledProcess.Name}» (экземпляр {childInstance.Id})",
+            OccurredAt = now,
+        });
+
+        await _db.SaveChangesAsync(ct);
+
+        // Запускаем дочерний экземпляр (fire-and-forget)
+        _ = StartAsync(childInstance.Id, CancellationToken.None);
+    }
+
+    private async Task HandleSubProcessAsync(
+        BpmInstance instance,
+        ProcessModel model,
+        string elementId,
+        string? elementName,
+        DateTimeOffset now,
+        CancellationToken ct)
+    {
+        // Устанавливаем токен субпроцесса в Active
+        await CreateOrUpdateTokenAsync(instance.Id, elementId, "subProcess", elementName, BpmTokenStatus.Active, now, ct);
+
+        _db.BpmInstanceHistoryEntries.Add(new BpmInstanceHistoryEntry
+        {
+            Id = Guid.NewGuid(),
+            InstanceId = instance.Id,
+            EventType = BpmHistoryEventType.NodeExecuted,
+            ElementId = elementId,
+            ElementName = elementName,
+            Text = $"Подпроцесс «{elementName ?? elementId}» начат",
+            OccurredAt = now,
+        });
+        await _db.SaveChangesAsync(ct);
+
+        // Ищем startEvent внутри subProcess (ContainerElementId == elementId)
+        var internalStartEvents = model.AllElements
+            .Where(e => e.ElementType == "startEvent" && e.ContainerElementId == elementId)
+            .ToList();
+
+        if (internalStartEvents.Count == 0)
+        {
+            _logger.LogWarning(
+                "SubProcess [{ElementId}]: нет внутреннего startEvent — субпроцесс завершается немедленно",
+                elementId);
+            await CompleteTokenAsync(instance.Id, elementId, now, ct);
+            await AdvanceFromAsync(instance.Id, elementId, ct);
+            return;
+        }
+
+        // Активируем каждый внутренний стартовый узел
+        foreach (var startEvent in internalStartEvents)
+        {
+            await ExecuteElementAsync(instance, model, startEvent.Id, startEvent.ElementType, startEvent.Name, now, ct);
+        }
     }
 
     private async Task HandleUserTaskAsync(
@@ -812,7 +1041,7 @@ public class BpmExecutionEngine : IBpmExecutionEngine
                 break;
 
             case "businessRuleTask":
-                ExecuteBusinessRuleTaskStub(job);
+                await ExecuteBusinessRuleTaskAsync(job, instance, configJson, ct);
                 break;
 
             case "intermediateCatchEvent" when job.IsTimer:
@@ -1188,11 +1417,158 @@ public class BpmExecutionEngine : IBpmExecutionEngine
         return null;
     }
 
-    private void ExecuteBusinessRuleTaskStub(BpmExecutionJob job)
+    private async Task ExecuteBusinessRuleTaskAsync(
+        BpmExecutionJob job,
+        BpmInstance instance,
+        string? configJson,
+        CancellationToken ct)
     {
+        if (string.IsNullOrWhiteSpace(configJson))
+        {
+            _logger.LogWarning("BusinessRuleTask [{ElementId}]: конфигурация отсутствует, узел пропускается", job.ElementId);
+            return;
+        }
+
+        Guid tableId;
+        Guid versionId;
+        List<(Guid ColumnId, string VariableName)> inputMappings;
+        List<(Guid ColumnId, string VariableName)> outputMappings;
+
+        try
+        {
+            using var doc = JsonDocument.Parse(configJson);
+            var root = doc.RootElement;
+
+            if (!root.TryGetProperty("tableId", out var tableIdProp) ||
+                !Guid.TryParse(tableIdProp.GetString(), out tableId))
+            {
+                _logger.LogWarning("BusinessRuleTask [{ElementId}]: tableId не задан или невалиден", job.ElementId);
+                return;
+            }
+
+            if (!root.TryGetProperty("versionId", out var versionIdProp) ||
+                !Guid.TryParse(versionIdProp.GetString(), out versionId))
+            {
+                _logger.LogWarning("BusinessRuleTask [{ElementId}]: versionId не задан, пытаемся получить опубликованную версию", job.ElementId);
+                // Ищем опубликованную версию автоматически
+                var pubVersion = await _db.DmnTableVersions
+                    .AsNoTracking()
+                    .Where(v => v.TableId == tableId && v.Status == Domain.Rules.DmnVersionStatus.Published)
+                    .OrderByDescending(v => v.VersionNumber)
+                    .FirstOrDefaultAsync(ct);
+                if (pubVersion == null)
+                {
+                    _logger.LogWarning("BusinessRuleTask [{ElementId}]: нет опубликованных версий DMN-таблицы {TableId}", job.ElementId, tableId);
+                    return;
+                }
+                versionId = pubVersion.Id;
+            }
+
+            static List<(Guid, string)> ParseMappings(JsonElement root, string key)
+            {
+                var result = new List<(Guid, string)>();
+                if (!root.TryGetProperty(key, out var arr) || arr.ValueKind != JsonValueKind.Array) return result;
+                foreach (var item in arr.EnumerateArray())
+                {
+                    if (!item.TryGetProperty("columnId", out var colProp)) continue;
+                    if (!Guid.TryParse(colProp.GetString(), out var colId)) continue;
+                    var varName = item.TryGetProperty("variableName", out var vnProp) ? vnProp.GetString() ?? "" : "";
+                    if (!string.IsNullOrWhiteSpace(varName))
+                        result.Add((colId, varName));
+                }
+                return result;
+            }
+
+            inputMappings = ParseMappings(root, "inputMappings");
+            outputMappings = ParseMappings(root, "outputMappings");
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogWarning(ex, "BusinessRuleTask [{ElementId}]: ошибка разбора configJson", job.ElementId);
+            return;
+        }
+
+        // Загружаем переменные экземпляра
+        var instanceVars = await _db.BpmInstanceVariables
+            .AsNoTracking()
+            .Where(v => v.InstanceId == instance.Id)
+            .ToDictionaryAsync(v => v.Name, v => v.ValueJson, ct);
+
+        // Строим входные данные DMN по маппингу (columnId → значение переменной)
+        var dmnInputs = new Dictionary<Guid, string?>();
+        foreach (var (colId, varName) in inputMappings)
+        {
+            instanceVars.TryGetValue(varName, out var rawValue);
+            // Убираем JSON-обёртку кавычек
+            var strValue = rawValue?.Trim('"', ' ');
+            dmnInputs[colId] = strValue;
+        }
+
+        // Вызываем DMN-движок
+        DmnTestResponse dmnResult;
+        try
+        {
+            dmnResult = await _dmnService.EvaluateAsync(
+                tableId,
+                versionId,
+                new DmnTestRequest(dmnInputs),
+                ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "BusinessRuleTask [{ElementId}]: ошибка вычисления DMN-таблицы {TableId}", job.ElementId, tableId);
+            throw;
+        }
+
+        if (dmnResult.MatchedRows.Count == 0)
+        {
+            _logger.LogInformation(
+                "BusinessRuleTask [{ElementId}]: DMN не нашёл совпадений — переменные не изменены",
+                job.ElementId);
+            return;
+        }
+
+        // Берём первый результат (First / Unique); для Collect обрабатываем первую строку
+        var firstRow = dmnResult.MatchedRows[0];
+
+        if (outputMappings.Count == 0)
+        {
+            _logger.LogInformation("BusinessRuleTask [{ElementId}]: outputMappings не заданы, результат DMN не записан в переменные", job.ElementId);
+            return;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var varNamesToLoad = outputMappings.Select(m => m.VariableName).ToList();
+        var existingVars = await _db.BpmInstanceVariables
+            .Where(v => v.InstanceId == instance.Id && varNamesToLoad.Contains(v.Name))
+            .ToDictionaryAsync(v => v.Name, ct);
+
+        foreach (var (colId, varName) in outputMappings)
+        {
+            if (!firstRow.Outputs.TryGetValue(colId, out var outputValue)) continue;
+            var jsonValue = outputValue == null ? "null" : $"\"{outputValue}\"";
+
+            if (existingVars.TryGetValue(varName, out var existing))
+            {
+                existing.ValueJson = jsonValue;
+                existing.SetAt = now;
+            }
+            else
+            {
+                _db.BpmInstanceVariables.Add(new BpmInstanceVariable
+                {
+                    Id = Guid.NewGuid(),
+                    InstanceId = instance.Id,
+                    Name = varName,
+                    ValueJson = jsonValue,
+                    SetAt = now,
+                });
+            }
+        }
+
         _logger.LogInformation(
-            "BusinessRuleTask [{ElementId}]: выполнение DMN через движок отложено. Узел считается завершённым.",
-            job.ElementId);
+            "BusinessRuleTask [{ElementId}]: DMN-результат записан в {Count} переменных(ую)",
+            job.ElementId, outputMappings.Count);
     }
 
     /// <summary>
@@ -1441,7 +1817,8 @@ public class BpmExecutionEngine : IBpmExecutionEngine
         XElement container,
         XNamespace ns,
         List<ProcessElement> elements,
-        List<SequenceFlowInfo> flows)
+        List<SequenceFlowInfo> flows,
+        string? parentSubProcessId = null)
     {
         foreach (var el in container.Elements())
         {
@@ -1466,8 +1843,16 @@ public class BpmExecutionEngine : IBpmExecutionEngine
             else if (localName == "subProcess")
             {
                 // Добавляем subProcess как элемент и рекурсивно обрабатываем вложенные
-                elements.Add(new ProcessElement(id, localName, name, null, null));
-                ParseContainerElements(el, ns, elements, flows);
+                elements.Add(new ProcessElement(id, localName, name, null, null,
+                    ContainerElementId: parentSubProcessId));
+                ParseContainerElements(el, ns, elements, flows, id);
+            }
+            else if (localName == "callActivity")
+            {
+                var calledElement = el.Attribute("calledElement")?.Value;
+                elements.Add(new ProcessElement(id, localName, name, null, null,
+                    CalledElement: calledElement,
+                    ContainerElementId: parentSubProcessId));
             }
             else if (localName == "boundaryEvent")
             {
@@ -1517,7 +1902,8 @@ public class BpmExecutionEngine : IBpmExecutionEngine
                     id, localName, name,
                     signalCode, messageCode,
                     timerDuration, timerCycle, timerDate,
-                    attachedToRef, isCancelActivity, errorCode));
+                    attachedToRef, isCancelActivity, errorCode,
+                    ContainerElementId: parentSubProcessId));
             }
             else
             {
@@ -1554,7 +1940,8 @@ public class BpmExecutionEngine : IBpmExecutionEngine
                 }
 
                 elements.Add(new ProcessElement(id, localName, name, signalCode, messageCode,
-                    timerDuration, timerCycle, timerDate));
+                    timerDuration, timerCycle, timerDate,
+                    ContainerElementId: parentSubProcessId));
             }
         }
     }
@@ -1706,7 +2093,11 @@ public class BpmExecutionEngine : IBpmExecutionEngine
         /// <summary>Прерывает ли граничное событие хост-задачу (cancelActivity).</summary>
         bool? IsCancelActivity = null,
         /// <summary>Код ошибки в boundaryEvent с errorEventDefinition (errorRef или errorCode).</summary>
-        string? BoundaryErrorCode = null);
+        string? BoundaryErrorCode = null,
+        /// <summary>Ссылка на вызываемый процесс (calledElement) в callActivity.</summary>
+        string? CalledElement = null,
+        /// <summary>Id родительского subProcess-элемента (для вложенных узлов embedded subprocess).</summary>
+        string? ContainerElementId = null);
 
     private record SequenceFlowInfo(
         string Id,

@@ -23,4 +23,7 @@ public enum BpmTokenStatus
 
     /// <summary>Токен ожидает срабатывания таймера (intermediateCatchEvent с timerEventDefinition).</summary>
     WaitingTimer = 6,
+
+    /// <summary>Токен ожидает завершения дочернего экземпляра (callActivity).</summary>
+    WaitingCallActivity = 7,
 }
