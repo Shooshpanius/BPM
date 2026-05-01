@@ -12,6 +12,8 @@ import type {
 import { getDirectoryEmployees } from '../../api/orgDirectoryApi';
 import './InstancePage.css';
 
+type BpmnNavigatedViewer = InstanceType<typeof import('bpmn-js/lib/NavigatedViewer').default>;
+
 // ─── Вспомогательные функции ─────────────────────────────────────────────────
 
 function formatDateTime(iso: string): string {
@@ -1071,7 +1073,7 @@ function ProcessMapTab({ processId, processVersionId, tokens, authToken }: Proce
     useEffect(() => {
         if (!diagramXml || !containerRef.current) return;
 
-        let viewer: InstanceType<typeof import('bpmn-js/lib/NavigatedViewer').default> | null = null;
+        let viewer: BpmnNavigatedViewer | null = null;
 
         const initViewer = async () => {
             const NavigatedViewer = (await import('bpmn-js/lib/NavigatedViewer')).default;
