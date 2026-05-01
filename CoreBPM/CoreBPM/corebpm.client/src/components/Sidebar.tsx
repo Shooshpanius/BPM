@@ -2,7 +2,7 @@ import { useAuth } from '../context/AuthContext';
 import { APP_VERSION, LAST_PR_DATE } from '../version';
 import './Sidebar.css';
 
-export type SidebarSection = 'contacts' | 'org-structure' | 'bpm-processes' | 'bpm-my-processes' | 'bpm-monitor' | 'bpm-queue' | 'bpm-documentation' | 'bpm-rules' | 'bpm-forms' | 'bpm-scripts';
+export type SidebarSection = 'contacts' | 'org-structure' | 'bpm-processes' | 'bpm-my-processes' | 'bpm-monitor' | 'bpm-queue' | 'bpm-documentation' | 'bpm-rules' | 'bpm-forms' | 'bpm-scripts' | 'bpm-migration';
 
 interface SidebarProps {
     active: SidebarSection;
@@ -83,6 +83,20 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         <path d="M3 6h18M3 12h18M3 18h18"/>
                         <circle cx="21" cy="6" r="0" fill="currentColor"/>
+                    </svg>
+                }
+            />
+            )}
+            {hasRole('Admin') && (
+            <SidebarItem
+                id="bpm-migration"
+                label="Смена версии"
+                active={active === 'bpm-migration'}
+                onClick={() => onSelect('bpm-migration')}
+                icon={
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M7 16V4m0 0L3 8m4-4 4 4"/>
+                        <path d="M17 8v12m0 0 4-4m-4 4-4-4"/>
                     </svg>
                 }
             />

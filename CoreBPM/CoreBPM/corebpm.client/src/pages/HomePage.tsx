@@ -18,6 +18,8 @@ import { FormBuilderPage } from './forms/FormBuilderPage';
 import { ScriptsPage } from './scripts/ScriptsPage';
 import { ExecutionQueuePage } from './bpm/ExecutionQueuePage';
 import ProcessDocumentationPage from './bpm/ProcessDocumentationPage';
+import { MigrationPackagesPage } from './bpm/MigrationPackagesPage';
+import { MigrationPackageDetailPage } from './bpm/MigrationPackageDetailPage';
 import { MyColleaguesWidget } from '../components/org/MyColleaguesWidget';
 import './HomePage.css';
 
@@ -36,6 +38,7 @@ export function HomePage({ onAdmin }: HomePageProps) {
     const [openInstanceId, setOpenInstanceId] = useState<string | null>(null);
     const [dmnEditorTableId, setDmnEditorTableId] = useState<string | null>(null);
     const [formBuilderId, setFormBuilderId] = useState<string | null>(null);
+    const [migrationPackageId, setMigrationPackageId] = useState<string | null>(null);
 
     const handleSelect = (s: SidebarSection) => {
         // Обычные пользователи не имеют доступа к разделу «Оргструктура»
@@ -45,6 +48,7 @@ export function HomePage({ onAdmin }: HomePageProps) {
         setDmnEditorTableId(null);
         setFormBuilderId(null);
         setOpenInstanceId(null);
+        setMigrationPackageId(null);
         setSection(s);
     };
 
@@ -164,6 +168,14 @@ export function HomePage({ onAdmin }: HomePageProps) {
                     {section === 'bpm-scripts' && <ScriptsPage />}
                     {section === 'bpm-queue' && <ExecutionQueuePage />}
                     {section === 'bpm-documentation' && <ProcessDocumentationPage />}
+                    {section === 'bpm-migration' && (
+                        migrationPackageId
+                            ? <MigrationPackageDetailPage
+                                packageId={migrationPackageId}
+                                onBack={() => setMigrationPackageId(null)}
+                              />
+                            : <MigrationPackagesPage onOpenDetail={setMigrationPackageId} />
+                    )}
                 </main>
             </div>
             {isMobile && <MobileNav active={section} onSelect={handleSelect} />}
