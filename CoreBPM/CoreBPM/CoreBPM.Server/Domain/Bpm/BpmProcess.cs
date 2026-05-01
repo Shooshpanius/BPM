@@ -78,6 +78,17 @@ public class BpmProcess
 
     public DateTimeOffset? SecondRuntimeUpgradedAt { get; set; }
 
+    // ── KPI-цели процесса (FR-BPM-03.2) ──────────────────────────────────────
+
+    /// <summary>Целевое время цикла экземпляра процесса в минутах.</summary>
+    public double? TargetCycleTimeMinutes { get; set; }
+
+    /// <summary>Целевой процент экземпляров, завершённых в срок (0–100).</summary>
+    public double? TargetOnTimePercent { get; set; }
+
+    /// <summary>Целевая стоимость одного экземпляра процесса (по трудозатратам).</summary>
+    public decimal? TargetCostPerInstance { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
 

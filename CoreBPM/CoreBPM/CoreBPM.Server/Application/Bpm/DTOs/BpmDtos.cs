@@ -152,7 +152,11 @@ public record BpmProcessSettingsDto(
     string InstanceMetricsClassName,
     string InstanceMetricsTableName,
     bool SecondRuntimeEnabled,
-    DateTimeOffset? SecondRuntimeUpgradedAt
+    DateTimeOffset? SecondRuntimeUpgradedAt,
+    // KPI-цели процесса (FR-BPM-03.2)
+    double? TargetCycleTimeMinutes,
+    double? TargetOnTimePercent,
+    decimal? TargetCostPerInstance
 );
 
 /// <summary>Запрос на обновление настроек процесса.</summary>
@@ -172,7 +176,11 @@ public record UpdateBpmProcessSettingsRequest(
     string? ProcessMetricsTableName,
     string? InstanceMetricsClassName,
     string? InstanceMetricsTableName,
-    bool SecondRuntimeEnabled
+    bool SecondRuntimeEnabled,
+    // KPI-цели процесса (FR-BPM-03.2)
+    double? TargetCycleTimeMinutes = null,
+    double? TargetOnTimePercent = null,
+    decimal? TargetCostPerInstance = null
 );
 
 /// <summary>Результат ротации токена внешнего запуска.</summary>
@@ -992,4 +1000,72 @@ public record ImprovementMonitorItemDto(
     int TotalCount,
     IReadOnlyList<string> Owners,
     IReadOnlyList<string> Curators
+);
+
+// ─── FR-BPM-03.2: Аналитика и KPI процессов ─────────────────────────────────
+
+/// <summary>Сегмент гистограммы распределения времени цикла.</summary>
+public record CycleTimeHistogramBucketDto(
+    double FromMinutes,
+    double ToMinutes,
+    int Count
+);
+
+/// <summary>Аналитика процесса за период.</summary>
+public record ProcessAnalyticsDto(
+    Guid ProcessId,
+    string ProcessName,
+    int TotalInstances,
+    int CompletedInstances,
+    int FaultedInstances,
+    double OnTimePercent,
+    double FaultedPercent,
+    double AvgCycleTimeMinutes,
+    double MedianCycleTimeMinutes,
+    double P95CycleTimeMinutes,
+    IReadOnlyList<CycleTimeHistogramBucketDto> CycleTimeHistogram,
+    double? TargetCycleTimeMinutes,
+    double? TargetOnTimePercent
+);
+
+/// <summary>Сравнение KPI двух версий процесса.</summary>
+public record ProcessVersionComparisonDto(
+    Guid ProcessId,
+    string ProcessName,
+    Guid VersionAId,
+    int VersionANumber,
+    Guid VersionBId,
+    int VersionBNumber,
+    ProcessAnalyticsDto VersionAAnalytics,
+    ProcessAnalyticsDto VersionBAnalytics
+);
+
+/// <summary>Строка сводного отчёта по всем процессам.</summary>
+public record ProcessAnalyticsSummaryItemDto(
+    Guid ProcessId,
+    string ProcessName,
+    int TotalInstances,
+    double AvgCycleTimeMinutes,
+    double OnTimePercent,
+    double FaultedPercent,
+    double? TargetCycleTimeMinutes,
+    double? TargetOnTimePercent
+);
+
+/// <summary>Запись тепловой карты узла процесса.</summary>
+public record NodeHeatMapDto(
+    string ElementId,
+    string ElementName,
+    double AvgDurationMs,
+    int PassCount,
+    double HeatLevel
+);
+
+/// <summary>Шаг воронки процесса.</summary>
+public record ProcessFunnelStepDto(
+    string ElementId,
+    string ElementName,
+    int ReachedCount,
+    int PassedCount,
+    double DropOffPercent
 );

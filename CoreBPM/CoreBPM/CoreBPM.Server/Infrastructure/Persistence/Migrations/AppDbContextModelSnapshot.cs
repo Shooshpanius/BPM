@@ -1194,6 +1194,18 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("second_runtime_upgraded_at");
 
+                    b.Property<double?>("TargetCycleTimeMinutes")
+                        .HasColumnType("double precision")
+                        .HasColumnName("target_cycle_time_minutes");
+
+                    b.Property<double?>("TargetOnTimePercent")
+                        .HasColumnType("double precision")
+                        .HasColumnName("target_on_time_percent");
+
+                    b.Property<decimal?>("TargetCostPerInstance")
+                        .HasColumnType("numeric")
+                        .HasColumnName("target_cost_per_instance");
+
                     b.Property<bool>("ShowInStartList")
                         .HasColumnType("boolean")
                         .HasColumnName("show_in_start_list");
