@@ -676,3 +676,52 @@ public record BpmProcessStatsDto(
     IReadOnlyList<string> Owners,
     IReadOnlyList<string> Curators
 );
+
+// ─── Очередь исполнения и аналитика (FR-BPM-02.5) ────────────────────────────
+
+/// <summary>DTO задания в очереди исполнения.</summary>
+public record BpmExecutionJobDto(
+    Guid Id,
+    Guid ProcessId,
+    string ProcessName,
+    Guid? InstanceId,
+    string? InstanceName,
+    string ElementId,
+    string ElementType,
+    string? OperationName,
+    BpmJobStatus Status,
+    int AttemptNumber,
+    int MaxAttempts,
+    DateTimeOffset? NextRunAt,
+    DateTimeOffset? StartedAt,
+    DateTimeOffset? CompletedAt,
+    DateTimeOffset? FailedAt,
+    string? LastError,
+    string? ServerHost,
+    bool IsTimer,
+    DateTimeOffset? TimerDeadline,
+    DateTimeOffset CreatedAt
+);
+
+/// <summary>Агрегированные счётчики по статусам очереди.</summary>
+public record QueueStatsDto(
+    int Pending,
+    int Running,
+    int Scheduled,
+    int Failed,
+    int Total
+);
+
+/// <summary>Аналитика выполнения узла процесса.</summary>
+public record NodeAnalyticsDto(
+    string ElementId,
+    string? ElementName,
+    int ExecutionCount,
+    double AvgDurationMs,
+    double P50DurationMs,
+    double P95DurationMs,
+    int ErrorCount
+);
+
+/// <summary>Запрос на перенос времени запуска таймера.</summary>
+public record RescheduleTimerRequest(DateTimeOffset NewRunAt);

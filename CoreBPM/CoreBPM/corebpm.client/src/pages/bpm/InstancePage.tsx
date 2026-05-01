@@ -36,6 +36,7 @@ const STATE_LABELS: Record<api.BpmInstanceState, string> = {
     Completed: 'Завершён',
     Cancelled: 'Прерван',
     Suspended: 'Приостановлен',
+    Faulted: 'Ошибка',
 };
 
 const STATE_CLASS: Record<api.BpmInstanceState, string> = {
@@ -43,6 +44,7 @@ const STATE_CLASS: Record<api.BpmInstanceState, string> = {
     Completed: 'inst-state--completed',
     Cancelled: 'inst-state--cancelled',
     Suspended: 'inst-state--suspended',
+    Faulted: 'inst-state--faulted',
 };
 
 const HISTORY_ICONS: Record<BpmHistoryEventType, string> = {
@@ -57,6 +59,8 @@ const HISTORY_ICONS: Record<BpmHistoryEventType, string> = {
     VariableUpdated: '✏️',
     ParticipantAdded: '➕',
     ParticipantRemoved: '➖',
+    NodeExecuted: '⚙️',
+    NodeFailed: '⚠️',
 };
 
 const HISTORY_LABELS: Record<BpmHistoryEventType, string> = {
@@ -71,6 +75,8 @@ const HISTORY_LABELS: Record<BpmHistoryEventType, string> = {
     VariableUpdated: 'Переменная изменена',
     ParticipantAdded: 'Участник добавлен',
     ParticipantRemoved: 'Участник удалён',
+    NodeExecuted: 'Узел выполнен',
+    NodeFailed: 'Ошибка узла',
 };
 
 type TabId = 'overview' | 'variables' | 'history' | 'participants';

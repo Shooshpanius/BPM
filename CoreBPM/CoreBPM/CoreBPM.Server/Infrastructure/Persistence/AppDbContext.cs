@@ -32,6 +32,7 @@ public class AppDbContext : DbContext
     public DbSet<BpmInstanceHistoryEntry> BpmInstanceHistoryEntries => Set<BpmInstanceHistoryEntry>();
     public DbSet<BpmInstanceParticipant> BpmInstanceParticipants => Set<BpmInstanceParticipant>();
     public DbSet<BpmSavedFilter> BpmSavedFilters => Set<BpmSavedFilter>();
+    public DbSet<BpmExecutionJob> BpmExecutionJobs => Set<BpmExecutionJob>();
     public DbSet<BpmTaskForm> BpmTaskForms => Set<BpmTaskForm>();
     public DbSet<BpmTaskFormVersion> BpmTaskFormVersions => Set<BpmTaskFormVersion>();
     public DbSet<BpmInstanceStatusConfig> BpmInstanceStatusConfigs => Set<BpmInstanceStatusConfig>();
@@ -510,6 +511,8 @@ public class AppDbContext : DbContext
             e.Property(j => j.TimerType).IsRequired().HasMaxLength(50);
             e.Property(j => j.TimerValue).IsRequired().HasMaxLength(500);
             e.Property(j => j.TimeZone).HasMaxLength(100);
+            e.Property(j => j.Status).HasConversion<int>();
+            e.Property(j => j.LastError).HasMaxLength(4000);
 
             e.HasIndex(j => j.ProcessId);
             e.HasIndex(j => new { j.IsActive, j.NextFireAt });
@@ -525,6 +528,41 @@ public class AppDbContext : DbContext
              .OnDelete(DeleteBehavior.Restrict);
         });
 
+        // ─── Очередь исполнения ──────────────────────────────────────────────────
+
+        modelBuilder.Entity<BpmExecutionJob>(e =>
+        {
+            e.ToTable("bpm_execution_jobs");
+            e.HasKey(j => j.Id);
+            e.Property(j => j.ElementId).IsRequired().HasMaxLength(200);
+            e.Property(j => j.ElementType).IsRequired().HasMaxLength(100);
+            e.Property(j => j.OperationName).HasMaxLength(500);
+            e.Property(j => j.Status).HasConversion<int>();
+            e.Property(j => j.LastError).HasMaxLength(4000);
+            e.Property(j => j.ServerHost).HasMaxLength(200);
+
+            e.HasIndex(j => j.Status);
+            e.HasIndex(j => j.ProcessId);
+            e.HasIndex(j => j.InstanceId);
+            e.HasIndex(j => new { j.Status, j.NextRunAt });
+
+            e.HasOne(j => j.Process)
+             .WithMany()
+             .HasForeignKey(j => j.ProcessId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(j => j.ProcessVersion)
+             .WithMany()
+             .HasForeignKey(j => j.ProcessVersionId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasOne(j => j.Instance)
+             .WithMany()
+             .HasForeignKey(j => j.InstanceId)
+             .OnDelete(DeleteBehavior.SetNull)
+             .IsRequired(false);
+        });
+
         // ─── Журнал истории и участники экземпляра ───────────────────────────────
 
         modelBuilder.Entity<BpmInstanceHistoryEntry>(e =>
@@ -534,9 +572,12 @@ public class AppDbContext : DbContext
             e.Property(h => h.EventType).HasConversion<int>();
             e.Property(h => h.Text).HasMaxLength(4000);
             e.Property(h => h.MetaJson).HasColumnType("text");
+            e.Property(h => h.ElementId).HasMaxLength(200);
+            e.Property(h => h.ElementName).HasMaxLength(500);
 
             e.HasIndex(h => h.InstanceId);
             e.HasIndex(h => new { h.InstanceId, h.OccurredAt });
+            e.HasIndex(h => new { h.ElementId, h.OccurredAt });
 
             e.HasOne(h => h.Instance)
              .WithMany()

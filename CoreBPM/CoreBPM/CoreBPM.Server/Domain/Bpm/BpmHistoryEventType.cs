@@ -35,4 +35,10 @@ public enum BpmHistoryEventType
 
     /// <summary>Удалён участник.</summary>
     ParticipantRemoved = 10,
+
+    /// <summary>Узел процесса выполнен успешно (фиксируется движком выполнения).</summary>
+    NodeExecuted = 11,
+
+    /// <summary>Узел процесса завершился ошибкой (фиксируется движком выполнения).</summary>
+    NodeFailed = 12,
 }

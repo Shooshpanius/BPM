@@ -1,0 +1,372 @@
+/* ─── Очередь исполнения ─────────────────────────────────────────────────── */
+
+.eq-root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    position: relative;
+}
+
+.eq-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px 0;
+    flex-shrink: 0;
+}
+
+.eq-title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--text-primary, #111);
+    margin: 0;
+}
+
+.eq-header-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.eq-auto-refresh {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    color: var(--text-secondary, #6b7280);
+    cursor: pointer;
+}
+
+.eq-refresh-btn {
+    background: none;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 1rem;
+    cursor: pointer;
+    color: var(--text-secondary, #6b7280);
+    transition: background 0.15s;
+}
+
+.eq-refresh-btn:hover { background: var(--bg-secondary, #f3f4f6); }
+
+/* ─── Счётчики ────────────────────────────────────────────────────────────── */
+
+.eq-stats {
+    display: flex;
+    gap: 10px;
+    padding: 16px 24px 0;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+.eq-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px 16px;
+    border-radius: 8px;
+    min-width: 80px;
+}
+
+.eq-stat-value { font-size: 1.5rem; font-weight: 700; line-height: 1; }
+.eq-stat-label { font-size: 0.7rem; margin-top: 3px; text-align: center; }
+
+.eq-stat--running   { background: #dbeafe; }
+.eq-stat--running   .eq-stat-value { color: #1d4ed8; }
+.eq-stat--running   .eq-stat-label { color: #3b82f6; }
+
+.eq-stat--pending   { background: #f3f4f6; }
+.eq-stat--pending   .eq-stat-value { color: #374151; }
+.eq-stat--pending   .eq-stat-label { color: #9ca3af; }
+
+.eq-stat--scheduled { background: #fef9c3; }
+.eq-stat--scheduled .eq-stat-value { color: #854d0e; }
+.eq-stat--scheduled .eq-stat-label { color: #a16207; }
+
+.eq-stat--failed    { background: #fee2e2; }
+.eq-stat--failed    .eq-stat-value { color: #b91c1c; }
+.eq-stat--failed    .eq-stat-label { color: #dc2626; }
+
+/* ─── Вкладки ─────────────────────────────────────────────────────────────── */
+
+.eq-tabs {
+    display: flex;
+    padding: 12px 24px 0;
+    border-bottom: 2px solid var(--border, #e5e7eb);
+    flex-shrink: 0;
+}
+
+.eq-tab {
+    background: none;
+    border: none;
+    padding: 10px 16px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-secondary, #6b7280);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: color 0.15s, border-color 0.15s;
+}
+
+.eq-tab:hover { color: var(--text-primary, #111); }
+.eq-tab--active {
+    color: var(--primary, #2563eb);
+    border-bottom-color: var(--primary, #2563eb);
+    font-weight: 600;
+}
+
+.eq-tab-badge {
+    background: var(--bg-secondary, #e5e7eb);
+    color: var(--text-secondary, #6b7280);
+    border-radius: 10px;
+    padding: 1px 7px;
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
+.eq-tab-badge--error { background: #fee2e2; color: #b91c1c; }
+
+/* ─── Панель фильтров ─────────────────────────────────────────────────────── */
+
+.eq-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 24px;
+    flex-shrink: 0;
+}
+
+.eq-search {
+    flex: 1;
+    max-width: 380px;
+    padding: 7px 12px;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 8px;
+    font-size: 0.87rem;
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.eq-search:focus { border-color: var(--primary, #2563eb); }
+
+.eq-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    color: var(--text-secondary, #6b7280);
+    cursor: pointer;
+}
+
+.eq-count { font-size: 0.82rem; color: var(--text-secondary, #9ca3af); }
+
+/* ─── Таблица ─────────────────────────────────────────────────────────────── */
+
+.eq-table-wrap {
+    flex: 1;
+    overflow: auto;
+    padding: 0 24px 24px;
+}
+
+.eq-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.eq-table th {
+    text-align: left;
+    padding: 8px 12px;
+    background: var(--bg-secondary, #f9fafb);
+    border-bottom: 2px solid var(--border, #e5e7eb);
+    font-weight: 600;
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.78rem;
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.eq-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border, #f3f4f6);
+    vertical-align: top;
+}
+
+.eq-table tr:hover td { background: var(--bg-secondary, #f9fafb); }
+
+.eq-row--error td { background: #fff5f5 !important; }
+
+.eq-cell-main { font-weight: 500; color: var(--text-primary, #111); }
+.eq-cell-sub  { font-size: 0.78rem; color: var(--text-secondary, #6b7280); margin-top: 2px; }
+.eq-cell-error {
+    font-size: 0.75rem;
+    color: #b91c1c;
+    margin-top: 3px;
+    font-style: italic;
+}
+
+/* ─── Бейджи статусов ─────────────────────────────────────────────────────── */
+
+.q-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.q-badge--pending   { background: #f3f4f6; color: #374151; }
+.q-badge--running   { background: #dbeafe; color: #1d4ed8; }
+.q-badge--scheduled { background: #fef9c3; color: #854d0e; }
+.q-badge--completed { background: #dcfce7; color: #15803d; }
+.q-badge--failed    { background: #fee2e2; color: #b91c1c; }
+
+/* ─── Пагинация ───────────────────────────────────────────────────────────── */
+
+.eq-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 16px 0;
+}
+
+.eq-page-btn {
+    background: none;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    color: var(--primary, #2563eb);
+    transition: background 0.15s;
+}
+
+.eq-page-btn:hover { background: var(--bg-secondary, #eff6ff); }
+.eq-page-num { font-size: 0.85rem; color: var(--text-secondary, #6b7280); }
+
+/* ─── Контекстное меню ────────────────────────────────────────────────────── */
+
+.eq-ctx-menu {
+    position: fixed;
+    background: var(--bg, #fff);
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    padding: 4px 0;
+    min-width: 200px;
+    z-index: 1000;
+}
+
+.eq-ctx-item {
+    display: block;
+    width: 100%;
+    background: none;
+    border: none;
+    padding: 9px 16px;
+    font-size: 0.87rem;
+    text-align: left;
+    cursor: pointer;
+    color: var(--text-primary, #111);
+    transition: background 0.12s;
+}
+
+.eq-ctx-item:hover { background: var(--bg-secondary, #f3f4f6); }
+.eq-ctx-item--danger { color: var(--danger, #dc2626); }
+.eq-ctx-item--danger:hover { background: #fee2e2; }
+
+/* ─── Модальное окно ──────────────────────────────────────────────────────── */
+
+.eq-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+}
+
+.eq-modal {
+    background: var(--bg, #fff);
+    border-radius: 12px;
+    padding: 24px;
+    min-width: 320px;
+    max-width: 400px;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.2);
+}
+
+.eq-modal-title { margin: 0 0 4px; font-size: 1rem; font-weight: 700; }
+.eq-modal-sub   { margin: 0 0 16px; font-size: 0.85rem; color: var(--text-secondary, #6b7280); }
+
+.eq-modal-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 12px;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    margin-bottom: 16px;
+    outline: none;
+}
+
+.eq-modal-input:focus { border-color: var(--primary, #2563eb); }
+
+.eq-modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+.eq-modal-cancel {
+    background: none;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 8px;
+    padding: 7px 16px;
+    font-size: 0.87rem;
+    cursor: pointer;
+    color: var(--text-secondary, #6b7280);
+}
+
+.eq-modal-ok {
+    background: var(--primary, #2563eb);
+    border: none;
+    border-radius: 8px;
+    padding: 7px 16px;
+    font-size: 0.87rem;
+    font-weight: 600;
+    color: #fff;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.eq-modal-ok:hover { background: var(--primary-dark, #1d4ed8); }
+
+/* ─── Состояния ───────────────────────────────────────────────────────────── */
+
+.eq-loading, .eq-error {
+    padding: 40px 24px;
+    text-align: center;
+    color: var(--text-secondary, #6b7280);
+}
+
+.eq-error { color: var(--danger, #dc2626); }
+
+.eq-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 60px 24px;
+    color: var(--text-secondary, #6b7280);
+}
+
+.eq-empty-icon { font-size: 3rem; line-height: 1; margin-bottom: 8px; }
+.eq-empty p    { margin: 0; font-size: 0.95rem; }

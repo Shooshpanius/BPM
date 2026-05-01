@@ -2,7 +2,7 @@ import { useAuth } from '../context/AuthContext';
 import { APP_VERSION, LAST_PR_DATE } from '../version';
 import './Sidebar.css';
 
-export type SidebarSection = 'contacts' | 'org-structure' | 'bpm-processes' | 'bpm-my-processes' | 'bpm-monitor' | 'bpm-rules' | 'bpm-forms' | 'bpm-scripts';
+export type SidebarSection = 'contacts' | 'org-structure' | 'bpm-processes' | 'bpm-my-processes' | 'bpm-monitor' | 'bpm-queue' | 'bpm-rules' | 'bpm-forms' | 'bpm-scripts';
 
 interface SidebarProps {
     active: SidebarSection;
@@ -73,6 +73,20 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
                     </svg>
                 }
             />
+            {hasRole('Admin') && (
+            <SidebarItem
+                id="bpm-queue"
+                label="Очередь"
+                active={active === 'bpm-queue'}
+                onClick={() => onSelect('bpm-queue')}
+                icon={
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M3 6h18M3 12h18M3 18h18"/>
+                        <circle cx="21" cy="6" r="0" fill="currentColor"/>
+                    </svg>
+                }
+            />
+            )}
             <SidebarItem
                 id="bpm-rules"
                 label="Бизнес-правила"

@@ -330,3 +330,10 @@
     color: var(--text-secondary, #6b7280);
     font-weight: 500;
 }
+
+/* Аналитика узлов */
+.pmon-analytics {
+    flex: 1;
+    overflow: auto;
+    padding: 16px 24px;
+}

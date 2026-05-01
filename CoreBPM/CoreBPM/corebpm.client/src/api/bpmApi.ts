@@ -674,7 +674,7 @@ export const replaceProcessRoles = (
 
 // ─── Экземпляры процессов ─────────────────────────────────────────────────────
 
-export type BpmInstanceState = 'Active' | 'Completed' | 'Cancelled' | 'Suspended';
+export type BpmInstanceState = 'Active' | 'Completed' | 'Cancelled' | 'Suspended' | 'Faulted';
 export type BpmInstanceLaunchSource = 'Manual' | 'Webhook' | 'Scheduler' | 'Message' | 'Signal' | 'CallActivity' | 'Batch';
 
 export interface BpmInstanceVariableDto {
@@ -763,13 +763,17 @@ export const getSchedulerJobs = (token: string, processId: string): Promise<BpmS
 export type BpmHistoryEventType =
     | 'Started' | 'Cancelled' | 'Completed' | 'Suspended' | 'Resumed'
     | 'ResponsibleChanged' | 'CommentAdded' | 'QuestionAdded'
-    | 'VariableUpdated' | 'ParticipantAdded' | 'ParticipantRemoved';
+    | 'VariableUpdated' | 'ParticipantAdded' | 'ParticipantRemoved'
+    | 'NodeExecuted' | 'NodeFailed';
 
 export interface BpmInstanceHistoryEntryDto {
     id: string;
     eventType: BpmHistoryEventType;
     actorUserId?: string;
     actorDisplayName?: string;
+    elementId?: string;
+    elementName?: string;
+    durationMs?: number;
     text?: string;
     metaJson?: string;
     occurredAt: string;
@@ -937,3 +941,104 @@ export const getFullMonitorProcesses = (token: string): Promise<BpmProcessMonito
 /** Детальная статистика для страницы монитора конкретного процесса. */
 export const getProcessStats = (token: string, processId: string): Promise<BpmProcessStatsDto> =>
     fetchJson(`/api/bpm/processes/${processId}/stats`, token);
+
+// ─── Очередь исполнения (FR-BPM-02.5) ────────────────────────────────────────
+
+export type BpmJobStatus = 'Pending' | 'Running' | 'Scheduled' | 'Completed' | 'Failed';
+
+export interface BpmExecutionJobDto {
+    id: string;
+    processId: string;
+    processName: string;
+    instanceId?: string;
+    instanceName?: string;
+    elementId: string;
+    elementType: string;
+    operationName?: string;
+    status: BpmJobStatus;
+    attemptNumber: number;
+    maxAttempts: number;
+    nextRunAt?: string;
+    startedAt?: string;
+    completedAt?: string;
+    failedAt?: string;
+    lastError?: string;
+    serverHost?: string;
+    isTimer: boolean;
+    timerDeadline?: string;
+    createdAt: string;
+}
+
+export interface QueueStatsDto {
+    pending: number;
+    running: number;
+    scheduled: number;
+    failed: number;
+    total: number;
+}
+
+export interface NodeAnalyticsDto {
+    elementId: string;
+    elementName?: string;
+    executionCount: number;
+    avgDurationMs: number;
+    p50DurationMs: number;
+    p95DurationMs: number;
+    errorCount: number;
+}
+
+export interface GetQueueParams {
+    status?: BpmJobStatus;
+    instanceName?: string;
+    processId?: string;
+    includeScheduled?: boolean;
+    page?: number;
+    pageSize?: number;
+}
+
+/** Получить список заданий в очереди исполнения. */
+export const getQueue = (token: string, params: GetQueueParams = {}): Promise<BpmExecutionJobDto[]> => {
+    const q = new URLSearchParams();
+    if (params.status) q.set('status', params.status);
+    if (params.instanceName) q.set('instanceName', params.instanceName);
+    if (params.processId) q.set('processId', params.processId);
+    if (params.includeScheduled) q.set('includeScheduled', 'true');
+    if (params.page) q.set('page', String(params.page));
+    if (params.pageSize) q.set('pageSize', String(params.pageSize));
+    return fetchJson(`/api/admin/queue?${q}`, token);
+};
+
+/** Получить счётчики статусов очереди. */
+export const getQueueStats = (token: string): Promise<QueueStatsDto> =>
+    fetchJson('/api/admin/queue/stats', token);
+
+/** Принудительно повторить задание. */
+export const retryJob = (token: string, jobId: string): Promise<void> =>
+    fetchJson(`/api/admin/queue/${jobId}/retry`, token, {
+        method: 'POST',
+    });
+
+/** Отменить таймерное задание. */
+export const cancelQueueTimer = (token: string, jobId: string): Promise<void> =>
+    fetchJson(`/api/admin/queue/${jobId}/cancel`, token, { method: 'POST' });
+
+/** Перенести время запуска таймера. */
+export const rescheduleTimer = (token: string, jobId: string, newRunAt: string): Promise<void> =>
+    fetchJson(`/api/admin/queue/${jobId}/reschedule`, token, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newRunAt }),
+    });
+
+/** Аналитика узлов процесса. */
+export const getNodeAnalytics = (
+    token: string,
+    processId: string,
+    from?: string,
+    to?: string,
+): Promise<NodeAnalyticsDto[]> => {
+    const q = new URLSearchParams({ processId });
+    if (from) q.set('from', from);
+    if (to) q.set('to', to);
+    return fetchJson(`/api/analytics/nodes?${q}`, token);
+};

@@ -31,6 +31,7 @@ const STATE_LABELS: Record<string, string> = {
     Completed: 'Завершённые',
     Cancelled: 'Прерванные',
     Suspended: 'Приостановленные',
+    Faulted: 'С ошибкой',
 };
 
 const STATE_BADGE: Record<BpmInstanceState, string> = {
@@ -38,6 +39,7 @@ const STATE_BADGE: Record<BpmInstanceState, string> = {
     Completed: 'badge--completed',
     Cancelled: 'badge--cancelled',
     Suspended: 'badge--suspended',
+    Faulted: 'badge--faulted',
 };
 
 const STATE_LABEL: Record<BpmInstanceState, string> = {
@@ -45,6 +47,7 @@ const STATE_LABEL: Record<BpmInstanceState, string> = {
     Completed: 'Завершён',
     Cancelled: 'Прерван',
     Suspended: 'Приостановлен',
+    Faulted: 'Ошибка',
 };
 
 /** Раздел «Мои процессы» — личный раздел пользователя (FR-BPM-02.3). */

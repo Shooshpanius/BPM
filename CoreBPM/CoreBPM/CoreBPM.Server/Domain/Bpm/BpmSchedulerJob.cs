@@ -36,6 +36,15 @@ public class BpmSchedulerJob
     /// <summary>Дата/время следующего ожидаемого срабатывания (вычисляется при активации).</summary>
     public DateTimeOffset? NextFireAt { get; set; }
 
+    /// <summary>Текущий статус задания планировщика.</summary>
+    public BpmJobStatus Status { get; set; } = BpmJobStatus.Scheduled;
+
+    /// <summary>Количество неудачных попыток запуска подряд.</summary>
+    public int RetryCount { get; set; } = 0;
+
+    /// <summary>Текст последней ошибки при попытке запуска.</summary>
+    public string? LastError { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
 

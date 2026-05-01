@@ -16,6 +16,7 @@ import { DmnEditorPage } from './rules/DmnEditorPage';
 import { FormsPage } from './forms/FormsPage';
 import { FormBuilderPage } from './forms/FormBuilderPage';
 import { ScriptsPage } from './scripts/ScriptsPage';
+import { ExecutionQueuePage } from './bpm/ExecutionQueuePage';
 import { MyColleaguesWidget } from '../components/org/MyColleaguesWidget';
 import './HomePage.css';
 
@@ -160,6 +161,7 @@ export function HomePage({ onAdmin }: HomePageProps) {
                             : <FormsPage onOpenBuilder={setFormBuilderId} />
                     )}
                     {section === 'bpm-scripts' && <ScriptsPage />}
+                    {section === 'bpm-queue' && <ExecutionQueuePage />}
                 </main>
             </div>
             {isMobile && <MobileNav active={section} onSelect={handleSelect} />}

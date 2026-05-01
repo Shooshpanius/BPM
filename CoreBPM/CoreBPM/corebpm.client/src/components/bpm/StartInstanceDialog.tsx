@@ -14,6 +14,7 @@ const STATE_LABELS: Record<api.BpmInstanceState, string> = {
     Completed: 'Завершён',
     Cancelled: 'Прерван',
     Suspended: 'Приостановлен',
+    Faulted: 'Ошибка',
 };
 
 const STATE_COLORS: Record<api.BpmInstanceState, string> = {
@@ -21,6 +22,7 @@ const STATE_COLORS: Record<api.BpmInstanceState, string> = {
     Completed: '#16a34a',
     Cancelled: '#dc2626',
     Suspended: '#d97706',
+    Faulted: '#9d174d',
 };
 
 /** Диалог «Запуск процесса» — стартовое окно.

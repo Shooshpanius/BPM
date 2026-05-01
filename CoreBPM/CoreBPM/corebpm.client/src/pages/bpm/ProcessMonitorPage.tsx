@@ -7,6 +7,7 @@ import type {
     InstanceStatusOptionDto,
     BpmProcessStatsDto,
 } from '../../api/bpmApi';
+import { NodeAnalyticsPanel } from '../../components/bpm/NodeAnalyticsPanel';
 import './ProcessMonitorPage.css';
 
 // ─── Утилиты ─────────────────────────────────────────────────────────────────
@@ -25,6 +26,7 @@ const STATE_LABELS: Record<BpmInstanceState, string> = {
     Completed: 'Завершён',
     Cancelled: 'Прерван',
     Suspended: 'Приостановлен',
+    Faulted: 'Ошибка',
 };
 
 const STATE_COLORS: Record<BpmInstanceState, string> = {
@@ -32,6 +34,7 @@ const STATE_COLORS: Record<BpmInstanceState, string> = {
     Completed: '#dcfce7',
     Cancelled: '#fee2e2',
     Suspended: '#fef9c3',
+    Faulted: '#fce7f3',
 };
 
 const STATE_TEXT_COLORS: Record<BpmInstanceState, string> = {
@@ -39,6 +42,7 @@ const STATE_TEXT_COLORS: Record<BpmInstanceState, string> = {
     Completed: '#15803d',
     Cancelled: '#b91c1c',
     Suspended: '#854d0e',
+    Faulted: '#9d174d',
 };
 
 // ─── Пропсы ───────────────────────────────────────────────────────────────────
@@ -50,7 +54,7 @@ interface Props {
     onOpenInstance?: (instanceId: string) => void;
 }
 
-type ViewMode = 'list' | 'kanban';
+type ViewMode = 'list' | 'kanban' | 'analytics';
 
 // ─── Компонент ───────────────────────────────────────────────────────────────
 
@@ -108,6 +112,7 @@ export function ProcessMonitorPage({ processId, processName, onBack, onOpenInsta
     const kanbanColumns: { state: BpmInstanceState | ''; label: string; items: BpmInstanceListItemDto[] }[] =
         ([
             { state: 'Active' as BpmInstanceState, label: 'Выполняется' },
+            { state: 'Faulted' as BpmInstanceState, label: 'Ошибка' },
             { state: 'Suspended' as BpmInstanceState, label: 'Приостановлен' },
             { state: 'Completed' as BpmInstanceState, label: 'Завершён' },
             { state: 'Cancelled' as BpmInstanceState, label: 'Прерван' },
@@ -134,6 +139,11 @@ export function ProcessMonitorPage({ processId, processName, onBack, onOpenInsta
                         onClick={() => setViewMode('kanban')}
                         title="Kanban"
                     >⊞ Kanban</button>
+                    <button
+                        className={`pmon-view-btn${viewMode === 'analytics' ? ' active' : ''}`}
+                        onClick={() => setViewMode('analytics')}
+                        title="Аналитика узлов"
+                    >📊 Аналитика</button>
                 </div>
             </div>
 
@@ -318,6 +328,13 @@ export function ProcessMonitorPage({ processId, processName, onBack, onOpenInsta
                             </div>
                         </div>
                     ))}
+                </div>
+            )}
+
+            {/* Аналитика узлов */}
+            {viewMode === 'analytics' && (
+                <div className="pmon-analytics">
+                    <NodeAnalyticsPanel processId={processId} />
                 </div>
             )}
         </div>

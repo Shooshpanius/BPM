@@ -17,6 +17,15 @@ public class BpmInstanceHistoryEntry
     /// <summary>Идентификатор пользователя, инициировавшего событие (null — системное событие).</summary>
     public Guid? ActorUserId { get; set; }
 
+    /// <summary>Идентификатор BPMN-элемента, связанного с событием (для аналитики узлов).</summary>
+    public string? ElementId { get; set; }
+
+    /// <summary>Имя элемента (кешируется для отображения без загрузки диаграммы).</summary>
+    public string? ElementName { get; set; }
+
+    /// <summary>Длительность выполнения элемента в миллисекундах (для ServiceTask, ScriptTask и т.д.).</summary>
+    public long? DurationMs { get; set; }
+
     /// <summary>Текстовое описание события или текст комментария/вопроса.</summary>
     public string? Text { get; set; }
 

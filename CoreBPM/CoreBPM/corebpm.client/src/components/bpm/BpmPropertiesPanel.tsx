@@ -21,6 +21,7 @@ import { RpaTaskTab } from './RpaTaskTab';
 import { SignalMessageEventTab } from './SignalMessageEventTab';
 import { BoundaryEventTab } from './BoundaryEventTab';
 import { EscalationTab } from './EscalationTab';
+import { ErrorPolicyTab } from './ErrorPolicyTab';
 import './BpmPropertiesPanel.css';
 
 type BpmnModeler = import('bpmn-js/lib/Modeler').default;
@@ -44,7 +45,7 @@ interface Props {
 
 // ─── Конфигурация вкладок ─────────────────────────────────────────────────────
 
-type TabId = 'general' | 'execution' | 'markers' | 'notifications' | 'variables' | 'roles' | 'raci' | 'settings' | 'statuses' | 'escalation' | 'varvisibility' | 'rpa';
+type TabId = 'general' | 'execution' | 'markers' | 'notifications' | 'variables' | 'roles' | 'raci' | 'settings' | 'statuses' | 'escalation' | 'varvisibility' | 'rpa' | 'errorpolicy';
 
 interface TabDef {
     id: TabId;
@@ -108,6 +109,7 @@ function getTabsForElement(elementType: string | null): TabDef[] {
             { id: 'general', label: 'Основное' },
             { id: 'execution', label: 'Выполнение' },
             { id: 'markers', label: 'Маркеры' },
+            { id: 'errorpolicy', label: 'Ошибки' },
         ];
     }
     if (elementType === 'bpmn:ScriptTask') {
@@ -115,6 +117,7 @@ function getTabsForElement(elementType: string | null): TabDef[] {
             { id: 'general', label: 'Основное' },
             { id: 'execution', label: 'Скрипт' },
             { id: 'markers', label: 'Маркеры' },
+            { id: 'errorpolicy', label: 'Ошибки' },
         ];
     }
     // RPA-задача (кастомный тип расширения)
@@ -123,6 +126,7 @@ function getTabsForElement(elementType: string | null): TabDef[] {
             { id: 'general', label: 'Основное' },
             { id: 'rpa', label: 'RPA-агент' },
             { id: 'markers', label: 'Маркеры' },
+            { id: 'errorpolicy', label: 'Ошибки' },
         ];
     }
     if (elementType === 'bpmn:ManualTask') {
@@ -268,6 +272,9 @@ export function BpmPropertiesPanel({ modeler, processId, token }: Props) {
 
             case 'rpa':
                 return <RpaTaskTab processId={processId} token={token} elementId={elId} />;
+
+            case 'errorpolicy':
+                return <ErrorPolicyTab processId={processId} token={token} elementId={elId} />;
 
             case 'markers':
                 return <TaskMarkersTab processId={processId} token={token} elementId={elId} />;
