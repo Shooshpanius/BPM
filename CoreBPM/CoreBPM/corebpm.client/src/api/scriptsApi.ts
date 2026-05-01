@@ -13,6 +13,15 @@ export interface BpmScriptModuleDto {
     publishedAt?: string;
 }
 
+/** Краткая информация об опубликованном модуле сценариев (для выбора в настройках). */
+export interface BpmScriptModuleSummaryDto {
+    id: string;
+    versionId: string;
+    versionNumber: number;
+    releaseNotes?: string;
+    publishedAt: string;
+}
+
 export interface SaveScriptModuleRequest {
     scriptBody: string;
     language: string;
@@ -147,6 +156,10 @@ export const saveScript = (token: string, processId: string, versionId: string, 
 /** Опубликовать сценарий. */
 export const publishScript = (token: string, processId: string, versionId: string): Promise<BpmScriptModuleDto> =>
     fetchJson(`/api/bpm/processes/${processId}/versions/${versionId}/scripts/publish`, token, { method: 'POST' });
+
+/** Список опубликованных модулей сценариев для всех версий процесса. */
+export const listPublishedModules = (token: string, processId: string): Promise<BpmScriptModuleSummaryDto[]> =>
+    fetchJson(`/api/bpm/processes/${processId}/scripts/modules`, token);
 
 // ─── Расширения дизайнера ─────────────────────────────────────────────────────
 

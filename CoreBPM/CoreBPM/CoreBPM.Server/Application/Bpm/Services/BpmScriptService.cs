@@ -108,6 +108,25 @@ public class BpmScriptService : IBpmScriptService
         )).ToList();
     }
 
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<BpmScriptModuleSummaryDto>> ListPublishedModulesAsync(Guid processId, CancellationToken ct = default)
+    {
+        var modules = await _db.BpmScriptModules
+            .AsNoTracking()
+            .Include(m => m.ProcessVersion)
+            .Where(m => m.ProcessVersion.ProcessId == processId && m.PublishedAt != null)
+            .OrderByDescending(m => m.ProcessVersion.VersionNumber)
+            .ToListAsync(ct);
+
+        return modules.Select(m => new BpmScriptModuleSummaryDto(
+            Id: m.Id,
+            VersionId: m.ProcessVersionId,
+            VersionNumber: m.ProcessVersion.VersionNumber,
+            ReleaseNotes: m.ProcessVersion.ReleaseNotes,
+            PublishedAt: m.PublishedAt!.Value
+        )).ToList();
+    }
+
     // ─── Вспомогательные методы ─────────────────────────────────────────────
 
     private async Task EnsureVersionBelongsToProcessAsync(Guid processId, Guid versionId, CancellationToken ct)

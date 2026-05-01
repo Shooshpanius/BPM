@@ -332,6 +332,15 @@ public record BpmScriptModuleDto(
     DateTimeOffset? PublishedAt
 );
 
+/// <summary>Краткая информация об опубликованном модуле сценариев процесса (для выбора в настройках).</summary>
+public record BpmScriptModuleSummaryDto(
+    Guid Id,
+    Guid VersionId,
+    int VersionNumber,
+    string? ReleaseNotes,
+    DateTimeOffset PublishedAt
+);
+
 /// <summary>Запрос на сохранение сценария.</summary>
 public record SaveScriptModuleRequest(string? ScriptBody, string Language = "CSharp");
 

@@ -1,8 +1,10 @@
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using CoreBPM.Server.Application.Bpm.DTOs;
 using CoreBPM.Server.Application.Bpm.Interfaces;
+using CoreBPM.Server.Application.Bpm.Scripting;
 using CoreBPM.Server.Domain.Bpm;
 using CoreBPM.Server.Exceptions;
 using CoreBPM.Server.Infrastructure.Persistence;
@@ -14,11 +16,22 @@ public class BpmInstanceService : IBpmInstanceService
 {
     private readonly AppDbContext _db;
     private readonly IBpmExecutionEngine _engine;
+    private readonly IBpmScriptExecutor _scriptExecutor;
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly ILogger<BpmInstanceService> _logger;
 
-    public BpmInstanceService(AppDbContext db, IBpmExecutionEngine engine)
+    public BpmInstanceService(
+        AppDbContext db,
+        IBpmExecutionEngine engine,
+        IBpmScriptExecutor scriptExecutor,
+        IHttpClientFactory httpClientFactory,
+        ILogger<BpmInstanceService> logger)
     {
         _db = db;
         _engine = engine;
+        _scriptExecutor = scriptExecutor;
+        _httpClientFactory = httpClientFactory;
+        _logger = logger;
     }
 
     /// <inheritdoc />
@@ -326,6 +339,9 @@ public class BpmInstanceService : IBpmInstanceService
 
         if (instance.State == BpmInstanceState.Completed || instance.State == BpmInstanceState.Cancelled)
             throw new ValidationException($"Нельзя прервать экземпляр в состоянии {instance.State}");
+
+        // Применяем действие при прерывании (до сохранения состояния Cancelled)
+        await ApplyInterruptActionAsync(instance, ct);
 
         var now = DateTimeOffset.UtcNow;
         instance.State = BpmInstanceState.Cancelled;
@@ -1017,5 +1033,242 @@ public class BpmInstanceService : IBpmInstanceService
         if (value.Contains(';') || value.Contains('"') || value.Contains('\n'))
             return $"\"{value.Replace("\"", "\"\"")}\"";
         return value;
+    }
+
+    // ─── Применение действия при прерывании ─────────────────────────────────
+
+    /// <summary>
+    /// Применяет настроенное действие над статусом экземпляра при его прерывании:
+    /// Reset, MoveToNext или RunScript. KeepCurrent — ничего не делает.
+    /// Ошибки выполнения сценария не блокируют саму операцию отмены — только логируются.
+    /// </summary>
+    private async Task ApplyInterruptActionAsync(BpmInstance instance, CancellationToken ct)
+    {
+        var config = await _db.BpmInstanceStatusConfigs
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.ProcessId == instance.ProcessId, ct);
+
+        if (config == null || config.OnInterruptAction == BpmInterruptAction.KeepCurrent)
+            return;
+
+        switch (config.OnInterruptAction)
+        {
+            case BpmInterruptAction.Reset:
+                await ApplyStatusResetAsync(instance, config, ct);
+                break;
+
+            case BpmInterruptAction.MoveToNext:
+                await ApplyStatusMoveToNextAsync(instance, config, ct);
+                break;
+
+            case BpmInterruptAction.RunScript:
+                await ApplyStatusRunScriptAsync(instance, config, ct);
+                break;
+        }
+    }
+
+    /// <summary>Сбрасывает привязанную переменную статуса в null.</summary>
+    private async Task ApplyStatusResetAsync(BpmInstance instance, BpmInstanceStatusConfig config, CancellationToken ct)
+    {
+        if (config.LinkedVariableId == null) return;
+
+        var varName = await _db.BpmProcessVariables
+            .AsNoTracking()
+            .Where(v => v.Id == config.LinkedVariableId.Value)
+            .Select(v => v.Name)
+            .FirstOrDefaultAsync(ct);
+
+        if (varName == null) return;
+
+        var instanceVar = await _db.BpmInstanceVariables
+            .FirstOrDefaultAsync(v => v.InstanceId == instance.Id && v.Name == varName, ct);
+
+        if (instanceVar != null)
+        {
+            instanceVar.ValueJson = null;
+            instanceVar.SetAt = DateTimeOffset.UtcNow;
+            _logger.LogInformation(
+                "ApplyInterruptAction [Reset]: переменная «{VarName}» обнулена (экземпляр {InstanceId})",
+                varName, instance.Id);
+        }
+    }
+
+    /// <summary>Переводит статус в следующий по порядку, по кругу.</summary>
+    private async Task ApplyStatusMoveToNextAsync(BpmInstance instance, BpmInstanceStatusConfig config, CancellationToken ct)
+    {
+        if (config.LinkedVariableId == null) return;
+
+        var varName = await _db.BpmProcessVariables
+            .AsNoTracking()
+            .Where(v => v.Id == config.LinkedVariableId.Value)
+            .Select(v => v.Name)
+            .FirstOrDefaultAsync(ct);
+
+        if (varName == null) return;
+
+        var options = await _db.BpmInstanceStatusOptions
+            .AsNoTracking()
+            .Where(o => o.ProcessId == instance.ProcessId)
+            .OrderBy(o => o.SortOrder)
+            .ThenBy(o => o.Name)
+            .ToListAsync(ct);
+
+        if (options.Count == 0) return;
+
+        var instanceVar = await _db.BpmInstanceVariables
+            .FirstOrDefaultAsync(v => v.InstanceId == instance.Id && v.Name == varName, ct);
+
+        // Определяем текущий статус через десериализацию JSON
+        string? currentCode = null;
+        if (instanceVar?.ValueJson != null)
+        {
+            try
+            {
+                currentCode = System.Text.Json.JsonSerializer.Deserialize<string>(instanceVar.ValueJson);
+            }
+            catch { /* игнорируем некорректный JSON — сбрасываем к первому статусу */ }
+        }
+
+        var currentIndex = currentCode != null
+            ? options.FindIndex(o => o.Code == currentCode)
+            : -1;
+
+        // Следующий индекс — по кругу
+        var nextIndex = (currentIndex + 1) % options.Count;
+        var nextCode = options[nextIndex].Code;
+        var jsonValue = System.Text.Json.JsonSerializer.Serialize(nextCode);
+        var now = DateTimeOffset.UtcNow;
+
+        if (instanceVar == null)
+        {
+            _db.BpmInstanceVariables.Add(new BpmInstanceVariable
+            {
+                Id = Guid.NewGuid(),
+                InstanceId = instance.Id,
+                Name = varName,
+                ValueJson = jsonValue,
+                SetAt = now,
+            });
+        }
+        else
+        {
+            instanceVar.ValueJson = jsonValue;
+            instanceVar.SetAt = now;
+        }
+
+        _logger.LogInformation(
+            "ApplyInterruptAction [MoveToNext]: статус переведён «{From}» → «{To}» (экземпляр {InstanceId})",
+            currentCode ?? "(нет)", nextCode, instance.Id);
+    }
+
+    /// <summary>
+    /// Выполняет C#-сценарий, указанный в конфигурации прерывания.
+    /// OnInterruptScriptId трактуется как Guid модуля BpmScriptModule; если не Guid —
+    /// используется последний опубликованный модуль текущей версии процесса.
+    /// Ошибки выполнения не прерывают операцию отмены, только логируются.
+    /// </summary>
+    private async Task ApplyStatusRunScriptAsync(BpmInstance instance, BpmInstanceStatusConfig config, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(config.OnInterruptScriptId))
+        {
+            _logger.LogWarning(
+                "ApplyInterruptAction [RunScript]: OnInterruptScriptId не задан (процесс {ProcessId})",
+                instance.ProcessId);
+            return;
+        }
+
+        // Пробуем найти модуль по Guid
+        BpmScriptModule? module = null;
+        if (Guid.TryParse(config.OnInterruptScriptId, out var moduleId))
+        {
+            module = await _db.BpmScriptModules
+                .AsNoTracking()
+                .FirstOrDefaultAsync(m => m.Id == moduleId, ct);
+        }
+
+        // Фолбэк: последний опубликованный модуль версии процесса
+        if (module == null)
+        {
+            module = await _db.BpmScriptModules
+                .AsNoTracking()
+                .Where(m => m.ProcessVersionId == instance.ProcessVersionId && m.PublishedAt != null)
+                .OrderByDescending(m => m.PublishedAt)
+                .FirstOrDefaultAsync(ct);
+        }
+
+        if (module == null || string.IsNullOrWhiteSpace(module.ScriptBody))
+        {
+            _logger.LogWarning(
+                "ApplyInterruptAction [RunScript]: сценарий не найден (OnInterruptScriptId={ScriptId}, процесс {ProcessId})",
+                config.OnInterruptScriptId, instance.ProcessId);
+            return;
+        }
+
+        // Загружаем переменные экземпляра
+        var variables = await _db.BpmInstanceVariables
+            .AsNoTracking()
+            .Where(v => v.InstanceId == instance.Id)
+            .ToDictionaryAsync(v => v.Name, v => v.ValueJson, ct);
+
+        var httpClient = _httpClientFactory.CreateClient("BpmEngine");
+        var context = new ScriptContext(
+            instanceId: instance.Id,
+            processId: instance.ProcessId,
+            processVersionId: instance.ProcessVersionId,
+            elementId: "interrupt",
+            variables: variables,
+            logger: _logger,
+            httpClient: httpClient);
+
+        try
+        {
+            _logger.LogInformation(
+                "ApplyInterruptAction [RunScript]: запуск сценария {ModuleId} (экземпляр {InstanceId})",
+                module.Id, instance.Id);
+
+            await _scriptExecutor.ExecuteAsync(module.ScriptBody, context, ct: ct);
+
+            // Сохраняем переменные, изменённые сценарием
+            var outputVars = context.OutputVariables;
+            if (outputVars.Count > 0)
+            {
+                var varNames = outputVars.Select(v => v.Name).ToList();
+                var existingVars = await _db.BpmInstanceVariables
+                    .Where(v => v.InstanceId == instance.Id && varNames.Contains(v.Name))
+                    .ToDictionaryAsync(v => v.Name, ct);
+
+                var now = DateTimeOffset.UtcNow;
+                foreach (var (name, value) in outputVars)
+                {
+                    if (existingVars.TryGetValue(name, out var existing))
+                    {
+                        existing.ValueJson = value;
+                        existing.SetAt = now;
+                    }
+                    else
+                    {
+                        _db.BpmInstanceVariables.Add(new BpmInstanceVariable
+                        {
+                            Id = Guid.NewGuid(),
+                            InstanceId = instance.Id,
+                            Name = name,
+                            ValueJson = value,
+                            SetAt = now,
+                        });
+                    }
+                }
+
+                _logger.LogInformation(
+                    "ApplyInterruptAction [RunScript]: сценарий выполнен, сохранено {Count} переменных (экземпляр {InstanceId})",
+                    outputVars.Count, instance.Id);
+            }
+        }
+        catch (Exception ex)
+        {
+            // Ошибка сценария не блокирует отмену экземпляра — только логируем
+            _logger.LogError(ex,
+                "ApplyInterruptAction [RunScript]: ошибка выполнения сценария {ModuleId} (экземпляр {InstanceId}): {Message}",
+                module.Id, instance.Id, ex.Message);
+        }
     }
 }

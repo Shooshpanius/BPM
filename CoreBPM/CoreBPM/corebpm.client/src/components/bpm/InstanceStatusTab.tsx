@@ -6,6 +6,8 @@ import type {
     BpmInterruptAction,
     BpmProcessVariableDto,
 } from '../../api/bpmApi';
+import { listPublishedModules } from '../../api/scriptsApi';
+import type { BpmScriptModuleSummaryDto } from '../../api/scriptsApi';
 
 interface Props {
     processId: string;
@@ -31,6 +33,7 @@ const newEditingOption = (): EditingOption => ({ name: '', code: '' });
 export function InstanceStatusTab({ processId, token }: Props) {
     const [config, setConfig] = useState<InstanceStatusConfigDto | null>(null);
     const [variables, setVariables] = useState<BpmProcessVariableDto[]>([]);
+    const [scriptModules, setScriptModules] = useState<BpmScriptModuleSummaryDto[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -45,12 +48,14 @@ export function InstanceStatusTab({ processId, token }: Props) {
     const load = useCallback(async () => {
         setLoading(true);
         try {
-            const [cfg, vars] = await Promise.all([
+            const [cfg, vars, modules] = await Promise.all([
                 api.getStatusConfig(token, processId),
                 api.getVariables(token, processId),
+                listPublishedModules(token, processId).catch(() => [] as BpmScriptModuleSummaryDto[]),
             ]);
             setConfig(cfg);
             setVariables(vars);
+            setScriptModules(modules);
             setError(null);
         } catch (e) {
             setError(e instanceof Error ? e.message : 'Ошибка загрузки');
@@ -247,15 +252,35 @@ export function InstanceStatusTab({ processId, token }: Props) {
 
                 {config?.onInterruptAction === 'RunScript' && (
                     <div className="bpp-field" style={{ marginTop: 8 }}>
-                        <label className="bpp-label">ID сценария</label>
-                        <input
-                            className="bpp-input"
-                            placeholder="script-id или путь к сценарию"
-                            value={config.onInterruptScriptId ?? ''}
-                            disabled={saving}
-                            onChange={e => updateConfig({ onInterruptScriptId: e.target.value || undefined })}
-                        />
-                        <span className="bpp-hint">Сценарий из раздела «Сценарии» дизайнера (FR-BPM-01.7)</span>
+                        <label className="bpp-label">Сценарий при прерывании</label>
+                        {scriptModules.length > 0 ? (
+                            <select
+                                className="bpp-input"
+                                value={config.onInterruptScriptId ?? ''}
+                                disabled={saving}
+                                onChange={e => updateConfig({ onInterruptScriptId: e.target.value || undefined })}
+                            >
+                                <option value="">— выберите модуль —</option>
+                                {scriptModules.map(m => (
+                                    <option key={m.id} value={m.id}>
+                                        v{m.versionNumber}{m.releaseNotes ? ` — ${m.releaseNotes}` : ''} (опубликован {new Date(m.publishedAt).toLocaleDateString('ru')})
+                                    </option>
+                                ))}
+                            </select>
+                        ) : (
+                            <input
+                                className="bpp-input"
+                                placeholder="ID модуля сценария"
+                                value={config.onInterruptScriptId ?? ''}
+                                disabled={saving}
+                                onChange={e => updateConfig({ onInterruptScriptId: e.target.value || undefined })}
+                            />
+                        )}
+                        <span className="bpp-hint">
+                            {scriptModules.length > 0
+                                ? 'Выберите опубликованный модуль сценариев из раздела «Сценарии»'
+                                : 'Опубликуйте сценарий в разделе «Сценарии», чтобы выбрать его здесь'}
+                        </span>
                     </div>
                 )}
             </div>

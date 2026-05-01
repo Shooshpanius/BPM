@@ -57,4 +57,13 @@ public class BpmScriptsController : ControllerBase
         Guid versionId,
         CancellationToken ct)
         => Ok(await _service.PublishScriptAsync(processId, versionId, ct));
+
+    /// <summary>Возвращает список опубликованных модулей сценариев для всех версий процесса.</summary>
+    [HttpGet("api/bpm/processes/{processId}/scripts/modules")]
+    [ProducesResponseType(typeof(IReadOnlyList<BpmScriptModuleSummaryDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<IReadOnlyList<BpmScriptModuleSummaryDto>>> ListPublishedModules(
+        Guid processId,
+        CancellationToken ct)
+        => Ok(await _service.ListPublishedModulesAsync(processId, ct));
 }
