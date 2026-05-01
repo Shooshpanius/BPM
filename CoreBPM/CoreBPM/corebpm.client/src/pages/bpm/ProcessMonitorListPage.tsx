@@ -3,7 +3,9 @@ import { useAuth } from '../../context/AuthContext';
 import {
     getMyMonitorProcesses,
     getFullMonitorProcesses,
+    getBpmDashboard,
     type BpmProcessMonitorItemDto,
+    type BpmDashboardDto,
 } from '../../api/bpmApi';
 import './ProcessMonitorListPage.css';
 
@@ -26,6 +28,7 @@ export function ProcessMonitorListPage({ onOpenMonitor }: Props) {
     const [errorMy, setErrorMy] = useState<string | null>(null);
     const [errorFull, setErrorFull] = useState<string | null>(null);
     const [search, setSearch] = useState('');
+    const [dashboard, setDashboard] = useState<BpmDashboardDto | null>(null);
 
     // ─── Загрузка «Мой монитор» ─────────────────────────────────────────────
     useEffect(() => {
@@ -36,6 +39,8 @@ export function ProcessMonitorListPage({ onOpenMonitor }: Props) {
             .then(setMyItems)
             .catch(() => setErrorMy('Ошибка загрузки'))
             .finally(() => setLoadingMy(false));
+        // Дашборд загружаем параллельно
+        getBpmDashboard(accessToken).then(setDashboard).catch(() => {});
     }, [accessToken]);
 
     // ─── Загрузка «Полный монитор» ──────────────────────────────────────────
@@ -83,6 +88,44 @@ export function ProcessMonitorListPage({ onOpenMonitor }: Props) {
                     </div>
                 )}
             </div>
+
+            {/* ─── Дашборд ─────────────────────────────────────────────────── */}
+            {dashboard && (
+                <div className="pml-dashboard">
+                    <div className="pml-dash-stat">
+                        <span className="pml-dash-value">{dashboard.totalProcesses}</span>
+                        <span className="pml-dash-label">Процессов</span>
+                    </div>
+                    <div className="pml-dash-stat pml-dash-stat--active">
+                        <span className="pml-dash-value">{dashboard.activeInstances}</span>
+                        <span className="pml-dash-label">Активных</span>
+                    </div>
+                    <div className="pml-dash-stat pml-dash-stat--suspended">
+                        <span className="pml-dash-value">{dashboard.suspendedInstances}</span>
+                        <span className="pml-dash-label">На паузе</span>
+                    </div>
+                    <div className="pml-dash-stat pml-dash-stat--completed">
+                        <span className="pml-dash-value">{dashboard.completedInstances}</span>
+                        <span className="pml-dash-label">Завершено</span>
+                    </div>
+                    <div className="pml-dash-stat pml-dash-stat--cancelled">
+                        <span className="pml-dash-value">{dashboard.cancelledInstances}</span>
+                        <span className="pml-dash-label">Прервано</span>
+                    </div>
+                    {dashboard.faultedInstances > 0 && (
+                        <div className="pml-dash-stat pml-dash-stat--faulted">
+                            <span className="pml-dash-value">{dashboard.faultedInstances}</span>
+                            <span className="pml-dash-label">С ошибкой</span>
+                        </div>
+                    )}
+                    {dashboard.failedJobs > 0 && (
+                        <div className="pml-dash-stat pml-dash-stat--error">
+                            <span className="pml-dash-value">{dashboard.failedJobs}</span>
+                            <span className="pml-dash-label">Failed-заданий</span>
+                        </div>
+                    )}
+                </div>
+            )}
 
             <div className="pml-toolbar">
                 <input

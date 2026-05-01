@@ -825,3 +825,61 @@ public record MigrationItemRequest(
 public record ManualMigrateItemRequest(
     string? ManualChangeUrl
 );
+
+// ─── Пакетный запуск экземпляров (FR-BPM-02.1) ───────────────────────────────
+
+/// <summary>Один элемент пакетного запуска: название и переменные для одного экземпляра.</summary>
+public record BatchLaunchItem(
+    string? Name,
+    IDictionary<string, string?>? Variables
+);
+
+/// <summary>Запрос на пакетный запуск нескольких экземпляров одного процесса.</summary>
+public record BatchLaunchRequest(
+    IReadOnlyList<BatchLaunchItem> Items
+);
+
+/// <summary>Результат запуска одного экземпляра в пакете.</summary>
+public record BatchLaunchItemResult(
+    bool Success,
+    Guid? InstanceId,
+    string? InstanceName,
+    string? Error
+);
+
+/// <summary>Итоговый результат пакетного запуска.</summary>
+public record BatchLaunchResult(
+    int Total,
+    int Created,
+    int Failed,
+    IReadOnlyList<BatchLaunchItemResult> Items
+);
+
+// ─── Прямое переключение версии экземпляра (FR-BPM-02.2) ─────────────────────
+
+/// <summary>Запрос на прямое переключение версии работающего экземпляра.</summary>
+public record SwitchInstanceVersionRequest(
+    Guid TargetVersionId
+);
+
+// ─── Дашборд мониторинга (FR-BPM-02.4) ───────────────────────────────────────
+
+/// <summary>Сводная статистика по процессам для дашборда мониторинга.</summary>
+public record BpmDashboardDto(
+    int TotalProcesses,
+    int ActiveInstances,
+    int SuspendedInstances,
+    int CompletedInstances,
+    int CancelledInstances,
+    int FaultedInstances,
+    int FailedJobs,
+    IReadOnlyList<BpmDashboardTopProcessDto> TopActiveProcesses
+);
+
+/// <summary>Строка дашборда: процесс с наибольшим числом активных экземпляров.</summary>
+public record BpmDashboardTopProcessDto(
+    Guid ProcessId,
+    string ProcessName,
+    int ActiveCount,
+    int TotalCount
+);

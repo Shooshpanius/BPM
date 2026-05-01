@@ -783,4 +783,226 @@ public class BpmInstanceService : IBpmInstanceService
 
         return new MyInstancesResult(items, total);
     }
+
+    /// <inheritdoc />
+    public async Task<byte[]> ExportMyInstancesToCsvAsync(
+        Guid userId,
+        MyInstancesFilter filter,
+        CancellationToken ct = default)
+    {
+        // Повторяем ту же логику фильтрации, но без пагинации (до 5000 строк)
+        var participantInstanceIds = filter.Role is MyInstancesRole.All or MyInstancesRole.Participant
+            ? await _db.BpmInstanceParticipants
+                .AsNoTracking()
+                .Where(p => p.UserId == userId)
+                .Select(p => p.InstanceId)
+                .ToListAsync(ct)
+            : new List<Guid>();
+
+        var query = _db.BpmInstances
+            .AsNoTracking()
+            .Include(i => i.Process)
+            .Include(i => i.ProcessVersion)
+            .AsQueryable();
+
+        query = filter.Role switch
+        {
+            MyInstancesRole.Initiator  => query.Where(i => i.InitiatorUserId == userId),
+            MyInstancesRole.Responsible => query.Where(i => i.ResponsibleUserId == userId),
+            MyInstancesRole.Participant => query.Where(i => participantInstanceIds.Contains(i.Id)),
+            _ => query.Where(i =>
+                i.InitiatorUserId == userId ||
+                i.ResponsibleUserId == userId ||
+                participantInstanceIds.Contains(i.Id))
+        };
+
+        if (filter.State.HasValue) query = query.Where(i => i.State == filter.State.Value);
+        if (!string.IsNullOrWhiteSpace(filter.Search))
+        {
+            var s = filter.Search.Trim().ToLower();
+            query = query.Where(i => i.Name.ToLower().Contains(s));
+        }
+        if (filter.ProcessId.HasValue) query = query.Where(i => i.ProcessId == filter.ProcessId.Value);
+        if (filter.DateFrom.HasValue) query = query.Where(i => i.StartedAt >= filter.DateFrom.Value);
+        if (filter.DateTo.HasValue) query = query.Where(i => i.StartedAt <= filter.DateTo.Value);
+
+        var instances = await query
+            .OrderByDescending(i => i.StartedAt)
+            .Take(5000)
+            .ToListAsync(ct);
+
+        var userIds = instances
+            .SelectMany(i => new[] { i.InitiatorUserId, i.ResponsibleUserId })
+            .Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToList();
+
+        var userNames = await _db.OrgUsers.AsNoTracking()
+            .Where(u => userIds.Contains(u.Id))
+            .Select(u => new { u.Id, u.DisplayName })
+            .ToListAsync(ct);
+
+        string? GetName(Guid? id) => userNames.FirstOrDefault(u => u.Id == id)?.DisplayName;
+
+        return BuildCsv(
+            ["Экземпляр", "Процесс", "Версия", "Состояние", "Инициатор", "Ответственный", "Запущен", "Завершён"],
+            instances.Select(i => new[]
+            {
+                i.Name,
+                i.Process.Name,
+                i.ProcessVersion.VersionNumber.ToString(),
+                i.State.ToString(),
+                GetName(i.InitiatorUserId) ?? "",
+                GetName(i.ResponsibleUserId) ?? "",
+                i.StartedAt.ToString("dd.MM.yyyy HH:mm"),
+                (i.CompletedAt ?? i.CancelledAt)?.ToString("dd.MM.yyyy HH:mm") ?? "",
+            })
+        );
+    }
+
+    /// <inheritdoc />
+    public async Task<BatchLaunchResult> BatchCreateInstancesAsync(
+        Guid processId,
+        BatchLaunchRequest request,
+        Guid initiatorUserId,
+        CancellationToken ct = default)
+    {
+        if (request.Items == null || request.Items.Count == 0)
+            throw new ValidationException("Список элементов для запуска не может быть пустым");
+        if (request.Items.Count > 500)
+            throw new ValidationException("Пакетный запуск поддерживает не более 500 экземпляров за раз");
+
+        var process = await _db.BpmProcesses
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == processId, ct)
+            ?? throw new NotFoundException($"Процесс {processId} не найден");
+
+        if (!process.LaunchFromPortalEnabled)
+            throw new ForbiddenException("Запуск процесса из портала отключён в настройках");
+
+        var version = await _db.BpmProcessVersions
+            .AsNoTracking()
+            .Where(v => v.ProcessId == processId && v.Status == BpmProcessVersionStatus.Active)
+            .OrderByDescending(v => v.VersionNumber)
+            .FirstOrDefaultAsync(ct)
+            ?? throw new ValidationException("Процесс не имеет активной опубликованной версии");
+
+        var now = DateTimeOffset.UtcNow;
+        var results = new List<BatchLaunchItemResult>();
+
+        for (var idx = 0; idx < request.Items.Count; idx++)
+        {
+            var item = request.Items[idx];
+            try
+            {
+                var name = ResolveInstanceName(process, new CreateInstanceRequest(item.Name, item.Variables));
+                var instance = new BpmInstance
+                {
+                    Id = Guid.NewGuid(),
+                    ProcessId = processId,
+                    ProcessVersionId = version.Id,
+                    Name = name,
+                    State = BpmInstanceState.Active,
+                    LaunchSource = BpmInstanceLaunchSource.Batch,
+                    InitiatorUserId = initiatorUserId,
+                    ResponsibleUserId = initiatorUserId,
+                    StartedAt = now.AddMilliseconds(idx),
+                    UpdatedAt = now.AddMilliseconds(idx),
+                };
+                instance.Variables = BuildVariables(instance.Id, item.Variables, now.AddMilliseconds(idx));
+                _db.BpmInstances.Add(instance);
+
+                results.Add(new BatchLaunchItemResult(true, instance.Id, instance.Name, null));
+            }
+            catch (Exception ex)
+            {
+                results.Add(new BatchLaunchItemResult(false, null, null, ex.Message));
+            }
+        }
+
+        await _db.SaveChangesAsync(ct);
+
+        return new BatchLaunchResult(
+            Total: results.Count,
+            Created: results.Count(r => r.Success),
+            Failed: results.Count(r => !r.Success),
+            Items: results
+        );
+    }
+
+    /// <inheritdoc />
+    public async Task<BpmInstanceDto> SwitchVersionAsync(
+        Guid instanceId,
+        SwitchInstanceVersionRequest request,
+        Guid actorUserId,
+        CancellationToken ct = default)
+    {
+        var instance = await _db.BpmInstances
+            .Include(i => i.Process)
+            .Include(i => i.ProcessVersion)
+            .Include(i => i.Variables)
+            .FirstOrDefaultAsync(i => i.Id == instanceId, ct)
+            ?? throw new NotFoundException($"Экземпляр {instanceId} не найден");
+
+        if (instance.State == BpmInstanceState.Cancelled || instance.State == BpmInstanceState.Completed)
+            throw new ValidationException("Нельзя переключить версию у завершённого или прерванного экземпляра");
+
+        if (instance.ProcessVersionId == request.TargetVersionId)
+            throw new ValidationException("Экземпляр уже выполняется на указанной версии");
+
+        var targetVersion = await _db.BpmProcessVersions
+            .AsNoTracking()
+            .FirstOrDefaultAsync(v =>
+                v.Id == request.TargetVersionId &&
+                v.ProcessId == instance.ProcessId &&
+                v.Status == BpmProcessVersionStatus.Active, ct)
+            ?? throw new NotFoundException("Целевая версия не найдена или не является активной версией данного процесса");
+
+        var oldVersionNumber = instance.ProcessVersion.VersionNumber;
+        var now = DateTimeOffset.UtcNow;
+
+        instance.ProcessVersionId = targetVersion.Id;
+        instance.UpdatedAt = now;
+
+        _db.BpmInstanceHistoryEntries.Add(new BpmInstanceHistoryEntry
+        {
+            Id = Guid.NewGuid(),
+            InstanceId = instanceId,
+            EventType = BpmHistoryEventType.VariableUpdated,
+            ActorUserId = actorUserId,
+            Text = $"Версия процесса изменена с v{oldVersionNumber} на v{targetVersion.VersionNumber}",
+            MetaJson = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                type = "VersionSwitch",
+                fromVersionId = instance.ProcessVersionId,
+                toVersionId = targetVersion.Id,
+                toVersionNumber = targetVersion.VersionNumber,
+            }),
+            OccurredAt = now,
+        });
+
+        await _db.SaveChangesAsync(ct);
+        return await GetInstanceByIdAsync(instanceId, ct);
+    }
+
+    // ─── Вспомогательные методы ──────────────────────────────────────────────
+
+    /// <summary>Формирует CSV-байты (UTF-8 BOM) из заголовка и строк.</summary>
+    private static byte[] BuildCsv(IReadOnlyList<string> headers, IEnumerable<string[]> rows)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine(string.Join(";", headers.Select(EscapeCsv)));
+        foreach (var row in rows)
+            sb.AppendLine(string.Join(";", row.Select(EscapeCsv)));
+
+        var content = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
+        // Добавляем UTF-8 BOM для корректного открытия в Excel
+        return [0xEF, 0xBB, 0xBF, .. content];
+    }
+
+    private static string EscapeCsv(string? value)
+    {
+        if (string.IsNullOrEmpty(value)) return "";
+        if (value.Contains(';') || value.Contains('"') || value.Contains('\n'))
+            return $"\"{value.Replace("\"", "\"\"")}\"";
+        return value;
+    }
 }

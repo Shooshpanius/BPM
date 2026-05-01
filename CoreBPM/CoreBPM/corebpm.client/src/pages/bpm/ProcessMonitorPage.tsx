@@ -144,6 +144,22 @@ export function ProcessMonitorPage({ processId, processName, onBack, onOpenInsta
                         onClick={() => setViewMode('analytics')}
                         title="Аналитика узлов"
                     >📊 Аналитика</button>
+                    <button
+                        className="pmon-view-btn"
+                        onClick={async () => {
+                            if (!token) return;
+                            try {
+                                const blob = await api.exportProcessInstances(token, processId);
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = `${processName.replace(/[^a-zA-ZА-яа-я0-9]/g, '_')}_instances.csv`;
+                                a.click();
+                                URL.revokeObjectURL(url);
+                            } catch { /* тихая обработка */ }
+                        }}
+                        title="Экспортировать список в CSV"
+                    >⬇️ CSV</button>
                 </div>
             </div>
 

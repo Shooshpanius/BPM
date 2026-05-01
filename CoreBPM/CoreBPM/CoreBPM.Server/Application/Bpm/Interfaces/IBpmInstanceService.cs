@@ -77,4 +77,28 @@ public interface IBpmInstanceService
         int page = 1,
         int pageSize = 30,
         CancellationToken ct = default);
+
+    /// <summary>Экспортирует «Мои процессы» в CSV-файл (UTF-8 BOM), применяя тот же фильтр без пагинации.</summary>
+    Task<byte[]> ExportMyInstancesToCsvAsync(
+        Guid userId,
+        MyInstancesFilter filter,
+        CancellationToken ct = default);
+
+    // ─── Пакетный запуск (FR-BPM-02.1) ──────────────────────────────────────
+
+    /// <summary>Запускает несколько экземпляров одного процесса одной операцией.</summary>
+    Task<BatchLaunchResult> BatchCreateInstancesAsync(
+        Guid processId,
+        BatchLaunchRequest request,
+        Guid initiatorUserId,
+        CancellationToken ct = default);
+
+    // ─── Переключение версии (FR-BPM-02.2) ───────────────────────────────────
+
+    /// <summary>Переключает работающий экземпляр на другую опубликованную версию того же процесса.</summary>
+    Task<BpmInstanceDto> SwitchVersionAsync(
+        Guid instanceId,
+        SwitchInstanceVersionRequest request,
+        Guid actorUserId,
+        CancellationToken ct = default);
 }

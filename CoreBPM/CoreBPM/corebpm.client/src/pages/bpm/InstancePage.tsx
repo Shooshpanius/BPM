@@ -6,6 +6,7 @@ import type {
     BpmInstanceHistoryEntryDto,
     BpmInstanceParticipantDto,
     BpmHistoryEventType,
+    BpmProcessVersionInfoDto,
 } from '../../api/bpmApi';
 import { getDirectoryEmployees } from '../../api/orgDirectoryApi';
 import './InstancePage.css';
@@ -132,6 +133,13 @@ export function InstancePage({ instanceId, onBack }: Props) {
     const [newParticipantId, setNewParticipantId] = useState<string | null>(null);
     const [newParticipantName, setNewParticipantName] = useState('');
     const [addingParticipant, setAddingParticipant] = useState(false);
+
+    // ─── Переключение версии ─────────────────────────────────────────────────
+    const [showSwitchVersion, setShowSwitchVersion] = useState(false);
+    const [versions, setVersions] = useState<BpmProcessVersionInfoDto[]>([]);
+    const [selectedVersionId, setSelectedVersionId] = useState('');
+    const [switchingVersion, setSwitchingVersion] = useState(false);
+    const [switchVersionError, setSwitchVersionError] = useState<string | null>(null);
 
     const isActive = instance?.state === 'Active';
     const isSuspended = instance?.state === 'Suspended';
@@ -270,6 +278,35 @@ export function InstancePage({ instanceId, onBack }: Props) {
         } catch (e) { setError(e instanceof Error ? e.message : 'Ошибка'); }
     };
 
+    // ─── Переключение версии ─────────────────────────────────────────────────
+
+    const handleOpenSwitchVersion = async () => {
+        if (!token || !instance) return;
+        try {
+            const vers = await api.getProcessVersions(token, instance.processId);
+            // Показываем только опубликованные (Active) версии, кроме текущей
+            const active = vers.filter(v => v.status === 'Active' && v.id !== instance.processVersionId);
+            setVersions(active);
+            setSelectedVersionId(active.length > 0 ? active[0].id : '');
+            setSwitchVersionError(null);
+            setShowSwitchVersion(true);
+        } catch (e) { setError(e instanceof Error ? e.message : 'Ошибка загрузки версий'); }
+    };
+
+    const handleSwitchVersion = async () => {
+        if (!token || !selectedVersionId) return;
+        setSwitchingVersion(true);
+        setSwitchVersionError(null);
+        try {
+            const updated = await api.switchInstanceVersion(token, instanceId, { targetVersionId: selectedVersionId });
+            setInstance(updated);
+            await loadHistory();
+            setShowSwitchVersion(false);
+        } catch (e) {
+            setSwitchVersionError(e instanceof Error ? e.message : 'Ошибка переключения версии');
+        } finally { setSwitchingVersion(false); }
+    };
+
     // ─── Рендер ───────────────────────────────────────────────────────────────
 
     if (loading) return <div className="inst-root"><div className="inst-loading">Загрузка…</div></div>;
@@ -301,6 +338,11 @@ export function InstancePage({ instanceId, onBack }: Props) {
                 {canManage && (
                     <button className="inst-btn-secondary" onClick={() => setShowResponsible(true)}>
                         👤 Ответственный
+                    </button>
+                )}
+                {canManage && (
+                    <button className="inst-btn-secondary" onClick={handleOpenSwitchVersion} title="Переключить версию процесса">
+                        🔀 Версия
                     </button>
                 )}
                 {canManage && (
@@ -440,6 +482,58 @@ export function InstancePage({ instanceId, onBack }: Props) {
                             >
                                 {responsibleSaving ? 'Сохранение…' : 'Сохранить'}
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Диалог переключения версии */}
+            {showSwitchVersion && (
+                <div className="inst-modal-overlay" onClick={() => setShowSwitchVersion(false)}>
+                    <div className="inst-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
+                        <h2 className="inst-modal-title">Переключить версию процесса</h2>
+                        {versions.length === 0 ? (
+                            <p style={{ color: '#6b7280', marginBottom: 16 }}>
+                                Нет других опубликованных версий для переключения.
+                            </p>
+                        ) : (
+                            <div className="inst-modal-field">
+                                <label htmlFor="switch-version-select">
+                                    Выберите целевую версию
+                                </label>
+                                <select
+                                    id="switch-version-select"
+                                    className="inst-modal-input"
+                                    value={selectedVersionId}
+                                    onChange={e => setSelectedVersionId(e.target.value)}
+                                >
+                                    {versions.map(v => (
+                                        <option key={v.id} value={v.id}>
+                                            v{v.versionNumber}
+                                            {v.releaseNotes ? ` — ${v.releaseNotes}` : ''}
+                                            {v.publishedAt ? ` (${new Date(v.publishedAt).toLocaleDateString('ru-RU')})` : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                                <p style={{ fontSize: 12, color: '#9ca3af', marginTop: 6 }}>
+                                    Текущая версия: v{instance.processVersionNumber}
+                                </p>
+                            </div>
+                        )}
+                        {switchVersionError && <div className="inst-error">{switchVersionError}</div>}
+                        <div className="inst-modal-actions">
+                            <button className="inst-btn-secondary" onClick={() => setShowSwitchVersion(false)} disabled={switchingVersion}>
+                                Отмена
+                            </button>
+                            {versions.length > 0 && (
+                                <button
+                                    className="inst-btn-primary"
+                                    onClick={handleSwitchVersion}
+                                    disabled={switchingVersion || !selectedVersionId}
+                                >
+                                    {switchingVersion ? 'Переключение…' : 'Переключить'}
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>

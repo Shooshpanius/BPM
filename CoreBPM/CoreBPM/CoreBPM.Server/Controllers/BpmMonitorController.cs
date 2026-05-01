@@ -44,6 +44,26 @@ public class BpmMonitorController : ControllerBase
         CancellationToken ct)
         => Ok(await _service.GetProcessStatsAsync(processId, ct));
 
+    /// <summary>Экспортирует список экземпляров процесса в CSV-файл.</summary>
+    [HttpGet("api/bpm/processes/{processId}/instances/export")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ExportInstances(Guid processId, CancellationToken ct)
+    {
+        var bytes = await _service.ExportProcessInstancesToCsvAsync(processId, ct);
+        return File(bytes, "text/csv; charset=utf-8", "instances.csv");
+    }
+
+    /// <summary>Возвращает сводную статистику для дашборда мониторинга.</summary>
+    [HttpGet("api/bpm/dashboard")]
+    [ProducesResponseType(typeof(BpmDashboardDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<BpmDashboardDto>> GetDashboard(CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        var isAdmin = User.IsInRole("Admin");
+        return Ok(await _service.GetDashboardAsync(userId, isAdmin, ct));
+    }
+
     private Guid? GetCurrentUserId()
     {
         var sub = User.FindFirstValue(ClaimTypes.NameIdentifier)

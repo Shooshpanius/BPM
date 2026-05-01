@@ -5,6 +5,7 @@ import {
     getSavedFilters,
     createSavedFilter,
     deleteSavedFilter,
+    exportMyInstances,
     type MyInstancesFilter,
     type MyInstancesRole,
     type BpmInstanceListItemDto,
@@ -164,6 +165,28 @@ export function MyProcessesPage({ onOpenInstance }: MyProcessesPageProps) {
 
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+    // ─── Экспорт в CSV ──────────────────────────────────────────────────────
+    const handleExport = async () => {
+        if (!accessToken) return;
+        try {
+            const filter: MyInstancesFilter = {
+                role,
+                state: state || undefined,
+                search: search.trim() || undefined,
+                processId: processId || undefined,
+                dateFrom: dateFrom || undefined,
+                dateTo: dateTo || undefined,
+            };
+            const blob = await exportMyInstances(accessToken, filter);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'my-processes.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch { /* тихая обработка */ }
+    };
+
     return (
         <div className="mpp-root">
             <div className="mpp-header">
@@ -266,6 +289,9 @@ export function MyProcessesPage({ onOpenInstance }: MyProcessesPageProps) {
                                     </button>
                                     <button className="mpp-btn-text" onClick={() => setShowSaveForm(!showSaveForm)}>
                                         ⭐ Сохранить фильтр
+                                    </button>
+                                    <button className="mpp-btn-text" onClick={handleExport} title="Экспорт результатов в CSV">
+                                        ⬇️ Экспорт в CSV
                                     </button>
                                 </div>
                                 {showSaveForm && (

@@ -13,6 +13,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 using CoreBPM.Server.Application.Auth.Interfaces;
 using CoreBPM.Server.Application.Auth.Services;
+using CoreBPM.Server.Infrastructure.Hubs;
 using CoreBPM.Server.Infrastructure.Middleware;
 using CoreBPM.Server.Infrastructure.Persistence;
 using CoreBPM.Server.Infrastructure.Persistence.Repositories;
@@ -55,9 +56,24 @@ builder.Services.AddAuthentication(options =>
         ValidateLifetime = true,
         ClockSkew = TimeSpan.Zero
     };
+    // Поддержка JWT для SignalR (токен передаётся в query string)
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = ctx =>
+        {
+            var accessToken = ctx.Request.Query["access_token"];
+            var path = ctx.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                ctx.Token = accessToken;
+            return Task.CompletedTask;
+        }
+    };
 });
 
 builder.Services.AddAuthorization();
+
+// Регистрация SignalR
+builder.Services.AddSignalR();
 
 // Регистрация сервисов
 builder.Services.AddScoped<IUserRepository, UserRepository>();
@@ -94,6 +110,9 @@ builder.Services.AddScoped<IBpmDocumentationService, BpmDocumentationService>();
 // Регистрация сервиса миграции версий (FR-BPM-02.7)
 builder.Services.AddScoped<IBpmMigrationService, BpmMigrationService>();
 
+// Регистрация сервиса уведомлений через SignalR (FR-BPM-02.4/05)
+builder.Services.AddScoped<IBpmNotificationService, BpmNotificationService>();
+
 // Регистрация сервисов Scripts (сценарии, расширения, глобальные модули FR-BPM-01.7)
 builder.Services.AddScoped<IBpmScriptService, BpmScriptService>();
 builder.Services.AddScoped<IBpmExtensionService, BpmExtensionService>();
@@ -123,6 +142,9 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Маршрут SignalR-хаба уведомлений BPM
+app.MapHub<BpmNotificationHub>("/hubs/bpm-notifications");
 
 app.MapFallbackToFile("/index.html");
 

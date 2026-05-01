@@ -212,6 +212,60 @@ public class BpmInstancesController : ControllerBase
         return Ok(await _service.GetMyInstancesAsync(userId.Value, filter, page, pageSize, ct));
     }
 
+    /// <summary>Экспортирует результаты поиска «Мои процессы» в CSV-файл.</summary>
+    [HttpGet("api/bpm/instances/my/export")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ExportMy(
+        [FromQuery] MyInstancesRole role = MyInstancesRole.All,
+        [FromQuery] BpmInstanceState? state = null,
+        [FromQuery] string? search = null,
+        [FromQuery] Guid? processId = null,
+        [FromQuery] DateTimeOffset? dateFrom = null,
+        [FromQuery] DateTimeOffset? dateTo = null,
+        CancellationToken ct = default)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+
+        var filter = new MyInstancesFilter(role, state, search, processId, dateFrom, dateTo);
+        var bytes = await _service.ExportMyInstancesToCsvAsync(userId.Value, filter, ct);
+        return File(bytes, "text/csv; charset=utf-8", "my-processes.csv");
+    }
+
+    // ─── Пакетный запуск ─────────────────────────────────────────────────────
+
+    /// <summary>Пакетный запуск нескольких экземпляров одного процесса.</summary>
+    [HttpPost("api/bpm/processes/{processId}/instances/batch")]
+    [ProducesResponseType(typeof(BatchLaunchResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<BatchLaunchResult>> BatchCreate(
+        Guid processId,
+        [FromBody] BatchLaunchRequest request,
+        CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.BatchCreateInstancesAsync(processId, request, userId.Value, ct));
+    }
+
+    // ─── Переключение версии ─────────────────────────────────────────────────
+
+    /// <summary>Переключает работающий экземпляр на другую опубликованную версию того же процесса.</summary>
+    [HttpPut("api/bpm/instances/{instanceId}/version")]
+    [ProducesResponseType(typeof(BpmInstanceDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<BpmInstanceDto>> SwitchVersion(
+        Guid instanceId,
+        [FromBody] SwitchInstanceVersionRequest request,
+        CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.SwitchVersionAsync(instanceId, request, userId.Value, ct));
+    }
+
     // ─── Вспомогательные методы ───────────────────────────────────────────────
 
     private Guid? GetCurrentUserId()

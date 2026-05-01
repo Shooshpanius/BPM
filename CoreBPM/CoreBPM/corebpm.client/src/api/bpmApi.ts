@@ -1090,3 +1090,113 @@ export const regenerateDocSnapshot = (token: string, processId: string, versionI
     fetchJson(`/api/bpm/processes/${processId}/versions/${versionId}/snapshot/regenerate`, token, {
         method: 'POST',
     });
+
+// ─── Пакетный запуск (FR-BPM-02.1) ───────────────────────────────────────────
+
+export interface BatchLaunchItem {
+    name?: string;
+    variables?: Record<string, string | null>;
+}
+
+export interface BatchLaunchRequest {
+    items: BatchLaunchItem[];
+}
+
+export interface BatchLaunchItemResult {
+    success: boolean;
+    instanceId?: string;
+    instanceName?: string;
+    error?: string;
+}
+
+export interface BatchLaunchResult {
+    total: number;
+    created: number;
+    failed: number;
+    items: BatchLaunchItemResult[];
+}
+
+/** Пакетный запуск нескольких экземпляров одного процесса. */
+export const batchCreateInstances = (
+    token: string,
+    processId: string,
+    data: BatchLaunchRequest
+): Promise<BatchLaunchResult> =>
+    fetchJson(`/api/bpm/processes/${processId}/instances/batch`, token, {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+
+// ─── Прямое переключение версии (FR-BPM-02.2) ────────────────────────────────
+
+export interface SwitchInstanceVersionRequest {
+    targetVersionId: string;
+}
+
+/** Переключить работающий экземпляр на другую версию процесса. */
+export const switchInstanceVersion = (
+    token: string,
+    instanceId: string,
+    data: SwitchInstanceVersionRequest
+): Promise<BpmInstanceDto> =>
+    fetchJson(`/api/bpm/instances/${instanceId}/version`, token, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+    });
+
+// ─── Экспорт в CSV (FR-BPM-02.3 / FR-BPM-02.4) ───────────────────────────────
+
+/** Скачать результаты «Мои процессы» в CSV. Возвращает Blob. */
+export const exportMyInstances = async (
+    token: string,
+    filter: MyInstancesFilter = {}
+): Promise<Blob> => {
+    const params = new URLSearchParams();
+    if (filter.role && filter.role !== 'All') params.append('role', filter.role);
+    if (filter.state) params.append('state', filter.state);
+    if (filter.search) params.append('search', filter.search);
+    if (filter.processId) params.append('processId', filter.processId);
+    if (filter.dateFrom) params.append('dateFrom', filter.dateFrom);
+    if (filter.dateTo) params.append('dateTo', filter.dateTo);
+    const resp = await fetch(`/api/bpm/instances/my/export?${params}`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!resp.ok) throw new Error(`Ошибка экспорта: ${resp.status}`);
+    return resp.blob();
+};
+
+/** Скачать список экземпляров процесса в CSV. Возвращает Blob. */
+export const exportProcessInstances = async (
+    token: string,
+    processId: string
+): Promise<Blob> => {
+    const resp = await fetch(`/api/bpm/processes/${processId}/instances/export`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!resp.ok) throw new Error(`Ошибка экспорта: ${resp.status}`);
+    return resp.blob();
+};
+
+// ─── Дашборд мониторинга (FR-BPM-02.4) ───────────────────────────────────────
+
+export interface BpmDashboardTopProcessDto {
+    processId: string;
+    processName: string;
+    activeCount: number;
+    totalCount: number;
+}
+
+export interface BpmDashboardDto {
+    totalProcesses: number;
+    activeInstances: number;
+    suspendedInstances: number;
+    completedInstances: number;
+    cancelledInstances: number;
+    faultedInstances: number;
+    failedJobs: number;
+    topActiveProcesses: BpmDashboardTopProcessDto[];
+}
+
+/** Сводная статистика для дашборда мониторинга. */
+export const getBpmDashboard = (token: string): Promise<BpmDashboardDto> =>
+    fetchJson('/api/bpm/dashboard', token);

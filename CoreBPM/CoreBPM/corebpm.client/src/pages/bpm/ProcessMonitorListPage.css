@@ -282,3 +282,56 @@
 .pml-empty-icon { font-size: 3rem; line-height: 1; margin-bottom: 8px; }
 .pml-empty p    { margin: 0; font-size: 0.95rem; }
 .pml-empty-hint { font-size: 0.82rem !important; color: var(--text-tertiary, #9ca3af); }
+
+/* ─── Дашборд мониторинга (FR-BPM-02.4) ───────────────────────────────────── */
+
+.pml-dashboard {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 12px 24px;
+    background: var(--surface, #fff);
+    border-bottom: 1px solid var(--border, #e5e7eb);
+}
+
+.pml-dash-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 72px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+}
+
+.pml-dash-value {
+    font-size: 1.4rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.pml-dash-label {
+    font-size: 0.72rem;
+    color: #6b7280;
+    white-space: nowrap;
+    margin-top: 2px;
+}
+
+.pml-dash-stat--active  { background: #dbeafe; border-color: #93c5fd; }
+.pml-dash-stat--active .pml-dash-value { color: #1d4ed8; }
+
+.pml-dash-stat--suspended { background: #fef9c3; border-color: #fde047; }
+.pml-dash-stat--suspended .pml-dash-value { color: #854d0e; }
+
+.pml-dash-stat--completed { background: #dcfce7; border-color: #86efac; }
+.pml-dash-stat--completed .pml-dash-value { color: #15803d; }
+
+.pml-dash-stat--cancelled { background: #fee2e2; border-color: #fca5a5; }
+.pml-dash-stat--cancelled .pml-dash-value { color: #b91c1c; }
+
+.pml-dash-stat--faulted { background: #fce7f3; border-color: #f9a8d4; }
+.pml-dash-stat--faulted .pml-dash-value { color: #9d174d; }
+
+.pml-dash-stat--error { background: #fff7ed; border-color: #fdba74; }
+.pml-dash-stat--error .pml-dash-value { color: #c2410c; }
