@@ -54,8 +54,8 @@ public class BpmAnalyticsService : IBpmAnalyticsService
         double median = CalculatePercentile(cycleTimes, 50);
         double p95    = CalculatePercentile(cycleTimes, 95);
 
-        double onTimePercent = completed > 0 && process.TargetCycleTimeMinutes.HasValue
-            ? cycleTimes.Count(t => t <= process.TargetCycleTimeMinutes.Value) * 100.0 / completed
+        double onTimePercent = cycleTimes.Count > 0 && process.TargetCycleTimeMinutes.HasValue
+            ? cycleTimes.Count(t => t <= process.TargetCycleTimeMinutes.Value) * 100.0 / cycleTimes.Count
             : 0;
         double faultedPercent = total > 0 ? faulted * 100.0 / total : 0;
 
@@ -241,8 +241,8 @@ public class BpmAnalyticsService : IBpmAnalyticsService
                 .ToList();
 
             double avg = cycleTimes.Count > 0 ? cycleTimes.Average() : 0;
-            double onTime = completed > 0 && proc.TargetCycleTimeMinutes.HasValue
-                ? cycleTimes.Count(t => t <= proc.TargetCycleTimeMinutes.Value) * 100.0 / completed
+            double onTime = cycleTimes.Count > 0 && proc.TargetCycleTimeMinutes.HasValue
+                ? cycleTimes.Count(t => t <= proc.TargetCycleTimeMinutes.Value) * 100.0 / cycleTimes.Count
                 : 0;
             double faultedPct = total > 0 ? faulted * 100.0 / total : 0;
 
@@ -291,8 +291,8 @@ public class BpmAnalyticsService : IBpmAnalyticsService
         double median = CalculatePercentile(cycleTimes, 50);
         double p95    = CalculatePercentile(cycleTimes, 95);
 
-        double onTime = completed > 0 && process.TargetCycleTimeMinutes.HasValue
-            ? cycleTimes.Count(t => t <= process.TargetCycleTimeMinutes.Value) * 100.0 / completed
+        double onTime = cycleTimes.Count > 0 && process.TargetCycleTimeMinutes.HasValue
+            ? cycleTimes.Count(t => t <= process.TargetCycleTimeMinutes.Value) * 100.0 / cycleTimes.Count
             : 0;
         double faultedPct = total > 0 ? faulted * 100.0 / total : 0;
 
@@ -312,6 +312,11 @@ public class BpmAnalyticsService : IBpmAnalyticsService
             process.TargetOnTimePercent);
     }
 
+    /// <summary>
+    /// Вычисляет перцентиль методом линейной интерполяции.
+    /// </summary>
+    /// <param name="sorted">Отсортированный список значений.</param>
+    /// <param name="percentile">Процентиль (0–100).</param>
     private static double CalculatePercentile(List<double> sorted, int percentile)
     {
         if (sorted.Count == 0) return 0;

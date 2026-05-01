@@ -474,14 +474,13 @@ function buildCompareRows(c: api.ProcessVersionComparisonDto): CompareRow[] {
     ): CompareRow => {
         const diff = bVal - aVal;
         const better = higherIsBetter ? diff > 0 : diff < 0;
-        const worse  = higherIsBetter ? diff < 0 : diff > 0;
         const sign   = diff > 0 ? '+' : '';
         return {
             label,
             a: fmt(aVal),
             b: fmt(bVal),
             delta: diff === 0 ? '=' : `${sign}${fmt(diff)}`,
-            deltaClass: diff === 0 ? 'pa-delta-neutral' : better ? 'pa-delta-positive' : worse ? 'pa-delta-negative' : 'pa-delta-neutral',
+            deltaClass: diff === 0 ? 'pa-delta-neutral' : better ? 'pa-delta-positive' : 'pa-delta-negative',
         };
     };
 
