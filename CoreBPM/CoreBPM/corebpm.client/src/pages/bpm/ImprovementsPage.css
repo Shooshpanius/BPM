@@ -1,0 +1,470 @@
+/* ─── Улучшения ────────────────────────────────────────────────────────────── */
+
+.imp-root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 0;
+    overflow: hidden;
+}
+
+.imp-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px 0;
+    flex-shrink: 0;
+}
+
+.imp-title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--text-primary, #111);
+    margin: 0;
+}
+
+.imp-btn-primary {
+    background: var(--primary, #2563eb);
+    color: #fff;
+    border: none;
+    padding: 8px 18px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.imp-btn-primary:hover { background: #1d4ed8; }
+
+/* ─── Вкладки ─────────────────────────────────────────────────────────────── */
+
+.imp-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid var(--border, #e5e7eb);
+    padding: 12px 24px 0;
+    flex-shrink: 0;
+}
+
+.imp-tab {
+    background: none;
+    border: none;
+    padding: 10px 18px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-secondary, #6b7280);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: color 0.15s, border-color 0.15s;
+    white-space: nowrap;
+}
+
+.imp-tab:hover { color: var(--text-primary, #111); }
+
+.imp-tab--active {
+    color: var(--primary, #2563eb);
+    border-bottom-color: var(--primary, #2563eb);
+    font-weight: 600;
+}
+
+/* ─── Фильтры ─────────────────────────────────────────────────────────────── */
+
+.imp-filters {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 24px;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+.imp-select,
+.imp-input {
+    padding: 7px 11px;
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 8px;
+    font-size: 0.875rem;
+    color: var(--text-primary, #111);
+    background: #fff;
+    font-family: inherit;
+}
+
+.imp-input { width: 140px; }
+
+.imp-filter-sep {
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.85rem;
+}
+
+.imp-btn-reset {
+    background: none;
+    border: 1px solid var(--border, #e2e8f0);
+    padding: 7px 14px;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    color: var(--text-secondary, #6b7280);
+    cursor: pointer;
+}
+
+.imp-btn-reset:hover {
+    background: var(--bg-hover, #f1f5f9);
+}
+
+/* ─── Контент ─────────────────────────────────────────────────────────────── */
+
+.imp-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 24px 24px;
+}
+
+.imp-state {
+    text-align: center;
+    color: var(--text-secondary, #6b7280);
+    padding: 48px 0;
+    font-size: 0.9rem;
+}
+
+.imp-error {
+    padding: 12px 16px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    color: #dc2626;
+    font-size: 0.875rem;
+    margin-bottom: 12px;
+}
+
+/* ─── Список карточек ─────────────────────────────────────────────────────── */
+
+.imp-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.imp-card {
+    background: var(--surface, #fff);
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 10px;
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.imp-card-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.imp-card-process {
+    font-size: 0.82rem;
+    color: var(--text-secondary, #6b7280);
+}
+
+.imp-card-date {
+    font-size: 0.8rem;
+    color: var(--text-secondary, #6b7280);
+    margin-left: auto;
+}
+
+.imp-card-subject {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary, #111);
+}
+
+.imp-card-desc {
+    font-size: 0.875rem;
+    color: var(--text-secondary, #4b5563);
+    white-space: pre-wrap;
+}
+
+.imp-card-meta {
+    display: flex;
+    gap: 16px;
+    font-size: 0.82rem;
+    color: var(--text-secondary, #6b7280);
+    flex-wrap: wrap;
+}
+
+.imp-card-comment,
+.imp-card-resolution {
+    font-size: 0.85rem;
+    color: var(--text-secondary, #4b5563);
+    background: var(--bg-muted, #f8fafc);
+    border-radius: 6px;
+    padding: 8px 12px;
+}
+
+.imp-card-comment-label {
+    font-weight: 600;
+}
+
+.imp-card-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+/* ─── Бейджи статуса ─────────────────────────────────────────────────────── */
+
+.imp-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.badge--pending     { background: #fef9c3; color: #92400e; }
+.badge--accepted    { background: #dbeafe; color: #1e40af; }
+.badge--in-progress { background: #e0f2fe; color: #075985; }
+.badge--completed   { background: #dcfce7; color: #166534; }
+.badge--rejected    { background: #fee2e2; color: #991b1b; }
+
+/* ─── Кнопки действий ────────────────────────────────────────────────────── */
+
+.imp-btn-accept {
+    background: #2563eb;
+    color: #fff;
+    border: none;
+    padding: 6px 16px;
+    border-radius: 7px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.imp-btn-accept:hover { background: #1d4ed8; }
+
+.imp-btn-reject {
+    background: #fee2e2;
+    color: #991b1b;
+    border: none;
+    padding: 6px 16px;
+    border-radius: 7px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.imp-btn-reject:hover { background: #fecaca; }
+
+.imp-btn-complete {
+    background: #16a34a;
+    color: #fff;
+    border: none;
+    padding: 6px 16px;
+    border-radius: 7px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.imp-btn-complete:hover { background: #15803d; }
+
+/* ─── Монитор ────────────────────────────────────────────────────────────── */
+
+.imp-table-wrap {
+    overflow-x: auto;
+}
+
+.imp-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.imp-table th {
+    background: var(--bg-muted, #f8fafc);
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-secondary, #6b7280);
+    border-bottom: 1px solid var(--border, #e5e7eb);
+    white-space: nowrap;
+}
+
+.imp-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border, #f3f4f6);
+    color: var(--text-primary, #111);
+    vertical-align: top;
+}
+
+.imp-td-name {
+    font-weight: 500;
+}
+
+.imp-td-owners {
+    font-size: 0.8rem;
+    color: var(--text-secondary, #6b7280);
+}
+
+/* ─── Диалоги ────────────────────────────────────────────────────────────── */
+
+.imp-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 16px;
+}
+
+.imp-dialog {
+    background: var(--surface, #fff);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+    width: 100%;
+    max-width: 500px;
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh;
+    overflow: hidden;
+}
+
+.imp-dialog-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px 0;
+}
+
+.imp-dialog-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--text-primary, #111);
+}
+
+.imp-dialog-close {
+    background: none;
+    border: none;
+    font-size: 1.1rem;
+    cursor: pointer;
+    color: var(--text-secondary, #6b7280);
+    padding: 4px 8px;
+    border-radius: 6px;
+}
+
+.imp-dialog-close:hover { background: var(--bg-hover, #f1f5f9); }
+
+.imp-dialog-body {
+    padding: 16px 24px;
+    overflow-y: auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.imp-dialog-subject {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-secondary, #4b5563);
+    background: var(--bg-muted, #f8fafc);
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin: 0;
+}
+
+.imp-dialog-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 14px 24px 20px;
+    border-top: 1px solid var(--border, #e2e8f0);
+}
+
+.imp-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    position: relative;
+}
+
+.imp-label {
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--text-secondary, #64748b);
+}
+
+.imp-textarea {
+    padding: 8px 12px;
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 8px;
+    font-size: 0.875rem;
+    color: var(--text-primary, #111);
+    font-family: inherit;
+    resize: vertical;
+}
+
+.imp-suggest {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #fff;
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    z-index: 10;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.imp-suggest-item {
+    display: block;
+    width: 100%;
+    padding: 8px 14px;
+    background: none;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    font-size: 0.875rem;
+    color: var(--text-primary, #111);
+}
+
+.imp-suggest-item:hover,
+.imp-suggest-item--active {
+    background: var(--bg-hover, #f1f5f9);
+}
+
+.imp-suggest-pos {
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.8rem;
+}
+
+.imp-btn-secondary {
+    background: var(--bg-hover, #f1f5f9);
+    color: var(--text-primary, #111);
+    border: none;
+    padding: 7px 18px;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.imp-btn-secondary:hover { background: var(--border, #e2e8f0); }
+.imp-btn-secondary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.imp-btn-primary-sm {
+    padding: 7px 18px;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+}
+
+.imp-btn-primary-sm:disabled { opacity: 0.6; cursor: not-allowed; }

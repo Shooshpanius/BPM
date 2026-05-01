@@ -154,6 +154,10 @@ export interface BpmProcessSettingsDto {
     instanceMetricsTableName: string;
     secondRuntimeEnabled: boolean;
     secondRuntimeUpgradedAt?: string;
+    // KPI-цели
+    targetCycleTimeMinutes?: number;
+    targetOnTimePercent?: number;
+    targetCostPerInstance?: number;
 }
 
 export interface UpdateBpmProcessSettingsRequest {
@@ -173,6 +177,10 @@ export interface UpdateBpmProcessSettingsRequest {
     instanceMetricsClassName?: string;
     instanceMetricsTableName?: string;
     secondRuntimeEnabled: boolean;
+    // KPI-цели
+    targetCycleTimeMinutes?: number;
+    targetOnTimePercent?: number;
+    targetCostPerInstance?: number;
 }
 
 export interface RotateExternalTokenResponse {

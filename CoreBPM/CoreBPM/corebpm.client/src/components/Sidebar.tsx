@@ -2,7 +2,7 @@ import { useAuth } from '../context/AuthContext';
 import { APP_VERSION, LAST_PR_DATE } from '../version';
 import './Sidebar.css';
 
-export type SidebarSection = 'contacts' | 'org-structure' | 'bpm-processes' | 'bpm-my-processes' | 'bpm-monitor' | 'bpm-queue' | 'bpm-documentation' | 'bpm-rules' | 'bpm-forms' | 'bpm-scripts' | 'bpm-migration';
+export type SidebarSection = 'contacts' | 'org-structure' | 'bpm-processes' | 'bpm-my-processes' | 'bpm-monitor' | 'bpm-queue' | 'bpm-documentation' | 'bpm-rules' | 'bpm-forms' | 'bpm-scripts' | 'bpm-migration' | 'bpm-improvements' | 'bpm-analytics';
 
 interface SidebarProps {
     active: SidebarSection;
@@ -157,6 +157,32 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
                     </svg>
                 }
             />
+            <SidebarItem
+                id="bpm-improvements"
+                label="Улучшения"
+                active={active === 'bpm-improvements'}
+                onClick={() => onSelect('bpm-improvements')}
+                icon={
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                }
+            />
+            {hasRole('Admin') && (
+                <SidebarItem
+                    id="bpm-analytics"
+                    label="Аналитика"
+                    active={active === 'bpm-analytics'}
+                    onClick={() => onSelect('bpm-analytics')}
+                    icon={
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <line x1="18" y1="20" x2="18" y2="10"/>
+                            <line x1="12" y1="20" x2="12" y2="4"/>
+                            <line x1="6" y1="20" x2="6" y2="14"/>
+                        </svg>
+                    }
+                />
+            )}
             {canManageOrg && (
                 <>
                     <div className="sidebar-divider" role="separator" />

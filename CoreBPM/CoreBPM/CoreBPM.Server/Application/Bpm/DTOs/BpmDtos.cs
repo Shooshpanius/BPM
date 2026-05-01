@@ -152,7 +152,11 @@ public record BpmProcessSettingsDto(
     string InstanceMetricsClassName,
     string InstanceMetricsTableName,
     bool SecondRuntimeEnabled,
-    DateTimeOffset? SecondRuntimeUpgradedAt
+    DateTimeOffset? SecondRuntimeUpgradedAt,
+    // KPI-цели процесса (FR-BPM-03.2)
+    double? TargetCycleTimeMinutes,
+    double? TargetOnTimePercent,
+    decimal? TargetCostPerInstance
 );
 
 /// <summary>Запрос на обновление настроек процесса.</summary>
@@ -172,7 +176,11 @@ public record UpdateBpmProcessSettingsRequest(
     string? ProcessMetricsTableName,
     string? InstanceMetricsClassName,
     string? InstanceMetricsTableName,
-    bool SecondRuntimeEnabled
+    bool SecondRuntimeEnabled,
+    // KPI-цели процесса (FR-BPM-03.2)
+    double? TargetCycleTimeMinutes = null,
+    double? TargetOnTimePercent = null,
+    decimal? TargetCostPerInstance = null
 );
 
 /// <summary>Результат ротации токена внешнего запуска.</summary>
@@ -928,4 +936,155 @@ public record SendMessageRequest(
     string MessageCode,
     /// <summary>Ключ корреляции (опционально).</summary>
     string? CorrelationKey = null
+);
+
+// ─── FR-BPM-03.1: Предложения по улучшению ──────────────────────────────────
+
+/// <summary>Запрос на создание предложения по улучшению процесса.</summary>
+public record CreateImprovementRequest(
+    string Subject,
+    string? Description,
+    Guid? SourceInstanceId = null,
+    string? SourceTaskElementId = null
+);
+
+/// <summary>Запрос на принятие предложения (владелец процесса).</summary>
+public record AcceptImprovementRequest(
+    Guid AssignedUserId,
+    DateTimeOffset DueDate,
+    string? Comment = null
+);
+
+/// <summary>Запрос на отклонение предложения (владелец процесса).</summary>
+public record RejectImprovementRequest(
+    string? Comment = null
+);
+
+/// <summary>Запрос на завершение реализации улучшения (исполнитель).</summary>
+public record CompleteImprovementRequest(
+    string Resolution
+);
+
+/// <summary>Полное представление предложения по улучшению.</summary>
+public record ImprovementDto(
+    Guid Id,
+    Guid ProcessId,
+    string ProcessName,
+    string Subject,
+    string? Description,
+    CoreBPM.Server.Domain.Bpm.BpmImprovementStatus Status,
+    Guid InitiatorUserId,
+    string InitiatorDisplayName,
+    Guid? AssignedUserId,
+    string? AssignedDisplayName,
+    DateTimeOffset? DueDate,
+    string? ReviewComment,
+    string? Resolution,
+    Guid? SourceInstanceId,
+    string? SourceTaskElementId,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt,
+    DateTimeOffset? ReviewedAt,
+    DateTimeOffset? CompletedAt
+);
+
+/// <summary>Запись монитора улучшений — процесс с количеством предложений по статусам.</summary>
+public record ImprovementMonitorItemDto(
+    Guid ProcessId,
+    string ProcessName,
+    int PendingCount,
+    int AcceptedCount,
+    int InProgressCount,
+    int CompletedCount,
+    int RejectedCount,
+    int TotalCount,
+    IReadOnlyList<string> Owners,
+    IReadOnlyList<string> Curators
+);
+
+// ─── FR-BPM-03.2: Аналитика и KPI процессов ─────────────────────────────────
+
+/// <summary>Сегмент гистограммы распределения времени цикла.</summary>
+public record CycleTimeHistogramBucketDto(
+    double FromMinutes,
+    double ToMinutes,
+    int Count
+);
+
+/// <summary>Аналитика процесса за период.</summary>
+public record ProcessAnalyticsDto(
+    Guid ProcessId,
+    string ProcessName,
+    int TotalInstances,
+    int CompletedInstances,
+    int FaultedInstances,
+    double OnTimePercent,
+    double FaultedPercent,
+    double AvgCycleTimeMinutes,
+    double MedianCycleTimeMinutes,
+    double P95CycleTimeMinutes,
+    IReadOnlyList<CycleTimeHistogramBucketDto> CycleTimeHistogram,
+    double? TargetCycleTimeMinutes,
+    double? TargetOnTimePercent
+);
+
+/// <summary>Сравнение KPI двух версий процесса.</summary>
+public record ProcessVersionComparisonDto(
+    Guid ProcessId,
+    string ProcessName,
+    Guid VersionAId,
+    int VersionANumber,
+    Guid VersionBId,
+    int VersionBNumber,
+    ProcessAnalyticsDto VersionAAnalytics,
+    ProcessAnalyticsDto VersionBAnalytics
+);
+
+/// <summary>Строка сводного отчёта по всем процессам.</summary>
+public record ProcessAnalyticsSummaryItemDto(
+    Guid ProcessId,
+    string ProcessName,
+    int TotalInstances,
+    double AvgCycleTimeMinutes,
+    double OnTimePercent,
+    double FaultedPercent,
+    double? TargetCycleTimeMinutes,
+    double? TargetOnTimePercent
+);
+
+/// <summary>Запись тепловой карты узла процесса.</summary>
+public record NodeHeatMapDto(
+    string ElementId,
+    string ElementName,
+    double AvgDurationMs,
+    int PassCount,
+    double HeatLevel
+);
+
+/// <summary>Шаг воронки процесса.</summary>
+public record ProcessFunnelStepDto(
+    string ElementId,
+    string ElementName,
+    int ReachedCount,
+    int PassedCount,
+    double DropOffPercent
+);
+
+/// <summary>Точка тренда KPI процесса за период (FR-BPM-03.2).</summary>
+public record ProcessTrendPointDto(
+    DateTimeOffset PeriodStart,
+    int TotalInstances,
+    double AvgCycleTimeMinutes,
+    double OnTimePercent
+);
+
+/// <summary>DTO для KPI-алерта превышения порогового значения (FR-BPM-03.2).</summary>
+public record KpiAlertDto(
+    Guid Id,
+    Guid ProcessId,
+    string ProcessName,
+    double AvgCycleTimeMinutes,
+    double TargetCycleTimeMinutes,
+    double ExceedPercent,
+    DateTimeOffset DetectedAt
 );

@@ -51,6 +51,19 @@ public partial class BpmProcessService
             : request.SecondRuntimeEnabled ? process.SecondRuntimeUpgradedAt : null;
         process.SecondRuntimeEnabled = request.SecondRuntimeEnabled;
 
+        // KPI-цели
+        // Валидация KPI-целей
+        if (request.TargetCycleTimeMinutes is < 0)
+            throw new ValidationException("Целевое время цикла не может быть отрицательным");
+        if (request.TargetOnTimePercent is < 0 or > 100)
+            throw new ValidationException("Целевой % выполнения в срок должен быть в диапазоне 0–100");
+        if (request.TargetCostPerInstance is < 0)
+            throw new ValidationException("Целевая стоимость экземпляра не может быть отрицательной");
+
+        process.TargetCycleTimeMinutes = request.TargetCycleTimeMinutes;
+        process.TargetOnTimePercent = request.TargetOnTimePercent;
+        process.TargetCostPerInstance = request.TargetCostPerInstance;
+
         await UpdateKeyVariableAsync(processId, request.KeyVariableName, ct);
 
         process.UpdatedAt = DateTimeOffset.UtcNow;
@@ -235,7 +248,10 @@ public partial class BpmProcessService
             process.InstanceMetricsClassName,
             process.InstanceMetricsTableName,
             process.SecondRuntimeEnabled,
-            process.SecondRuntimeUpgradedAt);
+            process.SecondRuntimeUpgradedAt,
+            process.TargetCycleTimeMinutes,
+            process.TargetOnTimePercent,
+            process.TargetCostPerInstance);
     }
 
     private async Task UpdateKeyVariableAsync(Guid processId, string? keyVariableName, CancellationToken ct)

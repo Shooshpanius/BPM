@@ -3,6 +3,7 @@ using System;
 using CoreBPM.Server.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260501173426_AddBpmImprovements")]
+    partial class AddBpmImprovements
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1193,18 +1196,6 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset?>("SecondRuntimeUpgradedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("second_runtime_upgraded_at");
-
-                    b.Property<double?>("TargetCycleTimeMinutes")
-                        .HasColumnType("double precision")
-                        .HasColumnName("target_cycle_time_minutes");
-
-                    b.Property<double?>("TargetOnTimePercent")
-                        .HasColumnType("double precision")
-                        .HasColumnName("target_on_time_percent");
-
-                    b.Property<decimal?>("TargetCostPerInstance")
-                        .HasColumnType("numeric")
-                        .HasColumnName("target_cost_per_instance");
 
                     b.Property<bool>("ShowInStartList")
                         .HasColumnType("boolean")

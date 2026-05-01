@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import * as api from '../../api/bpmApi';
 import type { BpmProcessListItemDto } from '../../api/bpmApi';
 import { StartInstanceDialog } from '../../components/bpm/StartInstanceDialog';
+import { CreateImprovementDialog } from '../../components/bpm/CreateImprovementDialog';
 import './ProcessesPage.css';
 
 interface ProcessesPageProps {
@@ -51,6 +52,9 @@ export function ProcessesPage({ onOpenDesigner, onOpenMonitor }: ProcessesPagePr
     // Диалог запуска экземпляра
     const [launchProcess, setLaunchProcess] = useState<BpmProcessListItemDto | null>(null);
     const [lastLaunchedInstanceId, setLastLaunchedInstanceId] = useState<string | null>(null);
+
+    // Диалог предложения по улучшению
+    const [improveProcess, setImproveProcess] = useState<BpmProcessListItemDto | null>(null);
 
     // Загрузка организаций
     useEffect(() => {
@@ -246,6 +250,17 @@ export function ProcessesPage({ onOpenDesigner, onOpenMonitor }: ProcessesPagePr
                         style={{ fontSize: 14, color: '#16a34a' }}
                     >
                         ▷
+                    </button>
+                )}
+                {!isTemplate && (
+                    <button
+                        className="pp-btn-icon"
+                        title="Предложить улучшение"
+                        onClick={() => setImproveProcess(p)}
+                        aria-label="Предложить улучшение"
+                        style={{ fontSize: 14, color: '#d97706' }}
+                    >
+                        ✦
                     </button>
                 )}
                 <button
@@ -556,6 +571,16 @@ export function ProcessesPage({ onOpenDesigner, onOpenMonitor }: ProcessesPagePr
                         ✕
                     </button>
                 </div>
+            )}
+            {/* Диалог предложения по улучшению */}
+            {improveProcess && token && (
+                <CreateImprovementDialog
+                    token={token}
+                    processId={improveProcess.id}
+                    processName={improveProcess.name}
+                    onCreated={() => setImproveProcess(null)}
+                    onClose={() => setImproveProcess(null)}
+                />
             )}
         </div>
     );

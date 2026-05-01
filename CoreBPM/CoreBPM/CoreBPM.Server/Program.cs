@@ -121,6 +121,8 @@ builder.Services.AddScoped<IBpmExtensionService, BpmExtensionService>();
 builder.Services.AddScoped<IBpmGlobalModuleService, BpmGlobalModuleService>();
 
 // Регистрация сервисов Rules (DMN-таблицы бизнес-правил)
+builder.Services.AddScoped<IBpmImprovementService, BpmImprovementService>();
+builder.Services.AddScoped<IBpmAnalyticsService, BpmAnalyticsService>();
 builder.Services.AddScoped<IDmnService, DmnService>();
 
 // Регистрация сервисов Forms (конструктор форм задач FR-BPM-01.4)
@@ -131,6 +133,7 @@ builder.Services.AddHttpClient("BpmEngine");
 builder.Services.AddSingleton<IBpmScriptExecutor, BpmRoslynScriptExecutor>();
 builder.Services.AddScoped<IBpmExecutionEngine, BpmExecutionEngine>();
 builder.Services.AddHostedService<BpmEngineWorker>();
+builder.Services.AddHostedService<BpmKpiAlertWorker>();
 
 var app = builder.Build();
 

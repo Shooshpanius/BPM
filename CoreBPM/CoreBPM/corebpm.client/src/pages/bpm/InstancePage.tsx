@@ -10,6 +10,7 @@ import type {
     BpmTokenDto,
 } from '../../api/bpmApi';
 import { getDirectoryEmployees } from '../../api/orgDirectoryApi';
+import { CreateImprovementDialog } from '../../components/bpm/CreateImprovementDialog';
 import './InstancePage.css';
 
 type BpmnNavigatedViewer = InstanceType<typeof import('bpmn-js/lib/NavigatedViewer').default>;
@@ -115,6 +116,9 @@ export function InstancePage({ instanceId, onBack }: Props) {
     const [cancelReason, setCancelReason] = useState('');
     const [cancelling, setCancelling] = useState(false);
     const [cancelError, setCancelError] = useState<string | null>(null);
+
+    // ─── Диалог предложения по улучшению ─────────────────────────────────────
+    const [showImprove, setShowImprove] = useState(false);
 
     // ─── Диалог смены ответственного ─────────────────────────────────────────
     const [showResponsible, setShowResponsible] = useState(false);
@@ -419,6 +423,9 @@ export function InstancePage({ instanceId, onBack }: Props) {
                         ✕ Прервать
                     </button>
                 )}
+                <button className="inst-btn-secondary" onClick={() => setShowImprove(true)} title="Предложить улучшение процесса">
+                    ✦ Улучшить
+                </button>
             </div>
 
             {/* Вкладки */}
@@ -669,6 +676,19 @@ export function InstancePage({ instanceId, onBack }: Props) {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Диалог предложения по улучшению */}
+            {showImprove && token && instance && (
+                <CreateImprovementDialog
+                    token={token}
+                    processId={instance.processId}
+                    processName={instance.processName}
+                    defaultSubject={instance.name}
+                    sourceInstanceId={instance.id}
+                    onCreated={() => setShowImprove(false)}
+                    onClose={() => setShowImprove(false)}
+                />
             )}
         </div>
     );

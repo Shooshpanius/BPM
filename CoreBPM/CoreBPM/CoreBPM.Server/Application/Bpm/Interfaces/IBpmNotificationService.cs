@@ -32,4 +32,15 @@ public interface IBpmNotificationService
 
     /// <summary>Отправляет произвольное уведомление конкретному пользователю.</summary>
     Task NotifyUserAsync(Guid userId, string eventType, object payload, CancellationToken ct = default);
+
+    /// <summary>
+    /// Уведомляет инициатора и владельца процесса о смене статуса предложения по улучшению (FR-BPM-03.1).
+    /// </summary>
+    Task NotifyImprovementStatusChangedAsync(
+        Guid improvementId,
+        string subject,
+        string processName,
+        string newStatus,
+        Guid initiatorUserId,
+        CancellationToken ct = default);
 }

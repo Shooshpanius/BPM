@@ -88,6 +88,9 @@ export function ProcessSettingsTab({ processId, token }: Props) {
                 instanceMetricsClassName: settings.instanceMetricsClassName,
                 instanceMetricsTableName: settings.instanceMetricsTableName,
                 secondRuntimeEnabled: settings.secondRuntimeEnabled,
+                targetCycleTimeMinutes: settings.targetCycleTimeMinutes ?? undefined,
+                targetOnTimePercent: settings.targetOnTimePercent ?? undefined,
+                targetCostPerInstance: settings.targetCostPerInstance ?? undefined,
             });
             setSettings(result);
             setDirty(false);
@@ -274,6 +277,45 @@ export function ProcessSettingsTab({ processId, token }: Props) {
                 {settings.secondRuntimeUpgradedAt && (
                     <p className="bpp-hint">Процесс обновлён: {new Date(settings.secondRuntimeUpgradedAt).toLocaleString('ru-RU')}</p>
                 )}
+            </div>
+
+            {/* KPI-цели процесса */}
+            <div className="bpp-group">
+                <div className="bpp-group-title">KPI-цели процесса</div>
+                <p className="bpp-hint" style={{ marginBottom: 8 }}>
+                    Используются для цветовой индикации в аналитике: зелёный — метрика достигает цели, красный — нет.
+                </p>
+                <label className="bpp-label">Целевое время цикла (мин)</label>
+                <input
+                    className="bpp-input"
+                    type="number"
+                    min={0}
+                    step={1}
+                    placeholder="Не задано"
+                    value={settings.targetCycleTimeMinutes ?? ''}
+                    onChange={e => update('targetCycleTimeMinutes', e.target.value === '' ? undefined : Number(e.target.value))}
+                />
+                <label className="bpp-label" style={{ marginTop: 8 }}>Целевой % выполнения в срок</label>
+                <input
+                    className="bpp-input"
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={1}
+                    placeholder="Не задано"
+                    value={settings.targetOnTimePercent ?? ''}
+                    onChange={e => update('targetOnTimePercent', e.target.value === '' ? undefined : Number(e.target.value))}
+                />
+                <label className="bpp-label" style={{ marginTop: 8 }}>Целевая стоимость экземпляра (по трудозатратам)</label>
+                <input
+                    className="bpp-input"
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    placeholder="Не задано"
+                    value={settings.targetCostPerInstance ?? ''}
+                    onChange={e => update('targetCostPerInstance', e.target.value === '' ? undefined : Number(e.target.value))}
+                />
             </div>
 
             <div className="bpp-btn-row">
