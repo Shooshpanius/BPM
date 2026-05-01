@@ -444,3 +444,442 @@ public record AcquireLockResponse(
     DiagramLockDto? Lock
 );
 
+// ─── Роли в процессе ─────────────────────────────────────────────────────────
+
+/// <summary>DTO настройки роли в определении процесса.</summary>
+public record BpmProcessRoleConfigDto(
+    Guid Id,
+    BpmProcessRoleType RoleType,
+    BpmAssigneeType AssigneeType,
+    string AssigneeId,
+    string DisplayName,
+    int SortOrder
+);
+
+/// <summary>Запрос на замену всех ролей процесса.</summary>
+public record UpsertProcessRoleConfigsRequest(
+    IReadOnlyList<UpsertProcessRoleConfigItem> Items
+);
+
+/// <summary>Элемент запроса на создание/обновление одной записи роли процесса.</summary>
+public record UpsertProcessRoleConfigItem(
+    BpmProcessRoleType RoleType,
+    BpmAssigneeType AssigneeType,
+    string AssigneeId,
+    string DisplayName,
+    int SortOrder
+);
+
+// ─── Экземпляры процесса ─────────────────────────────────────────────────────
+
+/// <summary>Краткое представление экземпляра процесса для списка.</summary>
+public record BpmInstanceListItemDto(
+    Guid Id,
+    Guid ProcessId,
+    string ProcessName,
+    Guid ProcessVersionId,
+    int ProcessVersionNumber,
+    string Name,
+    BpmInstanceState State,
+    BpmInstanceLaunchSource LaunchSource,
+    Guid? InitiatorUserId,
+    string? InitiatorDisplayName,
+    Guid? ResponsibleUserId,
+    string? ResponsibleDisplayName,
+    DateTimeOffset StartedAt,
+    DateTimeOffset? CompletedAt,
+    DateTimeOffset? CancelledAt
+);
+
+/// <summary>Полное представление экземпляра процесса.</summary>
+public record BpmInstanceDto(
+    Guid Id,
+    Guid ProcessId,
+    string ProcessName,
+    Guid ProcessVersionId,
+    int ProcessVersionNumber,
+    string Name,
+    BpmInstanceState State,
+    BpmInstanceLaunchSource LaunchSource,
+    Guid? InitiatorUserId,
+    string? InitiatorDisplayName,
+    Guid? ResponsibleUserId,
+    string? ResponsibleDisplayName,
+    Guid? ParentInstanceId,
+    string? ExternalReference,
+    string? CancelReason,
+    DateTimeOffset StartedAt,
+    DateTimeOffset? CompletedAt,
+    DateTimeOffset? CancelledAt,
+    DateTimeOffset UpdatedAt,
+    IReadOnlyList<BpmInstanceVariableDto> Variables
+);
+
+/// <summary>DTO переменной экземпляра.</summary>
+public record BpmInstanceVariableDto(
+    Guid Id,
+    string Name,
+    string? ValueJson
+);
+
+/// <summary>Запрос на создание (запуск) экземпляра процесса.</summary>
+public record CreateInstanceRequest(
+    /// <summary>Название экземпляра (если не задана схема автоформирования).</summary>
+    string? Name,
+    /// <summary>Начальные значения переменных: словарь имя→JSON-значение.</summary>
+    IDictionary<string, string?>? Variables,
+    /// <summary>Внешний идентификатор корреляции (для вебхуков).</summary>
+    string? ExternalReference = null
+);
+
+/// <summary>Запрос на создание экземпляра через вебхук.</summary>
+public record WebhookLaunchRequest(
+    /// <summary>Словарь переменных из тела запроса внешней системы.</summary>
+    IDictionary<string, string?>? Variables,
+    string? ExternalReference = null
+);
+
+/// <summary>DTO задания планировщика (таймерное стартовое событие).</summary>
+public record BpmSchedulerJobDto(
+    Guid Id,
+    Guid ProcessId,
+    Guid ProcessVersionId,
+    string ElementId,
+    string TimerType,
+    string TimerValue,
+    string? TimeZone,
+    bool IsActive,
+    DateTimeOffset? LastFiredAt,
+    DateTimeOffset? NextFireAt,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt
+);
+
+
+// ─── Управление экземпляром ───────────────────────────────────────────────────
+
+/// <summary>Запрос на прерывание (отмену) экземпляра процесса.</summary>
+public record CancelInstanceRequest(
+    /// <summary>Обязательная причина прерывания.</summary>
+    string Reason
+);
+
+/// <summary>Запрос на смену ответственного за экземпляр.</summary>
+public record ChangeResponsibleRequest(
+    Guid NewResponsibleUserId
+);
+
+/// <summary>Запрос на обновление значения переменной экземпляра.</summary>
+public record UpdateInstanceVariableRequest(
+    string? ValueJson
+);
+
+/// <summary>Запрос на добавление комментария / вопроса к экземпляру.</summary>
+public record AddCommentRequest(
+    string Text,
+    bool IsQuestion = false
+);
+
+/// <summary>Запрос на добавление участника экземпляра.</summary>
+public record AddParticipantRequest(
+    Guid UserId
+);
+
+/// <summary>DTO записи истории экземпляра.</summary>
+public record BpmInstanceHistoryEntryDto(
+    Guid Id,
+    BpmHistoryEventType EventType,
+    Guid? ActorUserId,
+    string? ActorDisplayName,
+    string? Text,
+    string? MetaJson,
+    DateTimeOffset OccurredAt
+);
+
+/// <summary>DTO участника экземпляра.</summary>
+public record BpmInstanceParticipantDto(
+    Guid Id,
+    Guid UserId,
+    string? DisplayName,
+    Guid? AddedByUserId,
+    string? AddedByDisplayName,
+    DateTimeOffset AddedAt
+);
+
+// ─── Мои процессы (FR-BPM-02.3) ──────────────────────────────────────────────
+
+/// <summary>Параметры фильтра для раздела «Мои процессы».</summary>
+public record MyInstancesFilter(
+    /// <summary>Роль пользователя в экземпляре.</summary>
+    MyInstancesRole Role = MyInstancesRole.All,
+    /// <summary>Фильтр по состоянию экземпляра (null = все состояния).</summary>
+    BpmInstanceState? State = null,
+    /// <summary>Строка поиска по названию экземпляра.</summary>
+    string? Search = null,
+    /// <summary>Фильтр по идентификатору процесса.</summary>
+    Guid? ProcessId = null,
+    /// <summary>Нижняя граница даты запуска.</summary>
+    DateTimeOffset? DateFrom = null,
+    /// <summary>Верхняя граница даты запуска.</summary>
+    DateTimeOffset? DateTo = null
+);
+
+/// <summary>Результат запроса «Мои процессы» с общим счётчиком.</summary>
+public record MyInstancesResult(
+    IReadOnlyList<BpmInstanceListItemDto> Items,
+    int Total
+);
+
+/// <summary>DTO сохранённого фильтра.</summary>
+public record BpmSavedFilterDto(
+    Guid Id,
+    string Name,
+    string FiltersJson,
+    DateTimeOffset CreatedAt
+);
+
+/// <summary>Запрос на создание или обновление сохранённого фильтра.</summary>
+public record SaveFilterRequest(
+    string Name,
+    string FiltersJson
+);
+
+// ─── Монитор процессов (FR-BPM-02.4) ─────────────────────────────────────────
+
+/// <summary>Элемент списка монитора процессов: процесс + статистика экземпляров.</summary>
+public record BpmProcessMonitorItemDto(
+    Guid ProcessId,
+    string ProcessName,
+    string? ProcessDescription,
+    int? ActiveVersionNumber,
+    DateTimeOffset? PublishedAt,
+    int ActiveCount,
+    int SuspendedCount,
+    int CompletedCount,
+    int CancelledCount,
+    IReadOnlyList<string> Owners,
+    IReadOnlyList<string> Curators
+);
+
+/// <summary>Детальная статистика экземпляров для страницы монитора процесса.</summary>
+public record BpmProcessStatsDto(
+    int ActiveCount,
+    int SuspendedCount,
+    int CompletedCount,
+    int CancelledCount,
+    int TotalCount,
+    string ProcessName,
+    string? ProcessDescription,
+    int? ActiveVersionNumber,
+    DateTimeOffset? PublishedAt,
+    DateTimeOffset CreatedAt,
+    IReadOnlyList<string> Owners,
+    IReadOnlyList<string> Curators
+);
+
+// ─── Очередь исполнения и аналитика (FR-BPM-02.5) ────────────────────────────
+
+/// <summary>DTO задания в очереди исполнения.</summary>
+public record BpmExecutionJobDto(
+    Guid Id,
+    Guid ProcessId,
+    string ProcessName,
+    Guid? InstanceId,
+    string? InstanceName,
+    string ElementId,
+    string ElementType,
+    string? OperationName,
+    BpmJobStatus Status,
+    int AttemptNumber,
+    int MaxAttempts,
+    DateTimeOffset? NextRunAt,
+    DateTimeOffset? StartedAt,
+    DateTimeOffset? CompletedAt,
+    DateTimeOffset? FailedAt,
+    string? LastError,
+    string? ServerHost,
+    bool IsTimer,
+    DateTimeOffset? TimerDeadline,
+    DateTimeOffset CreatedAt
+);
+
+/// <summary>Агрегированные счётчики по статусам очереди.</summary>
+public record QueueStatsDto(
+    int Pending,
+    int Running,
+    int Scheduled,
+    int Failed,
+    int Total
+);
+
+/// <summary>Аналитика выполнения узла процесса.</summary>
+public record NodeAnalyticsDto(
+    string ElementId,
+    string? ElementName,
+    int ExecutionCount,
+    double AvgDurationMs,
+    double P50DurationMs,
+    double P95DurationMs,
+    int ErrorCount
+);
+
+/// <summary>Запрос на перенос времени запуска таймера.</summary>
+public record RescheduleTimerRequest(DateTimeOffset NewRunAt);
+
+// ─── Документирование процессов (FR-BPM-02.6) ────────────────────────────────
+
+/// <summary>Процесс в подразделе «Документирование» с его опубликованными версиями.</summary>
+public record ProcessDocumentationItemDto(
+    Guid ProcessId,
+    string ProcessName,
+    string? ProcessDescription,
+    bool IsDeleted,
+    string[] Tags,
+    IReadOnlyList<ProcessDocVersionDto> PublishedVersions
+);
+
+/// <summary>Запись об опубликованной версии в таблице документации.</summary>
+public record ProcessDocVersionDto(
+    Guid VersionId,
+    int VersionNumber,
+    DateTimeOffset? PublishedAt,
+    Guid PublishedByUserId,
+    string? ReleaseNotes,
+    bool HasSnapshot
+);
+
+/// <summary>HTML-снапшот документации версии процесса.</summary>
+public record DocSnapshotDto(
+    Guid SnapshotId,
+    Guid ProcessId,
+    string ProcessName,
+    Guid ProcessVersionId,
+    int VersionNumber,
+    DateTimeOffset GeneratedAt,
+    string HtmlContent
+);
+
+// ──────────────────────────────────────────────────────────────────────────────
+// FR-BPM-02.7: Пакеты миграции версий
+// ──────────────────────────────────────────────────────────────────────────────
+
+/// <summary>Краткое представление пакета миграции для списка.</summary>
+public record MigrationPackageListItemDto(
+    Guid Id,
+    string Name,
+    Guid CreatedByUserId,
+    string CreatedByUserName,
+    BpmMigrationPackageStatus Status,
+    bool IsActive,
+    DateTimeOffset CreatedAt,
+    int TotalItems,
+    int MigratedItems,
+    int ErrorItems
+);
+
+/// <summary>Полное представление пакета миграции с суммарной статистикой.</summary>
+public record MigrationPackageDetailDto(
+    Guid Id,
+    string Name,
+    Guid CreatedByUserId,
+    string CreatedByUserName,
+    BpmMigrationPackageStatus Status,
+    bool IsActive,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? CompletedAt,
+    int TotalItems,
+    int MigratedItems,
+    int ErrorItems,
+    int PendingItems
+);
+
+/// <summary>Представление элемента пакета миграции.</summary>
+public record MigrationItemDto(
+    Guid Id,
+    Guid PackageId,
+    Guid InstanceId,
+    string InstanceName,
+    Guid ProcessId,
+    string ProcessName,
+    Guid TargetVersionId,
+    int TargetVersionNumber,
+    BpmMigrationItemStatus Status,
+    string? ErrorComment,
+    string? ManualChangeUrl,
+    DateTimeOffset? ProcessedAt
+);
+
+/// <summary>Запрос на создание пакета миграции.</summary>
+public record CreateMigrationPackageRequest(
+    string Name,
+    IReadOnlyList<MigrationItemRequest> Items
+);
+
+/// <summary>Элемент запроса на создание пакета миграции.</summary>
+public record MigrationItemRequest(
+    Guid InstanceId,
+    Guid TargetVersionId
+);
+
+/// <summary>Запрос на ручную обработку элемента миграции.</summary>
+public record ManualMigrateItemRequest(
+    string? ManualChangeUrl
+);
+
+// ─── Пакетный запуск экземпляров (FR-BPM-02.1) ───────────────────────────────
+
+/// <summary>Один элемент пакетного запуска: название и переменные для одного экземпляра.</summary>
+public record BatchLaunchItem(
+    string? Name,
+    IDictionary<string, string?>? Variables
+);
+
+/// <summary>Запрос на пакетный запуск нескольких экземпляров одного процесса.</summary>
+public record BatchLaunchRequest(
+    IReadOnlyList<BatchLaunchItem> Items
+);
+
+/// <summary>Результат запуска одного экземпляра в пакете.</summary>
+public record BatchLaunchItemResult(
+    bool Success,
+    Guid? InstanceId,
+    string? InstanceName,
+    string? Error
+);
+
+/// <summary>Итоговый результат пакетного запуска.</summary>
+public record BatchLaunchResult(
+    int Total,
+    int Created,
+    int Failed,
+    IReadOnlyList<BatchLaunchItemResult> Items
+);
+
+// ─── Прямое переключение версии экземпляра (FR-BPM-02.2) ─────────────────────
+
+/// <summary>Запрос на прямое переключение версии работающего экземпляра.</summary>
+public record SwitchInstanceVersionRequest(
+    Guid TargetVersionId
+);
+
+// ─── Дашборд мониторинга (FR-BPM-02.4) ───────────────────────────────────────
+
+/// <summary>Сводная статистика по процессам для дашборда мониторинга.</summary>
+public record BpmDashboardDto(
+    int TotalProcesses,
+    int ActiveInstances,
+    int SuspendedInstances,
+    int CompletedInstances,
+    int CancelledInstances,
+    int FaultedInstances,
+    int FailedJobs,
+    IReadOnlyList<BpmDashboardTopProcessDto> TopActiveProcesses
+);
+
+/// <summary>Строка дашборда: процесс с наибольшим числом активных экземпляров.</summary>
+public record BpmDashboardTopProcessDto(
+    Guid ProcessId,
+    string ProcessName,
+    int ActiveCount,
+    int TotalCount
+);

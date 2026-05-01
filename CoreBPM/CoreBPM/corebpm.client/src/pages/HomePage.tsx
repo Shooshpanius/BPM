@@ -8,11 +8,18 @@ import { OrgStructurePage } from './org/OrgStructurePage';
 import { ProcessesPage } from './bpm/ProcessesPage';
 import { BpmnDesignerPage } from './bpm/BpmnDesignerPage';
 import { ProcessMonitorPage } from './bpm/ProcessMonitorPage';
+import { InstancePage } from './bpm/InstancePage';
+import { ProcessMonitorListPage } from './bpm/ProcessMonitorListPage';
+import { MyProcessesPage } from './bpm/MyProcessesPage';
 import { RulesPage } from './rules/RulesPage';
 import { DmnEditorPage } from './rules/DmnEditorPage';
 import { FormsPage } from './forms/FormsPage';
 import { FormBuilderPage } from './forms/FormBuilderPage';
 import { ScriptsPage } from './scripts/ScriptsPage';
+import { ExecutionQueuePage } from './bpm/ExecutionQueuePage';
+import ProcessDocumentationPage from './bpm/ProcessDocumentationPage';
+import { MigrationPackagesPage } from './bpm/MigrationPackagesPage';
+import { MigrationPackageDetailPage } from './bpm/MigrationPackageDetailPage';
 import { MyColleaguesWidget } from '../components/org/MyColleaguesWidget';
 import './HomePage.css';
 
@@ -28,8 +35,10 @@ export function HomePage({ onAdmin }: HomePageProps) {
     const [section, setSection] = useState<SidebarSection>('contacts');
     const [designerProcessId, setDesignerProcessId] = useState<string | null>(null);
     const [monitorProcess, setMonitorProcess] = useState<{ id: string; name: string } | null>(null);
+    const [openInstanceId, setOpenInstanceId] = useState<string | null>(null);
     const [dmnEditorTableId, setDmnEditorTableId] = useState<string | null>(null);
     const [formBuilderId, setFormBuilderId] = useState<string | null>(null);
+    const [migrationPackageId, setMigrationPackageId] = useState<string | null>(null);
 
     const handleSelect = (s: SidebarSection) => {
         // Обычные пользователи не имеют доступа к разделу «Оргструктура»
@@ -38,21 +47,29 @@ export function HomePage({ onAdmin }: HomePageProps) {
         setMonitorProcess(null);
         setDmnEditorTableId(null);
         setFormBuilderId(null);
+        setOpenInstanceId(null);
+        setMigrationPackageId(null);
         setSection(s);
     };
 
     const handleOpenDesigner = (processId: string) => {
         setMonitorProcess(null);
+        setOpenInstanceId(null);
         setDesignerProcessId(processId);
     };
 
     const handleOpenMonitor = (processId: string, processName: string) => {
         setDesignerProcessId(null);
+        setOpenInstanceId(null);
         setMonitorProcess({ id: processId, name: processName });
     };
 
-    const handleBackFromDesigner = () => {
-        setDesignerProcessId(null);
+    const handleOpenInstance = (instanceId: string) => {
+        setOpenInstanceId(instanceId);
+    };
+
+    const handleBackFromInstance = () => {
+        setOpenInstanceId(null);
     };
 
     return (
@@ -90,18 +107,47 @@ export function HomePage({ onAdmin }: HomePageProps) {
                         designerProcessId
                             ? <BpmnDesignerPage
                                 processId={designerProcessId}
-                                onBack={handleBackFromDesigner}
+                                onBack={() => setDesignerProcessId(null)}
+                              />
+                            : openInstanceId
+                                ? <InstancePage
+                                    instanceId={openInstanceId}
+                                    onBack={handleBackFromInstance}
+                                  />
+                                : monitorProcess
+                                    ? <ProcessMonitorPage
+                                        processId={monitorProcess.id}
+                                        processName={monitorProcess.name}
+                                        onBack={() => setMonitorProcess(null)}
+                                        onOpenInstance={handleOpenInstance}
+                                      />
+                                    : <ProcessesPage
+                                        onOpenDesigner={handleOpenDesigner}
+                                        onOpenMonitor={handleOpenMonitor}
+                                      />
+                    )}
+                    {section === 'bpm-my-processes' && (
+                        openInstanceId
+                            ? <InstancePage
+                                instanceId={openInstanceId}
+                                onBack={handleBackFromInstance}
+                              />
+                            : <MyProcessesPage onOpenInstance={handleOpenInstance} />
+                    )}
+                    {section === 'bpm-monitor' && (
+                        openInstanceId
+                            ? <InstancePage
+                                instanceId={openInstanceId}
+                                onBack={handleBackFromInstance}
                               />
                             : monitorProcess
                                 ? <ProcessMonitorPage
                                     processId={monitorProcess.id}
                                     processName={monitorProcess.name}
                                     onBack={() => setMonitorProcess(null)}
+                                    onOpenInstance={handleOpenInstance}
                                   />
-                                : <ProcessesPage
-                                    onOpenDesigner={handleOpenDesigner}
-                                    onOpenMonitor={handleOpenMonitor}
-                                  />
+                                : <ProcessMonitorListPage onOpenMonitor={handleOpenMonitor} />
                     )}
                     {section === 'bpm-rules' && (
                         dmnEditorTableId
@@ -120,6 +166,16 @@ export function HomePage({ onAdmin }: HomePageProps) {
                             : <FormsPage onOpenBuilder={setFormBuilderId} />
                     )}
                     {section === 'bpm-scripts' && <ScriptsPage />}
+                    {section === 'bpm-queue' && <ExecutionQueuePage />}
+                    {section === 'bpm-documentation' && <ProcessDocumentationPage />}
+                    {section === 'bpm-migration' && (
+                        migrationPackageId
+                            ? <MigrationPackageDetailPage
+                                packageId={migrationPackageId}
+                                onBack={() => setMigrationPackageId(null)}
+                              />
+                            : <MigrationPackagesPage onOpenDetail={setMigrationPackageId} />
+                    )}
                 </main>
             </div>
             {isMobile && <MobileNav active={section} onSelect={handleSelect} />}

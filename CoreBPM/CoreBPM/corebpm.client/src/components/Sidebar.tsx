@@ -2,7 +2,7 @@ import { useAuth } from '../context/AuthContext';
 import { APP_VERSION, LAST_PR_DATE } from '../version';
 import './Sidebar.css';
 
-export type SidebarSection = 'contacts' | 'org-structure' | 'bpm-processes' | 'bpm-rules' | 'bpm-forms' | 'bpm-scripts';
+export type SidebarSection = 'contacts' | 'org-structure' | 'bpm-processes' | 'bpm-my-processes' | 'bpm-monitor' | 'bpm-queue' | 'bpm-documentation' | 'bpm-rules' | 'bpm-forms' | 'bpm-scripts' | 'bpm-migration';
 
 interface SidebarProps {
     active: SidebarSection;
@@ -44,6 +44,75 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
                         <path d="M8 9.5h2.5a1.5 1.5 0 0 1 1.5 1.5v1"/>
                         <path d="M16 9.5h-2.5A1.5 1.5 0 0 0 12 11v1"/>
                         <path d="M12 12v2"/>
+                    </svg>
+                }
+            />
+            <SidebarItem
+                id="bpm-my-processes"
+                label="Мои процессы"
+                active={active === 'bpm-my-processes'}
+                onClick={() => onSelect('bpm-my-processes')}
+                icon={
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="8" r="4"/>
+                        <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+                        <path d="M16 11l1.5 1.5L21 9"/>
+                    </svg>
+                }
+            />
+            <SidebarItem
+                id="bpm-monitor"
+                label="Монитор"
+                active={active === 'bpm-monitor'}
+                onClick={() => onSelect('bpm-monitor')}
+                icon={
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <rect x="2" y="3" width="20" height="14" rx="2"/>
+                        <path d="M8 21h8M12 17v4"/>
+                        <path d="M7 8h2v5H7zM11 6h2v7h-2zM15 10h2v3h-2z"/>
+                    </svg>
+                }
+            />
+            {hasRole('Admin') && (
+            <SidebarItem
+                id="bpm-queue"
+                label="Очередь"
+                active={active === 'bpm-queue'}
+                onClick={() => onSelect('bpm-queue')}
+                icon={
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M3 6h18M3 12h18M3 18h18"/>
+                        <circle cx="21" cy="6" r="0" fill="currentColor"/>
+                    </svg>
+                }
+            />
+            )}
+            {hasRole('Admin') && (
+            <SidebarItem
+                id="bpm-migration"
+                label="Смена версии"
+                active={active === 'bpm-migration'}
+                onClick={() => onSelect('bpm-migration')}
+                icon={
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M7 16V4m0 0L3 8m4-4 4 4"/>
+                        <path d="M17 8v12m0 0 4-4m-4 4-4-4"/>
+                    </svg>
+                }
+            />
+            )}
+            <SidebarItem
+                id="bpm-documentation"
+                label="Документирование"
+                active={active === 'bpm-documentation'}
+                onClick={() => onSelect('bpm-documentation')}
+                icon={
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                        <line x1="16" y1="13" x2="8" y2="13"/>
+                        <line x1="16" y1="17" x2="8" y2="17"/>
+                        <polyline points="10 9 9 9 8 9"/>
                     </svg>
                 }
             />

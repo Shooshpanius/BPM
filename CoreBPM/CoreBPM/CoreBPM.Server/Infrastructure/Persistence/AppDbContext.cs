@@ -25,6 +25,17 @@ public class AppDbContext : DbContext
     public DbSet<BpmElementConfig> BpmElementConfigs => Set<BpmElementConfig>();
     public DbSet<BpmProcessVariable> BpmProcessVariables => Set<BpmProcessVariable>();
     public DbSet<BpmRaciEntry> BpmRaciEntries => Set<BpmRaciEntry>();
+    public DbSet<BpmProcessRoleConfig> BpmProcessRoleConfigs => Set<BpmProcessRoleConfig>();
+    public DbSet<BpmInstance> BpmInstances => Set<BpmInstance>();
+    public DbSet<BpmInstanceVariable> BpmInstanceVariables => Set<BpmInstanceVariable>();
+    public DbSet<BpmSchedulerJob> BpmSchedulerJobs => Set<BpmSchedulerJob>();
+    public DbSet<BpmInstanceHistoryEntry> BpmInstanceHistoryEntries => Set<BpmInstanceHistoryEntry>();
+    public DbSet<BpmInstanceParticipant> BpmInstanceParticipants => Set<BpmInstanceParticipant>();
+    public DbSet<BpmSavedFilter> BpmSavedFilters => Set<BpmSavedFilter>();
+    public DbSet<BpmExecutionJob> BpmExecutionJobs => Set<BpmExecutionJob>();
+    public DbSet<BpmProcessDocSnapshot> BpmProcessDocSnapshots => Set<BpmProcessDocSnapshot>();
+    public DbSet<BpmVersionMigrationPackage> BpmVersionMigrationPackages => Set<BpmVersionMigrationPackage>();
+    public DbSet<BpmVersionMigrationItem> BpmVersionMigrationItems => Set<BpmVersionMigrationItem>();
     public DbSet<BpmTaskForm> BpmTaskForms => Set<BpmTaskForm>();
     public DbSet<BpmTaskFormVersion> BpmTaskFormVersions => Set<BpmTaskFormVersion>();
     public DbSet<BpmInstanceStatusConfig> BpmInstanceStatusConfigs => Set<BpmInstanceStatusConfig>();
@@ -434,6 +445,173 @@ public class AppDbContext : DbContext
              .OnDelete(DeleteBehavior.Cascade);
         });
 
+        // ─── Роли процесса (Владелец/Куратор) ────────────────────────────────────
+
+        modelBuilder.Entity<BpmProcessRoleConfig>(e =>
+        {
+            e.ToTable("bpm_process_role_configs");
+            e.HasKey(r => r.Id);
+            e.Property(r => r.RoleType).HasConversion<int>();
+            e.Property(r => r.AssigneeType).HasConversion<int>();
+            e.Property(r => r.AssigneeId).IsRequired().HasMaxLength(100);
+            e.Property(r => r.DisplayName).IsRequired().HasMaxLength(500);
+
+            e.HasIndex(r => r.ProcessId);
+
+            e.HasOne(r => r.Process)
+             .WithMany()
+             .HasForeignKey(r => r.ProcessId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ─── Экземпляры процессов ─────────────────────────────────────────────────
+
+        modelBuilder.Entity<BpmInstance>(e =>
+        {
+            e.ToTable("bpm_instances");
+            e.HasKey(i => i.Id);
+            e.Property(i => i.Name).IsRequired().HasMaxLength(500);
+            e.Property(i => i.State).HasConversion<int>();
+            e.Property(i => i.LaunchSource).HasConversion<int>();
+            e.Property(i => i.ExternalReference).HasMaxLength(300);
+            e.Property(i => i.CancelReason).HasMaxLength(2000);
+
+            e.HasIndex(i => i.ProcessId);
+            e.HasIndex(i => i.State);
+            e.HasIndex(i => i.InitiatorUserId);
+            e.HasIndex(i => new { i.ProcessId, i.StartedAt });
+
+            e.HasOne(i => i.Process)
+             .WithMany()
+             .HasForeignKey(i => i.ProcessId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasOne(i => i.ProcessVersion)
+             .WithMany()
+             .HasForeignKey(i => i.ProcessVersionId)
+             .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<BpmInstanceVariable>(e =>
+        {
+            e.ToTable("bpm_instance_variables");
+            e.HasKey(v => v.Id);
+            e.Property(v => v.Name).IsRequired().HasMaxLength(200);
+
+            e.HasIndex(v => v.InstanceId);
+
+            e.HasOne(v => v.Instance)
+             .WithMany(i => i.Variables)
+             .HasForeignKey(v => v.InstanceId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<BpmSchedulerJob>(e =>
+        {
+            e.ToTable("bpm_scheduler_jobs");
+            e.HasKey(j => j.Id);
+            e.Property(j => j.ElementId).IsRequired().HasMaxLength(200);
+            e.Property(j => j.TimerType).IsRequired().HasMaxLength(50);
+            e.Property(j => j.TimerValue).IsRequired().HasMaxLength(500);
+            e.Property(j => j.TimeZone).HasMaxLength(100);
+            e.Property(j => j.Status).HasConversion<int>();
+            e.Property(j => j.LastError).HasMaxLength(4000);
+
+            e.HasIndex(j => j.ProcessId);
+            e.HasIndex(j => new { j.IsActive, j.NextFireAt });
+
+            e.HasOne(j => j.Process)
+             .WithMany()
+             .HasForeignKey(j => j.ProcessId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(j => j.ProcessVersion)
+             .WithMany()
+             .HasForeignKey(j => j.ProcessVersionId)
+             .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ─── Очередь исполнения ──────────────────────────────────────────────────
+
+        modelBuilder.Entity<BpmExecutionJob>(e =>
+        {
+            e.ToTable("bpm_execution_jobs");
+            e.HasKey(j => j.Id);
+            e.Property(j => j.ElementId).IsRequired().HasMaxLength(200);
+            e.Property(j => j.ElementType).IsRequired().HasMaxLength(100);
+            e.Property(j => j.OperationName).HasMaxLength(500);
+            e.Property(j => j.Status).HasConversion<int>();
+            e.Property(j => j.LastError).HasMaxLength(4000);
+            e.Property(j => j.ServerHost).HasMaxLength(200);
+
+            e.HasIndex(j => j.Status);
+            e.HasIndex(j => j.ProcessId);
+            e.HasIndex(j => j.InstanceId);
+            e.HasIndex(j => new { j.Status, j.NextRunAt });
+
+            e.HasOne(j => j.Process)
+             .WithMany()
+             .HasForeignKey(j => j.ProcessId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(j => j.ProcessVersion)
+             .WithMany()
+             .HasForeignKey(j => j.ProcessVersionId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasOne(j => j.Instance)
+             .WithMany()
+             .HasForeignKey(j => j.InstanceId)
+             .OnDelete(DeleteBehavior.SetNull)
+             .IsRequired(false);
+        });
+
+        // ─── Журнал истории и участники экземпляра ───────────────────────────────
+
+        modelBuilder.Entity<BpmInstanceHistoryEntry>(e =>
+        {
+            e.ToTable("bpm_instance_history");
+            e.HasKey(h => h.Id);
+            e.Property(h => h.EventType).HasConversion<int>();
+            e.Property(h => h.Text).HasMaxLength(4000);
+            e.Property(h => h.MetaJson).HasColumnType("text");
+            e.Property(h => h.ElementId).HasMaxLength(200);
+            e.Property(h => h.ElementName).HasMaxLength(500);
+
+            e.HasIndex(h => h.InstanceId);
+            e.HasIndex(h => new { h.InstanceId, h.OccurredAt });
+            e.HasIndex(h => new { h.ElementId, h.OccurredAt });
+
+            e.HasOne(h => h.Instance)
+             .WithMany()
+             .HasForeignKey(h => h.InstanceId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<BpmInstanceParticipant>(e =>
+        {
+            e.ToTable("bpm_instance_participants");
+            e.HasKey(p => p.Id);
+            e.Property(p => p.DisplayName).HasMaxLength(300);
+            e.HasIndex(p => new { p.InstanceId, p.UserId }).IsUnique();
+
+            e.HasOne(p => p.Instance)
+             .WithMany()
+             .HasForeignKey(p => p.InstanceId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ─── Сохранённые фильтры «Мои процессы» ──────────────────────────────────
+
+        modelBuilder.Entity<BpmSavedFilter>(e =>
+        {
+            e.ToTable("bpm_saved_filters");
+            e.HasKey(f => f.Id);
+            e.Property(f => f.Name).IsRequired().HasMaxLength(200);
+            e.Property(f => f.FiltersJson).HasColumnType("text");
+            e.HasIndex(f => f.UserId);
+        });
+
         // ─── DMN: таблицы бизнес-правил ─────────────────────────────────────────
 
         // ─── Формы задач ─────────────────────────────────────────────────────────
@@ -670,6 +848,48 @@ public class AppDbContext : DbContext
             // Код уникален в рамках организации
             e.HasIndex(m => new { m.OrganizationId, m.Code }).IsUnique();
             e.HasIndex(m => m.OrganizationId);
+        });
+
+        modelBuilder.Entity<BpmVersionMigrationPackage>(e =>
+        {
+            e.ToTable("bpm_version_migration_packages");
+            e.HasKey(p => p.Id);
+            e.Property(p => p.Name).IsRequired().HasMaxLength(300);
+            e.Property(p => p.Status).HasConversion<int>();
+            e.HasIndex(p => p.Status);
+            e.HasIndex(p => p.CreatedByUserId);
+        });
+
+        modelBuilder.Entity<BpmVersionMigrationItem>(e =>
+        {
+            e.ToTable("bpm_version_migration_items");
+            e.HasKey(i => i.Id);
+            e.Property(i => i.Status).HasConversion<int>();
+            e.Property(i => i.ErrorComment).HasMaxLength(2000);
+            e.Property(i => i.ManualChangeUrl).HasMaxLength(1000);
+            e.HasIndex(i => i.PackageId);
+            e.HasIndex(i => i.InstanceId);
+            e.HasIndex(i => i.Status);
+
+            e.HasOne(i => i.Package)
+             .WithMany(p => p.Items)
+             .HasForeignKey(i => i.PackageId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(i => i.Instance)
+             .WithMany()
+             .HasForeignKey(i => i.InstanceId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasOne(i => i.Process)
+             .WithMany()
+             .HasForeignKey(i => i.ProcessId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasOne(i => i.TargetVersion)
+             .WithMany()
+             .HasForeignKey(i => i.TargetVersionId)
+             .OnDelete(DeleteBehavior.Restrict);
         });
     }
 

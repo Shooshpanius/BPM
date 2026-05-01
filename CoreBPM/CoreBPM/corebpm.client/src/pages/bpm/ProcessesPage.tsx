@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import * as api from '../../api/bpmApi';
 import type { BpmProcessListItemDto } from '../../api/bpmApi';
+import { StartInstanceDialog } from '../../components/bpm/StartInstanceDialog';
 import './ProcessesPage.css';
 
 interface ProcessesPageProps {
@@ -46,6 +47,10 @@ export function ProcessesPage({ onOpenDesigner, onOpenMonitor }: ProcessesPagePr
     // Подтверждение удаления
     const [deleteId, setDeleteId] = useState<string | null>(null);
     const [deleting, setDeleting] = useState(false);
+
+    // Диалог запуска экземпляра
+    const [launchProcess, setLaunchProcess] = useState<BpmProcessListItemDto | null>(null);
+    const [lastLaunchedInstanceId, setLastLaunchedInstanceId] = useState<string | null>(null);
 
     // Загрузка организаций
     useEffect(() => {
@@ -230,6 +235,17 @@ export function ProcessesPage({ onOpenDesigner, onOpenMonitor }: ProcessesPagePr
                         style={{ fontSize: 14 }}
                     >
                         ⊞
+                    </button>
+                )}
+                {!isTemplate && p.activeVersionNumber != null && (
+                    <button
+                        className="pp-btn-icon"
+                        title="Запустить процесс"
+                        onClick={() => setLaunchProcess(p)}
+                        aria-label="Запустить процесс"
+                        style={{ fontSize: 14, color: '#16a34a' }}
+                    >
+                        ▷
                     </button>
                 )}
                 <button
@@ -496,6 +512,49 @@ export function ProcessesPage({ onOpenDesigner, onOpenMonitor }: ProcessesPagePr
                             </button>
                         </div>
                     </div>
+                </div>
+            )}
+
+            {/* Диалог запуска экземпляра */}
+            {launchProcess && token && (
+                <StartInstanceDialog
+                    process={launchProcess}
+                    token={token}
+                    onLaunched={instanceId => {
+                        setLastLaunchedInstanceId(instanceId);
+                        setLaunchProcess(null);
+                    }}
+                    onClose={() => setLaunchProcess(null)}
+                />
+            )}
+
+            {/* Уведомление об успешном запуске */}
+            {lastLaunchedInstanceId && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        bottom: 24,
+                        right: 24,
+                        background: '#16a34a',
+                        color: '#fff',
+                        borderRadius: 8,
+                        padding: '12px 20px',
+                        fontSize: 14,
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                        zIndex: 9999,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 12,
+                    }}
+                >
+                    <span>✓ Экземпляр процесса запущен</span>
+                    <button
+                        style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 16, padding: 0 }}
+                        onClick={() => setLastLaunchedInstanceId(null)}
+                        aria-label="Закрыть"
+                    >
+                        ✕
+                    </button>
                 </div>
             )}
         </div>

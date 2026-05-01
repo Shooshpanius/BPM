@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { BpmNotificationsProvider } from './context/BpmNotificationsContext';
 import { LoginPage } from './pages/LoginPage';
 import { HomePage } from './pages/HomePage';
 import { AdminPage } from './pages/admin/AdminPage';
@@ -28,7 +29,9 @@ function AppContent() {
 function App() {
     return (
         <AuthProvider>
-            <AppContent />
+            <BpmNotificationsProvider>
+                <AppContent />
+            </BpmNotificationsProvider>
         </AuthProvider>
     );
 }

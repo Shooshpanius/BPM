@@ -1,0 +1,240 @@
+/* ─── Детальная страница пакета миграции ─────────────────────────────────── */
+
+.mpd-root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.mpd-loading, .mpd-empty { color: var(--text-secondary, #6b7280); padding: 20px 24px; }
+.mpd-error { color: var(--color-error, #dc2626); padding: 12px 24px; }
+.mpd-action-error { color: #dc2626; font-size: 0.875rem; padding: 8px 24px; }
+
+/* ─── Шапка ───────────────────────────────────────────────────────────────── */
+
+.mpd-back-btn {
+    background: none;
+    border: none;
+    color: var(--accent, #4f46e5);
+    cursor: pointer;
+    font-size: 0.875rem;
+    padding: 16px 24px 0;
+    display: block;
+}
+
+.mpd-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 8px 24px 16px;
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+    flex-shrink: 0;
+}
+
+.mpd-header-info { flex: 1; }
+.mpd-title { margin: 0 0 8px; font-size: 1.25rem; font-weight: 700; color: var(--text-primary, #111); }
+
+.mpd-meta { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.mpd-meta-item { font-size: 0.8rem; color: var(--text-secondary, #6b7280); }
+
+.mpd-actions { display: flex; gap: 8px; flex-shrink: 0; align-items: center; }
+
+/* ─── Бейджи статусов пакета ──────────────────────────────────────────────── */
+
+.mpd-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.mpd-badge--new          { background: #dbeafe; color: #1d4ed8; }
+.mpd-badge--running      { background: #fef9c3; color: #854d0e; }
+.mpd-badge--completed    { background: #dcfce7; color: #166534; }
+.mpd-badge--errors       { background: #fee2e2; color: #991b1b; }
+.mpd-badge--cancelled    { background: #f3f4f6; color: #6b7280; }
+
+/* ─── Статистика ──────────────────────────────────────────────────────────── */
+
+.mpd-stats {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 12px 24px;
+    background: var(--bg-secondary, #f9fafb);
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+.mpd-stat { display: flex; flex-direction: column; align-items: center; }
+.mpd-stat-label { font-size: 0.7rem; color: var(--text-secondary, #6b7280); margin-bottom: 2px; }
+.mpd-stat-value { font-size: 1.1rem; font-weight: 700; color: var(--text-primary, #111); }
+.mpd-stat-value--ok  { color: #16a34a; }
+.mpd-stat-value--err { color: #dc2626; }
+
+.mpd-progress-wrap { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 150px; }
+.mpd-progress-bar {
+    flex: 1;
+    height: 8px;
+    background: var(--border-color, #e5e7eb);
+    border-radius: 9999px;
+    overflow: hidden;
+}
+
+.mpd-progress-fill {
+    height: 100%;
+    background: var(--accent, #4f46e5);
+    border-radius: 9999px;
+    transition: width 0.4s;
+}
+
+.mpd-progress-label { font-size: 0.8rem; font-weight: 600; color: var(--text-secondary, #6b7280); white-space: nowrap; }
+
+/* ─── Таблица элементов ───────────────────────────────────────────────────── */
+
+.mpd-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 24px;
+}
+
+.mpd-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.mpd-table th {
+    text-align: left;
+    padding: 10px 12px;
+    font-weight: 600;
+    color: var(--text-secondary, #6b7280);
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+    white-space: nowrap;
+}
+
+.mpd-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+    color: var(--text-primary, #111);
+}
+
+.mpd-row-name { font-weight: 500; }
+.mpd-row-comment { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8rem; color: var(--text-secondary, #6b7280); }
+.mpd-row-comment a { color: var(--accent, #4f46e5); }
+
+/* ─── Бейджи статусов элементов ──────────────────────────────────────────── */
+
+.mpd-item-badge {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 9999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.mpd-item-badge--new      { background: #dbeafe; color: #1d4ed8; }
+.mpd-item-badge--running  { background: #fef9c3; color: #854d0e; }
+.mpd-item-badge--ok       { background: #dcfce7; color: #166534; }
+.mpd-item-badge--critical { background: #fee2e2; color: #991b1b; }
+.mpd-item-badge--busy     { background: #fef3c7; color: #92400e; }
+.mpd-item-badge--manual   { background: #ede9fe; color: #5b21b6; }
+.mpd-item-badge--error    { background: #fee2e2; color: #b91c1c; }
+.mpd-item-badge--na       { background: #f3f4f6; color: #6b7280; }
+.mpd-item-badge--skip     { background: #f0fdf4; color: #166534; }
+
+/* ─── Кнопки ──────────────────────────────────────────────────────────────── */
+
+.mpd-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: opacity 0.15s;
+}
+
+.mpd-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.mpd-btn--primary  { background: var(--accent, #4f46e5); color: #fff; }
+.mpd-btn--primary:hover:not(:disabled)  { opacity: 0.9; }
+.mpd-btn--secondary { background: var(--bg-secondary, #f3f4f6); color: var(--text-primary, #111); }
+.mpd-btn--secondary:hover:not(:disabled) { background: var(--border-color, #e5e7eb); }
+.mpd-btn--danger  { background: #fee2e2; color: #991b1b; }
+.mpd-btn--danger:hover:not(:disabled) { background: #fecaca; }
+.mpd-btn--sm { padding: 4px 10px; font-size: 0.78rem; }
+
+/* ─── Диалог ──────────────────────────────────────────────────────────────── */
+
+.mpd-dialog-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.mpd-dialog {
+    background: var(--bg-primary, #fff);
+    border-radius: 12px;
+    width: min(500px, 95vw);
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+
+.mpd-dialog-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+.mpd-dialog-title { margin: 0; font-size: 1.05rem; font-weight: 700; }
+
+.mpd-dialog-close {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    color: var(--text-secondary, #6b7280);
+    padding: 4px;
+    line-height: 1;
+}
+
+.mpd-dialog-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 8px; }
+.mpd-dialog-hint { color: var(--text-secondary, #6b7280); font-size: 0.875rem; margin: 0; }
+.mpd-dialog-error { color: #dc2626; font-size: 0.875rem; margin: 0; }
+
+.mpd-field-label { font-size: 0.875rem; font-weight: 600; display: block; color: var(--text-primary, #111); }
+.mpd-field-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 6px;
+    font-size: 0.875rem;
+    box-sizing: border-box;
+    background: var(--bg-primary, #fff);
+    color: var(--text-primary, #111);
+}
+
+.mpd-field-input:focus { outline: none; border-color: var(--accent, #4f46e5); }
+
+.mpd-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color, #e5e7eb);
+}

@@ -630,3 +630,573 @@ export const updateMessage = (token: string, id: string, data: UpdateMessageRequ
 export const deleteMessage = (token: string, id: string): Promise<void> =>
     fetchJson(`/api/bpm/messages/${id}`, token, { method: 'DELETE' });
 
+// ─── Роли процесса (Владелец/Куратор) ────────────────────────────────────────
+
+export type BpmProcessRoleType = 'Owner' | 'Curator';
+export type BpmAssigneeType = 'User' | 'Position' | 'Department';
+
+export interface BpmProcessRoleConfigDto {
+    id: string;
+    roleType: BpmProcessRoleType;
+    assigneeType: BpmAssigneeType;
+    assigneeId: string;
+    displayName: string;
+    sortOrder: number;
+}
+
+export interface UpsertProcessRoleConfigItem {
+    roleType: BpmProcessRoleType;
+    assigneeType: BpmAssigneeType;
+    assigneeId: string;
+    displayName: string;
+    sortOrder: number;
+}
+
+export interface UpsertProcessRoleConfigsRequest {
+    items: UpsertProcessRoleConfigItem[];
+}
+
+/** Получить список ролей (Владелец/Кураторы) процесса. */
+export const getProcessRoles = (token: string, processId: string): Promise<BpmProcessRoleConfigDto[]> =>
+    fetchJson(`/api/bpm/processes/${processId}/roles`, token);
+
+/** Полностью заменить роли процесса. */
+export const replaceProcessRoles = (
+    token: string,
+    processId: string,
+    data: UpsertProcessRoleConfigsRequest
+): Promise<BpmProcessRoleConfigDto[]> =>
+    fetchJson(`/api/bpm/processes/${processId}/roles`, token, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+    });
+
+
+// ─── Экземпляры процессов ─────────────────────────────────────────────────────
+
+export type BpmInstanceState = 'Active' | 'Completed' | 'Cancelled' | 'Suspended' | 'Faulted';
+export type BpmInstanceLaunchSource = 'Manual' | 'Webhook' | 'Scheduler' | 'Message' | 'Signal' | 'CallActivity' | 'Batch';
+
+export interface BpmInstanceVariableDto {
+    id: string;
+    name: string;
+    valueJson?: string;
+}
+
+export interface BpmInstanceListItemDto {
+    id: string;
+    processId: string;
+    processName: string;
+    processVersionId: string;
+    processVersionNumber: number;
+    name: string;
+    state: BpmInstanceState;
+    launchSource: BpmInstanceLaunchSource;
+    initiatorUserId?: string;
+    initiatorDisplayName?: string;
+    responsibleUserId?: string;
+    responsibleDisplayName?: string;
+    startedAt: string;
+    completedAt?: string;
+    cancelledAt?: string;
+}
+
+export interface BpmInstanceDto extends BpmInstanceListItemDto {
+    parentInstanceId?: string;
+    externalReference?: string;
+    cancelReason?: string;
+    updatedAt: string;
+    variables: BpmInstanceVariableDto[];
+}
+
+export interface CreateInstanceRequest {
+    name?: string;
+    variables?: Record<string, string | null>;
+    externalReference?: string;
+}
+
+export interface BpmSchedulerJobDto {
+    id: string;
+    processId: string;
+    processVersionId: string;
+    elementId: string;
+    timerType: string;
+    timerValue: string;
+    timeZone?: string;
+    isActive: boolean;
+    lastFiredAt?: string;
+    nextFireAt?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+/** Список экземпляров процесса. */
+export const getInstances = (
+    token: string,
+    processId: string,
+    page = 1,
+    pageSize = 50
+): Promise<BpmInstanceListItemDto[]> =>
+    fetchJson(`/api/bpm/processes/${processId}/instances?page=${page}&pageSize=${pageSize}`, token);
+
+/** Запустить новый экземпляр процесса. */
+export const createInstance = (
+    token: string,
+    processId: string,
+    data: CreateInstanceRequest
+): Promise<BpmInstanceDto> =>
+    fetchJson(`/api/bpm/processes/${processId}/instances`, token, {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+
+/** Получить экземпляр по ID. */
+export const getInstance = (token: string, instanceId: string): Promise<BpmInstanceDto> =>
+    fetchJson(`/api/bpm/instances/${instanceId}`, token);
+
+/** Получить задания планировщика для процесса. */
+export const getSchedulerJobs = (token: string, processId: string): Promise<BpmSchedulerJobDto[]> =>
+    fetchJson(`/api/bpm/processes/${processId}/scheduler-jobs`, token);
+
+// ─── Управление экземпляром (FR-BPM-02.2) ────────────────────────────────────
+
+export type BpmHistoryEventType =
+    | 'Started' | 'Cancelled' | 'Completed' | 'Suspended' | 'Resumed'
+    | 'ResponsibleChanged' | 'CommentAdded' | 'QuestionAdded'
+    | 'VariableUpdated' | 'ParticipantAdded' | 'ParticipantRemoved'
+    | 'NodeExecuted' | 'NodeFailed';
+
+export interface BpmInstanceHistoryEntryDto {
+    id: string;
+    eventType: BpmHistoryEventType;
+    actorUserId?: string;
+    actorDisplayName?: string;
+    elementId?: string;
+    elementName?: string;
+    durationMs?: number;
+    text?: string;
+    metaJson?: string;
+    occurredAt: string;
+}
+
+export interface BpmInstanceParticipantDto {
+    id: string;
+    userId: string;
+    displayName?: string;
+    addedByUserId?: string;
+    addedByDisplayName?: string;
+    addedAt: string;
+}
+
+export interface CancelInstanceRequest { reason: string; }
+export interface ChangeResponsibleRequest { newResponsibleUserId: string; }
+export interface UpdateInstanceVariableRequest { valueJson?: string | null; }
+export interface AddCommentRequest { text: string; isQuestion?: boolean; }
+export interface AddParticipantRequest { userId: string; }
+
+/** Прервать экземпляр. */
+export const cancelInstance = (token: string, instanceId: string, data: CancelInstanceRequest): Promise<BpmInstanceDto> =>
+    fetchJson(`/api/bpm/instances/${instanceId}/cancel`, token, { method: 'POST', body: JSON.stringify(data) });
+
+/** Приостановить экземпляр. */
+export const suspendInstance = (token: string, instanceId: string): Promise<BpmInstanceDto> =>
+    fetchJson(`/api/bpm/instances/${instanceId}/suspend`, token, { method: 'POST', body: '{}' });
+
+/** Возобновить экземпляр. */
+export const resumeInstance = (token: string, instanceId: string): Promise<BpmInstanceDto> =>
+    fetchJson(`/api/bpm/instances/${instanceId}/resume`, token, { method: 'POST', body: '{}' });
+
+/** Изменить ответственного. */
+export const changeResponsible = (token: string, instanceId: string, data: ChangeResponsibleRequest): Promise<BpmInstanceDto> =>
+    fetchJson(`/api/bpm/instances/${instanceId}/responsible`, token, { method: 'PUT', body: JSON.stringify(data) });
+
+/** Обновить переменную экземпляра. */
+export const updateInstanceVariable = (token: string, instanceId: string, variableName: string, data: UpdateInstanceVariableRequest): Promise<BpmInstanceVariableDto> =>
+    fetchJson(`/api/bpm/instances/${instanceId}/variables/${encodeURIComponent(variableName)}`, token, { method: 'PUT', body: JSON.stringify(data) });
+
+/** Журнал истории экземпляра. */
+export const getInstanceHistory = (token: string, instanceId: string): Promise<BpmInstanceHistoryEntryDto[]> =>
+    fetchJson(`/api/bpm/instances/${instanceId}/history`, token);
+
+/** Добавить комментарий / вопрос. */
+export const addComment = (token: string, instanceId: string, data: AddCommentRequest): Promise<BpmInstanceHistoryEntryDto> =>
+    fetchJson(`/api/bpm/instances/${instanceId}/comments`, token, { method: 'POST', body: JSON.stringify(data) });
+
+/** Список участников экземпляра. */
+export const getParticipants = (token: string, instanceId: string): Promise<BpmInstanceParticipantDto[]> =>
+    fetchJson(`/api/bpm/instances/${instanceId}/participants`, token);
+
+/** Добавить участника. */
+export const addParticipant = (token: string, instanceId: string, data: AddParticipantRequest): Promise<BpmInstanceParticipantDto> =>
+    fetchJson(`/api/bpm/instances/${instanceId}/participants`, token, { method: 'POST', body: JSON.stringify(data) });
+
+/** Удалить участника. */
+export const removeParticipant = (token: string, instanceId: string, participantUserId: string): Promise<void> =>
+    fetchJson(`/api/bpm/instances/${instanceId}/participants/${participantUserId}`, token, { method: 'DELETE' });
+
+// ─── «Мои процессы» (FR-BPM-02.3) ───────────────────────────────────────────
+
+export type MyInstancesRole = 'All' | 'Initiator' | 'Responsible' | 'Participant';
+
+export interface MyInstancesFilter {
+    role?: MyInstancesRole;
+    state?: BpmInstanceState | '';
+    search?: string;
+    processId?: string;
+    dateFrom?: string;
+    dateTo?: string;
+}
+
+export interface MyInstancesResult {
+    items: BpmInstanceListItemDto[];
+    total: number;
+}
+
+/** Получить «мои процессы» с фильтрацией и пагинацией. */
+export const getMyInstances = (
+    token: string,
+    filter: MyInstancesFilter = {},
+    page = 1,
+    pageSize = 30
+): Promise<MyInstancesResult> => {
+    const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    if (filter.role && filter.role !== 'All') params.append('role', filter.role);
+    if (filter.state) params.append('state', filter.state);
+    if (filter.search) params.append('search', filter.search);
+    if (filter.processId) params.append('processId', filter.processId);
+    if (filter.dateFrom) params.append('dateFrom', filter.dateFrom);
+    if (filter.dateTo) params.append('dateTo', filter.dateTo);
+    return fetchJson(`/api/bpm/instances/my?${params}`, token);
+};
+
+// ─── Сохранённые фильтры ─────────────────────────────────────────────────────
+
+export interface BpmSavedFilterDto {
+    id: string;
+    name: string;
+    filtersJson: string;
+    createdAt: string;
+}
+
+export interface SaveFilterRequest {
+    name: string;
+    filtersJson: string;
+}
+
+/** Список сохранённых фильтров пользователя. */
+export const getSavedFilters = (token: string): Promise<BpmSavedFilterDto[]> =>
+    fetchJson('/api/bpm/saved-filters', token);
+
+/** Создать сохранённый фильтр. */
+export const createSavedFilter = (token: string, data: SaveFilterRequest): Promise<BpmSavedFilterDto> =>
+    fetchJson('/api/bpm/saved-filters', token, { method: 'POST', body: JSON.stringify(data) });
+
+/** Обновить сохранённый фильтр. */
+export const updateSavedFilter = (token: string, filterId: string, data: SaveFilterRequest): Promise<BpmSavedFilterDto> =>
+    fetchJson(`/api/bpm/saved-filters/${filterId}`, token, { method: 'PUT', body: JSON.stringify(data) });
+
+/** Удалить сохранённый фильтр. */
+export const deleteSavedFilter = (token: string, filterId: string): Promise<void> =>
+    fetchJson(`/api/bpm/saved-filters/${filterId}`, token, { method: 'DELETE' });
+
+// ─── Монитор процессов (FR-BPM-02.4) ─────────────────────────────────────────
+
+export interface BpmProcessMonitorItemDto {
+    processId: string;
+    processName: string;
+    processDescription?: string;
+    activeVersionNumber?: number;
+    publishedAt?: string;
+    activeCount: number;
+    suspendedCount: number;
+    completedCount: number;
+    cancelledCount: number;
+    owners: string[];
+    curators: string[];
+}
+
+export interface BpmProcessStatsDto {
+    activeCount: number;
+    suspendedCount: number;
+    completedCount: number;
+    cancelledCount: number;
+    totalCount: number;
+    processName: string;
+    processDescription?: string;
+    activeVersionNumber?: number;
+    publishedAt?: string;
+    createdAt: string;
+    owners: string[];
+    curators: string[];
+}
+
+/** «Мой монитор» — процессы, где пользователь Владелец/Куратор, со статистикой. */
+export const getMyMonitorProcesses = (token: string): Promise<BpmProcessMonitorItemDto[]> =>
+    fetchJson('/api/bpm/monitor/my', token);
+
+/** «Полный монитор» — все процессы системы со статистикой (Admin). */
+export const getFullMonitorProcesses = (token: string): Promise<BpmProcessMonitorItemDto[]> =>
+    fetchJson('/api/bpm/monitor/full', token);
+
+/** Детальная статистика для страницы монитора конкретного процесса. */
+export const getProcessStats = (token: string, processId: string): Promise<BpmProcessStatsDto> =>
+    fetchJson(`/api/bpm/processes/${processId}/stats`, token);
+
+// ─── Очередь исполнения (FR-BPM-02.5) ────────────────────────────────────────
+
+export type BpmJobStatus = 'Pending' | 'Running' | 'Scheduled' | 'Completed' | 'Failed';
+
+export interface BpmExecutionJobDto {
+    id: string;
+    processId: string;
+    processName: string;
+    instanceId?: string;
+    instanceName?: string;
+    elementId: string;
+    elementType: string;
+    operationName?: string;
+    status: BpmJobStatus;
+    attemptNumber: number;
+    maxAttempts: number;
+    nextRunAt?: string;
+    startedAt?: string;
+    completedAt?: string;
+    failedAt?: string;
+    lastError?: string;
+    serverHost?: string;
+    isTimer: boolean;
+    timerDeadline?: string;
+    createdAt: string;
+}
+
+export interface QueueStatsDto {
+    pending: number;
+    running: number;
+    scheduled: number;
+    failed: number;
+    total: number;
+}
+
+export interface NodeAnalyticsDto {
+    elementId: string;
+    elementName?: string;
+    executionCount: number;
+    avgDurationMs: number;
+    p50DurationMs: number;
+    p95DurationMs: number;
+    errorCount: number;
+}
+
+export interface GetQueueParams {
+    status?: BpmJobStatus;
+    instanceName?: string;
+    processId?: string;
+    includeScheduled?: boolean;
+    page?: number;
+    pageSize?: number;
+}
+
+/** Получить список заданий в очереди исполнения. */
+export const getQueue = (token: string, params: GetQueueParams = {}): Promise<BpmExecutionJobDto[]> => {
+    const q = new URLSearchParams();
+    if (params.status) q.set('status', params.status);
+    if (params.instanceName) q.set('instanceName', params.instanceName);
+    if (params.processId) q.set('processId', params.processId);
+    if (params.includeScheduled) q.set('includeScheduled', 'true');
+    if (params.page) q.set('page', String(params.page));
+    if (params.pageSize) q.set('pageSize', String(params.pageSize));
+    return fetchJson(`/api/admin/queue?${q}`, token);
+};
+
+/** Получить счётчики статусов очереди. */
+export const getQueueStats = (token: string): Promise<QueueStatsDto> =>
+    fetchJson('/api/admin/queue/stats', token);
+
+/** Принудительно повторить задание. */
+export const retryJob = (token: string, jobId: string): Promise<void> =>
+    fetchJson(`/api/admin/queue/${jobId}/retry`, token, {
+        method: 'POST',
+    });
+
+/** Отменить таймерное задание. */
+export const cancelQueueTimer = (token: string, jobId: string): Promise<void> =>
+    fetchJson(`/api/admin/queue/${jobId}/cancel`, token, { method: 'POST' });
+
+/** Перенести время запуска таймера. */
+export const rescheduleTimer = (token: string, jobId: string, newRunAt: string): Promise<void> =>
+    fetchJson(`/api/admin/queue/${jobId}/reschedule`, token, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newRunAt }),
+    });
+
+/** Аналитика узлов процесса. */
+export const getNodeAnalytics = (
+    token: string,
+    processId: string,
+    from?: string,
+    to?: string,
+): Promise<NodeAnalyticsDto[]> => {
+    const q = new URLSearchParams({ processId });
+    if (from) q.set('from', from);
+    if (to) q.set('to', to);
+    return fetchJson(`/api/analytics/nodes?${q}`, token);
+};
+
+// ─── Документирование процессов (FR-BPM-02.6) ────────────────────────────────
+
+export interface ProcessDocVersionDto {
+    versionId: string;
+    versionNumber: number;
+    publishedAt?: string;
+    publishedByUserId: string;
+    releaseNotes?: string;
+    hasSnapshot: boolean;
+}
+
+export interface ProcessDocumentationItemDto {
+    processId: string;
+    processName: string;
+    processDescription?: string;
+    isDeleted: boolean;
+    tags: string[];
+    publishedVersions: ProcessDocVersionDto[];
+}
+
+export interface DocSnapshotDto {
+    snapshotId: string;
+    processId: string;
+    processName: string;
+    processVersionId: string;
+    versionNumber: number;
+    generatedAt: string;
+    htmlContent: string;
+}
+
+/** Документация «Мои процессы» (Владелец/Куратор). */
+export const getMyDocumentation = (token: string): Promise<ProcessDocumentationItemDto[]> =>
+    fetchJson('/api/bpm/documentation/my', token);
+
+/** Полная документация (Admin). */
+export const getAllDocumentation = (token: string, includeDeleted = false): Promise<ProcessDocumentationItemDto[]> =>
+    fetchJson(`/api/bpm/documentation/all?includeDeleted=${includeDeleted}`, token);
+
+/** HTML-снапшот документации версии процесса. */
+export const getDocSnapshot = (token: string, processId: string, versionId: string): Promise<DocSnapshotDto> =>
+    fetchJson(`/api/bpm/processes/${processId}/versions/${versionId}/snapshot`, token);
+
+/** Пересоздать снапшот (Admin). */
+export const regenerateDocSnapshot = (token: string, processId: string, versionId: string): Promise<void> =>
+    fetchJson(`/api/bpm/processes/${processId}/versions/${versionId}/snapshot/regenerate`, token, {
+        method: 'POST',
+    });
+
+// ─── Пакетный запуск (FR-BPM-02.1) ───────────────────────────────────────────
+
+export interface BatchLaunchItem {
+    name?: string;
+    variables?: Record<string, string | null>;
+}
+
+export interface BatchLaunchRequest {
+    items: BatchLaunchItem[];
+}
+
+export interface BatchLaunchItemResult {
+    success: boolean;
+    instanceId?: string;
+    instanceName?: string;
+    error?: string;
+}
+
+export interface BatchLaunchResult {
+    total: number;
+    created: number;
+    failed: number;
+    items: BatchLaunchItemResult[];
+}
+
+/** Пакетный запуск нескольких экземпляров одного процесса. */
+export const batchCreateInstances = (
+    token: string,
+    processId: string,
+    data: BatchLaunchRequest
+): Promise<BatchLaunchResult> =>
+    fetchJson(`/api/bpm/processes/${processId}/instances/batch`, token, {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+
+// ─── Прямое переключение версии (FR-BPM-02.2) ────────────────────────────────
+
+export interface SwitchInstanceVersionRequest {
+    targetVersionId: string;
+}
+
+/** Переключить работающий экземпляр на другую версию процесса. */
+export const switchInstanceVersion = (
+    token: string,
+    instanceId: string,
+    data: SwitchInstanceVersionRequest
+): Promise<BpmInstanceDto> =>
+    fetchJson(`/api/bpm/instances/${instanceId}/version`, token, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+    });
+
+// ─── Экспорт в CSV (FR-BPM-02.3 / FR-BPM-02.4) ───────────────────────────────
+
+/** Скачать результаты «Мои процессы» в CSV. Возвращает Blob. */
+export const exportMyInstances = async (
+    token: string,
+    filter: MyInstancesFilter = {}
+): Promise<Blob> => {
+    const params = new URLSearchParams();
+    if (filter.role && filter.role !== 'All') params.append('role', filter.role);
+    if (filter.state) params.append('state', filter.state);
+    if (filter.search) params.append('search', filter.search);
+    if (filter.processId) params.append('processId', filter.processId);
+    if (filter.dateFrom) params.append('dateFrom', filter.dateFrom);
+    if (filter.dateTo) params.append('dateTo', filter.dateTo);
+    const resp = await fetch(`/api/bpm/instances/my/export?${params}`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!resp.ok) throw new Error(`Ошибка экспорта: ${resp.status}`);
+    return resp.blob();
+};
+
+/** Скачать список экземпляров процесса в CSV. Возвращает Blob. */
+export const exportProcessInstances = async (
+    token: string,
+    processId: string
+): Promise<Blob> => {
+    const resp = await fetch(`/api/bpm/processes/${processId}/instances/export`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!resp.ok) throw new Error(`Ошибка экспорта: ${resp.status}`);
+    return resp.blob();
+};
+
+// ─── Дашборд мониторинга (FR-BPM-02.4) ───────────────────────────────────────
+
+export interface BpmDashboardTopProcessDto {
+    processId: string;
+    processName: string;
+    activeCount: number;
+    totalCount: number;
+}
+
+export interface BpmDashboardDto {
+    totalProcesses: number;
+    activeInstances: number;
+    suspendedInstances: number;
+    completedInstances: number;
+    cancelledInstances: number;
+    faultedInstances: number;
+    failedJobs: number;
+    topActiveProcesses: BpmDashboardTopProcessDto[];
+}
+
+/** Сводная статистика для дашборда мониторинга. */
+export const getBpmDashboard = (token: string): Promise<BpmDashboardDto> =>
+    fetchJson('/api/bpm/dashboard', token);

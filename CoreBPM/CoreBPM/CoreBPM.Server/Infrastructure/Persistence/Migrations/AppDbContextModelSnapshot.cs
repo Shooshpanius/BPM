@@ -369,6 +369,117 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                     b.ToTable("bpm_element_configs", (string)null);
                 });
 
+            modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmExecutionJob", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("AttemptNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("attempt_number");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("ElementId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("element_id");
+
+                    b.Property<string>("ElementType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("element_type");
+
+                    b.Property<DateTimeOffset?>("FailedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("failed_at");
+
+                    b.Property<Guid?>("InstanceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("instance_id");
+
+                    b.Property<bool>("IsTimer")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_timer");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("last_error");
+
+                    b.Property<int>("MaxAttempts")
+                        .HasColumnType("integer")
+                        .HasColumnName("max_attempts");
+
+                    b.Property<DateTimeOffset?>("NextRunAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("next_run_at");
+
+                    b.Property<string>("OperationName")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("operation_name");
+
+                    b.Property<Guid>("ProcessId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("process_id");
+
+                    b.Property<Guid>("ProcessVersionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("process_version_id");
+
+                    b.Property<string>("ServerHost")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("server_host");
+
+                    b.Property<DateTimeOffset?>("StartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("started_at");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<DateTimeOffset?>("TimerDeadline")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("timer_deadline");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_bpm_execution_jobs");
+
+                    b.HasIndex("InstanceId")
+                        .HasDatabaseName("ix_bpm_execution_jobs_instance_id");
+
+                    b.HasIndex("ProcessId")
+                        .HasDatabaseName("ix_bpm_execution_jobs_process_id");
+
+                    b.HasIndex("ProcessVersionId")
+                        .HasDatabaseName("ix_bpm_execution_jobs_process_version_id");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_bpm_execution_jobs_status");
+
+                    b.HasIndex("Status", "NextRunAt")
+                        .HasDatabaseName("ix_bpm_execution_jobs_status_next_run_at");
+
+                    b.ToTable("bpm_execution_jobs", (string)null);
+                });
+
             modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmGlobalModule", b =>
                 {
                     b.Property<Guid>("Id")
@@ -467,6 +578,193 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                     b.ToTable("bpm_global_module_files", (string)null);
                 });
 
+            modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmInstance", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("CancelReason")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("cancel_reason");
+
+                    b.Property<DateTimeOffset?>("CancelledAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("cancelled_at");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<string>("ExternalReference")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("external_reference");
+
+                    b.Property<Guid?>("InitiatorUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("initiator_user_id");
+
+                    b.Property<int>("LaunchSource")
+                        .HasColumnType("integer")
+                        .HasColumnName("launch_source");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid?>("ParentInstanceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("parent_instance_id");
+
+                    b.Property<Guid>("ProcessId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("process_id");
+
+                    b.Property<Guid>("ProcessVersionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("process_version_id");
+
+                    b.Property<Guid?>("ResponsibleUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("responsible_user_id");
+
+                    b.Property<DateTimeOffset>("StartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("started_at");
+
+                    b.Property<int>("State")
+                        .HasColumnType("integer")
+                        .HasColumnName("state");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_bpm_instances");
+
+                    b.HasIndex("InitiatorUserId")
+                        .HasDatabaseName("ix_bpm_instances_initiator_user_id");
+
+                    b.HasIndex("ProcessId")
+                        .HasDatabaseName("ix_bpm_instances_process_id");
+
+                    b.HasIndex("ProcessVersionId")
+                        .HasDatabaseName("ix_bpm_instances_process_version_id");
+
+                    b.HasIndex("State")
+                        .HasDatabaseName("ix_bpm_instances_state");
+
+                    b.HasIndex("ProcessId", "StartedAt")
+                        .HasDatabaseName("ix_bpm_instances_process_id_started_at");
+
+                    b.ToTable("bpm_instances", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmInstanceHistoryEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("ActorUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("actor_user_id");
+
+                    b.Property<long?>("DurationMs")
+                        .HasColumnType("bigint")
+                        .HasColumnName("duration_ms");
+
+                    b.Property<string>("ElementId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("element_id");
+
+                    b.Property<string>("ElementName")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("element_name");
+
+                    b.Property<int>("EventType")
+                        .HasColumnType("integer")
+                        .HasColumnName("event_type");
+
+                    b.Property<Guid>("InstanceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("instance_id");
+
+                    b.Property<string>("MetaJson")
+                        .HasColumnType("text")
+                        .HasColumnName("meta_json");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("occurred_at");
+
+                    b.Property<string>("Text")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("text");
+
+                    b.HasKey("Id")
+                        .HasName("pk_bpm_instance_history");
+
+                    b.HasIndex("InstanceId")
+                        .HasDatabaseName("ix_bpm_instance_history_instance_id");
+
+                    b.HasIndex("ElementId", "OccurredAt")
+                        .HasDatabaseName("ix_bpm_instance_history_element_id_occurred_at");
+
+                    b.HasIndex("InstanceId", "OccurredAt")
+                        .HasDatabaseName("ix_bpm_instance_history_instance_id_occurred_at");
+
+                    b.ToTable("bpm_instance_history", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmInstanceParticipant", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("AddedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("added_at");
+
+                    b.Property<Guid?>("AddedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("added_by_user_id");
+
+                    b.Property<string>("DisplayName")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("display_name");
+
+                    b.Property<Guid>("InstanceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("instance_id");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_bpm_instance_participants");
+
+                    b.HasIndex("InstanceId", "UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_bpm_instance_participants_instance_id_user_id");
+
+                    b.ToTable("bpm_instance_participants", (string)null);
+                });
+
             modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmInstanceStatusConfig", b =>
                 {
                     b.Property<Guid>("Id")
@@ -552,6 +850,44 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_bpm_instance_status_options_process_id_code");
 
                     b.ToTable("bpm_instance_status_options", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmInstanceVariable", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("InstanceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("instance_id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid?>("ProcessVariableId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("process_variable_id");
+
+                    b.Property<DateTimeOffset>("SetAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("set_at");
+
+                    b.Property<string>("ValueJson")
+                        .HasColumnType("text")
+                        .HasColumnName("value_json");
+
+                    b.HasKey("Id")
+                        .HasName("pk_bpm_instance_variables");
+
+                    b.HasIndex("InstanceId")
+                        .HasDatabaseName("ix_bpm_instance_variables_instance_id");
+
+                    b.ToTable("bpm_instance_variables", (string)null);
                 });
 
             modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmMessage", b =>
@@ -755,6 +1091,90 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                     b.ToTable("bpm_processes", (string)null);
                 });
 
+            modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmProcessDocSnapshot", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("GeneratedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("generated_at");
+
+                    b.Property<Guid>("GeneratedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("generated_by_user_id");
+
+                    b.Property<string>("HtmlContent")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("html_content");
+
+                    b.Property<Guid>("ProcessId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("process_id");
+
+                    b.Property<Guid>("ProcessVersionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("process_version_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_bpm_process_doc_snapshots");
+
+                    b.HasIndex("ProcessId")
+                        .HasDatabaseName("ix_bpm_process_doc_snapshots_process_id");
+
+                    b.HasIndex("ProcessVersionId")
+                        .HasDatabaseName("ix_bpm_process_doc_snapshots_process_version_id");
+
+                    b.ToTable("bpm_process_doc_snapshots", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmProcessRoleConfig", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AssigneeId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("assignee_id");
+
+                    b.Property<int>("AssigneeType")
+                        .HasColumnType("integer")
+                        .HasColumnName("assignee_type");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("display_name");
+
+                    b.Property<Guid>("ProcessId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("process_id");
+
+                    b.Property<int>("RoleType")
+                        .HasColumnType("integer")
+                        .HasColumnName("role_type");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.HasKey("Id")
+                        .HasName("pk_bpm_process_role_configs");
+
+                    b.HasIndex("ProcessId")
+                        .HasDatabaseName("ix_bpm_process_role_configs_process_id");
+
+                    b.ToTable("bpm_process_role_configs", (string)null);
+                });
+
             modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmProcessVariable", b =>
                 {
                     b.Property<Guid>("Id")
@@ -905,6 +1325,131 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_bpm_raci_entries_process_id");
 
                     b.ToTable("bpm_raci_entries", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmSavedFilter", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("FiltersJson")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("filters_json");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_bpm_saved_filters");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_bpm_saved_filters_user_id");
+
+                    b.ToTable("bpm_saved_filters", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmSchedulerJob", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("ElementId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("element_id");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("last_error");
+
+                    b.Property<DateTimeOffset?>("LastFiredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_fired_at");
+
+                    b.Property<DateTimeOffset?>("NextFireAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("next_fire_at");
+
+                    b.Property<Guid>("ProcessId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("process_id");
+
+                    b.Property<Guid>("ProcessVersionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("process_version_id");
+
+                    b.Property<int>("RetryCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("retry_count");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<string>("TimeZone")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("time_zone");
+
+                    b.Property<string>("TimerType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("timer_type");
+
+                    b.Property<string>("TimerValue")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("timer_value");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_bpm_scheduler_jobs");
+
+                    b.HasIndex("ProcessId")
+                        .HasDatabaseName("ix_bpm_scheduler_jobs_process_id");
+
+                    b.HasIndex("ProcessVersionId")
+                        .HasDatabaseName("ix_bpm_scheduler_jobs_process_version_id");
+
+                    b.HasIndex("IsActive", "NextFireAt")
+                        .HasDatabaseName("ix_bpm_scheduler_jobs_is_active_next_fire_at");
+
+                    b.ToTable("bpm_scheduler_jobs", (string)null);
                 });
 
             modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmScriptModule", b =>
@@ -1084,6 +1629,117 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_bpm_task_form_versions_form_id_version_number");
 
                     b.ToTable("bpm_task_form_versions", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmVersionMigrationItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ErrorComment")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("error_comment");
+
+                    b.Property<Guid>("InstanceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("instance_id");
+
+                    b.Property<string>("ManualChangeUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("manual_change_url");
+
+                    b.Property<Guid>("PackageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("package_id");
+
+                    b.Property<Guid>("ProcessId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("process_id");
+
+                    b.Property<DateTimeOffset?>("ProcessedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("processed_at");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TargetVersionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("target_version_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_bpm_version_migration_items");
+
+                    b.HasIndex("InstanceId")
+                        .HasDatabaseName("ix_bpm_version_migration_items_instance_id");
+
+                    b.HasIndex("PackageId")
+                        .HasDatabaseName("ix_bpm_version_migration_items_package_id");
+
+                    b.HasIndex("ProcessId")
+                        .HasDatabaseName("ix_bpm_version_migration_items_process_id");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_bpm_version_migration_items_status");
+
+                    b.HasIndex("TargetVersionId")
+                        .HasDatabaseName("ix_bpm_version_migration_items_target_version_id");
+
+                    b.ToTable("bpm_version_migration_items", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmVersionMigrationPackage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("name");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_bpm_version_migration_packages");
+
+                    b.HasIndex("CreatedByUserId")
+                        .HasDatabaseName("ix_bpm_version_migration_packages_created_by_user_id");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_bpm_version_migration_packages_status");
+
+                    b.ToTable("bpm_version_migration_packages", (string)null);
                 });
 
             modelBuilder.Entity("CoreBPM.Server.Domain.Org.OrgDepartment", b =>
@@ -1809,6 +2465,35 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                     b.Navigation("Process");
                 });
 
+            modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmExecutionJob", b =>
+                {
+                    b.HasOne("CoreBPM.Server.Domain.Bpm.BpmInstance", "Instance")
+                        .WithMany()
+                        .HasForeignKey("InstanceId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_bpm_execution_jobs_bpm_instances_instance_id");
+
+                    b.HasOne("CoreBPM.Server.Domain.Bpm.BpmProcess", "Process")
+                        .WithMany()
+                        .HasForeignKey("ProcessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_bpm_execution_jobs_bpm_processes_process_id");
+
+                    b.HasOne("CoreBPM.Server.Domain.Bpm.BpmProcessVersion", "ProcessVersion")
+                        .WithMany()
+                        .HasForeignKey("ProcessVersionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_bpm_execution_jobs_bpm_process_versions_process_version_id");
+
+                    b.Navigation("Instance");
+
+                    b.Navigation("Process");
+
+                    b.Navigation("ProcessVersion");
+                });
+
             modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmGlobalModuleFile", b =>
                 {
                     b.HasOne("CoreBPM.Server.Domain.Bpm.BpmGlobalModule", "Module")
@@ -1819,6 +2504,51 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_bpm_global_module_files_bpm_global_modules_module_id");
 
                     b.Navigation("Module");
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmInstance", b =>
+                {
+                    b.HasOne("CoreBPM.Server.Domain.Bpm.BpmProcess", "Process")
+                        .WithMany()
+                        .HasForeignKey("ProcessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_bpm_instances_bpm_processes_process_id");
+
+                    b.HasOne("CoreBPM.Server.Domain.Bpm.BpmProcessVersion", "ProcessVersion")
+                        .WithMany()
+                        .HasForeignKey("ProcessVersionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_bpm_instances_bpm_process_versions_process_version_id");
+
+                    b.Navigation("Process");
+
+                    b.Navigation("ProcessVersion");
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmInstanceHistoryEntry", b =>
+                {
+                    b.HasOne("CoreBPM.Server.Domain.Bpm.BpmInstance", "Instance")
+                        .WithMany()
+                        .HasForeignKey("InstanceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_bpm_instance_history_bpm_instances_instance_id");
+
+                    b.Navigation("Instance");
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmInstanceParticipant", b =>
+                {
+                    b.HasOne("CoreBPM.Server.Domain.Bpm.BpmInstance", "Instance")
+                        .WithMany()
+                        .HasForeignKey("InstanceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_bpm_instance_participants_bpm_instances_instance_id");
+
+                    b.Navigation("Instance");
                 });
 
             modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmInstanceStatusConfig", b =>
@@ -1841,6 +2571,51 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_bpm_instance_status_options_bpm_processes_process_id");
+
+                    b.Navigation("Process");
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmInstanceVariable", b =>
+                {
+                    b.HasOne("CoreBPM.Server.Domain.Bpm.BpmInstance", "Instance")
+                        .WithMany("Variables")
+                        .HasForeignKey("InstanceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_bpm_instance_variables_bpm_instances_instance_id");
+
+                    b.Navigation("Instance");
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmProcessDocSnapshot", b =>
+                {
+                    b.HasOne("CoreBPM.Server.Domain.Bpm.BpmProcess", "Process")
+                        .WithMany()
+                        .HasForeignKey("ProcessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_bpm_process_doc_snapshots_bpm_processes_process_id");
+
+                    b.HasOne("CoreBPM.Server.Domain.Bpm.BpmProcessVersion", "ProcessVersion")
+                        .WithMany()
+                        .HasForeignKey("ProcessVersionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_bpm_process_doc_snapshots_bpm_process_versions_process_vers");
+
+                    b.Navigation("Process");
+
+                    b.Navigation("ProcessVersion");
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmProcessRoleConfig", b =>
+                {
+                    b.HasOne("CoreBPM.Server.Domain.Bpm.BpmProcess", "Process")
+                        .WithMany()
+                        .HasForeignKey("ProcessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_bpm_process_role_configs_bpm_processes_process_id");
 
                     b.Navigation("Process");
                 });
@@ -1881,6 +2656,27 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                     b.Navigation("Process");
                 });
 
+            modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmSchedulerJob", b =>
+                {
+                    b.HasOne("CoreBPM.Server.Domain.Bpm.BpmProcess", "Process")
+                        .WithMany()
+                        .HasForeignKey("ProcessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_bpm_scheduler_jobs_bpm_processes_process_id");
+
+                    b.HasOne("CoreBPM.Server.Domain.Bpm.BpmProcessVersion", "ProcessVersion")
+                        .WithMany()
+                        .HasForeignKey("ProcessVersionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_bpm_scheduler_jobs_bpm_process_versions_process_version_id");
+
+                    b.Navigation("Process");
+
+                    b.Navigation("ProcessVersion");
+                });
+
             modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmScriptModule", b =>
                 {
                     b.HasOne("CoreBPM.Server.Domain.Bpm.BpmProcessVersion", "ProcessVersion")
@@ -1914,6 +2710,45 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_bpm_task_form_versions_bpm_task_forms_form_id");
 
                     b.Navigation("Form");
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmVersionMigrationItem", b =>
+                {
+                    b.HasOne("CoreBPM.Server.Domain.Bpm.BpmInstance", "Instance")
+                        .WithMany()
+                        .HasForeignKey("InstanceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_bpm_version_migration_items_bpm_instances_instance_id");
+
+                    b.HasOne("CoreBPM.Server.Domain.Bpm.BpmVersionMigrationPackage", "Package")
+                        .WithMany("Items")
+                        .HasForeignKey("PackageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_bpm_version_migration_items_bpm_version_migration_packages_");
+
+                    b.HasOne("CoreBPM.Server.Domain.Bpm.BpmProcess", "Process")
+                        .WithMany()
+                        .HasForeignKey("ProcessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_bpm_version_migration_items_bpm_processes_process_id");
+
+                    b.HasOne("CoreBPM.Server.Domain.Bpm.BpmProcessVersion", "TargetVersion")
+                        .WithMany()
+                        .HasForeignKey("TargetVersionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_bpm_version_migration_items_bpm_process_versions_target_ver");
+
+                    b.Navigation("Instance");
+
+                    b.Navigation("Package");
+
+                    b.Navigation("Process");
+
+                    b.Navigation("TargetVersion");
                 });
 
             modelBuilder.Entity("CoreBPM.Server.Domain.Org.OrgDepartment", b =>
@@ -2133,6 +2968,11 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                     b.Navigation("Files");
                 });
 
+            modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmInstance", b =>
+                {
+                    b.Navigation("Variables");
+                });
+
             modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmProcess", b =>
                 {
                     b.Navigation("Versions");
@@ -2146,6 +2986,11 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmTaskForm", b =>
                 {
                     b.Navigation("Versions");
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmVersionMigrationPackage", b =>
+                {
+                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("CoreBPM.Server.Domain.Org.OrgDepartment", b =>

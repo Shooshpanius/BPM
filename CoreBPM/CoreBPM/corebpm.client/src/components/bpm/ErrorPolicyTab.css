@@ -1,0 +1,98 @@
+/* ─── Вкладка политики ошибок ────────────────────────────────────────────── */
+
+.ep-root {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.ep-section {
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border, #e5e7eb);
+}
+
+.ep-section:last-child { border-bottom: none; }
+
+.ep-section-title {
+    margin: 0 0 12px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--text-primary, #374151);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.ep-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 12px;
+}
+
+.ep-field:last-child { margin-bottom: 0; }
+
+.ep-label {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-secondary, #4b5563);
+}
+
+.ep-hint {
+    font-size: 0.75rem;
+    color: var(--text-tertiary, #9ca3af);
+}
+
+.ep-input {
+    padding: 7px 10px;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 6px;
+    font-size: 0.85rem;
+    color: var(--text-primary, #111);
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.ep-input:focus { border-color: var(--primary, #2563eb); }
+.ep-input--sm   { max-width: 120px; }
+
+.ep-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: var(--text-primary, #374151);
+    cursor: pointer;
+    margin-bottom: 8px;
+}
+
+.ep-save-bar {
+    padding: 12px 0 0;
+    border-top: 1px solid var(--border, #e5e7eb);
+}
+
+.ep-save-btn {
+    background: var(--primary, #2563eb);
+    border: none;
+    border-radius: 8px;
+    padding: 8px 20px;
+    font-size: 0.87rem;
+    font-weight: 600;
+    color: #fff;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.ep-save-btn:hover:not(:disabled) { background: var(--primary-dark, #1d4ed8); }
+.ep-save-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+
+.ep-desc {
+    font-size: 0.78rem;
+    color: var(--text-secondary, #6b7280);
+    line-height: 1.5;
+    margin: 0 0 12px;
+    padding: 8px;
+    background: var(--bg-secondary, #f9fafb);
+    border-radius: 6px;
+    border-left: 3px solid var(--border, #e5e7eb);
+}

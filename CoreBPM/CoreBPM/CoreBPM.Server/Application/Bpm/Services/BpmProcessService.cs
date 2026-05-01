@@ -12,10 +12,12 @@ namespace CoreBPM.Server.Application.Bpm.Services;
 public partial class BpmProcessService : IBpmProcessService
 {
     private readonly AppDbContext _db;
+    private readonly IBpmDocumentationService _documentation;
 
-    public BpmProcessService(AppDbContext db)
+    public BpmProcessService(AppDbContext db, IBpmDocumentationService documentation)
     {
         _db = db;
+        _documentation = documentation;
     }
 
     /// <inheritdoc />

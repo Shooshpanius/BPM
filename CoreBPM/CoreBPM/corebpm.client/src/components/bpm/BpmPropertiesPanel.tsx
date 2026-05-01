@@ -12,6 +12,7 @@ import { SequenceFlowTab } from './SequenceFlowTab';
 import { NotificationsTab } from './NotificationsTab';
 import { ProcessVariablesTab } from './ProcessVariablesTab';
 import { RaciMatrixTab } from './RaciMatrixTab';
+import { ProcessRolesTab } from './ProcessRolesTab';
 import { ProcessSettingsTab } from './ProcessSettingsTab';
 import { InstanceStatusTab } from './InstanceStatusTab';
 import { LaneTab } from './LaneTab';
@@ -20,6 +21,7 @@ import { RpaTaskTab } from './RpaTaskTab';
 import { SignalMessageEventTab } from './SignalMessageEventTab';
 import { BoundaryEventTab } from './BoundaryEventTab';
 import { EscalationTab } from './EscalationTab';
+import { ErrorPolicyTab } from './ErrorPolicyTab';
 import './BpmPropertiesPanel.css';
 
 type BpmnModeler = import('bpmn-js/lib/Modeler').default;
@@ -43,7 +45,7 @@ interface Props {
 
 // ─── Конфигурация вкладок ─────────────────────────────────────────────────────
 
-type TabId = 'general' | 'execution' | 'markers' | 'notifications' | 'variables' | 'raci' | 'settings' | 'statuses' | 'escalation' | 'varvisibility' | 'rpa';
+type TabId = 'general' | 'execution' | 'markers' | 'notifications' | 'variables' | 'roles' | 'raci' | 'settings' | 'statuses' | 'escalation' | 'varvisibility' | 'rpa' | 'errorpolicy';
 
 interface TabDef {
     id: TabId;
@@ -56,6 +58,7 @@ function getTabsForElement(elementType: string | null): TabDef[] {
         // Ничего не выбрано — показываем уровень процесса
         return [
             { id: 'variables', label: 'Переменные' },
+            { id: 'roles', label: 'Роли' },
             { id: 'raci', label: 'RACI' },
             { id: 'statuses', label: 'Статусы' },
             { id: 'settings', label: 'Настройки' },
@@ -106,6 +109,7 @@ function getTabsForElement(elementType: string | null): TabDef[] {
             { id: 'general', label: 'Основное' },
             { id: 'execution', label: 'Выполнение' },
             { id: 'markers', label: 'Маркеры' },
+            { id: 'errorpolicy', label: 'Ошибки' },
         ];
     }
     if (elementType === 'bpmn:ScriptTask') {
@@ -113,6 +117,7 @@ function getTabsForElement(elementType: string | null): TabDef[] {
             { id: 'general', label: 'Основное' },
             { id: 'execution', label: 'Скрипт' },
             { id: 'markers', label: 'Маркеры' },
+            { id: 'errorpolicy', label: 'Ошибки' },
         ];
     }
     // RPA-задача (кастомный тип расширения)
@@ -121,6 +126,7 @@ function getTabsForElement(elementType: string | null): TabDef[] {
             { id: 'general', label: 'Основное' },
             { id: 'rpa', label: 'RPA-агент' },
             { id: 'markers', label: 'Маркеры' },
+            { id: 'errorpolicy', label: 'Ошибки' },
         ];
     }
     if (elementType === 'bpmn:ManualTask') {
@@ -267,6 +273,9 @@ export function BpmPropertiesPanel({ modeler, processId, token }: Props) {
             case 'rpa':
                 return <RpaTaskTab processId={processId} token={token} elementId={elId} />;
 
+            case 'errorpolicy':
+                return <ErrorPolicyTab processId={processId} token={token} elementId={elId} />;
+
             case 'markers':
                 return <TaskMarkersTab processId={processId} token={token} elementId={elId} />;
 
@@ -275,6 +284,9 @@ export function BpmPropertiesPanel({ modeler, processId, token }: Props) {
 
             case 'variables':
                 return <ProcessVariablesTab processId={processId} token={token} />;
+
+            case 'roles':
+                return <ProcessRolesTab processId={processId} token={token} />;
 
             case 'raci':
                 return <RaciMatrixTab processId={processId} token={token} />;
