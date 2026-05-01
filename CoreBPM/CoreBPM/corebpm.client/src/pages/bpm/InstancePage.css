@@ -474,3 +474,10 @@
     color: #9ca3af;
     font-family: monospace;
 }
+
+/* Подсветка активного токена на диаграмме */
+.bpm-token-highlight .djs-visual > :first-child {
+    stroke: #3b82f6 !important;
+    stroke-width: 3px !important;
+    fill: #eff6ff !important;
+}

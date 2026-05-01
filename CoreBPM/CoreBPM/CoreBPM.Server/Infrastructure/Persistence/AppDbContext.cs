@@ -35,6 +35,7 @@ public class AppDbContext : DbContext
     public DbSet<BpmExecutionJob> BpmExecutionJobs => Set<BpmExecutionJob>();
     public DbSet<BpmProcessDocSnapshot> BpmProcessDocSnapshots => Set<BpmProcessDocSnapshot>();
     public DbSet<BpmToken> BpmTokens => Set<BpmToken>();
+    public DbSet<BpmJoinCounter> BpmJoinCounters => Set<BpmJoinCounter>();
     public DbSet<BpmVersionMigrationPackage> BpmVersionMigrationPackages => Set<BpmVersionMigrationPackage>();
     public DbSet<BpmVersionMigrationItem> BpmVersionMigrationItems => Set<BpmVersionMigrationItem>();
     public DbSet<BpmTaskForm> BpmTaskForms => Set<BpmTaskForm>();
@@ -914,6 +915,20 @@ public class AppDbContext : DbContext
             e.HasOne(t => t.Instance)
              .WithMany()
              .HasForeignKey(t => t.InstanceId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<BpmJoinCounter>(e =>
+        {
+            e.ToTable("bpm_join_counters");
+            e.HasKey(c => c.Id);
+            e.Property(c => c.GatewayElementId).IsRequired().HasMaxLength(200);
+
+            e.HasIndex(c => new { c.InstanceId, c.GatewayElementId }).IsUnique();
+
+            e.HasOne(c => c.Instance)
+             .WithMany()
+             .HasForeignKey(c => c.InstanceId)
              .OnDelete(DeleteBehavior.Cascade);
         });
     }

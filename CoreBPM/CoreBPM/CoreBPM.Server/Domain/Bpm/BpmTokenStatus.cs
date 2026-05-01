@@ -17,4 +17,10 @@ public enum BpmTokenStatus
 
     /// <summary>Токен завершён — токен прошёл через узел и движется дальше.</summary>
     Completed = 4,
+
+    /// <summary>Токен ожидает схождения параллельных ветвей в AND-join шлюзе (parallelGateway / inclusiveGateway).</summary>
+    WaitingJoin = 5,
+
+    /// <summary>Токен ожидает срабатывания таймера (intermediateCatchEvent с timerEventDefinition).</summary>
+    WaitingTimer = 6,
 }

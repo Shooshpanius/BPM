@@ -704,24 +704,30 @@
 - Отложено: импорт/экспорт пакетов миграции, автоматический запуск по расписанию
 
 #### FR-BPM-02.8: Движок выполнения BPMN (Execution Engine)
-- [x] **Доменная модель**: `BpmToken` (таблица `bpm_tokens`) — `InstanceId`, `ElementId`, `ElementType`, `ElementName`, `Status`, `SignalCode`, `MessageCode`, `CorrelationKey`, `CreatedAt`, `CompletedAt`; `BpmTokenStatus` enum (Active/WaitingUserAction/WaitingSignal/WaitingMessage/Completed); миграция `AddBpmTokens`
+- [x] **Доменная модель**: `BpmToken` (таблица `bpm_tokens`) — `InstanceId`, `ElementId`, `ElementType`, `ElementName`, `Status`, `SignalCode`, `MessageCode`, `CorrelationKey`, `CreatedAt`, `CompletedAt`; `BpmTokenStatus` enum (Active/WaitingUserAction/WaitingSignal/WaitingMessage/Completed/WaitingJoin/WaitingTimer); миграция `AddBpmTokens`
 - [x] **Интерфейс движка** `IBpmExecutionEngine`: `StartAsync`, `AdvanceFromAsync`, `CompleteUserTaskAsync`, `SendSignalAsync`, `SendMessageAsync`, `ExecuteJobAsync`, `GetTokensAsync`
 - [x] **Реализация `BpmExecutionEngine`**:
   - `startEvent` → немедленное продвижение через `AdvanceFromAsync`; `endEvent` → завершение экземпляра (`State = Completed`)
-  - `userTask` / `receiveTask` → токен `WaitingUserAction`; `serviceTask` / `scriptTask` → создание `BpmExecutionJob` + токен `Active`
+  - `userTask` / `receiveTask` → токен `WaitingUserAction` + SignalR-уведомление участникам через `IBpmNotificationService.NotifyUserTaskActivatedAsync`
+  - `serviceTask` / `scriptTask` → создание `BpmExecutionJob` + токен `Active`
   - `exclusiveGateway` → выбор первого потока с выполненным условием; `inclusiveGateway` → активация всех подходящих потоков; `parallelGateway` → все выходы
+  - **AND-Join семантика**: `BpmJoinCounter` (таблица `bpm_join_counters`), при входе токена в `parallelGateway`/`inclusiveGateway` с несколькими входящими дугами — счётчик инкрементируется; продвижение вперёд только когда `ArrivedCount >= ExpectedCount`; миграция `AddBpmJoinCounters`
+  - `intermediateCatchEvent` + `timerEventDefinition`: токен `WaitingTimer`, создание `BpmExecutionJob` с `IsTimer=true` и `NextRunAt = now + duration` (ISO 8601); срабатывание — через `BpmEngineWorker`; `ResolveTimerFireAt` поддерживает `timeDuration`, `timeDate`, `timeCycle`
   - `intermediateCatchEvent` → токен `WaitingSignal` / `WaitingMessage`; `intermediateThrowEvent` → рассылка сигнала + немедленное продвижение
+  - **Граничные события (Boundary Events)**: `ParseXml` парсит `boundaryEvent` с `attachedToRef`, `cancelActivity`, `errorEventDefinition`, `timerEventDefinition`, `signalEventDefinition`; при ошибке задания после исчерпания попыток — `TryActivateBoundaryErrorEventAsync` сопоставляет код ошибки с `BoundaryErrorCode`, при совпадении активирует граничный путь вместо перехода в `Faulted`
+  - `subProcess`: рекурсивный разбор вложенных элементов через `ParseContainerElements`
   - **ServiceTask op=HttpCall**: HTTP-вызов к внешнему URL с подстановкой переменных `{{var}}`; **op=ChangeInstanceStatus**: обновление переменной статуса
-  - **ScriptTask / BusinessRuleTask**: заглушка с логированием (Roslyn не в зависимостях — отложено)
-  - **ScriptTask**: реальное выполнение C#-сценариев через Roslyn (`Microsoft.CodeAnalysis.CSharp.Scripting 5.3.0`); кэш компиляции по SHA-256; контекст `ScriptContext` (переменные, логгер, HttpClient); таймаут 30 с; inline-скрипт из configJson поля `script` или из опубликованного `BpmScriptModule`; изменения переменных сохраняются в БД
-  - При успехе задания: `NodeExecuted` + `AdvanceFromAsync`; при исчерпании попыток: `NodeFailed` + `State = Faulted`; retry с экспоненциальной задержкой
-  - Оценка условий `ConditionExpression`: поддержка `==`, `!=`, `>=`, `<=`, `>`, `<`; JUEL/FEEL-обёртки `${...}` / `#{...}`; подстановка переменных экземпляра
-- [x] **`BpmEngineWorker`** (`BackgroundService`): polling каждые 5 секунд; атомарный захват до 20 заданий (`Status = Running`, `ServerHost`, `AttemptNumber++`); параллельное выполнение через `IServiceScopeFactory`; защита от зависших заданий (установка `Failed` при необработанном исключении)
-- [x] **Интеграция с `BpmInstanceService`**: после `SaveChangesAsync` в `CreateInstanceAsync`, `CreateInstanceViaWebhookAsync`, `BatchCreateInstancesAsync` — fire-and-forget вызов `_engine.StartAsync(instance.Id)`
-- [x] **API токенов**: `GET /api/bpm/instances/{id}/tokens` — активные токены для карты экземпляра; `POST /api/bpm/instances/{id}/tokens/{elementId}/complete` — завершение UserTask с выходными переменными
-- [x] **API событий**: `POST /api/events/signals/{signalCode}` — рассылка сигнала; `POST /api/events/messages/{messageCode}` — доставка сообщения с `correlationKey`
-- [x] **Frontend**: `bpmApi.ts` — типы `BpmTokenDto`, `BpmTokenStatus`; функции `getTokens`, `completeToken`, `sendSignal`, `sendMessage`; `InstancePage.tsx` — блок «Активные токены» на вкладке «Обзор» с кнопкой «Выполнить» для токенов `WaitingUserAction`
-- Отложено: Join-семантика ParallelGateway/InclusiveGateway (AND-join), граничные события в runtime, Call Activity с передачей переменных, карта процесса с маркировкой токенов на диаграмме, BusinessRuleTask (DMN-движок)
+  - **ScriptTask**: реальное выполнение C#-сценариев через Roslyn; контекст `ScriptContext`; таймаут; inline-скрипт или `BpmScriptModule`
+  - **BusinessRuleTask**: заглушка (DMN-интерпретатор отложен)
+  - При успехе задания: `NodeExecuted` + `AdvanceFromAsync`; при исчерпании попыток: `NodeFailed` + проверка граничного события ошибки → `State = Faulted` если нет обработчика
+  - Оценка условий `ConditionExpression`: поддержка `==`, `!=`, `>=`, `<=`, `>`, `<`; JUEL/FEEL-обёртки
+- [x] **`BpmEngineWorker`** (`BackgroundService`): polling каждые 5 секунд; атомарный захват до 20 заданий; параллельное выполнение; обработка таймерных заданий (`IsTimer=true`)
+- [x] **Интеграция с `BpmInstanceService`**: after `CreateInstanceAsync` — `_engine.StartAsync`
+- [x] **API токенов**: `GET /api/bpm/instances/{id}/tokens`; `POST .../tokens/{elementId}/complete`
+- [x] **API событий**: `POST /api/events/signals/{signalCode}`; `POST /api/events/messages/{messageCode}`
+- [x] **Frontend**: `BpmTokenStatus` расширен (`WaitingJoin`, `WaitingTimer`); `InstancePage` — вкладка «Карта процесса» с bpmn-js NavigatedViewer и подсветкой активных токенов по `elementId`; уведомления `UserTaskActivated` обрабатываются через SignalR
+- [x] **`IBpmNotificationService.NotifyUserTaskActivatedAsync`**: рассылка уведомления группам `instance:{id}` и Admin при активации UserTask
+- Отложено: Call Activity с передачей переменных (создание дочернего экземпляра), BusinessRuleTask (DMN-движок), граничный таймер для задач (TimerDeadline в BpmExecutionJob)
 
 ---
 

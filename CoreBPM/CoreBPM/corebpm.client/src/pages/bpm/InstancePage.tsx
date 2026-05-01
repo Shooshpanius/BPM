@@ -81,7 +81,7 @@ const HISTORY_LABELS: Record<BpmHistoryEventType, string> = {
     NodeFailed: 'Ошибка узла',
 };
 
-type TabId = 'overview' | 'variables' | 'history' | 'participants';
+type TabId = 'overview' | 'variables' | 'history' | 'participants' | 'map';
 
 // ─── Пропсы ───────────────────────────────────────────────────────────────────
 
@@ -378,7 +378,7 @@ export function InstancePage({ instanceId, onBack }: Props) {
 
             {/* Вкладки */}
             <div className="inst-tabs" role="tablist">
-                {(['overview', 'variables', 'history', 'participants'] as TabId[]).map(tab => (
+                {(['overview', 'variables', 'history', 'participants', 'map'] as TabId[]).map(tab => (
                     <button
                         key={tab}
                         className={`inst-tab${activeTab === tab ? ' inst-tab--active' : ''}`}
@@ -453,6 +453,15 @@ export function InstancePage({ instanceId, onBack }: Props) {
                         onSelectUser={(id, name) => { setNewParticipantId(id); setNewParticipantName(name); }}
                         onAddParticipant={handleAddParticipant}
                         onRemoveParticipant={handleRemoveParticipant}
+                    />
+                )}
+
+                {activeTab === 'map' && (
+                    <ProcessMapTab
+                        processId={instance.processId}
+                        processVersionId={instance.processVersionId}
+                        tokens={tokens}
+                        authToken={token ?? ''}
                     />
                 )}
             </div>
@@ -576,6 +585,7 @@ const TAB_LABELS: Record<TabId, string> = {
     variables: 'Переменные',
     history: 'История',
     participants: 'Участники',
+    map: 'Карта процесса',
 };
 
 // ─── Вкладка «Обзор» ─────────────────────────────────────────────────────────
@@ -585,6 +595,8 @@ const TOKEN_STATUS_LABELS: Record<api.BpmTokenStatus, string> = {
     WaitingUserAction: 'Ожидает действия',
     WaitingSignal: 'Ожидает сигнал',
     WaitingMessage: 'Ожидает сообщение',
+    WaitingJoin: 'Ожидает схождения',
+    WaitingTimer: 'Ожидает таймер',
     Completed: 'Завершён',
 };
 
@@ -593,6 +605,8 @@ const TOKEN_STATUS_CLASS: Record<api.BpmTokenStatus, string> = {
     WaitingUserAction: 'inst-token-waiting',
     WaitingSignal: 'inst-token-signal',
     WaitingMessage: 'inst-token-message',
+    WaitingJoin: 'inst-token-waiting',
+    WaitingTimer: 'inst-token-signal',
     Completed: 'inst-token-completed',
 };
 
@@ -1014,6 +1028,111 @@ function UserSearch({ token, value, onSelect, placeholder }: UserSearchProps) {
                             {r.name}
                         </div>
                     ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ─── Вкладка «Карта процесса» ────────────────────────────────────────────────
+
+interface ProcessMapTabProps {
+    processId: string;
+    processVersionId: string;
+    tokens: api.BpmTokenDto[];
+    authToken: string;
+}
+
+/** Цвета подсветки токенов на диаграмме */
+const TOKEN_FILL_COLOR: Record<api.BpmTokenStatus, string | null> = {
+    Active: '#3b82f6',
+    WaitingUserAction: '#f59e0b',
+    WaitingSignal: '#8b5cf6',
+    WaitingMessage: '#8b5cf6',
+    WaitingJoin: '#6b7280',
+    WaitingTimer: '#06b6d4',
+    Completed: null, // не подсвечиваем завершённые
+};
+
+function ProcessMapTab({ processId, processVersionId, tokens, authToken }: ProcessMapTabProps) {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [diagramXml, setDiagramXml] = useState<string | null>(null);
+    const [loadError, setLoadError] = useState<string | null>(null);
+
+    // Загружаем XML диаграммы
+    useEffect(() => {
+        if (!authToken || !processId || !processVersionId) return;
+        api.getProcessVersion(authToken, processId, processVersionId)
+            .then(d => setDiagramXml(d.diagramXml ?? null))
+            .catch(e => setLoadError(e instanceof Error ? e.message : 'Ошибка загрузки диаграммы'));
+    }, [authToken, processId, processVersionId]);
+
+    // Инициализируем bpmn-js NavigatedViewer и подсвечиваем токены
+    useEffect(() => {
+        if (!diagramXml || !containerRef.current) return;
+
+        let viewer: InstanceType<typeof import('bpmn-js/lib/NavigatedViewer').default> | null = null;
+
+        const initViewer = async () => {
+            const NavigatedViewer = (await import('bpmn-js/lib/NavigatedViewer')).default;
+
+            if (!containerRef.current) return;
+
+            viewer = new NavigatedViewer({ container: containerRef.current });
+
+            try {
+                await viewer.importXML(diagramXml);
+
+                // Подсвечиваем элементы по токенам
+                const canvas = viewer.get<any>('canvas');
+                const overlays = viewer.get<any>('overlays');
+
+                for (const token of tokens) {
+                    if (token.status === 'Completed') continue;
+                    const color = TOKEN_FILL_COLOR[token.status];
+                    if (!color) continue;
+
+                    try {
+                        canvas.addMarker(token.elementId, 'bpm-token-highlight');
+                        overlays.add(token.elementId, {
+                            position: { top: -14, right: -10 },
+                            html: `<div style="background:${color};color:#fff;border-radius:99px;padding:2px 8px;font-size:11px;white-space:nowrap;">${
+                                TOKEN_STATUS_LABELS[token.status]
+                            }</div>`,
+                        });
+                    } catch {
+                        // Элемент может не существовать в диаграмме
+                    }
+                }
+
+                // Масштабируем по содержимому
+                canvas.zoom('fit-viewport');
+            } catch (err) {
+                setLoadError(err instanceof Error ? err.message : 'Ошибка рендера диаграммы');
+            }
+        };
+
+        initViewer();
+
+        return () => {
+            viewer?.destroy();
+        };
+    }, [diagramXml, tokens]);
+
+    if (loadError) {
+        return <div className="inst-error">{loadError}</div>;
+    }
+
+    if (!diagramXml) {
+        return <div className="inst-loading">Загрузка диаграммы…</div>;
+    }
+
+    return (
+        <div style={{ position: 'relative', width: '100%', height: '560px', border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden', background: '#fff' }}>
+            <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
+            {tokens.filter(t => t.status !== 'Completed').length > 0 && (
+                <div style={{ position: 'absolute', top: 8, left: 8, background: 'rgba(255,255,255,0.9)', borderRadius: 6, padding: '6px 12px', fontSize: 12, border: '1px solid #e5e7eb' }}>
+                    <strong>Активные токены:</strong> {tokens.filter(t => t.status !== 'Completed').length}
                 </div>
             )}
         </div>

@@ -24,17 +24,20 @@ public class BpmExecutionEngine : IBpmExecutionEngine
     private readonly AppDbContext _db;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IBpmScriptExecutor _scriptExecutor;
+    private readonly IBpmNotificationService _notificationService;
     private readonly ILogger<BpmExecutionEngine> _logger;
 
     public BpmExecutionEngine(
         AppDbContext db,
         IHttpClientFactory httpClientFactory,
         IBpmScriptExecutor scriptExecutor,
+        IBpmNotificationService notificationService,
         ILogger<BpmExecutionEngine> logger)
     {
         _db = db;
         _httpClientFactory = httpClientFactory;
         _scriptExecutor = scriptExecutor;
+        _notificationService = notificationService;
         _logger = logger;
     }
 
@@ -109,6 +112,9 @@ public class BpmExecutionEngine : IBpmExecutionEngine
         {
             _logger.LogDebug("Нет исходящих потоков от {ElementId} в экземпляре {InstanceId}",
                 SanitizeForLog(fromElementId), instanceId);
+
+            // Проверяем, не нужно ли завершить экземпляр (если все токены завершены)
+            await CheckAndCompleteInstanceIfFinishedAsync(instance, model, now, ct);
             return;
         }
 
@@ -171,6 +177,18 @@ public class BpmExecutionEngine : IBpmExecutionEngine
             {
                 _logger.LogWarning("Целевой элемент {TargetRef} не найден в модели", flow.TargetRef);
                 continue;
+            }
+
+            // AND-Join: для параллельных/инклюзивных шлюзов с несколькими входящими потоками
+            if (target.ElementType is "parallelGateway" or "inclusiveGateway" or "complexGateway")
+            {
+                var incomingCount = model.SequenceFlows.Count(f => f.TargetRef == target.Id);
+                if (incomingCount > 1)
+                {
+                    // Токен прибыл — увеличиваем счётчик или создаём новый
+                    var canProceed = await HandleJoinCounterAsync(instanceId, target.Id, incomingCount, now, ct);
+                    if (!canProceed) continue; // Ждём оставшихся токенов
+                }
             }
 
             await ExecuteElementAsync(instance, model, target.Id, target.ElementType, target.Name, now, ct);
@@ -347,6 +365,9 @@ public class BpmExecutionEngine : IBpmExecutionEngine
         {
             await DispatchJobAsync(job, instance, configJson, ct);
 
+            // Задания с IsTimer завершают себя внутри FinalizeTimerTokenAsync — пропускаем
+            if (job.Status == BpmJobStatus.Completed) return;
+
             // Успех
             job.Status = BpmJobStatus.Completed;
             job.CompletedAt = now;
@@ -376,7 +397,6 @@ public class BpmExecutionEngine : IBpmExecutionEngine
 
             if (job.AttemptNumber >= job.MaxAttempts)
             {
-                // Исчерпаны попытки — переводим экземпляр в Faulted
                 job.Status = BpmJobStatus.Failed;
 
                 _db.BpmInstanceHistoryEntries.Add(new BpmInstanceHistoryEntry
@@ -390,8 +410,23 @@ public class BpmExecutionEngine : IBpmExecutionEngine
                     OccurredAt = now,
                 });
 
-                instance.State = BpmInstanceState.Faulted;
-                instance.UpdatedAt = now;
+                await _db.SaveChangesAsync(ct);
+
+                // Проверяем наличие граничного события ошибки
+                var boundaryActivated = await TryActivateBoundaryErrorEventAsync(
+                    instance, job.ElementId, job.LastError, now, ct);
+
+                if (!boundaryActivated)
+                {
+                    // Нет граничного события — переводим экземпляр в Faulted
+                    var tracked = await _db.BpmInstances.FirstOrDefaultAsync(i => i.Id == instance.Id, ct);
+                    if (tracked != null)
+                    {
+                        tracked.State = BpmInstanceState.Faulted;
+                        tracked.UpdatedAt = now;
+                        await _db.SaveChangesAsync(ct);
+                    }
+                }
             }
             else
             {
@@ -399,9 +434,8 @@ public class BpmExecutionEngine : IBpmExecutionEngine
                 var delaySeconds = Math.Min(300, (int)Math.Pow(2, job.AttemptNumber) * 10);
                 job.Status = BpmJobStatus.Scheduled;
                 job.NextRunAt = now.AddSeconds(delaySeconds);
+                await _db.SaveChangesAsync(ct);
             }
-
-            await _db.SaveChangesAsync(ct);
         }
     }
 
@@ -553,6 +587,31 @@ public class BpmExecutionEngine : IBpmExecutionEngine
         });
 
         await _db.SaveChangesAsync(ct);
+
+        // Уведомляем участников процесса о появлении новой задачи
+        try
+        {
+            var instance = await _db.BpmInstances
+                .AsNoTracking()
+                .Include(i => i.Process)
+                .FirstOrDefaultAsync(i => i.Id == instanceId, ct);
+
+            if (instance != null)
+            {
+                await _notificationService.NotifyUserTaskActivatedAsync(
+                    instanceId,
+                    instance.Name,
+                    instance.Process?.Name ?? string.Empty,
+                    elementId,
+                    elementName,
+                    ct);
+            }
+        }
+        catch (Exception ex)
+        {
+            // Уведомление не критично — не прерываем выполнение
+            _logger.LogWarning(ex, "Ошибка отправки уведомления о UserTask {ElementId}", elementId);
+        }
     }
 
     private async Task HandleAsyncTaskAsync(
@@ -617,14 +676,59 @@ public class BpmExecutionEngine : IBpmExecutionEngine
         var eventNode = model.AllElements.FirstOrDefault(e => e.Id == elementId);
         var signalCode = eventNode?.SignalCode;
         var messageCode = eventNode?.MessageCode;
+        var timerDuration = eventNode?.TimerDuration;
+        var timerCycle = eventNode?.TimerCycle;
+        var timerDate = eventNode?.TimerDate;
 
         BpmTokenStatus status;
+        string historyText;
+
         if (!string.IsNullOrWhiteSpace(signalCode))
+        {
             status = BpmTokenStatus.WaitingSignal;
+            historyText = $"Ожидание сигнала «{signalCode}»";
+        }
         else if (!string.IsNullOrWhiteSpace(messageCode))
+        {
             status = BpmTokenStatus.WaitingMessage;
+            historyText = $"Ожидание сообщения «{messageCode}»";
+        }
+        else if (!string.IsNullOrWhiteSpace(timerDuration) || !string.IsNullOrWhiteSpace(timerDate))
+        {
+            // Таймерное событие — создаём задание с IsTimer=true
+            status = BpmTokenStatus.WaitingTimer;
+            var fireAt = ResolveTimerFireAt(now, timerDuration, timerCycle, timerDate);
+            historyText = $"Таймерное событие «{elementName ?? elementId}» — срабатывание в {fireAt:u}";
+
+            // Загружаем instance для ProcessId/ProcessVersionId
+            var inst = await _db.BpmInstances.AsNoTracking().FirstOrDefaultAsync(i => i.Id == instanceId, ct);
+            if (inst != null)
+            {
+                var timerJob = new BpmExecutionJob
+                {
+                    Id = Guid.NewGuid(),
+                    ProcessId = inst.ProcessId,
+                    ProcessVersionId = inst.ProcessVersionId,
+                    InstanceId = instanceId,
+                    ElementId = elementId,
+                    ElementType = "intermediateCatchEvent",
+                    OperationName = elementName,
+                    Status = BpmJobStatus.Pending,
+                    IsTimer = true,
+                    MaxAttempts = 1,
+                    NextRunAt = fireAt,
+                    CreatedAt = now,
+                    UpdatedAt = now,
+                };
+                _db.BpmExecutionJobs.Add(timerJob);
+            }
+        }
         else
-            status = BpmTokenStatus.WaitingUserAction; // TimerEvent — упрощённо ждём
+        {
+            // Неизвестное событие — ждём действия пользователя
+            status = BpmTokenStatus.WaitingUserAction;
+            historyText = $"Промежуточное событие «{elementName ?? elementId}» ожидает";
+        }
 
         var token = new BpmToken
         {
@@ -647,12 +751,7 @@ public class BpmExecutionEngine : IBpmExecutionEngine
             EventType = BpmHistoryEventType.NodeExecuted,
             ElementId = elementId,
             ElementName = elementName,
-            Text = status switch
-            {
-                BpmTokenStatus.WaitingSignal => $"Ожидание сигнала «{signalCode}»",
-                BpmTokenStatus.WaitingMessage => $"Ожидание сообщения «{messageCode}»",
-                _ => $"Промежуточное событие «{elementName ?? elementId}» ожидает",
-            },
+            Text = historyText,
             OccurredAt = now,
         });
 
@@ -716,10 +815,96 @@ public class BpmExecutionEngine : IBpmExecutionEngine
                 ExecuteBusinessRuleTaskStub(job);
                 break;
 
+            case "intermediateCatchEvent" when job.IsTimer:
+                // Таймер сработал — просто продвигаем токен вперёд
+                _logger.LogInformation(
+                    "Таймерное событие [{ElementId}] сработало в экземпляре {InstanceId}",
+                    job.ElementId, job.InstanceId);
+                await FinalizeTimerTokenAsync(instance.Id, job.ElementId, job, DateTimeOffset.UtcNow, ct);
+                return; // Не вызываем AdvanceFromAsync из ExecuteJobAsync — уже сделано внутри
+
             default:
                 _logger.LogInformation("Задание типа {ElementType} — пассивное выполнение (заглушка)", job.ElementType);
                 break;
         }
+    }
+
+    /// <summary>Завершает токен таймерного события и продвигает поток.</summary>
+    private async Task FinalizeTimerTokenAsync(
+        Guid instanceId,
+        string elementId,
+        BpmExecutionJob job,
+        DateTimeOffset now,
+        CancellationToken ct)
+    {
+        // Завершаем токен WaitingTimer
+        var timerToken = await _db.BpmTokens
+            .FirstOrDefaultAsync(t =>
+                t.InstanceId == instanceId &&
+                t.ElementId == elementId &&
+                t.Status == BpmTokenStatus.WaitingTimer, ct);
+
+        if (timerToken != null)
+        {
+            timerToken.Status = BpmTokenStatus.Completed;
+            timerToken.CompletedAt = now;
+        }
+
+        // Помечаем задание как Completed
+        job.Status = BpmJobStatus.Completed;
+        job.CompletedAt = now;
+
+        _db.BpmInstanceHistoryEntries.Add(new BpmInstanceHistoryEntry
+        {
+            Id = Guid.NewGuid(),
+            InstanceId = instanceId,
+            EventType = BpmHistoryEventType.NodeExecuted,
+            ElementId = elementId,
+            ElementName = timerToken?.ElementName,
+            Text = $"Таймерное событие «{timerToken?.ElementName ?? elementId}» сработало",
+            OccurredAt = now,
+        });
+
+        await _db.SaveChangesAsync(ct);
+
+        // Продвигаем поток дальше
+        await AdvanceFromAsync(instanceId, elementId, ct);
+    }
+
+    /// <summary>
+    /// Рассчитывает время срабатывания таймера:
+    /// - timeDuration: ISO 8601 интервал (PT5M, P1D и т.п.)
+    /// - timerDate: конкретная дата-время
+    /// - timerCycle: первый повтор по ISO 8601 интервалу
+    /// </summary>
+    private static DateTimeOffset ResolveTimerFireAt(
+        DateTimeOffset now,
+        string? timerDuration,
+        string? timerCycle,
+        string? timerDate)
+    {
+        if (!string.IsNullOrWhiteSpace(timerDate) &&
+            DateTimeOffset.TryParse(timerDate, out var specificDate))
+        {
+            return specificDate;
+        }
+
+        // Попытка разобрать timeDuration или timeCycle как ISO 8601 интервал
+        var isoStr = timerDuration ?? timerCycle;
+        if (!string.IsNullOrWhiteSpace(isoStr))
+        {
+            try
+            {
+                var span = System.Xml.XmlConvert.ToTimeSpan(isoStr);
+                return now.Add(span);
+            }
+            catch
+            {
+                // Если не удалось — 30 минут по умолчанию
+            }
+        }
+
+        return now.AddMinutes(30);
     }
 
     private async Task ExecuteServiceTaskAsync(
@@ -1010,6 +1195,192 @@ public class BpmExecutionEngine : IBpmExecutionEngine
             job.ElementId);
     }
 
+    /// <summary>
+    /// Ищет граничное событие ошибки, прикреплённое к задаче, и активирует его если код ошибки совпадает.
+    /// Возвращает true если граничное событие было активировано.
+    /// </summary>
+    private async Task<bool> TryActivateBoundaryErrorEventAsync(
+        BpmInstance instance,
+        string taskElementId,
+        string? errorMessage,
+        DateTimeOffset now,
+        CancellationToken ct)
+    {
+        var model = await ParseModelAsync(instance.ProcessVersionId, ct);
+        if (model == null) return false;
+
+        // Получаем конфиг задачи для BoundaryErrorCode из ErrorPolicyTab
+        var configJson = await _db.BpmElementConfigs
+            .AsNoTracking()
+            .Where(c => c.ProcessId == instance.ProcessId && c.ElementId == taskElementId)
+            .Select(c => c.ConfigJson)
+            .FirstOrDefaultAsync(ct);
+
+        string? configuredBoundaryErrorCode = null;
+        if (!string.IsNullOrWhiteSpace(configJson))
+        {
+            try
+            {
+                using var cfgDoc = System.Text.Json.JsonDocument.Parse(configJson);
+                if (cfgDoc.RootElement.TryGetProperty("boundaryErrorCode", out var bec))
+                    configuredBoundaryErrorCode = bec.GetString();
+            }
+            catch { /* игнорируем */ }
+        }
+
+        // Ищем boundaryEvent прикреплённые к задаче
+        var boundaryEvents = model.AllElements
+            .Where(e => e.ElementType == "boundaryEvent" && e.BoundaryFor == taskElementId)
+            .ToList();
+
+        foreach (var be in boundaryEvents)
+        {
+            // Граничное событие ошибки
+            if (!string.IsNullOrWhiteSpace(be.BoundaryErrorCode) || configuredBoundaryErrorCode != null)
+            {
+                // Совпадение по коду ошибки или если код не задан (универсальный обработчик)
+                var beErrorCode = be.BoundaryErrorCode ?? configuredBoundaryErrorCode;
+                var isMatch = string.IsNullOrWhiteSpace(beErrorCode) ||
+                              errorMessage?.Contains(beErrorCode, StringComparison.OrdinalIgnoreCase) == true;
+
+                if (!isMatch) continue;
+
+                _logger.LogInformation(
+                    "Граничное событие ошибки {BoundaryId} активировано для задачи {TaskId} (ошибка: {Error})",
+                    be.Id, taskElementId, SanitizeForLog(errorMessage));
+
+                // Отменяем хост-задачу (если cancelActivity=true — по умолчанию true)
+                if (be.IsCancelActivity != false)
+                    await CancelTaskTokenAsync(instance.Id, taskElementId, now, ct);
+
+                // Создаём токен граничного события
+                await CreateOrUpdateTokenAsync(instance.Id, be.Id, be.ElementType, be.Name,
+                    BpmTokenStatus.Active, now, ct);
+
+                _db.BpmInstanceHistoryEntries.Add(new BpmInstanceHistoryEntry
+                {
+                    Id = Guid.NewGuid(),
+                    InstanceId = instance.Id,
+                    EventType = BpmHistoryEventType.NodeExecuted,
+                    ElementId = be.Id,
+                    ElementName = be.Name,
+                    Text = $"Граничное событие ошибки «{be.Name ?? be.Id}» активировано",
+                    OccurredAt = now,
+                });
+                await _db.SaveChangesAsync(ct);
+
+                // Продвигаем поток от граничного события
+                await AdvanceFromAsync(instance.Id, be.Id, ct);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Прерывает активный токен задачи при срабатывании прерывающего граничного события.</summary>
+    private async Task CancelTaskTokenAsync(Guid instanceId, string taskElementId, DateTimeOffset now, CancellationToken ct)
+    {
+        var taskToken = await _db.BpmTokens
+            .FirstOrDefaultAsync(t => t.InstanceId == instanceId &&
+                                      t.ElementId == taskElementId &&
+                                      t.Status != BpmTokenStatus.Completed, ct);
+        if (taskToken != null)
+        {
+            taskToken.Status = BpmTokenStatus.Completed;
+            taskToken.CompletedAt = now;
+            await _db.SaveChangesAsync(ct);
+        }
+    }
+
+    /// <summary>
+    /// Обновляет счётчик схождения AND-join шлюза.
+    /// Возвращает true, если все входящие ветки пришли (можно продолжить выполнение).
+    /// </summary>
+    private async Task<bool> HandleJoinCounterAsync(
+        Guid instanceId,
+        string gatewayElementId,
+        int expectedCount,
+        DateTimeOffset now,
+        CancellationToken ct)
+    {
+        var counter = await _db.BpmJoinCounters
+            .FirstOrDefaultAsync(c => c.InstanceId == instanceId && c.GatewayElementId == gatewayElementId, ct);
+
+        if (counter == null)
+        {
+            counter = new BpmJoinCounter
+            {
+                Id = Guid.NewGuid(),
+                InstanceId = instanceId,
+                GatewayElementId = gatewayElementId,
+                ExpectedCount = expectedCount,
+                ArrivedCount = 1,
+                CreatedAt = now,
+                UpdatedAt = now,
+            };
+            _db.BpmJoinCounters.Add(counter);
+        }
+        else
+        {
+            counter.ArrivedCount++;
+            counter.UpdatedAt = now;
+        }
+
+        await _db.SaveChangesAsync(ct);
+
+        if (counter.ArrivedCount >= counter.ExpectedCount)
+        {
+            // Все ветки пришли — удаляем счётчик и пропускаем шлюз
+            _db.BpmJoinCounters.Remove(counter);
+            await _db.SaveChangesAsync(ct);
+            _logger.LogInformation(
+                "AND-Join {GatewayId}: все {Count} входящих токена прибыли — проходим", gatewayElementId, expectedCount);
+            return true;
+        }
+
+        _logger.LogDebug(
+            "AND-Join {GatewayId}: пришло {Arrived}/{Expected} — ждём", gatewayElementId, counter.ArrivedCount, expectedCount);
+        return false;
+    }
+
+    /// <summary>
+    /// Проверяет, завершились ли все активные токены экземпляра. Если да — помечает экземпляр как Completed.
+    /// Вызывается когда элемент не имеет исходящих потоков.
+    /// </summary>
+    private async Task CheckAndCompleteInstanceIfFinishedAsync(
+        BpmInstance instance,
+        ProcessModel model,
+        DateTimeOffset now,
+        CancellationToken ct)
+    {
+        var activeTokensCount = await _db.BpmTokens
+            .CountAsync(t => t.InstanceId == instance.Id &&
+                             t.Status != BpmTokenStatus.Completed, ct);
+
+        if (activeTokensCount == 0)
+        {
+            var tracked = await _db.BpmInstances.FirstOrDefaultAsync(i => i.Id == instance.Id, ct);
+            if (tracked != null && tracked.State == BpmInstanceState.Active)
+            {
+                tracked.State = BpmInstanceState.Completed;
+                tracked.CompletedAt = now;
+                tracked.UpdatedAt = now;
+
+                _db.BpmInstanceHistoryEntries.Add(new BpmInstanceHistoryEntry
+                {
+                    Id = Guid.NewGuid(),
+                    InstanceId = instance.Id,
+                    EventType = BpmHistoryEventType.Completed,
+                    Text = "Процесс завершён (все токены исчерпаны)",
+                    OccurredAt = now,
+                });
+
+                await _db.SaveChangesAsync(ct);
+            }
+        }
+    }
+
     // ─── Вспомогательные методы ───────────────────────────────────────────────
 
     private async Task<BpmInstance?> LoadInstanceAsync(Guid instanceId, CancellationToken ct)
@@ -1057,7 +1428,22 @@ public class BpmExecutionEngine : IBpmExecutionEngine
         var elements = new List<ProcessElement>();
         var flows = new List<SequenceFlowInfo>();
 
-        foreach (var el in process.Elements())
+        ParseContainerElements(process, ns, elements, flows);
+
+        var startEvents = elements.Where(e => e.ElementType == "startEvent").ToList();
+        return new ProcessModel(versionId, elements, flows, startEvents);
+    }
+
+    /// <summary>
+    /// Рекурсивно разбирает дочерние элементы BPMN-контейнера (process или subProcess).
+    /// </summary>
+    private static void ParseContainerElements(
+        XElement container,
+        XNamespace ns,
+        List<ProcessElement> elements,
+        List<SequenceFlowInfo> flows)
+    {
+        foreach (var el in container.Elements())
         {
             var localName = el.Name.LocalName;
             var id = el.Attribute("id")?.Value;
@@ -1071,68 +1457,106 @@ public class BpmExecutionEngine : IBpmExecutionEngine
                 var targetRef = el.Attribute("targetRef")?.Value;
                 if (sourceRef != null && targetRef != null)
                 {
-                    // Выражение условия
                     var condEl = el.Element(ns + "conditionExpression")
                                ?? el.Element("conditionExpression");
                     var condition = condEl?.Value?.Trim();
-
                     flows.Add(new SequenceFlowInfo(id, sourceRef, targetRef, condition));
                 }
+            }
+            else if (localName == "subProcess")
+            {
+                // Добавляем subProcess как элемент и рекурсивно обрабатываем вложенные
+                elements.Add(new ProcessElement(id, localName, name, null, null));
+                ParseContainerElements(el, ns, elements, flows);
+            }
+            else if (localName == "boundaryEvent")
+            {
+                // Граничные события
+                var attachedToRef = el.Attribute("attachedToRef")?.Value;
+                var cancelActivity = el.Attribute("cancelActivity")?.Value;
+                var isCancelActivity = cancelActivity == null || cancelActivity != "false";
+
+                string? signalCode = null;
+                string? messageCode = null;
+                string? timerDuration = null;
+                string? timerCycle = null;
+                string? timerDate = null;
+                string? errorCode = null;
+
+                var errorDef = el.Descendants(ns + "errorEventDefinition")
+                    .Concat(el.Descendants("errorEventDefinition")).FirstOrDefault();
+                if (errorDef != null)
+                {
+                    errorCode = errorDef.Attribute("errorRef")?.Value
+                             ?? errorDef.Attribute("errorCode")?.Value;
+                }
+
+                var timerDef = el.Descendants(ns + "timerEventDefinition")
+                    .Concat(el.Descendants("timerEventDefinition")).FirstOrDefault();
+                if (timerDef != null)
+                {
+                    timerDuration = timerDef.Element(ns + "timeDuration")?.Value?.Trim()
+                                 ?? timerDef.Element("timeDuration")?.Value?.Trim();
+                    timerCycle = timerDef.Element(ns + "timeCycle")?.Value?.Trim()
+                              ?? timerDef.Element("timeCycle")?.Value?.Trim();
+                    timerDate = timerDef.Element(ns + "timeDate")?.Value?.Trim()
+                             ?? timerDef.Element("timeDate")?.Value?.Trim();
+                }
+
+                var signalRef = el.Descendants(ns + "signalEventDefinition")
+                    .Concat(el.Descendants("signalEventDefinition"))
+                    .FirstOrDefault()?.Attribute("signalRef")?.Value;
+                if (signalRef != null) signalCode = signalRef;
+
+                var msgRef = el.Descendants(ns + "messageEventDefinition")
+                    .Concat(el.Descendants("messageEventDefinition"))
+                    .FirstOrDefault()?.Attribute("messageRef")?.Value;
+                if (msgRef != null) messageCode = msgRef;
+
+                elements.Add(new ProcessElement(
+                    id, localName, name,
+                    signalCode, messageCode,
+                    timerDuration, timerCycle, timerDate,
+                    attachedToRef, isCancelActivity, errorCode));
             }
             else
             {
                 // Определяем тип события (signal/message/timer)
                 string? signalCode = null;
                 string? messageCode = null;
+                string? timerDuration = null;
+                string? timerCycle = null;
+                string? timerDate = null;
 
                 if (localName.Contains("Event", StringComparison.OrdinalIgnoreCase))
                 {
                     var signalRef = el.Descendants(ns + "signalEventDefinition")
                                      .Concat(el.Descendants("signalEventDefinition"))
                                      .FirstOrDefault()?.Attribute("signalRef")?.Value;
-                    if (signalRef != null)
-                        signalCode = signalRef;
+                    if (signalRef != null) signalCode = signalRef;
 
                     var msgRef = el.Descendants(ns + "messageEventDefinition")
                                    .Concat(el.Descendants("messageEventDefinition"))
                                    .FirstOrDefault()?.Attribute("messageRef")?.Value;
-                    if (msgRef != null)
-                        messageCode = msgRef;
-                }
+                    if (msgRef != null) messageCode = msgRef;
 
-                elements.Add(new ProcessElement(id, localName, name, signalCode, messageCode));
-            }
-        }
-
-        // Также обрабатываем subProcess (плоский проход без рекурсии — MVP)
-        foreach (var sub in process.Elements(ns + "subProcess").Concat(process.Elements("subProcess")))
-        {
-            foreach (var el in sub.Elements())
-            {
-                var localName = el.Name.LocalName;
-                var id = el.Attribute("id")?.Value;
-                if (id == null) continue;
-                var name = el.Attribute("name")?.Value;
-
-                if (localName == "sequenceFlow")
-                {
-                    var sourceRef = el.Attribute("sourceRef")?.Value;
-                    var targetRef = el.Attribute("targetRef")?.Value;
-                    if (sourceRef != null && targetRef != null)
+                    var timerDef = el.Descendants(ns + "timerEventDefinition")
+                        .Concat(el.Descendants("timerEventDefinition")).FirstOrDefault();
+                    if (timerDef != null)
                     {
-                        var condEl = el.Element(ns + "conditionExpression") ?? el.Element("conditionExpression");
-                        flows.Add(new SequenceFlowInfo(id, sourceRef, targetRef, condEl?.Value?.Trim()));
+                        timerDuration = timerDef.Element(ns + "timeDuration")?.Value?.Trim()
+                                     ?? timerDef.Element("timeDuration")?.Value?.Trim();
+                        timerCycle = timerDef.Element(ns + "timeCycle")?.Value?.Trim()
+                                  ?? timerDef.Element("timeCycle")?.Value?.Trim();
+                        timerDate = timerDef.Element(ns + "timeDate")?.Value?.Trim()
+                                 ?? timerDef.Element("timeDate")?.Value?.Trim();
                     }
                 }
-                else
-                {
-                    elements.Add(new ProcessElement(id, localName, name, null, null));
-                }
+
+                elements.Add(new ProcessElement(id, localName, name, signalCode, messageCode,
+                    timerDuration, timerCycle, timerDate));
             }
         }
-
-        var startEvents = elements.Where(e => e.ElementType == "startEvent").ToList();
-        return new ProcessModel(versionId, elements, flows, startEvents);
     }
 
     private async Task CreateOrUpdateTokenAsync(
@@ -1270,7 +1694,19 @@ public class BpmExecutionEngine : IBpmExecutionEngine
         string ElementType,
         string? Name,
         string? SignalCode,
-        string? MessageCode);
+        string? MessageCode,
+        /// <summary>ISO 8601 длительность таймера (PT5M, P1D и т.д.).</summary>
+        string? TimerDuration = null,
+        /// <summary>Cron-выражение для repeating timer.</summary>
+        string? TimerCycle = null,
+        /// <summary>Конкретная дата-время срабатывания ISO 8601.</summary>
+        string? TimerDate = null,
+        /// <summary>Идентификатор элемента, к которому прикреплено граничное событие (attachedToRef).</summary>
+        string? BoundaryFor = null,
+        /// <summary>Прерывает ли граничное событие хост-задачу (cancelActivity).</summary>
+        bool? IsCancelActivity = null,
+        /// <summary>Код ошибки в boundaryEvent с errorEventDefinition (errorRef или errorCode).</summary>
+        string? BoundaryErrorCode = null);
 
     private record SequenceFlowInfo(
         string Id,
