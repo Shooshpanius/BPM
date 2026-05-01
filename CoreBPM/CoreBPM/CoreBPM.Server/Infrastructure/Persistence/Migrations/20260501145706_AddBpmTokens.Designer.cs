@@ -3,6 +3,7 @@ using System;
 using CoreBPM.Server.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260501145706_AddBpmTokens")]
+    partial class AddBpmTokens
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -888,49 +891,6 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_bpm_instance_variables_instance_id");
 
                     b.ToTable("bpm_instance_variables", (string)null);
-                });
-
-            modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmJoinCounter", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<int>("ArrivedCount")
-                        .HasColumnType("integer")
-                        .HasColumnName("arrived_count");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<int>("ExpectedCount")
-                        .HasColumnType("integer")
-                        .HasColumnName("expected_count");
-
-                    b.Property<string>("GatewayElementId")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("gateway_element_id");
-
-                    b.Property<Guid>("InstanceId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("instance_id");
-
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id")
-                        .HasName("pk_bpm_join_counters");
-
-                    b.HasIndex("InstanceId", "GatewayElementId")
-                        .IsUnique()
-                        .HasDatabaseName("ix_bpm_join_counters_instance_id_gateway_element_id");
-
-                    b.ToTable("bpm_join_counters", (string)null);
                 });
 
             modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmMessage", b =>
@@ -2696,18 +2656,6 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_bpm_instance_variables_bpm_instances_instance_id");
-
-                    b.Navigation("Instance");
-                });
-
-            modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmJoinCounter", b =>
-                {
-                    b.HasOne("CoreBPM.Server.Domain.Bpm.BpmInstance", "Instance")
-                        .WithMany()
-                        .HasForeignKey("InstanceId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_bpm_join_counters_bpm_instances_instance_id");
 
                     b.Navigation("Instance");
                 });

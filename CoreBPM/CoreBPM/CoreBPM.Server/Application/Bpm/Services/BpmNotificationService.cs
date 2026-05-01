@@ -73,6 +73,37 @@ public class BpmNotificationService : IBpmNotificationService
     }
 
     /// <inheritdoc />
+    public async Task NotifyUserTaskActivatedAsync(
+        Guid instanceId,
+        string instanceName,
+        string processName,
+        string elementId,
+        string? elementName,
+        CancellationToken ct = default)
+    {
+        var payload = new
+        {
+            type = "UserTaskActivated",
+            instanceId,
+            instanceName,
+            processName,
+            elementId,
+            elementName,
+            occurredAt = DateTimeOffset.UtcNow,
+        };
+
+        // Уведомляем всех участников процесса — они сами подпишутся на группы экземпляра
+        await _hub.Clients
+            .Group($"instance:{instanceId}")
+            .SendAsync("bpm:notification", payload, ct);
+
+        // Также уведомляем всех администраторов
+        await _hub.Clients
+            .Group(BpmNotificationHub.AdminGroup)
+            .SendAsync("bpm:notification", payload, ct);
+    }
+
+    /// <inheritdoc />
     public async Task NotifyUserAsync(
         Guid userId,
         string eventType,

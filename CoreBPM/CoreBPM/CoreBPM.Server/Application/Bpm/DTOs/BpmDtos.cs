@@ -883,3 +883,40 @@ public record BpmDashboardTopProcessDto(
     int ActiveCount,
     int TotalCount
 );
+
+
+// ─── Движок выполнения BPMN (FR-BPM Execution Engine) ────────────────────────
+
+/// <summary>DTO токена выполнения BPMN.</summary>
+public record BpmTokenDto(
+    Guid Id,
+    Guid InstanceId,
+    string ElementId,
+    string ElementType,
+    string? ElementName,
+    CoreBPM.Server.Domain.Bpm.BpmTokenStatus Status,
+    string? SignalCode,
+    string? MessageCode,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? CompletedAt
+);
+
+/// <summary>Запрос на завершение UserTask/ReceiveTask.</summary>
+public record CompleteUserTaskRequest(
+    /// <summary>Выходные переменные задачи (имя → JSON-значение).</summary>
+    IDictionary<string, string?>? OutputVariables = null
+);
+
+/// <summary>Запрос на отправку сигнала.</summary>
+public record SendSignalRequest(
+    /// <summary>Код сигнала BPMN.</summary>
+    string SignalCode
+);
+
+/// <summary>Запрос на отправку сообщения.</summary>
+public record SendMessageRequest(
+    /// <summary>Код сообщения BPMN.</summary>
+    string MessageCode,
+    /// <summary>Ключ корреляции (опционально).</summary>
+    string? CorrelationKey = null
+);

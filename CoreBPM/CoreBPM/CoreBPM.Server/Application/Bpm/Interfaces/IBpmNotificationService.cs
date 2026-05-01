@@ -19,6 +19,17 @@ public interface IBpmNotificationService
         Guid createdByUserId,
         CancellationToken ct = default);
 
+    /// <summary>
+    /// Уведомляет назначенного исполнителя (и всех участников) о появлении новой пользовательской задачи.
+    /// </summary>
+    Task NotifyUserTaskActivatedAsync(
+        Guid instanceId,
+        string instanceName,
+        string processName,
+        string elementId,
+        string? elementName,
+        CancellationToken ct = default);
+
     /// <summary>Отправляет произвольное уведомление конкретному пользователю.</summary>
     Task NotifyUserAsync(Guid userId, string eventType, object payload, CancellationToken ct = default);
 }
