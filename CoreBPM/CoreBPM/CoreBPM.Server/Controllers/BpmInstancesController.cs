@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using CoreBPM.Server.Application.Bpm.DTOs;
 using CoreBPM.Server.Application.Bpm.Interfaces;
+using CoreBPM.Server.Domain.Bpm;
 
 namespace CoreBPM.Server.Controllers;
 
@@ -186,6 +187,29 @@ public class BpmInstancesController : ControllerBase
         if (userId == null) return Unauthorized();
         await _service.RemoveParticipantAsync(instanceId, participantUserId, userId.Value, ct);
         return NoContent();
+    }
+
+    // ─── Мои процессы ────────────────────────────────────────────────────────
+
+    /// <summary>Возвращает экземпляры, в которых текущий пользователь является инициатором, ответственным или участником.</summary>
+    [HttpGet("api/bpm/instances/my")]
+    [ProducesResponseType(typeof(MyInstancesResult), StatusCodes.Status200OK)]
+    public async Task<ActionResult<MyInstancesResult>> GetMy(
+        [FromQuery] MyInstancesRole role = MyInstancesRole.All,
+        [FromQuery] BpmInstanceState? state = null,
+        [FromQuery] string? search = null,
+        [FromQuery] Guid? processId = null,
+        [FromQuery] DateTimeOffset? dateFrom = null,
+        [FromQuery] DateTimeOffset? dateTo = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 30,
+        CancellationToken ct = default)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+
+        var filter = new MyInstancesFilter(role, state, search, processId, dateFrom, dateTo);
+        return Ok(await _service.GetMyInstancesAsync(userId.Value, filter, page, pageSize, ct));
     }
 
     // ─── Вспомогательные методы ───────────────────────────────────────────────

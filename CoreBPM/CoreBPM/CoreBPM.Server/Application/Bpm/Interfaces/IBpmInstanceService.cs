@@ -1,4 +1,5 @@
 using CoreBPM.Server.Application.Bpm.DTOs;
+using CoreBPM.Server.Domain.Bpm;
 
 namespace CoreBPM.Server.Application.Bpm.Interfaces;
 
@@ -66,4 +67,14 @@ public interface IBpmInstanceService
 
     /// <summary>Удаляет участника из экземпляра.</summary>
     Task RemoveParticipantAsync(Guid instanceId, Guid participantUserId, Guid actorUserId, CancellationToken ct = default);
+
+    // ─── Мои процессы ────────────────────────────────────────────────────────
+
+    /// <summary>Возвращает экземпляры процессов, в которых участвует указанный пользователь, с применением фильтра.</summary>
+    Task<MyInstancesResult> GetMyInstancesAsync(
+        Guid userId,
+        MyInstancesFilter filter,
+        int page = 1,
+        int pageSize = 30,
+        CancellationToken ct = default);
 }

@@ -605,3 +605,41 @@ public record BpmInstanceParticipantDto(
     string? AddedByDisplayName,
     DateTimeOffset AddedAt
 );
+
+// ─── Мои процессы (FR-BPM-02.3) ──────────────────────────────────────────────
+
+/// <summary>Параметры фильтра для раздела «Мои процессы».</summary>
+public record MyInstancesFilter(
+    /// <summary>Роль пользователя в экземпляре.</summary>
+    MyInstancesRole Role = MyInstancesRole.All,
+    /// <summary>Фильтр по состоянию экземпляра (null = все состояния).</summary>
+    BpmInstanceState? State = null,
+    /// <summary>Строка поиска по названию экземпляра.</summary>
+    string? Search = null,
+    /// <summary>Фильтр по идентификатору процесса.</summary>
+    Guid? ProcessId = null,
+    /// <summary>Нижняя граница даты запуска.</summary>
+    DateTimeOffset? DateFrom = null,
+    /// <summary>Верхняя граница даты запуска.</summary>
+    DateTimeOffset? DateTo = null
+);
+
+/// <summary>Результат запроса «Мои процессы» с общим счётчиком.</summary>
+public record MyInstancesResult(
+    IReadOnlyList<BpmInstanceListItemDto> Items,
+    int Total
+);
+
+/// <summary>DTO сохранённого фильтра.</summary>
+public record BpmSavedFilterDto(
+    Guid Id,
+    string Name,
+    string FiltersJson,
+    DateTimeOffset CreatedAt
+);
+
+/// <summary>Запрос на создание или обновление сохранённого фильтра.</summary>
+public record SaveFilterRequest(
+    string Name,
+    string FiltersJson
+);

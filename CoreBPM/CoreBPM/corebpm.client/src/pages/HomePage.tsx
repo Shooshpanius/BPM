@@ -9,6 +9,7 @@ import { ProcessesPage } from './bpm/ProcessesPage';
 import { BpmnDesignerPage } from './bpm/BpmnDesignerPage';
 import { ProcessMonitorPage } from './bpm/ProcessMonitorPage';
 import { InstancePage } from './bpm/InstancePage';
+import { MyProcessesPage } from './bpm/MyProcessesPage';
 import { RulesPage } from './rules/RulesPage';
 import { DmnEditorPage } from './rules/DmnEditorPage';
 import { FormsPage } from './forms/FormsPage';
@@ -117,6 +118,14 @@ export function HomePage({ onAdmin }: HomePageProps) {
                                         onOpenDesigner={handleOpenDesigner}
                                         onOpenMonitor={handleOpenMonitor}
                                       />
+                    )}
+                    {section === 'bpm-my-processes' && (
+                        openInstanceId
+                            ? <InstancePage
+                                instanceId={openInstanceId}
+                                onBack={handleBackFromInstance}
+                              />
+                            : <MyProcessesPage onOpenInstance={handleOpenInstance} />
                     )}
                     {section === 'bpm-rules' && (
                         dmnEditorTableId

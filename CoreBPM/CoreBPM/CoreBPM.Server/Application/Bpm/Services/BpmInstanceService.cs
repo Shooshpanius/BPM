@@ -693,4 +693,94 @@ public class BpmInstanceService : IBpmInstanceService
 
         await _db.SaveChangesAsync(ct);
     }
+
+    // ─── Мои процессы ────────────────────────────────────────────────────────
+
+    /// <inheritdoc />
+    public async Task<MyInstancesResult> GetMyInstancesAsync(
+        Guid userId,
+        MyInstancesFilter filter,
+        int page = 1,
+        int pageSize = 30,
+        CancellationToken ct = default)
+    {
+        // Идентификаторы экземпляров, где пользователь — участник
+        var participantInstanceIds = filter.Role is MyInstancesRole.All or MyInstancesRole.Participant
+            ? await _db.BpmInstanceParticipants
+                .AsNoTracking()
+                .Where(p => p.UserId == userId)
+                .Select(p => p.InstanceId)
+                .ToListAsync(ct)
+            : [];
+
+        var query = _db.BpmInstances
+            .AsNoTracking()
+            .Include(i => i.Process)
+            .Include(i => i.ProcessVersion)
+            .AsQueryable();
+
+        // Фильтр по роли
+        query = filter.Role switch
+        {
+            MyInstancesRole.Initiator => query.Where(i => i.InitiatorUserId == userId),
+            MyInstancesRole.Responsible => query.Where(i => i.ResponsibleUserId == userId),
+            MyInstancesRole.Participant => query.Where(i => participantInstanceIds.Contains(i.Id)),
+            _ => query.Where(i =>
+                i.InitiatorUserId == userId ||
+                i.ResponsibleUserId == userId ||
+                participantInstanceIds.Contains(i.Id))
+        };
+
+        // Фильтр по состоянию
+        if (filter.State.HasValue)
+            query = query.Where(i => i.State == filter.State.Value);
+
+        // Быстрый поиск по названию
+        if (!string.IsNullOrWhiteSpace(filter.Search))
+        {
+            var searchLower = filter.Search.Trim().ToLower();
+            query = query.Where(i => i.Name.ToLower().Contains(searchLower));
+        }
+
+        // Фильтр по процессу
+        if (filter.ProcessId.HasValue)
+            query = query.Where(i => i.ProcessId == filter.ProcessId.Value);
+
+        // Фильтр по дате запуска
+        if (filter.DateFrom.HasValue)
+            query = query.Where(i => i.StartedAt >= filter.DateFrom.Value);
+        if (filter.DateTo.HasValue)
+            query = query.Where(i => i.StartedAt <= filter.DateTo.Value);
+
+        var total = await query.CountAsync(ct);
+
+        var skip = (Math.Max(1, page) - 1) * Math.Min(100, pageSize);
+        var instances = await query
+            .OrderByDescending(i => i.StartedAt)
+            .Skip(skip)
+            .Take(Math.Min(100, pageSize))
+            .ToListAsync(ct);
+
+        var userIds = instances
+            .SelectMany(i => new[] { i.InitiatorUserId, i.ResponsibleUserId })
+            .Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToList();
+
+        var userNames = await _db.OrgUsers
+            .AsNoTracking()
+            .Where(u => userIds.Contains(u.Id))
+            .Select(u => new { u.Id, u.DisplayName })
+            .ToListAsync(ct);
+
+        string? Name(Guid? id) => userNames.FirstOrDefault(u => u.Id == id)?.DisplayName;
+
+        var items = instances.Select(i => new BpmInstanceListItemDto(
+            i.Id, i.ProcessId, i.Process.Name, i.ProcessVersionId, i.ProcessVersion.VersionNumber,
+            i.Name, i.State, i.LaunchSource,
+            i.InitiatorUserId, Name(i.InitiatorUserId),
+            i.ResponsibleUserId, Name(i.ResponsibleUserId),
+            i.StartedAt, i.CompletedAt, i.CancelledAt
+        )).ToList();
+
+        return new MyInstancesResult(items, total);
+    }
 }

@@ -31,6 +31,7 @@ public class AppDbContext : DbContext
     public DbSet<BpmSchedulerJob> BpmSchedulerJobs => Set<BpmSchedulerJob>();
     public DbSet<BpmInstanceHistoryEntry> BpmInstanceHistoryEntries => Set<BpmInstanceHistoryEntry>();
     public DbSet<BpmInstanceParticipant> BpmInstanceParticipants => Set<BpmInstanceParticipant>();
+    public DbSet<BpmSavedFilter> BpmSavedFilters => Set<BpmSavedFilter>();
     public DbSet<BpmTaskForm> BpmTaskForms => Set<BpmTaskForm>();
     public DbSet<BpmTaskFormVersion> BpmTaskFormVersions => Set<BpmTaskFormVersion>();
     public DbSet<BpmInstanceStatusConfig> BpmInstanceStatusConfigs => Set<BpmInstanceStatusConfig>();
@@ -554,6 +555,17 @@ public class AppDbContext : DbContext
              .WithMany()
              .HasForeignKey(p => p.InstanceId)
              .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ─── Сохранённые фильтры «Мои процессы» ──────────────────────────────────
+
+        modelBuilder.Entity<BpmSavedFilter>(e =>
+        {
+            e.ToTable("bpm_saved_filters");
+            e.HasKey(f => f.Id);
+            e.Property(f => f.Name).IsRequired().HasMaxLength(200);
+            e.Property(f => f.FiltersJson).HasColumnType("text");
+            e.HasIndex(f => f.UserId);
         });
 
         // ─── DMN: таблицы бизнес-правил ─────────────────────────────────────────

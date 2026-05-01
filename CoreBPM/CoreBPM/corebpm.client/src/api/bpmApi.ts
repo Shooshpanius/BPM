@@ -829,3 +829,68 @@ export const addParticipant = (token: string, instanceId: string, data: AddParti
 /** Удалить участника. */
 export const removeParticipant = (token: string, instanceId: string, participantUserId: string): Promise<void> =>
     fetchJson(`/api/bpm/instances/${instanceId}/participants/${participantUserId}`, token, { method: 'DELETE' });
+
+// ─── «Мои процессы» (FR-BPM-02.3) ───────────────────────────────────────────
+
+export type MyInstancesRole = 'All' | 'Initiator' | 'Responsible' | 'Participant';
+
+export interface MyInstancesFilter {
+    role?: MyInstancesRole;
+    state?: BpmInstanceState | '';
+    search?: string;
+    processId?: string;
+    dateFrom?: string;
+    dateTo?: string;
+}
+
+export interface MyInstancesResult {
+    items: BpmInstanceListItemDto[];
+    total: number;
+}
+
+/** Получить «мои процессы» с фильтрацией и пагинацией. */
+export const getMyInstances = (
+    token: string,
+    filter: MyInstancesFilter = {},
+    page = 1,
+    pageSize = 30
+): Promise<MyInstancesResult> => {
+    const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    if (filter.role && filter.role !== 'All') params.append('role', filter.role);
+    if (filter.state) params.append('state', filter.state);
+    if (filter.search) params.append('search', filter.search);
+    if (filter.processId) params.append('processId', filter.processId);
+    if (filter.dateFrom) params.append('dateFrom', filter.dateFrom);
+    if (filter.dateTo) params.append('dateTo', filter.dateTo);
+    return fetchJson(`/api/bpm/instances/my?${params}`, token);
+};
+
+// ─── Сохранённые фильтры ─────────────────────────────────────────────────────
+
+export interface BpmSavedFilterDto {
+    id: string;
+    name: string;
+    filtersJson: string;
+    createdAt: string;
+}
+
+export interface SaveFilterRequest {
+    name: string;
+    filtersJson: string;
+}
+
+/** Список сохранённых фильтров пользователя. */
+export const getSavedFilters = (token: string): Promise<BpmSavedFilterDto[]> =>
+    fetchJson('/api/bpm/saved-filters', token);
+
+/** Создать сохранённый фильтр. */
+export const createSavedFilter = (token: string, data: SaveFilterRequest): Promise<BpmSavedFilterDto> =>
+    fetchJson('/api/bpm/saved-filters', token, { method: 'POST', body: JSON.stringify(data) });
+
+/** Обновить сохранённый фильтр. */
+export const updateSavedFilter = (token: string, filterId: string, data: SaveFilterRequest): Promise<BpmSavedFilterDto> =>
+    fetchJson(`/api/bpm/saved-filters/${filterId}`, token, { method: 'PUT', body: JSON.stringify(data) });
+
+/** Удалить сохранённый фильтр. */
+export const deleteSavedFilter = (token: string, filterId: string): Promise<void> =>
+    fetchJson(`/api/bpm/saved-filters/${filterId}`, token, { method: 'DELETE' });

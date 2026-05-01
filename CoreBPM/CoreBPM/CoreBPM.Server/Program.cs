@@ -86,6 +86,7 @@ builder.Services.AddScoped<IBpmProcessRoleService, BpmProcessRoleService>();
 builder.Services.AddScoped<IBpmInstanceService, BpmInstanceService>();
 builder.Services.AddScoped<IBpmInstanceStatusService, BpmInstanceStatusService>();
 builder.Services.AddScoped<IBpmDiagramLockService, BpmDiagramLockService>();
+builder.Services.AddScoped<IBpmSavedFilterService, BpmSavedFilterService>();
 
 // Регистрация сервисов Scripts (сценарии, расширения, глобальные модули FR-BPM-01.7)
 builder.Services.AddScoped<IBpmScriptService, BpmScriptService>();
