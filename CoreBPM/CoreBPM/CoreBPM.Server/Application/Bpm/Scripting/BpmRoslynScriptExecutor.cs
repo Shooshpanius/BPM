@@ -109,7 +109,7 @@ public sealed class BpmRoslynScriptExecutor : IBpmScriptExecutor
     private static string ComputeHash(string code)
     {
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(code));
-        return Convert.ToHexStringLower(bytes)[..16];
+        return Convert.ToHexStringLower(bytes); // полный 64-символьный хэш
     }
 }
 

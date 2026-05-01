@@ -107,7 +107,8 @@ public class BpmExecutionEngine : IBpmExecutionEngine
 
         if (outgoingFlows.Count == 0)
         {
-            _logger.LogDebug("Нет исходящих потоков от {ElementId} в экземпляре {InstanceId}", fromElementId, instanceId);
+            _logger.LogDebug("Нет исходящих потоков от {ElementId} в экземпляре {InstanceId}",
+                SanitizeForLog(fromElementId), instanceId);
             return;
         }
 
@@ -886,7 +887,19 @@ public class BpmExecutionEngine : IBpmExecutionEngine
             .Where(v => v.InstanceId == instance.Id)
             .ToDictionaryAsync(v => v.Name, v => v.ValueJson, ct);
 
-        // 3. Собираем контекст
+        // 3. Собираем контекст (таймаут берётся из configJson.scriptTimeoutMs или константы)
+        var timeoutMs = ScriptTimeoutMs;
+        if (!string.IsNullOrWhiteSpace(configJson))
+        {
+            try
+            {
+                using var cfgDoc = JsonDocument.Parse(configJson);
+                if (cfgDoc.RootElement.TryGetProperty("scriptTimeoutMs", out var toEl) && toEl.TryGetInt32(out var toV) && toV > 0)
+                    timeoutMs = toV;
+            }
+            catch { /* игнорируем ошибки разбора */ }
+        }
+
         var httpClient = _httpClientFactory.CreateClient("BpmEngine");
         var context = new ScriptContext(
             instanceId: instance.Id,
@@ -899,10 +912,10 @@ public class BpmExecutionEngine : IBpmExecutionEngine
 
         // 4. Выполняем сценарий
         _logger.LogInformation(
-            "ScriptTask [{ElementId}]: запуск сценария (экземпляр {InstanceId})",
-            job.ElementId, instance.Id);
+            "ScriptTask [{ElementId}]: запуск сценария (экземпляр {InstanceId}, таймаут {TimeoutMs} мс)",
+            job.ElementId, instance.Id, timeoutMs);
 
-        await _scriptExecutor.ExecuteAsync(scriptCode, context, ScriptTimeoutMs, ct);
+        await _scriptExecutor.ExecuteAsync(scriptCode, context, timeoutMs, ct);
 
         // 5. Сохраняем изменённые переменные
         var outputVars = context.OutputVariables;
@@ -1233,6 +1246,16 @@ public class BpmExecutionEngine : IBpmExecutionEngine
 
     private static BpmTokenDto MapTokenToDto(BpmToken t) =>
         new(t.Id, t.InstanceId, t.ElementId, t.ElementType, t.ElementName, t.Status, t.SignalCode, t.MessageCode, t.CreatedAt, t.CompletedAt);
+
+    /// <summary>
+    /// Санирует строку для логирования: убирает переводы строк, ограничивает длину.
+    /// Защита от log-forging при использовании пользовательских данных в логах.
+    /// </summary>
+    private static string SanitizeForLog(string? value, int maxLen = 100)
+    {
+        if (value is null) return "(null)";
+        return value.Replace("\r", "").Replace("\n", "")[..Math.Min(value.Length, maxLen)];
+    }
 
     // ─── Внутренние модели парсинга ───────────────────────────────────────────
 

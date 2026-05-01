@@ -42,7 +42,7 @@ public sealed class ScriptContext
         ProcessId = processId;
         ProcessVersionId = processVersionId;
         ElementId = elementId;
-        _variables = new Dictionary<string, string?>(variables, StringComparer.OrdinalIgnoreCase);
+        _variables = new Dictionary<string, string?>(variables, StringComparer.Ordinal);
         Logger = logger;
         HttpClient = httpClient;
     }
