@@ -18,6 +18,7 @@ export interface BpmScriptModuleSummaryDto {
     id: string;
     versionId: string;
     versionNumber: number;
+    releaseNotes?: string;
     publishedAt: string;
 }
 

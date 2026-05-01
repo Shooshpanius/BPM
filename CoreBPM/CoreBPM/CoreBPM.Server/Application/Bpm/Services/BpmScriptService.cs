@@ -122,6 +122,7 @@ public class BpmScriptService : IBpmScriptService
             Id: m.Id,
             VersionId: m.ProcessVersionId,
             VersionNumber: m.ProcessVersion.VersionNumber,
+            ReleaseNotes: m.ProcessVersion.ReleaseNotes,
             PublishedAt: m.PublishedAt!.Value
         )).ToList();
     }

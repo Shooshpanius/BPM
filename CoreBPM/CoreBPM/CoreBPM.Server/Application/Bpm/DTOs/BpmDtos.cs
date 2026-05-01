@@ -337,6 +337,7 @@ public record BpmScriptModuleSummaryDto(
     Guid Id,
     Guid VersionId,
     int VersionNumber,
+    string? ReleaseNotes,
     DateTimeOffset PublishedAt
 );
 

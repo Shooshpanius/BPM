@@ -1118,8 +1118,17 @@ public class BpmInstanceService : IBpmInstanceService
         var instanceVar = await _db.BpmInstanceVariables
             .FirstOrDefaultAsync(v => v.InstanceId == instance.Id && v.Name == varName, ct);
 
-        // Определяем текущий статус
-        var currentCode = instanceVar?.ValueJson?.Trim('"');
+        // Определяем текущий статус через десериализацию JSON
+        string? currentCode = null;
+        if (instanceVar?.ValueJson != null)
+        {
+            try
+            {
+                currentCode = System.Text.Json.JsonSerializer.Deserialize<string>(instanceVar.ValueJson);
+            }
+            catch { /* игнорируем некорректный JSON — сбрасываем к первому статусу */ }
+        }
+
         var currentIndex = currentCode != null
             ? options.FindIndex(o => o.Code == currentCode)
             : -1;
@@ -1127,7 +1136,7 @@ public class BpmInstanceService : IBpmInstanceService
         // Следующий индекс — по кругу
         var nextIndex = (currentIndex + 1) % options.Count;
         var nextCode = options[nextIndex].Code;
-        var jsonValue = $"\"{nextCode}\"";
+        var jsonValue = System.Text.Json.JsonSerializer.Serialize(nextCode);
         var now = DateTimeOffset.UtcNow;
 
         if (instanceVar == null)

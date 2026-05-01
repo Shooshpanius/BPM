@@ -263,7 +263,7 @@ export function InstanceStatusTab({ processId, token }: Props) {
                                 <option value="">— выберите модуль —</option>
                                 {scriptModules.map(m => (
                                     <option key={m.id} value={m.id}>
-                                        v{m.versionNumber} — опубликован {new Date(m.publishedAt).toLocaleDateString('ru')}
+                                        v{m.versionNumber}{m.releaseNotes ? ` — ${m.releaseNotes}` : ''} (опубликован {new Date(m.publishedAt).toLocaleDateString('ru')})
                                     </option>
                                 ))}
                             </select>
