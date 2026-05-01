@@ -26,6 +26,9 @@ public class BpmKpiAlertWorker : BackgroundService
     /// <summary>Минимальное количество завершённых экземпляров для расчёта алерта.</summary>
     private const int MinCompletedInstances = 3;
 
+    /// <summary>Задержка перед первым запуском, чтобы не мешать инициализации приложения.</summary>
+    private static readonly TimeSpan StartupDelay = TimeSpan.FromMinutes(2);
+
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<BpmKpiAlertWorker> _logger;
 
@@ -39,8 +42,8 @@ public class BpmKpiAlertWorker : BackgroundService
     {
         _logger.LogInformation("BpmKpiAlertWorker запущен");
 
-        // Первый запуск — небольшая задержка, чтобы не мешать старту приложения
-        await Task.Delay(TimeSpan.FromMinutes(2), stoppingToken);
+        // Первый запуск — задержка StartupDelay, чтобы не мешать старту приложения
+        await Task.Delay(StartupDelay, stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
         {

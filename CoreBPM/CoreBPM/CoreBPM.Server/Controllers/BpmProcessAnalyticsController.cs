@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using CoreBPM.Server.Application.Bpm.DTOs;
 using CoreBPM.Server.Application.Bpm.Interfaces;
+using CoreBPM.Server.Infrastructure.Persistence;
 
 namespace CoreBPM.Server.Controllers;
 
@@ -12,10 +13,12 @@ namespace CoreBPM.Server.Controllers;
 public class BpmProcessAnalyticsController : ControllerBase
 {
     private readonly IBpmAnalyticsService _service;
+    private readonly AppDbContext _db;
 
-    public BpmProcessAnalyticsController(IBpmAnalyticsService service)
+    public BpmProcessAnalyticsController(IBpmAnalyticsService service, AppDbContext db)
     {
         _service = service;
+        _db = db;
     }
 
     /// <summary>Возвращает агрегированную аналитику процесса за период.</summary>
@@ -110,8 +113,7 @@ public class BpmProcessAnalyticsController : ControllerBase
         [FromQuery] int limit = 50,
         CancellationToken ct = default)
     {
-        var db = HttpContext.RequestServices.GetRequiredService<Infrastructure.Persistence.AppDbContext>();
-        var alerts = await db.BpmKpiAlerts
+        var alerts = await _db.BpmKpiAlerts
             .AsNoTracking()
             .OrderByDescending(a => a.DetectedAt)
             .Take(Math.Clamp(limit, 1, 200))
