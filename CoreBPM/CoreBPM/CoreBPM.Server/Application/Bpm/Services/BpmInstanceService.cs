@@ -13,10 +13,12 @@ namespace CoreBPM.Server.Application.Bpm.Services;
 public class BpmInstanceService : IBpmInstanceService
 {
     private readonly AppDbContext _db;
+    private readonly IBpmExecutionEngine _engine;
 
-    public BpmInstanceService(AppDbContext db)
+    public BpmInstanceService(AppDbContext db, IBpmExecutionEngine engine)
     {
         _db = db;
+        _engine = engine;
     }
 
     /// <inheritdoc />
@@ -138,6 +140,9 @@ public class BpmInstanceService : IBpmInstanceService
         _db.BpmInstances.Add(instance);
         await _db.SaveChangesAsync(ct);
 
+        // Запускаем движок выполнения (fire-and-forget)
+        _ = _engine.StartAsync(instance.Id, CancellationToken.None);
+
         return await GetInstanceByIdAsync(instance.Id, ct);
     }
 
@@ -182,11 +187,14 @@ public class BpmInstanceService : IBpmInstanceService
             UpdatedAt = now,
         };
 
-        var variables = BuildVariables(instance.Id, request.Variables, now);
-        instance.Variables = variables;
+        var variables2 = BuildVariables(instance.Id, request.Variables, now);
+        instance.Variables = variables2;
 
         _db.BpmInstances.Add(instance);
         await _db.SaveChangesAsync(ct);
+
+        // Запускаем движок выполнения (fire-and-forget)
+        _ = _engine.StartAsync(instance.Id, CancellationToken.None);
 
         return await GetInstanceByIdAsync(instance.Id, ct);
     }
@@ -919,6 +927,10 @@ public class BpmInstanceService : IBpmInstanceService
         }
 
         await _db.SaveChangesAsync(ct);
+
+        // Запускаем движок для каждого успешно созданного экземпляра (fire-and-forget)
+        foreach (var r in results.Where(r => r.Success && r.InstanceId.HasValue))
+            _ = _engine.StartAsync(r.InstanceId!.Value, CancellationToken.None);
 
         return new BatchLaunchResult(
             Total: results.Count,

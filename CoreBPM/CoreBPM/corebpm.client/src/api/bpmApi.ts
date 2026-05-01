@@ -1200,3 +1200,60 @@ export interface BpmDashboardDto {
 /** Сводная статистика для дашборда мониторинга. */
 export const getBpmDashboard = (token: string): Promise<BpmDashboardDto> =>
     fetchJson('/api/bpm/dashboard', token);
+
+// ─── Движок выполнения BPMN (FR-BPM Execution Engine) ────────────────────────
+
+export type BpmTokenStatus = 'Active' | 'WaitingUserAction' | 'WaitingSignal' | 'WaitingMessage' | 'Completed';
+
+export interface BpmTokenDto {
+    id: string;
+    instanceId: string;
+    elementId: string;
+    elementType: string;
+    elementName?: string;
+    status: BpmTokenStatus;
+    signalCode?: string;
+    messageCode?: string;
+    createdAt: string;
+    completedAt?: string;
+}
+
+export interface CompleteUserTaskRequest {
+    outputVariables?: Record<string, string | null>;
+}
+
+export interface SendSignalRequest {
+    signalCode: string;
+}
+
+export interface SendMessageRequest {
+    messageCode: string;
+    correlationKey?: string;
+}
+
+/** Список активных токенов экземпляра. */
+export const getTokens = (token: string, instanceId: string): Promise<BpmTokenDto[]> =>
+    fetchJson(`/api/bpm/instances/${instanceId}/tokens`, token);
+
+/** Завершить UserTask/ReceiveTask с передачей выходных переменных. */
+export const completeToken = (
+    token: string,
+    instanceId: string,
+    elementId: string,
+    data: CompleteUserTaskRequest = {}
+): Promise<BpmTokenDto> =>
+    fetchJson(`/api/bpm/instances/${instanceId}/tokens/${encodeURIComponent(elementId)}/complete`, token, {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+
+/** Отправить сигнал BPMN. */
+export const sendSignal = (token: string, signalCode: string): Promise<void> =>
+    fetchJson(`/api/events/signals/${encodeURIComponent(signalCode)}`, token, { method: 'POST' });
+
+/** Отправить сообщение BPMN. */
+export const sendMessage = (token: string, messageCode: string, data: SendMessageRequest): Promise<void> =>
+    fetchJson(`/api/events/messages/${encodeURIComponent(messageCode)}`, token, {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });

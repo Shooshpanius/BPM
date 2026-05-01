@@ -17,6 +17,7 @@ using CoreBPM.Server.Infrastructure.Hubs;
 using CoreBPM.Server.Infrastructure.Middleware;
 using CoreBPM.Server.Infrastructure.Persistence;
 using CoreBPM.Server.Infrastructure.Persistence.Repositories;
+using CoreBPM.Server.Infrastructure.Workers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -123,6 +124,11 @@ builder.Services.AddScoped<IDmnService, DmnService>();
 
 // Регистрация сервисов Forms (конструктор форм задач FR-BPM-01.4)
 builder.Services.AddScoped<IFormService, FormService>();
+
+// Регистрация движка выполнения BPMN (FR-BPM Execution Engine)
+builder.Services.AddHttpClient("BpmEngine");
+builder.Services.AddScoped<IBpmExecutionEngine, BpmExecutionEngine>();
+builder.Services.AddHostedService<BpmEngineWorker>();
 
 var app = builder.Build();
 

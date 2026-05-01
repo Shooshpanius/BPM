@@ -703,6 +703,25 @@
 - [x] Уведомления при завершении пакета: SignalR-уведомление (`MigrationPackageCompleted`) отправляется администраторам и создателю пакета при завершении (`Completed` / `CompletedWithErrors`) — статистика migrated/failed/total в теле; Toast-уведомление отображается в правом нижнем углу UI (зелёный для успеха)
 - Отложено: импорт/экспорт пакетов миграции, автоматический запуск по расписанию
 
+#### FR-BPM-02.8: Движок выполнения BPMN (Execution Engine)
+- [x] **Доменная модель**: `BpmToken` (таблица `bpm_tokens`) — `InstanceId`, `ElementId`, `ElementType`, `ElementName`, `Status`, `SignalCode`, `MessageCode`, `CorrelationKey`, `CreatedAt`, `CompletedAt`; `BpmTokenStatus` enum (Active/WaitingUserAction/WaitingSignal/WaitingMessage/Completed); миграция `AddBpmTokens`
+- [x] **Интерфейс движка** `IBpmExecutionEngine`: `StartAsync`, `AdvanceFromAsync`, `CompleteUserTaskAsync`, `SendSignalAsync`, `SendMessageAsync`, `ExecuteJobAsync`, `GetTokensAsync`
+- [x] **Реализация `BpmExecutionEngine`**:
+  - `startEvent` → немедленное продвижение через `AdvanceFromAsync`; `endEvent` → завершение экземпляра (`State = Completed`)
+  - `userTask` / `receiveTask` → токен `WaitingUserAction`; `serviceTask` / `scriptTask` → создание `BpmExecutionJob` + токен `Active`
+  - `exclusiveGateway` → выбор первого потока с выполненным условием; `inclusiveGateway` → активация всех подходящих потоков; `parallelGateway` → все выходы
+  - `intermediateCatchEvent` → токен `WaitingSignal` / `WaitingMessage`; `intermediateThrowEvent` → рассылка сигнала + немедленное продвижение
+  - **ServiceTask op=HttpCall**: HTTP-вызов к внешнему URL с подстановкой переменных `{{var}}`; **op=ChangeInstanceStatus**: обновление переменной статуса
+  - **ScriptTask / BusinessRuleTask**: заглушка с логированием (Roslyn не в зависимостях — отложено)
+  - При успехе задания: `NodeExecuted` + `AdvanceFromAsync`; при исчерпании попыток: `NodeFailed` + `State = Faulted`; retry с экспоненциальной задержкой
+  - Оценка условий `ConditionExpression`: поддержка `==`, `!=`, `>=`, `<=`, `>`, `<`; JUEL/FEEL-обёртки `${...}` / `#{...}`; подстановка переменных экземпляра
+- [x] **`BpmEngineWorker`** (`BackgroundService`): polling каждые 5 секунд; атомарный захват до 20 заданий (`Status = Running`, `ServerHost`, `AttemptNumber++`); параллельное выполнение через `IServiceScopeFactory`; защита от зависших заданий (установка `Failed` при необработанном исключении)
+- [x] **Интеграция с `BpmInstanceService`**: после `SaveChangesAsync` в `CreateInstanceAsync`, `CreateInstanceViaWebhookAsync`, `BatchCreateInstancesAsync` — fire-and-forget вызов `_engine.StartAsync(instance.Id)`
+- [x] **API токенов**: `GET /api/bpm/instances/{id}/tokens` — активные токены для карты экземпляра; `POST /api/bpm/instances/{id}/tokens/{elementId}/complete` — завершение UserTask с выходными переменными
+- [x] **API событий**: `POST /api/events/signals/{signalCode}` — рассылка сигнала; `POST /api/events/messages/{messageCode}` — доставка сообщения с `correlationKey`
+- [x] **Frontend**: `bpmApi.ts` — типы `BpmTokenDto`, `BpmTokenStatus`; функции `getTokens`, `completeToken`, `sendSignal`, `sendMessage`; `InstancePage.tsx` — блок «Активные токены» на вкладке «Обзор» с кнопкой «Выполнить» для токенов `WaitingUserAction`
+- Отложено: Roslyn-скриптинг (ScriptTask), Join-семантика ParallelGateway/InclusiveGateway (AND-join), граничные события в runtime, Call Activity с передачей переменных, карта процесса с маркировкой токенов на диаграмме
+
 ---
 
 ### FR-BPM-03: Улучшение процессов

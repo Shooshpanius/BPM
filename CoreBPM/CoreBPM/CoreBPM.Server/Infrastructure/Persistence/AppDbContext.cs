@@ -34,6 +34,7 @@ public class AppDbContext : DbContext
     public DbSet<BpmSavedFilter> BpmSavedFilters => Set<BpmSavedFilter>();
     public DbSet<BpmExecutionJob> BpmExecutionJobs => Set<BpmExecutionJob>();
     public DbSet<BpmProcessDocSnapshot> BpmProcessDocSnapshots => Set<BpmProcessDocSnapshot>();
+    public DbSet<BpmToken> BpmTokens => Set<BpmToken>();
     public DbSet<BpmVersionMigrationPackage> BpmVersionMigrationPackages => Set<BpmVersionMigrationPackage>();
     public DbSet<BpmVersionMigrationItem> BpmVersionMigrationItems => Set<BpmVersionMigrationItem>();
     public DbSet<BpmTaskForm> BpmTaskForms => Set<BpmTaskForm>();
@@ -890,6 +891,30 @@ public class AppDbContext : DbContext
              .WithMany()
              .HasForeignKey(i => i.TargetVersionId)
              .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ─── Токены выполнения BPMN ──────────────────────────────────────────────
+
+        modelBuilder.Entity<BpmToken>(e =>
+        {
+            e.ToTable("bpm_tokens");
+            e.HasKey(t => t.Id);
+            e.Property(t => t.ElementId).IsRequired().HasMaxLength(200);
+            e.Property(t => t.ElementType).IsRequired().HasMaxLength(100);
+            e.Property(t => t.ElementName).HasMaxLength(500);
+            e.Property(t => t.Status).HasConversion<int>();
+            e.Property(t => t.SignalCode).HasMaxLength(200);
+            e.Property(t => t.MessageCode).HasMaxLength(200);
+            e.Property(t => t.CorrelationKey).HasMaxLength(500);
+
+            e.HasIndex(t => t.InstanceId);
+            e.HasIndex(t => new { t.Status, t.SignalCode });
+            e.HasIndex(t => new { t.Status, t.MessageCode });
+
+            e.HasOne(t => t.Instance)
+             .WithMany()
+             .HasForeignKey(t => t.InstanceId)
+             .OnDelete(DeleteBehavior.Cascade);
         });
     }
 

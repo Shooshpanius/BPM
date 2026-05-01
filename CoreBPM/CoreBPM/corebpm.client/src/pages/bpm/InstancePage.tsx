@@ -7,6 +7,7 @@ import type {
     BpmInstanceParticipantDto,
     BpmHistoryEventType,
     BpmProcessVersionInfoDto,
+    BpmTokenDto,
 } from '../../api/bpmApi';
 import { getDirectoryEmployees } from '../../api/orgDirectoryApi';
 import './InstancePage.css';
@@ -141,6 +142,10 @@ export function InstancePage({ instanceId, onBack }: Props) {
     const [switchingVersion, setSwitchingVersion] = useState(false);
     const [switchVersionError, setSwitchVersionError] = useState<string | null>(null);
 
+    // ─── Токены выполнения ────────────────────────────────────────────────────
+    const [tokens, setTokens] = useState<BpmTokenDto[]>([]);
+    const [completingToken, setCompletingToken] = useState<string | null>(null);
+
     const isActive = instance?.state === 'Active';
     const isSuspended = instance?.state === 'Suspended';
     const canManage = instance?.state !== 'Cancelled' && instance?.state !== 'Completed';
@@ -171,12 +176,19 @@ export function InstancePage({ instanceId, onBack }: Props) {
         } catch { /* не критично */ }
     }, [token, instanceId]);
 
+    const loadTokens = useCallback(async () => {
+        if (!token) return;
+        try {
+            setTokens(await api.getTokens(token, instanceId));
+        } catch { /* не критично */ }
+    }, [token, instanceId]);
+
     const loadAll = useCallback(async () => {
         setLoading(true);
         setError(null);
-        await Promise.all([loadInstance(), loadHistory(), loadParticipants()]);
+        await Promise.all([loadInstance(), loadHistory(), loadParticipants(), loadTokens()]);
         setLoading(false);
-    }, [loadInstance, loadHistory, loadParticipants]);
+    }, [loadInstance, loadHistory, loadParticipants, loadTokens]);
 
     useEffect(() => { loadAll(); }, [loadAll]);
 
@@ -276,6 +288,18 @@ export function InstancePage({ instanceId, onBack }: Props) {
             setParticipants(prev => prev.filter(p => p.userId !== pUserId));
             await loadHistory();
         } catch (e) { setError(e instanceof Error ? e.message : 'Ошибка'); }
+    };
+
+    // ─── Завершение UserTask ──────────────────────────────────────────────────
+
+    const handleCompleteToken = async (elementId: string) => {
+        if (!token) return;
+        setCompletingToken(elementId);
+        try {
+            await api.completeToken(token, instanceId, elementId, {});
+            await loadAll();
+        } catch (e) { setError(e instanceof Error ? e.message : 'Ошибка выполнения задания'); }
+        finally { setCompletingToken(null); }
     };
 
     // ─── Переключение версии ─────────────────────────────────────────────────
@@ -382,7 +406,12 @@ export function InstancePage({ instanceId, onBack }: Props) {
                 {error && <div className="inst-error">{error}</div>}
 
                 {activeTab === 'overview' && (
-                    <OverviewTab instance={instance} />
+                    <OverviewTab
+                        instance={instance}
+                        tokens={tokens}
+                        onCompleteToken={canManage ? handleCompleteToken : undefined}
+                        completingToken={completingToken}
+                    />
                 )}
 
                 {activeTab === 'variables' && (
@@ -551,7 +580,30 @@ const TAB_LABELS: Record<TabId, string> = {
 
 // ─── Вкладка «Обзор» ─────────────────────────────────────────────────────────
 
-function OverviewTab({ instance }: { instance: BpmInstanceDto }) {
+const TOKEN_STATUS_LABELS: Record<api.BpmTokenStatus, string> = {
+    Active: 'Активен',
+    WaitingUserAction: 'Ожидает действия',
+    WaitingSignal: 'Ожидает сигнал',
+    WaitingMessage: 'Ожидает сообщение',
+    Completed: 'Завершён',
+};
+
+const TOKEN_STATUS_CLASS: Record<api.BpmTokenStatus, string> = {
+    Active: 'inst-token-active',
+    WaitingUserAction: 'inst-token-waiting',
+    WaitingSignal: 'inst-token-signal',
+    WaitingMessage: 'inst-token-message',
+    Completed: 'inst-token-completed',
+};
+
+interface OverviewTabProps {
+    instance: BpmInstanceDto;
+    tokens: BpmTokenDto[];
+    onCompleteToken?: (elementId: string) => void;
+    completingToken: string | null;
+}
+
+function OverviewTab({ instance, tokens, onCompleteToken, completingToken }: OverviewTabProps) {
     return (
         <div className="inst-overview-grid">
             <div className="inst-info-card">
@@ -625,6 +677,41 @@ function OverviewTab({ instance }: { instance: BpmInstanceDto }) {
                     <span className="inst-info-value">{formatDateTime(instance.updatedAt)}</span>
                 </div>
             </div>
+
+            {/* Блок активных токенов */}
+            {tokens.length > 0 && (
+                <div className="inst-info-card inst-tokens-card">
+                    <p className="inst-info-card-title">Активные токены</p>
+                    <div className="inst-tokens-list">
+                        {tokens.map(t => (
+                            <div key={t.id} className="inst-token-row">
+                                <div className="inst-token-info">
+                                    <span className={`inst-token-badge ${TOKEN_STATUS_CLASS[t.status]}`}>
+                                        {TOKEN_STATUS_LABELS[t.status]}
+                                    </span>
+                                    <span className="inst-token-name">
+                                        {t.elementName ?? t.elementId}
+                                    </span>
+                                    <span className="inst-token-type" title={t.elementId}>
+                                        {t.elementType}
+                                    </span>
+                                </div>
+                                {t.status === 'WaitingUserAction' && onCompleteToken && (
+                                    <button
+                                        className="inst-btn-primary"
+                                        style={{ padding: '4px 12px', fontSize: 12 }}
+                                        onClick={() => onCompleteToken(t.elementId)}
+                                        disabled={completingToken === t.elementId}
+                                        title="Выполнить задание"
+                                    >
+                                        {completingToken === t.elementId ? '…' : '✓ Выполнить'}
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
