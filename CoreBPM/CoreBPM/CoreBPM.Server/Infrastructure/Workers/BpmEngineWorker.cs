@@ -16,6 +16,9 @@ public class BpmEngineWorker : BackgroundService
 {
     private static readonly TimeSpan PollingInterval = TimeSpan.FromSeconds(5);
 
+    /// <summary>Максимальная длина сообщения об ошибке, сохраняемого в БД.</summary>
+    private const int MaxErrorLength = 4000;
+
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<BpmEngineWorker> _logger;
     private readonly string _serverHost;
@@ -105,7 +108,7 @@ public class BpmEngineWorker : BackgroundService
                 if (job != null && job.Status == BpmJobStatus.Running)
                 {
                     job.Status = BpmJobStatus.Failed;
-                    job.LastError = ex.Message.Length > 4000 ? ex.Message[..4000] : ex.Message;
+                    job.LastError = ex.Message.Length > MaxErrorLength ? ex.Message[..MaxErrorLength] : ex.Message;
                     job.FailedAt = DateTimeOffset.UtcNow;
                     job.UpdatedAt = DateTimeOffset.UtcNow;
                     await db.SaveChangesAsync(ct);

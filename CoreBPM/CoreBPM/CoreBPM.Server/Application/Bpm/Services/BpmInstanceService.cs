@@ -187,13 +187,14 @@ public class BpmInstanceService : IBpmInstanceService
             UpdatedAt = now,
         };
 
-        var variables2 = BuildVariables(instance.Id, request.Variables, now);
-        instance.Variables = variables2;
+        var webhookVariables = BuildVariables(instance.Id, request.Variables, now);
+        instance.Variables = webhookVariables;
 
         _db.BpmInstances.Add(instance);
         await _db.SaveChangesAsync(ct);
 
-        // Запускаем движок выполнения (fire-and-forget)
+        // Запускаем движок выполнения (fire-and-forget с CancellationToken.None:
+        // запрос уже завершён, но движок должен продолжить работу)
         _ = _engine.StartAsync(instance.Id, CancellationToken.None);
 
         return await GetInstanceByIdAsync(instance.Id, ct);

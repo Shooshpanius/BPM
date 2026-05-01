@@ -14,6 +14,9 @@ public class BpmExecutionEngine : IBpmExecutionEngine
 {
     private static readonly XNamespace Bpmn = "http://www.omg.org/spec/BPMN/20100524/MODEL";
 
+    /// <summary>Максимальная длина сообщения об ошибке, сохраняемого в БД.</summary>
+    private const int MaxErrorLength = 4000;
+
     private readonly AppDbContext _db;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<BpmExecutionEngine> _logger;
@@ -72,7 +75,7 @@ public class BpmExecutionEngine : IBpmExecutionEngine
             instance.State == BpmInstanceState.Completed ||
             instance.State == BpmInstanceState.Suspended)
         {
-            _logger.LogDebug("AdvanceFromAsync пропущен: экземпляр {InstanceId} в состоянии {State}", instanceId, instance.State);
+            _logger.LogDebug("AdvanceFromAsync пропущен: экземпляр {InstanceId} в состоянии {State}", instanceId, instance.State.ToString());
             return;
         }
 
@@ -183,29 +186,32 @@ public class BpmExecutionEngine : IBpmExecutionEngine
 
         var now = DateTimeOffset.UtcNow;
 
-        // Сохраняем выходные переменные
-        if (outputVariables != null)
+        // Сохраняем выходные переменные (загружаем все за один запрос для избежания N+1)
+        if (outputVariables != null && outputVariables.Count > 0)
         {
+            var varNames = outputVariables.Keys.Select(k => k.Trim()).ToList();
+            var existingVars = await _db.BpmInstanceVariables
+                .Where(v => v.InstanceId == instanceId && varNames.Contains(v.Name))
+                .ToDictionaryAsync(v => v.Name, ct);
+
             foreach (var kv in outputVariables)
             {
-                var variable = await _db.BpmInstanceVariables
-                    .FirstOrDefaultAsync(v => v.InstanceId == instanceId && v.Name == kv.Key, ct);
-
-                if (variable == null)
+                var name = kv.Key.Trim();
+                if (existingVars.TryGetValue(name, out var variable))
+                {
+                    variable.ValueJson = kv.Value;
+                    variable.SetAt = now;
+                }
+                else
                 {
                     _db.BpmInstanceVariables.Add(new BpmInstanceVariable
                     {
                         Id = Guid.NewGuid(),
                         InstanceId = instanceId,
-                        Name = kv.Key.Trim(),
+                        Name = name,
                         ValueJson = kv.Value,
                         SetAt = now,
                     });
-                }
-                else
-                {
-                    variable.ValueJson = kv.Value;
-                    variable.SetAt = now;
                 }
             }
         }
@@ -357,7 +363,7 @@ public class BpmExecutionEngine : IBpmExecutionEngine
         {
             _logger.LogError(ex, "Ошибка выполнения задания {JobId} ({ElementType} #{Attempt})", jobId, job.ElementType, job.AttemptNumber);
 
-            job.LastError = ex.Message.Length > 4000 ? ex.Message[..4000] : ex.Message;
+            job.LastError = ex.Message.Length > MaxErrorLength ? ex.Message[..MaxErrorLength] : ex.Message;
             job.FailedAt = now;
 
             if (job.AttemptNumber >= job.MaxAttempts)
