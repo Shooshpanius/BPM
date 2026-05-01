@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using CoreBPM.Server.Application.Bpm.DTOs;
 using CoreBPM.Server.Application.Bpm.Interfaces;
+using CoreBPM.Server.Application.Bpm.Scripting;
 using CoreBPM.Server.Domain.Bpm;
 using CoreBPM.Server.Infrastructure.Persistence;
 
@@ -17,17 +18,23 @@ public class BpmExecutionEngine : IBpmExecutionEngine
     /// <summary>Максимальная длина сообщения об ошибке, сохраняемого в БД.</summary>
     private const int MaxErrorLength = 4000;
 
+    /// <summary>Таймаут выполнения ScriptTask по умолчанию (мс).</summary>
+    private const int ScriptTimeoutMs = 30_000;
+
     private readonly AppDbContext _db;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IBpmScriptExecutor _scriptExecutor;
     private readonly ILogger<BpmExecutionEngine> _logger;
 
     public BpmExecutionEngine(
         AppDbContext db,
         IHttpClientFactory httpClientFactory,
+        IBpmScriptExecutor scriptExecutor,
         ILogger<BpmExecutionEngine> logger)
     {
         _db = db;
         _httpClientFactory = httpClientFactory;
+        _scriptExecutor = scriptExecutor;
         _logger = logger;
     }
 
@@ -701,7 +708,7 @@ public class BpmExecutionEngine : IBpmExecutionEngine
                 break;
 
             case "scriptTask":
-                ExecuteScriptTaskStub(job);
+                await ExecuteScriptTaskAsync(job, instance, configJson, ct);
                 break;
 
             case "businessRuleTask":
@@ -855,12 +862,132 @@ public class BpmExecutionEngine : IBpmExecutionEngine
         }
     }
 
-    private void ExecuteScriptTaskStub(BpmExecutionJob job)
+    private async Task ExecuteScriptTaskAsync(
+        BpmExecutionJob job,
+        BpmInstance instance,
+        string? configJson,
+        CancellationToken ct)
     {
-        // Roslyn-скриптинг не реализован: фиксируем как выполненный без реального запуска
+        // 1. Получаем тело сценария: сначала из configJson (inline), потом из BpmScriptModule
+        var scriptCode = await ResolveScriptCodeAsync(job, configJson, ct);
+
+        if (string.IsNullOrWhiteSpace(scriptCode))
+        {
+            _logger.LogWarning(
+                "ScriptTask [{ElementId}]: тело сценария не найдено (ни inline, ни в BpmScriptModule). " +
+                "Узел пропускается как выполненный.",
+                job.ElementId);
+            return;
+        }
+
+        // 2. Загружаем переменные экземпляра для контекста
+        var variables = await _db.BpmInstanceVariables
+            .AsNoTracking()
+            .Where(v => v.InstanceId == instance.Id)
+            .ToDictionaryAsync(v => v.Name, v => v.ValueJson, ct);
+
+        // 3. Собираем контекст
+        var httpClient = _httpClientFactory.CreateClient("BpmEngine");
+        var context = new ScriptContext(
+            instanceId: instance.Id,
+            processId: instance.ProcessId,
+            processVersionId: instance.ProcessVersionId,
+            elementId: job.ElementId,
+            variables: variables,
+            logger: _logger,
+            httpClient: httpClient);
+
+        // 4. Выполняем сценарий
         _logger.LogInformation(
-            "ScriptTask [{ElementId}]: выполнение C#-сценариев отложено (Roslyn не подключён). Узел считается завершённым.",
-            job.ElementId);
+            "ScriptTask [{ElementId}]: запуск сценария (экземпляр {InstanceId})",
+            job.ElementId, instance.Id);
+
+        await _scriptExecutor.ExecuteAsync(scriptCode, context, ScriptTimeoutMs, ct);
+
+        // 5. Сохраняем изменённые переменные
+        var outputVars = context.OutputVariables;
+        if (outputVars.Count > 0)
+        {
+            var varNames = outputVars.Select(v => v.Name).ToList();
+            var existingVars = await _db.BpmInstanceVariables
+                .Where(v => v.InstanceId == instance.Id && varNames.Contains(v.Name))
+                .ToDictionaryAsync(v => v.Name, ct);
+
+            var now = DateTimeOffset.UtcNow;
+            foreach (var (name, value) in outputVars)
+            {
+                if (existingVars.TryGetValue(name, out var existing))
+                {
+                    existing.ValueJson = value;
+                    existing.SetAt = now;
+                }
+                else
+                {
+                    _db.BpmInstanceVariables.Add(new BpmInstanceVariable
+                    {
+                        Id = Guid.NewGuid(),
+                        InstanceId = instance.Id,
+                        Name = name,
+                        ValueJson = value,
+                        SetAt = now,
+                    });
+                }
+            }
+
+            _logger.LogInformation(
+                "ScriptTask [{ElementId}]: сохранено {Count} выходных переменных",
+                job.ElementId, outputVars.Count);
+        }
+    }
+
+    /// <summary>
+    /// Разрешает тело сценария для ScriptTask:
+    /// 1) Inline поле <c>script</c> в configJson элемента.
+    /// 2) Модуль сценариев <see cref="BpmScriptModule"/> для версии процесса.
+    /// </summary>
+    private async Task<string?> ResolveScriptCodeAsync(
+        BpmExecutionJob job,
+        string? configJson,
+        CancellationToken ct)
+    {
+        // Попытка 1: inline-скрипт в конфигурации элемента
+        if (!string.IsNullOrWhiteSpace(configJson))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(configJson);
+                if (doc.RootElement.TryGetProperty("script", out var scriptProp))
+                {
+                    var inline = scriptProp.GetString();
+                    if (!string.IsNullOrWhiteSpace(inline))
+                    {
+                        _logger.LogDebug("ScriptTask [{ElementId}]: используется inline-сценарий", job.ElementId);
+                        return inline;
+                    }
+                }
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogWarning(ex, "ScriptTask [{ElementId}]: ошибка разбора configJson", job.ElementId);
+            }
+        }
+
+        // Попытка 2: BpmScriptModule для версии процесса
+        var module = await _db.BpmScriptModules
+            .AsNoTracking()
+            .Where(m => m.ProcessVersionId == job.ProcessVersionId && m.PublishedAt != null)
+            .OrderByDescending(m => m.PublishedAt)
+            .FirstOrDefaultAsync(ct);
+
+        if (module != null && !string.IsNullOrWhiteSpace(module.ScriptBody))
+        {
+            _logger.LogDebug(
+                "ScriptTask [{ElementId}]: используется BpmScriptModule {ModuleId}",
+                job.ElementId, module.Id);
+            return module.ScriptBody;
+        }
+
+        return null;
     }
 
     private void ExecuteBusinessRuleTaskStub(BpmExecutionJob job)

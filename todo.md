@@ -713,6 +713,7 @@
   - `intermediateCatchEvent` → токен `WaitingSignal` / `WaitingMessage`; `intermediateThrowEvent` → рассылка сигнала + немедленное продвижение
   - **ServiceTask op=HttpCall**: HTTP-вызов к внешнему URL с подстановкой переменных `{{var}}`; **op=ChangeInstanceStatus**: обновление переменной статуса
   - **ScriptTask / BusinessRuleTask**: заглушка с логированием (Roslyn не в зависимостях — отложено)
+  - **ScriptTask**: реальное выполнение C#-сценариев через Roslyn (`Microsoft.CodeAnalysis.CSharp.Scripting 5.3.0`); кэш компиляции по SHA-256; контекст `ScriptContext` (переменные, логгер, HttpClient); таймаут 30 с; inline-скрипт из configJson поля `script` или из опубликованного `BpmScriptModule`; изменения переменных сохраняются в БД
   - При успехе задания: `NodeExecuted` + `AdvanceFromAsync`; при исчерпании попыток: `NodeFailed` + `State = Faulted`; retry с экспоненциальной задержкой
   - Оценка условий `ConditionExpression`: поддержка `==`, `!=`, `>=`, `<=`, `>`, `<`; JUEL/FEEL-обёртки `${...}` / `#{...}`; подстановка переменных экземпляра
 - [x] **`BpmEngineWorker`** (`BackgroundService`): polling каждые 5 секунд; атомарный захват до 20 заданий (`Status = Running`, `ServerHost`, `AttemptNumber++`); параллельное выполнение через `IServiceScopeFactory`; защита от зависших заданий (установка `Failed` при необработанном исключении)
@@ -720,7 +721,7 @@
 - [x] **API токенов**: `GET /api/bpm/instances/{id}/tokens` — активные токены для карты экземпляра; `POST /api/bpm/instances/{id}/tokens/{elementId}/complete` — завершение UserTask с выходными переменными
 - [x] **API событий**: `POST /api/events/signals/{signalCode}` — рассылка сигнала; `POST /api/events/messages/{messageCode}` — доставка сообщения с `correlationKey`
 - [x] **Frontend**: `bpmApi.ts` — типы `BpmTokenDto`, `BpmTokenStatus`; функции `getTokens`, `completeToken`, `sendSignal`, `sendMessage`; `InstancePage.tsx` — блок «Активные токены» на вкладке «Обзор» с кнопкой «Выполнить» для токенов `WaitingUserAction`
-- Отложено: Roslyn-скриптинг (ScriptTask), Join-семантика ParallelGateway/InclusiveGateway (AND-join), граничные события в runtime, Call Activity с передачей переменных, карта процесса с маркировкой токенов на диаграмме
+- Отложено: Join-семантика ParallelGateway/InclusiveGateway (AND-join), граничные события в runtime, Call Activity с передачей переменных, карта процесса с маркировкой токенов на диаграмме, BusinessRuleTask (DMN-движок)
 
 ---
 

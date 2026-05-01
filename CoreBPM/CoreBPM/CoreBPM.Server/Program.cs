@@ -1,6 +1,7 @@
 using CoreBPM.Server.Application.Admin.Interfaces;
 using CoreBPM.Server.Application.Admin.Services;
 using CoreBPM.Server.Application.Bpm.Interfaces;
+using CoreBPM.Server.Application.Bpm.Scripting;
 using CoreBPM.Server.Application.Bpm.Services;
 using CoreBPM.Server.Application.Org.Interfaces;
 using CoreBPM.Server.Application.Org.Services;
@@ -127,6 +128,7 @@ builder.Services.AddScoped<IFormService, FormService>();
 
 // Регистрация движка выполнения BPMN (FR-BPM Execution Engine)
 builder.Services.AddHttpClient("BpmEngine");
+builder.Services.AddSingleton<IBpmScriptExecutor, BpmRoslynScriptExecutor>();
 builder.Services.AddScoped<IBpmExecutionEngine, BpmExecutionEngine>();
 builder.Services.AddHostedService<BpmEngineWorker>();
 
