@@ -16,4 +16,7 @@ public interface IBpmScriptService
 
     /// <summary>Возвращает список процессов с версиями и информацией о статусе сценариев.</summary>
     Task<IReadOnlyList<BpmProcessVersionScriptInfoDto>> ListProcessVersionScriptsAsync(Guid organizationId, CancellationToken ct = default);
+
+    /// <summary>Возвращает список всех опубликованных модулей сценариев для процесса (все версии).</summary>
+    Task<IReadOnlyList<BpmScriptModuleSummaryDto>> ListPublishedModulesAsync(Guid processId, CancellationToken ct = default);
 }
