@@ -126,11 +126,13 @@ public class BpmEngineWorker : BackgroundService
     /// <summary>
     /// Выполняет группу заданий (одного экземпляра) последовательно,
     /// чтобы исключить конкурентные обновления токенов и шлюзовых счётчиков.
+    /// Каждое задание выполняется независимо: ошибка в одном не останавливает остальные.
     /// </summary>
     private async Task ExecuteGroupSafeAsync(IReadOnlyList<Guid> jobIds, CancellationToken ct)
     {
         foreach (var jobId in jobIds)
         {
+            if (ct.IsCancellationRequested) break;
             await ExecuteJobSafeAsync(jobId, ct);
         }
     }
