@@ -111,6 +111,25 @@ public class BpmDiagramController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>
+    /// Импортирует BPMN XML-файл как новый черновик версии процесса.
+    /// </summary>
+    [HttpPost("import")]
+    [ProducesResponseType(typeof(BpmDiagramDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<BpmDiagramDto>> Import(
+        Guid processId,
+        [FromBody] ImportDiagramRequest request,
+        CancellationToken ct)
+    {
+        var userId = GetCurrentUserId()
+            ?? throw new UnauthorizedAccessException("Не удалось определить идентификатор пользователя");
+
+        var result = await _service.ImportDiagramAsync(processId, request.DiagramXml, userId, ct);
+        return CreatedAtAction(nameof(Get), new { processId }, result);
+    }
+
     // ─── Вспомогательные методы ───
 
     private Guid? GetCurrentUserId()

@@ -92,6 +92,10 @@ export function BpmnDesignerPage({ processId, onBack }: BpmnDesignerPageProps) {
     const [debugError, setDebugError] = useState<string | null>(null);
     const [busyDocument, setBusyDocument] = useState(false);
 
+    // ─── Экспорт / Импорт ────────────────────────────────────────────────────────
+    const [showExportMenu, setShowExportMenu] = useState(false);
+    const importFileRef = useRef<HTMLInputElement>(null);
+
     // ─── Миникарта ───────────────────────────────────────────────────────────
     const [minimapVisible, setMinimapVisible] = useState(true);
 
@@ -448,6 +452,72 @@ export function BpmnDesignerPage({ processId, onBack }: BpmnDesignerPageProps) {
         onBack();
     };
 
+    const handleExportSVG = async () => {
+        if (!modelerRef.current) return;
+        setShowExportMenu(false);
+        try {
+            const { svg } = await modelerRef.current.saveSVG();
+            const blob = new Blob([svg], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${process?.name ?? 'diagram'}.svg`;
+            link.click();
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            setSaveError(e instanceof Error ? e.message : 'Ошибка экспорта SVG');
+        }
+    };
+
+    const handleExportPNG = async () => {
+        if (!modelerRef.current) return;
+        setShowExportMenu(false);
+        try {
+            const { svg } = await modelerRef.current.saveSVG();
+            const img = new Image();
+            const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(svgBlob);
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width || 1200;
+                canvas.height = img.height || 800;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) return;
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0);
+                URL.revokeObjectURL(url);
+                canvas.toBlob(blob => {
+                    if (!blob) return;
+                    const pngUrl = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = pngUrl;
+                    link.download = `${process?.name ?? 'diagram'}.png`;
+                    link.click();
+                    URL.revokeObjectURL(pngUrl);
+                }, 'image/png');
+            };
+            img.src = url;
+        } catch (e) {
+            setSaveError(e instanceof Error ? e.message : 'Ошибка экспорта PNG');
+        }
+    };
+
+    const handleImportBpmn = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !token) return;
+        try {
+            const text = await file.text();
+            const imported = await api.importDiagram(token, processId, text);
+            await refreshVersions();
+            await loadDiagramIntoCanvas(imported);
+        } catch (err) {
+            setSaveError(err instanceof Error ? err.message : 'Ошибка импорта');
+        } finally {
+            if (importFileRef.current) importFileRef.current.value = '';
+        }
+    };
+
     // ─── Авто-раскладка ───────────────────────────────────────────────────────
 
     const handleAutoLayout = async () => {
@@ -530,6 +600,15 @@ export function BpmnDesignerPage({ processId, onBack }: BpmnDesignerPageProps) {
         return () => window.removeEventListener('keydown', handler);
     }, [showSearch]);
 
+    // ─── Закрытие меню экспорта по клику вне ──────────────────────────────────
+
+    useEffect(() => {
+        if (!showExportMenu) return;
+        const handler = () => setShowExportMenu(false);
+        document.addEventListener('click', handler, { once: true });
+        return () => document.removeEventListener('click', handler);
+    }, [showExportMenu]);
+
     const statusLabel = isReadOnly ? 'Просмотр версии' : STATUS_LABELS[saveStatus];
 
     return (
@@ -578,6 +657,38 @@ export function BpmnDesignerPage({ processId, onBack }: BpmnDesignerPageProps) {
                     >
                         🔍 Поиск
                     </button>
+                    {/* Экспорт */}
+                    <div style={{ position: 'relative', display: 'inline-block' }}>
+                        <button
+                            className="bpd-tool-btn bpd-tool-btn--wide"
+                            onClick={e => { e.stopPropagation(); setShowExportMenu(v => !v); }}
+                            title="Экспорт диаграммы"
+                        >
+                            ↑ Экспорт
+                        </button>
+                        {showExportMenu && (
+                            <div className="bpd-export-menu" role="menu">
+                                <button className="bpd-export-menu-item" onClick={handleExportSVG}>SVG</button>
+                                <button className="bpd-export-menu-item" onClick={handleExportPNG}>PNG</button>
+                            </div>
+                        )}
+                    </div>
+                    {/* Импорт */}
+                    <button
+                        className="bpd-tool-btn bpd-tool-btn--wide"
+                        onClick={() => importFileRef.current?.click()}
+                        disabled={isReadOnly}
+                        title="Импорт BPMN XML"
+                    >
+                        ↓ Импорт
+                    </button>
+                    <input
+                        ref={importFileRef}
+                        type="file"
+                        accept=".bpmn,.xml"
+                        style={{ display: 'none' }}
+                        onChange={handleImportBpmn}
+                    />
                 </div>
                 <div className="bpd-toolbar-sep" role="separator" />
                 <button

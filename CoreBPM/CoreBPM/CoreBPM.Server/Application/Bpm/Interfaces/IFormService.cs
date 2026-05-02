@@ -38,4 +38,10 @@ public interface IFormService
 
     /// <summary>Откат к версии: создаёт копию с новым номером версии.</summary>
     Task<FormVersionDto> RollbackVersionAsync(Guid formId, Guid versionId, CancellationToken ct = default);
+
+    /// <summary>Экспортирует версию формы как JSON-байты.</summary>
+    Task<byte[]> ExportVersionAsync(Guid formId, Guid versionId, CancellationToken ct = default);
+
+    /// <summary>Импортирует JSON-данные как новый черновик версии формы.</summary>
+    Task<FormVersionDto> ImportVersionAsync(Guid formId, byte[] jsonData, CancellationToken ct = default);
 }

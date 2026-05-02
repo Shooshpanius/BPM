@@ -1270,3 +1270,10 @@ export const sendMessage = (token: string, messageCode: string, data: SendMessag
         method: 'POST',
         body: JSON.stringify(data),
     });
+
+/** Импортировать BPMN XML как новый черновик версии. */
+export const importDiagram = (token: string, processId: string, diagramXml: string): Promise<BpmDiagramDto> =>
+    fetchJson(`/api/bpm/processes/${processId}/diagram/import`, token, {
+        method: 'POST',
+        body: JSON.stringify({ diagramXml }),
+    });

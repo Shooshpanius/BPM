@@ -236,3 +236,53 @@ export const deleteGlobalModuleFile = (token: string, moduleId: string, fileId: 
 /** Изменить порядок файлов модуля. */
 export const reorderGlobalModuleFiles = (token: string, moduleId: string, data: ReorderGlobalModuleFilesRequest): Promise<void> =>
     fetchJson(`/api/bpm/designer/global-modules/${moduleId}/files/reorder`, token, { method: 'PUT', body: JSON.stringify(data) });
+
+// ─── Экспорт / Импорт расширений ──────────────────────────────────────────────
+
+/** Экспортировать расширения организации в JSON (возвращает Blob). */
+export const exportExtensions = async (token: string, organizationId: string): Promise<Blob> => {
+    const response = await fetch(`/api/bpm/designer/extensions/export?organizationId=${organizationId}`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.blob();
+};
+
+/** Импортировать расширения из JSON-файла. */
+export const importExtensions = async (token: string, organizationId: string, file: File): Promise<BpmDesignerExtensionDto[]> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await fetch(`/api/bpm/designer/extensions/import?organizationId=${organizationId}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json() as Promise<BpmDesignerExtensionDto[]>;
+};
+
+// ─── Экспорт / Импорт глобальных модулей ─────────────────────────────────────
+
+/** Экспортировать глобальные модули организации в JSON (возвращает Blob). */
+export const exportGlobalModules = async (token: string, organizationId: string): Promise<Blob> => {
+    const response = await fetch(`/api/bpm/designer/global-modules/export?organizationId=${organizationId}`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.blob();
+};
+
+/** Импортировать глобальные модули из JSON-файла. */
+export const importGlobalModules = async (token: string, organizationId: string, file: File): Promise<BpmGlobalModuleDto[]> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await fetch(`/api/bpm/designer/global-modules/import?organizationId=${organizationId}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json() as Promise<BpmGlobalModuleDto[]>;
+};

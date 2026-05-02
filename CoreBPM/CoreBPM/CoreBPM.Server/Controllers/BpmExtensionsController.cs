@@ -86,6 +86,45 @@ public class BpmExtensionsController : ControllerBase
         return CreatedAtAction(nameof(Get), new { id = dto.Id }, dto);
     }
 
+    /// <summary>Экспортирует все расширения организации в JSON-файл.</summary>
+    [HttpGet("export")]
+    [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Export([FromQuery] Guid organizationId, CancellationToken ct)
+    {
+        var data = await _service.ExportAsync(organizationId, ct);
+        return File(data, "application/json", $"extensions-{organizationId}.json");
+    }
+
+    /// <summary>Импортирует расширения из JSON-файла или JSON-тела.</summary>
+    [HttpPost("import")]
+    [ProducesResponseType(typeof(IReadOnlyList<BpmDesignerExtensionDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<IReadOnlyList<BpmDesignerExtensionDto>>> Import(
+        [FromQuery] Guid organizationId,
+        CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        byte[] data;
+
+        if (Request.ContentType?.Contains("multipart/form-data") == true)
+        {
+            var file = Request.Form.Files.FirstOrDefault()
+                ?? throw new CoreBPM.Server.Exceptions.ValidationException("Файл не передан");
+            using var ms = new System.IO.MemoryStream();
+            await file.CopyToAsync(ms, ct);
+            data = ms.ToArray();
+        }
+        else
+        {
+            using var ms = new System.IO.MemoryStream();
+            await Request.Body.CopyToAsync(ms, ct);
+            data = ms.ToArray();
+        }
+
+        var result = await _service.ImportAsync(organizationId, data, userId, ct);
+        return Ok(result);
+    }
+
     // ─── Вспомогательные методы ─────────────────────────────────────────────
 
     private Guid GetCurrentUserId()

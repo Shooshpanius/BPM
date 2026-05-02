@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import * as api from '../../api/formsApi';
 import type {
@@ -57,6 +57,11 @@ const PALETTE_ITEMS: PaletteItem[] = [
     { type: 'html-block',     label: 'HTML-блок',         icon: '<>', category: 'display' },
     // Специальные
     { type: 'approval', label: 'Согласование', icon: '✅', category: 'special' },
+    // Контейнеры
+    { type: 'tab-container',       label: 'Табы',            icon: '📑', category: 'special' },
+    { type: 'accordion-container', label: 'Аккордеон',       icon: '🗂️', category: 'special' },
+    // Вложенная форма
+    { type: 'subform', label: 'Вложенная форма', icon: '📋', category: 'special' },
 ];
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -179,6 +184,30 @@ function FieldPreview({ field }: { field: FormField }) {
                     <textarea className="fb-prev-input" placeholder="Комментарий…" rows={2} disabled />
                 </div>
             );
+        case 'tab-container':
+            return (
+                <div className="fb-prev-tabs">
+                    <div className="fb-prev-tab-header">
+                        {(field.children ?? [{ id: '1', label: 'Вкладка 1', type: 'label' }]).map(c => (
+                            <span key={c.id} className="fb-prev-tab-label">{c.label}</span>
+                        ))}
+                    </div>
+                </div>
+            );
+        case 'accordion-container':
+            return (
+                <div className="fb-prev-accordion">
+                    {(field.children ?? [{ id: '1', label: 'Секция', type: 'label' }]).map(c => (
+                        <div key={c.id} className="fb-prev-accordion-item">▶ {c.label}</div>
+                    ))}
+                </div>
+            );
+        case 'subform':
+            return (
+                <div className="fb-prev-subform">
+                    📋 Вложенная форма: <em>{field.extra?.formId ? String(field.extra.formId) : 'не выбрана'}</em>
+                </div>
+            );
         default:
             return <input className="fb-prev-input" placeholder={field.label} disabled />;
     }
@@ -271,6 +300,28 @@ function PropertiesPanel({ field, onChange }: PropertiesPanelProps) {
                     />
                 </div>
             )}
+
+            {['select', 'radio'].includes(field.type) && (
+                <div className="fb-props-field">
+                    <label>Варианты из переменной</label>
+                    <input className="fb-props-input" value={field.optionsFrom ?? ''} onChange={e => upd('optionsFrom', e.target.value || undefined)} placeholder="имяПеременной" />
+                    <span className="fb-props-hint">Если задано — статичные варианты игнорируются.</span>
+                </div>
+            )}
+
+            {!['label', 'section-header', 'divider', 'html-block'].includes(field.type) && (
+                <div className="fb-props-field">
+                    <label>Условная обязательность (JS)</label>
+                    <input className="fb-props-input" value={field.requiredWhen ?? ''} onChange={e => upd('requiredWhen', e.target.value || undefined)} placeholder="values.status === 'active'" />
+                </div>
+            )}
+
+            {field.type === 'subform' && (
+                <div className="fb-props-field">
+                    <label>ID вложенной формы</label>
+                    <input className="fb-props-input" value={String(field.extra?.formId ?? '')} onChange={e => upd('extra', { ...field.extra, formId: e.target.value || undefined })} placeholder="uuid формы" />
+                </div>
+            )}
         </div>
     );
 }
@@ -296,6 +347,12 @@ export function FormBuilderPage({ formId, onBack }: FormBuilderPageProps) {
     const [publishing, setPublishing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [dirty, setDirty] = useState(false);
+
+    // Режим устройства предпросмотра
+    const [previewDevice, setPreviewDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
+
+    // ref для импорта файла
+    const importFormRef = useRef<HTMLInputElement>(null);
 
     // DnD: активный тип из палитры
     const [activePaletteType, setActivePaletteType] = useState<FormFieldType | null>(null);
@@ -515,6 +572,40 @@ export function FormBuilderPage({ formId, onBack }: FormBuilderPageProps) {
         }
     };
 
+    const handleExportForm = async () => {
+        if (!token || !currentVersion) return;
+        try {
+            const blob = await api.exportFormVersion(token, formId, currentVersion.id);
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `form-${formId}-v${currentVersion.versionNumber}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'Ошибка экспорта');
+        }
+    };
+
+    const handleImportForm = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !token) return;
+        try {
+            const text = await file.text();
+            const json = JSON.parse(text);
+            const vDto = await api.importFormVersion(token, formId, json);
+            setCurrentVersion(vDto);
+            setSchema(vDto.schema ?? EMPTY_SCHEMA);
+            const versionsData = await api.getFormVersions(token, formId);
+            setVersions(versionsData);
+            setDirty(false);
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'Ошибка импорта');
+        } finally {
+            if (importFormRef.current) importFormRef.current.value = '';
+        }
+    };
+
     const STATUS_LABELS: Record<string, string> = { Draft: 'Черновик', Published: 'Опубликована', Archived: 'Архив' };
 
     // ─── Рендер ──────────────────────────────────────────────────────────────
@@ -554,15 +645,52 @@ export function FormBuilderPage({ formId, onBack }: FormBuilderPageProps) {
                         >
                             {publishing ? 'Публикация…' : 'Опубликовать'}
                         </button>
+                        <button
+                            className="fb-btn-secondary"
+                            onClick={handleExportForm}
+                            disabled={!currentVersion}
+                            title="Экспортировать форму в JSON"
+                        >
+                            ↑ Экспорт
+                        </button>
+                        <button
+                            className="fb-btn-secondary"
+                            onClick={() => importFormRef.current?.click()}
+                            title="Импортировать форму из JSON"
+                        >
+                            ↓ Импорт
+                        </button>
+                        <input
+                            ref={importFormRef}
+                            type="file"
+                            accept=".json"
+                            style={{ display: 'none' }}
+                            onChange={handleImportForm}
+                        />
                     </div>
                 </div>
 
                 {error && <div className="fb-error">{error}</div>}
 
+                {showPreview && (
+                    /* Панель переключения устройства */
+                    <div className="fb-device-bar">
+                        {(['desktop', 'tablet', 'mobile'] as const).map(d => (
+                            <button
+                                key={d}
+                                className={`fb-device-btn${previewDevice === d ? ' active' : ''}`}
+                                onClick={() => setPreviewDevice(d)}
+                            >
+                                {d === 'desktop' ? '🖥 Десктоп' : d === 'tablet' ? '📱 Планшет' : '📱 Мобильный'}
+                            </button>
+                        ))}
+                    </div>
+                )}
+
                 {showPreview ? (
                     /* ─── Предпросмотр ─────────────────────────────────────── */
                     <div className="fb-preview-root">
-                        <div className="fb-preview-panel">
+                    <div className={`fb-preview-panel fb-preview-panel--${previewDevice}`}>
                             <h2 className="fb-preview-title">{formName}</h2>
                             {schema.sections.length === 0 && (
                                 <p className="fb-preview-empty">Форма пустая. Добавьте секции и поля в редакторе.</p>

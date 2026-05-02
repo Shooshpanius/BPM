@@ -138,6 +138,45 @@ public class BpmGlobalModulesController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>Экспортирует все глобальные модули организации в JSON-файл.</summary>
+    [HttpGet("export")]
+    [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Export([FromQuery] Guid organizationId, CancellationToken ct)
+    {
+        var data = await _service.ExportAsync(organizationId, ct);
+        return File(data, "application/json", $"global-modules-{organizationId}.json");
+    }
+
+    /// <summary>Импортирует глобальные модули из JSON-файла или JSON-тела.</summary>
+    [HttpPost("import")]
+    [ProducesResponseType(typeof(IReadOnlyList<BpmGlobalModuleDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<IReadOnlyList<BpmGlobalModuleDto>>> Import(
+        [FromQuery] Guid organizationId,
+        CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        byte[] data;
+
+        if (Request.ContentType?.Contains("multipart/form-data") == true)
+        {
+            var file = Request.Form.Files.FirstOrDefault()
+                ?? throw new CoreBPM.Server.Exceptions.ValidationException("Файл не передан");
+            using var ms = new System.IO.MemoryStream();
+            await file.CopyToAsync(ms, ct);
+            data = ms.ToArray();
+        }
+        else
+        {
+            using var ms = new System.IO.MemoryStream();
+            await Request.Body.CopyToAsync(ms, ct);
+            data = ms.ToArray();
+        }
+
+        var result = await _service.ImportAsync(organizationId, data, userId, ct);
+        return Ok(result);
+    }
+
     // ─── Вспомогательные методы ─────────────────────────────────────────────
 
     private Guid GetCurrentUserId()

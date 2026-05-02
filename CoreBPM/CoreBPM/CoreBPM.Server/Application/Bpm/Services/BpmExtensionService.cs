@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using CoreBPM.Server.Application.Bpm.DTOs;
 using CoreBPM.Server.Application.Bpm.Interfaces;
@@ -139,6 +140,56 @@ public class BpmExtensionService : IBpmExtensionService
     }
 
     // ─── Вспомогательные методы ─────────────────────────────────────────────
+
+    /// <inheritdoc />
+    public async Task<byte[]> ExportAsync(Guid organizationId, CancellationToken ct = default)
+    {
+        var items = await ListAsync(organizationId, ct);
+        return JsonSerializer.SerializeToUtf8Bytes(items);
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<BpmDesignerExtensionDto>> ImportAsync(Guid organizationId, byte[] jsonData, Guid createdByUserId, CancellationToken ct = default)
+    {
+        List<JsonElement> elements;
+        try
+        {
+            elements = JsonSerializer.Deserialize<List<JsonElement>>(jsonData)
+                ?? throw new ValidationException("Пустой список расширений");
+        }
+        catch (JsonException ex) { throw new ValidationException($"Невалидный JSON: {ex.Message}"); }
+
+        var result = new List<BpmDesignerExtensionDto>();
+        foreach (var el in elements)
+        {
+            var name = el.TryGetProperty("name", out var nameProp) ? nameProp.GetString() ?? string.Empty : string.Empty;
+            var description = el.TryGetProperty("description", out var descProp) ? descProp.GetString() : null;
+            var folderPath = el.TryGetProperty("folderPath", out var folderProp) ? folderProp.GetString() : null;
+            var scriptBody = el.TryGetProperty("scriptBody", out var scriptProp) ? scriptProp.GetString() ?? string.Empty : string.Empty;
+
+            if (string.IsNullOrWhiteSpace(name)) continue;
+
+            // Проверяем, существует ли расширение с таким именем
+            var existing = await _db.BpmDesignerExtensions
+                .FirstOrDefaultAsync(e => e.OrganizationId == organizationId && e.Name == name, ct);
+
+            if (existing is not null)
+            {
+                existing.Description = description;
+                existing.FolderPath = NormalizeFolderPath(folderPath);
+                existing.ScriptBody = scriptBody;
+                existing.UpdatedAt = DateTimeOffset.UtcNow;
+                await _db.SaveChangesAsync(ct);
+                result.Add(MapToDto(existing));
+            }
+            else
+            {
+                var dto = await CreateAsync(new CreateDesignerExtensionRequest(organizationId, name, description, folderPath, scriptBody), createdByUserId, ct);
+                result.Add(dto);
+            }
+        }
+        return result;
+    }
 
     private static string? NormalizeFolderPath(string? path)
     {
