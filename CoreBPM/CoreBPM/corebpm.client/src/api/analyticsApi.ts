@@ -70,7 +70,12 @@ async function apiFetch<T>(url: string, token: string): Promise<T> {
     });
     if (!res.ok) {
         const text = await res.text().catch(() => '');
-        throw new Error(text || `HTTP ${res.status}`);
+        let message = text || `HTTP ${res.status}`;
+        try {
+            const body = JSON.parse(text);
+            if (body?.error) message = body.error;
+        } catch { /* тело не является JSON */ }
+        throw new Error(message);
     }
     return res.json();
 }
@@ -193,7 +198,12 @@ export const exportAnalyticsSummary = (
     // Создаём временный скрытый link с заголовком Authorization через fetch + Blob
     fetch(url, { headers: { Authorization: `Bearer ${token}` } })
         .then(res => {
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            if (!res.ok) {
+                const text = await res.text().catch(() => '');
+                let message = text || `HTTP ${res.status}`;
+                try { const b = JSON.parse(text); if (b?.error) message = b.error; } catch { /* не JSON */ }
+                throw new Error(message);
+            }
             return res.blob();
         })
         .then(blob => {
