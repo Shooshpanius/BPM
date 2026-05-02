@@ -1,7 +1,9 @@
+using System.Xml.Linq;
 using Microsoft.EntityFrameworkCore;
 using CoreBPM.Server.Application.Bpm.DTOs;
 using CoreBPM.Server.Domain.Bpm;
 using CoreBPM.Server.Exceptions;
+using CoreBPM.Server.Infrastructure.Workers;
 
 namespace CoreBPM.Server.Application.Bpm.Services;
 
@@ -39,6 +41,16 @@ public partial class BpmProcessService
             process.UpdatedAt = now;
 
         await _db.SaveChangesAsync(ct);
+
+        // Синхронизируем задания планировщика для таймерных стартовых событий
+        try
+        {
+            await SyncSchedulerJobsForVersionAsync(processId, versionId, version.DiagramXml, ct);
+        }
+        catch
+        {
+            // Не блокируем публикацию при ошибке синхронизации заданий
+        }
 
         // Генерируем HTML-снапшот документации при публикации версии
         try
@@ -173,6 +185,160 @@ public partial class BpmProcessService
         if (process is not null) process.UpdatedAt = now;
         await _db.SaveChangesAsync(ct);
         return MapVersionToDto(version);
+    }
+
+    /// <summary>
+    /// Разбирает BPMN-диаграмму опубликованной версии и создаёт/обновляет задания планировщика
+    /// для таймерных стартовых событий. Деактивирует задания предыдущих версий процесса.
+    /// </summary>
+    private async Task SyncSchedulerJobsForVersionAsync(
+        Guid processId,
+        Guid versionId,
+        string? diagramXml,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(diagramXml)) return;
+
+        // Парсим XML и находим таймерные стартовые события
+        var timerStartElements = ParseTimerStartEvents(diagramXml);
+
+        // Деактивируем задания предыдущих версий этого процесса
+        var oldJobs = await _db.BpmSchedulerJobs
+            .Where(j => j.ProcessId == processId && j.ProcessVersionId != versionId)
+            .ToListAsync(ct);
+
+        var now = DateTimeOffset.UtcNow;
+        foreach (var old in oldJobs)
+        {
+            old.IsActive = false;
+            old.UpdatedAt = now;
+        }
+
+        // Upsert заданий для новой версии
+        var existingJobs = await _db.BpmSchedulerJobs
+            .Where(j => j.ProcessId == processId && j.ProcessVersionId == versionId)
+            .ToDictionaryAsync(j => j.ElementId, ct);
+
+        foreach (var el in timerStartElements)
+        {
+            if (existingJobs.TryGetValue(el.ElementId, out var job))
+            {
+                // Обновляем существующее задание
+                job.TimerType = el.TimerType;
+                job.TimerValue = el.TimerValue;
+                job.IsActive = true;
+                job.NextFireAt = ComputeSchedulerNextFireAt(el.TimerType, el.TimerValue, now);
+                job.UpdatedAt = now;
+            }
+            else
+            {
+                // Создаём новое задание
+                _db.BpmSchedulerJobs.Add(new BpmSchedulerJob
+                {
+                    Id = Guid.NewGuid(),
+                    ProcessId = processId,
+                    ProcessVersionId = versionId,
+                    ElementId = el.ElementId,
+                    TimerType = el.TimerType,
+                    TimerValue = el.TimerValue,
+                    IsActive = true,
+                    NextFireAt = ComputeSchedulerNextFireAt(el.TimerType, el.TimerValue, now),
+                    CreatedAt = now,
+                    UpdatedAt = now,
+                });
+            }
+        }
+
+        await _db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>Вспомогательная запись с информацией о таймерном стартовом событии из BPMN-диаграммы.</summary>
+    private record TimerStartEventInfo(string ElementId, string TimerType, string TimerValue);
+
+    /// <summary>Извлекает таймерные стартовые события из XML диаграммы.</summary>
+    private static List<TimerStartEventInfo> ParseTimerStartEvents(string xml)
+    {
+        var result = new List<TimerStartEventInfo>();
+        try
+        {
+            XNamespace ns = "http://www.omg.org/spec/BPMN/20100524/MODEL";
+            var doc = XDocument.Parse(xml);
+
+            var startEvents = doc.Descendants(ns + "startEvent")
+                .Concat(doc.Descendants("startEvent"));
+
+            foreach (var startEvent in startEvents)
+            {
+                var id = startEvent.Attribute("id")?.Value;
+                if (string.IsNullOrWhiteSpace(id)) continue;
+
+                var timerDef = startEvent.Descendants(ns + "timerEventDefinition")
+                    .Concat(startEvent.Descendants("timerEventDefinition"))
+                    .FirstOrDefault();
+
+                if (timerDef == null) continue;
+
+                // Определяем тип и значение таймера
+                var duration = timerDef.Element(ns + "timeDuration")?.Value?.Trim()
+                            ?? timerDef.Element("timeDuration")?.Value?.Trim();
+                var cycle = timerDef.Element(ns + "timeCycle")?.Value?.Trim()
+                         ?? timerDef.Element("timeCycle")?.Value?.Trim();
+                var date = timerDef.Element(ns + "timeDate")?.Value?.Trim()
+                        ?? timerDef.Element("timeDate")?.Value?.Trim();
+
+                string timerType;
+                string timerValue;
+
+                if (!string.IsNullOrWhiteSpace(cycle))
+                {
+                    timerType = "timeCycle";
+                    timerValue = cycle;
+                }
+                else if (!string.IsNullOrWhiteSpace(date))
+                {
+                    timerType = "timeDate";
+                    timerValue = date;
+                }
+                else if (!string.IsNullOrWhiteSpace(duration))
+                {
+                    timerType = "timeDuration";
+                    timerValue = duration;
+                }
+                else
+                {
+                    continue;
+                }
+
+                result.Add(new TimerStartEventInfo(id, timerType, timerValue));
+            }
+        }
+        catch
+        {
+            // При ошибке разбора XML — возвращаем пустой список
+        }
+
+        return result;
+    }
+
+    /// <summary>Вычисляет начальное NextFireAt при синхронизации задания из диаграммы.</summary>
+    private static DateTimeOffset? ComputeSchedulerNextFireAt(string timerType, string timerValue, DateTimeOffset now)
+    {
+        if (string.IsNullOrWhiteSpace(timerValue)) return null;
+
+        switch (timerType)
+        {
+            case "timeDate":
+                if (DateTimeOffset.TryParse(timerValue, out var date) && date > now)
+                    return date;
+                return null;
+
+            case "timeDuration":
+            case "timeCycle":
+                return BpmSchedulerWorker.ComputeNextFireAt(timerValue, now);
+
+            default:
+                return null;
+        }
     }
 
     private async Task<BpmProcessVersion> GetCurrentVersionEntityAsync(Guid processId, CancellationToken ct)

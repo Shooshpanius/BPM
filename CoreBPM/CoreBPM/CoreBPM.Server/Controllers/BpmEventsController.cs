@@ -20,9 +20,12 @@ public class BpmEventsController : ControllerBase
     /// <summary>Рассылает сигнал всем экземплярам процессов, ожидающим данный сигнал.</summary>
     [HttpPost("api/events/signals/{signalCode}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public async Task<IActionResult> SendSignal(string signalCode, CancellationToken ct)
+    public async Task<IActionResult> SendSignal(
+        string signalCode,
+        [FromBody] SendSignalRequest? request,
+        CancellationToken ct)
     {
-        await _engine.SendSignalAsync(signalCode, ct);
+        await _engine.SendSignalAsync(signalCode, request?.Variables, ct: ct);
         return NoContent();
     }
 
@@ -34,7 +37,7 @@ public class BpmEventsController : ControllerBase
         [FromBody] SendMessageRequest request,
         CancellationToken ct)
     {
-        await _engine.SendMessageAsync(messageCode, request.CorrelationKey, ct);
+        await _engine.SendMessageAsync(messageCode, request.CorrelationKey, request.Variables, ct: ct);
         return NoContent();
     }
 }

@@ -273,7 +273,7 @@ public class BpmExecutionEngine : IBpmExecutionEngine
     }
 
     /// <inheritdoc />
-    public async Task SendSignalAsync(string signalCode, CancellationToken ct = default)
+    public async Task SendSignalAsync(string signalCode, Dictionary<string, string>? variables = null, CancellationToken ct = default)
     {
         var waitingTokens = await _db.BpmTokens
             .Where(t => t.Status == BpmTokenStatus.WaitingSignal && t.SignalCode == signalCode)
@@ -296,10 +296,13 @@ public class BpmExecutionEngine : IBpmExecutionEngine
             await _db.SaveChangesAsync(ct);
             await AdvanceFromAsync(token.InstanceId, token.ElementId, ct);
         }
+
+        // Запускаем новые экземпляры для процессов с сигнальным стартовым событием
+        await StartInstancesForSignalAsync(signalCode, variables, now, ct);
     }
 
     /// <inheritdoc />
-    public async Task SendMessageAsync(string messageCode, string? correlationKey, CancellationToken ct = default)
+    public async Task SendMessageAsync(string messageCode, string? correlationKey, Dictionary<string, string>? variables = null, CancellationToken ct = default)
     {
         var query = _db.BpmTokens
             .Where(t => t.Status == BpmTokenStatus.WaitingMessage && t.MessageCode == messageCode);
@@ -325,6 +328,150 @@ public class BpmExecutionEngine : IBpmExecutionEngine
             });
             await _db.SaveChangesAsync(ct);
             await AdvanceFromAsync(token.InstanceId, token.ElementId, ct);
+        }
+
+        // Запускаем новые экземпляры для процессов с сообщённым стартовым событием
+        await StartInstancesForMessageAsync(messageCode, correlationKey, variables, now, ct);
+    }
+
+    /// <summary>
+    /// Ищет активные версии процессов с сигнальными стартовыми событиями и запускает новые экземпляры.
+    /// </summary>
+    private async Task StartInstancesForSignalAsync(
+        string signalCode,
+        Dictionary<string, string>? variables,
+        DateTimeOffset now,
+        CancellationToken ct)
+    {
+        // Загружаем все активные версии процессов с XML
+        var activeVersions = await _db.BpmProcessVersions
+            .AsNoTracking()
+            .Include(v => v.Process)
+            .Where(v => v.Status == BpmProcessVersionStatus.Active && v.DiagramXml != null)
+            .ToListAsync(ct);
+
+        foreach (var version in activeVersions)
+        {
+            ProcessModel model;
+            try { model = ParseXml(version.Id, version.DiagramXml!); }
+            catch { continue; }
+
+            // Ищем стартовые события с соответствующим SignalCode
+            var matchingStarts = model.StartEvents
+                .Where(e => string.Equals(e.SignalCode, signalCode, StringComparison.Ordinal))
+                .ToList();
+
+            foreach (var startEl in matchingStarts)
+            {
+                var instance = new BpmInstance
+                {
+                    Id = Guid.NewGuid(),
+                    ProcessId = version.ProcessId,
+                    ProcessVersionId = version.Id,
+                    Name = $"{version.Process?.Name ?? version.ProcessId.ToString()} — сигнал «{signalCode}» {now:dd.MM.yyyy HH:mm}",
+                    State = BpmInstanceState.Active,
+                    LaunchSource = BpmInstanceLaunchSource.Signal,
+                    StartedAt = now,
+                    UpdatedAt = now,
+                };
+                _db.BpmInstances.Add(instance);
+
+                // Передаём входные переменные в новый экземпляр
+                if (variables != null)
+                {
+                    foreach (var kv in variables)
+                    {
+                        _db.BpmInstanceVariables.Add(new BpmInstanceVariable
+                        {
+                            Id = Guid.NewGuid(),
+                            InstanceId = instance.Id,
+                            Name = kv.Key,
+                            ValueJson = JsonSerializer.Serialize(kv.Value),
+                            SetAt = now,
+                        });
+                    }
+                }
+
+                await _db.SaveChangesAsync(ct);
+
+                // Санируем код сигнала перед записью в лог
+                var safeSignalCode = signalCode.Replace('\n', '_').Replace('\r', '_');
+                _logger.LogInformation(
+                    "Signal «{SignalCode}»: запущен экземпляр {InstanceId} процесса {ProcessId} (стартовый элемент «{ElementId}»)",
+                    safeSignalCode, instance.Id, version.ProcessId, startEl.Id);
+
+                _ = StartAsync(instance.Id, CancellationToken.None);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Ищет активные версии процессов с сообщёнными стартовыми событиями и запускает новые экземпляры.
+    /// </summary>
+    private async Task StartInstancesForMessageAsync(
+        string messageCode,
+        string? correlationKey,
+        Dictionary<string, string>? variables,
+        DateTimeOffset now,
+        CancellationToken ct)
+    {
+        var activeVersions = await _db.BpmProcessVersions
+            .AsNoTracking()
+            .Include(v => v.Process)
+            .Where(v => v.Status == BpmProcessVersionStatus.Active && v.DiagramXml != null)
+            .ToListAsync(ct);
+
+        foreach (var version in activeVersions)
+        {
+            ProcessModel model;
+            try { model = ParseXml(version.Id, version.DiagramXml!); }
+            catch { continue; }
+
+            var matchingStarts = model.StartEvents
+                .Where(e => string.Equals(e.MessageCode, messageCode, StringComparison.Ordinal))
+                .ToList();
+
+            foreach (var startEl in matchingStarts)
+            {
+                var instance = new BpmInstance
+                {
+                    Id = Guid.NewGuid(),
+                    ProcessId = version.ProcessId,
+                    ProcessVersionId = version.Id,
+                    Name = $"{version.Process?.Name ?? version.ProcessId.ToString()} — сообщение «{messageCode}» {now:dd.MM.yyyy HH:mm}",
+                    State = BpmInstanceState.Active,
+                    LaunchSource = BpmInstanceLaunchSource.Message,
+                    ExternalReference = correlationKey,
+                    StartedAt = now,
+                    UpdatedAt = now,
+                };
+                _db.BpmInstances.Add(instance);
+
+                if (variables != null)
+                {
+                    foreach (var kv in variables)
+                    {
+                        _db.BpmInstanceVariables.Add(new BpmInstanceVariable
+                        {
+                            Id = Guid.NewGuid(),
+                            InstanceId = instance.Id,
+                            Name = kv.Key,
+                            ValueJson = JsonSerializer.Serialize(kv.Value),
+                            SetAt = now,
+                        });
+                    }
+                }
+
+                await _db.SaveChangesAsync(ct);
+
+                // Санируем код сообщения перед записью в лог
+                var safeMessageCode = messageCode.Replace('\n', '_').Replace('\r', '_');
+                _logger.LogInformation(
+                    "Message «{MessageCode}»: запущен экземпляр {InstanceId} процесса {ProcessId} (стартовый элемент «{ElementId}»)",
+                    safeMessageCode, instance.Id, version.ProcessId, startEl.Id);
+
+                _ = StartAsync(instance.Id, CancellationToken.None);
+            }
         }
     }
 
@@ -633,6 +780,9 @@ public class BpmExecutionEngine : IBpmExecutionEngine
             OccurredAt = now,
         });
 
+        // Применяем выходные маппинги переменных (outputMappings из конфигурации CallActivity)
+        await ApplyCallActivityOutputMappingsAsync(parentInstanceId, childInstanceId, callActivityElementId, now, ct);
+
         await _db.SaveChangesAsync(ct);
 
         // Продвигаем родительский поток
@@ -730,6 +880,9 @@ public class BpmExecutionEngine : IBpmExecutionEngine
         };
         _db.BpmInstances.Add(childInstance);
 
+        // Применяем входные маппинги переменных (inputMappings из конфигурации CallActivity)
+        await ApplyCallActivityInputMappingsAsync(instance, childInstance, elementId, now, ct);
+
         // Устанавливаем токен родителя в ожидание
         await CreateOrUpdateTokenAsync(instance.Id, elementId, "callActivity", elementName, BpmTokenStatus.WaitingCallActivity, now, ct);
 
@@ -748,6 +901,143 @@ public class BpmExecutionEngine : IBpmExecutionEngine
 
         // Запускаем дочерний экземпляр (fire-and-forget)
         _ = StartAsync(childInstance.Id, CancellationToken.None);
+    }
+
+    /// <summary>
+    /// Применяет входные маппинги переменных CallActivity: копирует переменные
+    /// из родительского экземпляра в дочерний согласно настройкам <c>inputMappings</c>.
+    /// Ожидаемый формат ConfigJson: <c>{ "inputMappings": [{ "sourceVar": "x", "targetVar": "y" }] }</c>
+    /// </summary>
+    private async Task ApplyCallActivityInputMappingsAsync(
+        BpmInstance parentInstance,
+        BpmInstance childInstance,
+        string callActivityElementId,
+        DateTimeOffset now,
+        CancellationToken ct)
+    {
+        var configJson = await _db.BpmElementConfigs
+            .AsNoTracking()
+            .Where(c => c.ProcessId == parentInstance.ProcessId && c.ElementId == callActivityElementId)
+            .Select(c => c.ConfigJson)
+            .FirstOrDefaultAsync(ct);
+
+        if (string.IsNullOrWhiteSpace(configJson)) return;
+
+        List<VariableMapping>? mappings;
+        try
+        {
+            using var doc = JsonDocument.Parse(configJson);
+            if (!doc.RootElement.TryGetProperty("inputMappings", out var mappingsEl)) return;
+            mappings = JsonSerializer.Deserialize<List<VariableMapping>>(mappingsEl.GetRawText());
+        }
+        catch
+        {
+            return;
+        }
+
+        if (mappings == null || mappings.Count == 0) return;
+
+        // Загружаем переменные родительского экземпляра
+        var sourceNames = mappings.Select(m => m.SourceVar).ToList();
+        var parentVars = await _db.BpmInstanceVariables
+            .AsNoTracking()
+            .Where(v => v.InstanceId == parentInstance.Id && sourceNames.Contains(v.Name))
+            .ToDictionaryAsync(v => v.Name, ct);
+
+        foreach (var mapping in mappings)
+        {
+            if (!parentVars.TryGetValue(mapping.SourceVar, out var sourceVar)) continue;
+
+            _db.BpmInstanceVariables.Add(new BpmInstanceVariable
+            {
+                Id = Guid.NewGuid(),
+                InstanceId = childInstance.Id,
+                Name = mapping.TargetVar,
+                ValueJson = sourceVar.ValueJson,
+                SetAt = now,
+            });
+        }
+    }
+
+    /// <summary>
+    /// Применяет выходные маппинги переменных CallActivity: копирует переменные
+    /// из завершённого дочернего экземпляра обратно в родительский согласно <c>outputMappings</c>.
+    /// Ожидаемый формат ConfigJson: <c>{ "outputMappings": [{ "sourceVar": "result", "targetVar": "parentResult" }] }</c>
+    /// </summary>
+    private async Task ApplyCallActivityOutputMappingsAsync(
+        Guid parentInstanceId,
+        Guid childInstanceId,
+        string callActivityElementId,
+        DateTimeOffset now,
+        CancellationToken ct)
+    {
+        // Получаем ProcessId родительского экземпляра для поиска конфигурации
+        var parentProcessId = await _db.BpmInstances
+            .AsNoTracking()
+            .Where(i => i.Id == parentInstanceId)
+            .Select(i => i.ProcessId)
+            .FirstOrDefaultAsync(ct);
+
+        if (parentProcessId == Guid.Empty) return;
+
+        var configJson = await _db.BpmElementConfigs
+            .AsNoTracking()
+            .Where(c => c.ProcessId == parentProcessId && c.ElementId == callActivityElementId)
+            .Select(c => c.ConfigJson)
+            .FirstOrDefaultAsync(ct);
+
+        if (string.IsNullOrWhiteSpace(configJson)) return;
+
+        List<VariableMapping>? mappings;
+        try
+        {
+            using var doc = JsonDocument.Parse(configJson);
+            if (!doc.RootElement.TryGetProperty("outputMappings", out var mappingsEl)) return;
+            mappings = JsonSerializer.Deserialize<List<VariableMapping>>(mappingsEl.GetRawText());
+        }
+        catch
+        {
+            return;
+        }
+
+        if (mappings == null || mappings.Count == 0) return;
+
+        // Загружаем переменные дочернего экземпляра
+        var sourceNames = mappings.Select(m => m.SourceVar).ToList();
+        var childVars = await _db.BpmInstanceVariables
+            .AsNoTracking()
+            .Where(v => v.InstanceId == childInstanceId && sourceNames.Contains(v.Name))
+            .ToDictionaryAsync(v => v.Name, ct);
+
+        if (childVars.Count == 0) return;
+
+        // Загружаем существующие переменные родительского экземпляра для upsert
+        var targetNames = mappings.Select(m => m.TargetVar).ToList();
+        var parentVars = await _db.BpmInstanceVariables
+            .Where(v => v.InstanceId == parentInstanceId && targetNames.Contains(v.Name))
+            .ToDictionaryAsync(v => v.Name, ct);
+
+        foreach (var mapping in mappings)
+        {
+            if (!childVars.TryGetValue(mapping.SourceVar, out var sourceVar)) continue;
+
+            if (parentVars.TryGetValue(mapping.TargetVar, out var existing))
+            {
+                existing.ValueJson = sourceVar.ValueJson;
+                existing.SetAt = now;
+            }
+            else
+            {
+                _db.BpmInstanceVariables.Add(new BpmInstanceVariable
+                {
+                    Id = Guid.NewGuid(),
+                    InstanceId = parentInstanceId,
+                    Name = mapping.TargetVar,
+                    ValueJson = sourceVar.ValueJson,
+                    SetAt = now,
+                });
+            }
+        }
     }
 
     private async Task HandleSubProcessAsync(
@@ -1017,7 +1307,7 @@ public class BpmExecutionEngine : IBpmExecutionEngine
 
         // Если это событие отправляет сигнал — рассылаем его другим экземплярам
         if (!string.IsNullOrWhiteSpace(signalCode))
-            await SendSignalAsync(signalCode, ct);
+            await SendSignalAsync(signalCode, ct: ct);
 
         await AdvanceFromAsync(instanceId, elementId, ct);
     }
@@ -2151,4 +2441,9 @@ public class BpmExecutionEngine : IBpmExecutionEngine
         string SourceRef,
         string TargetRef,
         string? ConditionExpression);
+
+    /// <summary>Маппинг переменной CallActivity (входной или выходной).</summary>
+    private record VariableMapping(
+        [property: System.Text.Json.Serialization.JsonPropertyName("sourceVar")] string SourceVar,
+        [property: System.Text.Json.Serialization.JsonPropertyName("targetVar")] string TargetVar);
 }

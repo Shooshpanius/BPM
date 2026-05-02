@@ -927,7 +927,9 @@ public record CompleteUserTaskRequest(
 /// <summary>Запрос на отправку сигнала.</summary>
 public record SendSignalRequest(
     /// <summary>Код сигнала BPMN.</summary>
-    string SignalCode
+    string SignalCode,
+    /// <summary>Переменные для передачи новым экземплярам, запускаемым по сигнальному стартовому событию.</summary>
+    Dictionary<string, string>? Variables = null
 );
 
 /// <summary>Запрос на отправку сообщения.</summary>
@@ -935,7 +937,9 @@ public record SendMessageRequest(
     /// <summary>Код сообщения BPMN.</summary>
     string MessageCode,
     /// <summary>Ключ корреляции (опционально).</summary>
-    string? CorrelationKey = null
+    string? CorrelationKey = null,
+    /// <summary>Переменные для передачи новым экземплярам, запускаемым по сообщённому стартовому событию.</summary>
+    Dictionary<string, string>? Variables = null
 );
 
 // ─── FR-BPM-03.1: Предложения по улучшению ──────────────────────────────────
