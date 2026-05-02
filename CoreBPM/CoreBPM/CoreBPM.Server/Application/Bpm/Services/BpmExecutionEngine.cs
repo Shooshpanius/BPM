@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Xml.Linq;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Npgsql;
 using CoreBPM.Server.Application.Bpm.DTOs;
 using CoreBPM.Server.Application.Bpm.Interfaces;
 using CoreBPM.Server.Application.Bpm.Scripting;
@@ -1749,14 +1750,21 @@ public class BpmExecutionEngine : IBpmExecutionEngine
         return false;
     }
 
-    /// <summary>Определяет, является ли исключение нарушением unique-ограничения PostgreSQL.</summary>
+    /// <summary>
+    /// Определяет, является ли исключение нарушением unique-ограничения PostgreSQL.
+    /// Проверка выполняется через SqlState ("23505") — не зависит от языковой локали сервера.
+    /// </summary>
     private static bool IsUniqueConstraintViolation(DbUpdateException ex)
     {
-        // Npgsql: код ошибки 23505 = unique_violation
-        var inner = ex.InnerException?.Message ?? string.Empty;
-        return inner.Contains("23505") ||
-               inner.Contains("unique constraint") ||
-               inner.Contains("duplicate key");
+        // Обходим цепочку вложенных исключений
+        Exception? inner = ex;
+        while (inner != null)
+        {
+            if (inner is PostgresException pgEx)
+                return pgEx.SqlState == "23505";  // unique_violation (не зависит от локали)
+            inner = inner.InnerException;
+        }
+        return false;
     }
 
     /// <summary>
