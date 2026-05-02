@@ -430,7 +430,12 @@ export async function downloadProcessDocument(token: string, processId: string):
     });
     if (!res.ok) {
         const text = await res.text().catch(() => '');
-        throw new Error(text || `HTTP ${res.status}`);
+        let message = text || `HTTP ${res.status}`;
+        try {
+            const body = JSON.parse(text);
+            if (body?.error) message = body.error;
+        } catch { /* тело не является JSON */ }
+        throw new Error(message);
     }
     return res.blob();
 }
