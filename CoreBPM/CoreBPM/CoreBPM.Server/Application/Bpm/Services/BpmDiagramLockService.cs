@@ -108,7 +108,17 @@ public class BpmDiagramLockService : IBpmDiagramLockService
             return false;
 
         _db.BpmDiagramLocks.Remove(@lock);
-        await _db.SaveChangesAsync(ct);
+
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Строка уже удалена параллельным запросом — блокировка снята, это нормально
+            return false;
+        }
+
         return true;
     }
 
@@ -121,7 +131,15 @@ public class BpmDiagramLockService : IBpmDiagramLockService
         if (@lock is not null)
         {
             _db.BpmDiagramLocks.Remove(@lock);
-            await _db.SaveChangesAsync(ct);
+
+            try
+            {
+                await _db.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                // Строка уже удалена параллельным запросом — блокировка снята, это нормально
+            }
         }
     }
 
