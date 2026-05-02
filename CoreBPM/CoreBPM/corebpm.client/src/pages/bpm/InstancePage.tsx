@@ -84,7 +84,7 @@ const HISTORY_LABELS: Record<BpmHistoryEventType, string> = {
     NodeFailed: 'Ошибка узла',
 };
 
-type TabId = 'overview' | 'variables' | 'history' | 'participants' | 'map';
+type TabId = 'overview' | 'active' | 'variables' | 'history' | 'participants' | 'map';
 
 // ─── Пропсы ───────────────────────────────────────────────────────────────────
 
@@ -202,6 +202,11 @@ export function InstancePage({ instanceId, onBack }: Props) {
     }, [loadInstance, loadHistory, loadParticipants, loadTokens]);
 
     useEffect(() => { loadAll(); }, [loadAll]);
+
+    // Обновляем токены при переключении на вкладку «Текущие»
+    useEffect(() => {
+        if (activeTab === 'active') loadTokens();
+    }, [activeTab, loadTokens]);
 
     // ─── Действия ─────────────────────────────────────────────────────────────
 
@@ -430,7 +435,7 @@ export function InstancePage({ instanceId, onBack }: Props) {
 
             {/* Вкладки */}
             <div className="inst-tabs" role="tablist">
-                {(['overview', 'variables', 'history', 'participants', 'map'] as TabId[]).map(tab => (
+                {(['overview', 'active', 'variables', 'history', 'participants', 'map'] as TabId[]).map(tab => (
                     <button
                         key={tab}
                         className={`inst-tab${activeTab === tab ? ' inst-tab--active' : ''}`}
@@ -439,6 +444,11 @@ export function InstancePage({ instanceId, onBack }: Props) {
                         aria-selected={activeTab === tab}
                     >
                         {TAB_LABELS[tab]}
+                        {tab === 'active' && tokens.filter(t => t.status !== 'Completed').length > 0 && (
+                            <span style={{ marginLeft: 6, fontSize: 11, background: '#f59e0b', color: '#fff', borderRadius: 99, padding: '1px 6px' }}>
+                                {tokens.filter(t => t.status !== 'Completed').length}
+                            </span>
+                        )}
                         {tab === 'history' && history.length > 0 && (
                             <span style={{ marginLeft: 6, fontSize: 11, background: '#e5e7eb', borderRadius: 99, padding: '1px 6px' }}>
                                 {history.length}
@@ -463,6 +473,15 @@ export function InstancePage({ instanceId, onBack }: Props) {
                         tokens={tokens}
                         onCompleteToken={canManage ? handleOpenCompleteDialog : undefined}
                         completingToken={completingToken}
+                    />
+                )}
+
+                {activeTab === 'active' && (
+                    <ActiveTasksTab
+                        instanceId={instanceId}
+                        tokens={tokens}
+                        authToken={token ?? ''}
+                        onComplete={loadTokens}
                     />
                 )}
 
@@ -696,6 +715,7 @@ export function InstancePage({ instanceId, onBack }: Props) {
 
 const TAB_LABELS: Record<TabId, string> = {
     overview: 'Обзор',
+    active: 'Текущие',
     variables: 'Переменные',
     history: 'История',
     participants: 'Участники',
@@ -940,6 +960,17 @@ interface HistoryTabProps {
 }
 
 function HistoryTab({ history, commentText, isQuestion, sendingComment, canComment, onCommentChange, onQuestionToggle, onSendComment }: HistoryTabProps) {
+    const [viewMode, setViewMode] = useState<'feed' | 'table'>('feed');
+    const [histSearch, setHistSearch] = useState('');
+
+    const filtered = histSearch
+        ? history.filter(e =>
+            (e.elementName ?? '').toLowerCase().includes(histSearch.toLowerCase()) ||
+            (e.text ?? '').toLowerCase().includes(histSearch.toLowerCase()) ||
+            (HISTORY_LABELS[e.eventType] ?? '').toLowerCase().includes(histSearch.toLowerCase())
+        )
+        : history;
+
     return (
         <div>
             {/* Форма комментария */}
@@ -969,12 +1000,37 @@ function HistoryTab({ history, commentText, isQuestion, sendingComment, canComme
                 </div>
             )}
 
-            {/* Лента событий */}
-            {history.length === 0 ? (
-                <div className="inst-empty">История событий пуста</div>
-            ) : (
+            {/* Панель управления видом */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                <input
+                    type="text"
+                    className="inst-var-edit-input"
+                    placeholder="Поиск по истории…"
+                    value={histSearch}
+                    onChange={e => setHistSearch(e.target.value)}
+                    style={{ flex: 1, minWidth: 200 }}
+                />
+                <button
+                    className={`inst-tab${viewMode === 'feed' ? ' inst-tab--active' : ''}`}
+                    style={{ padding: '4px 12px', fontSize: 12 }}
+                    onClick={() => setViewMode('feed')}
+                >
+                    Лента
+                </button>
+                <button
+                    className={`inst-tab${viewMode === 'table' ? ' inst-tab--active' : ''}`}
+                    style={{ padding: '4px 12px', fontSize: 12 }}
+                    onClick={() => setViewMode('table')}
+                >
+                    Таблица
+                </button>
+            </div>
+
+            {filtered.length === 0 ? (
+                <div className="inst-empty">{histSearch ? 'Ничего не найдено' : 'История событий пуста'}</div>
+            ) : viewMode === 'feed' ? (
                 <div className="inst-history-list">
-                    {[...history].reverse().map(entry => (
+                    {[...filtered].reverse().map(entry => (
                         <div key={entry.id} className="inst-history-item">
                             <div className="inst-history-icon">
                                 {HISTORY_ICONS[entry.eventType] ?? '•'}
@@ -997,6 +1053,38 @@ function HistoryTab({ history, commentText, isQuestion, sendingComment, canComme
                             </div>
                         </div>
                     ))}
+                </div>
+            ) : (
+                <div style={{ overflowX: 'auto' }}>
+                    <table className="inst-variables-table">
+                        <thead>
+                            <tr>
+                                <th>Тип</th>
+                                <th>Узел</th>
+                                <th>Дата</th>
+                                <th>Длительность (мс)</th>
+                                <th>Описание</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {[...filtered].reverse().map(entry => (
+                                <tr key={entry.id}>
+                                    <td>
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}>
+                                            {HISTORY_ICONS[entry.eventType] ?? '•'}
+                                            {HISTORY_LABELS[entry.eventType] ?? entry.eventType}
+                                        </span>
+                                    </td>
+                                    <td style={{ fontSize: 12, fontFamily: 'monospace' }}>
+                                        {entry.elementName ?? entry.elementId ?? '—'}
+                                    </td>
+                                    <td style={{ whiteSpace: 'nowrap' }}>{formatDateTime(entry.occurredAt)}</td>
+                                    <td>{entry.durationMs != null ? entry.durationMs : '—'}</td>
+                                    <td style={{ maxWidth: 300 }}>{entry.text ?? '—'}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
             )}
         </div>
@@ -1146,6 +1234,98 @@ function UserSearch({ token, value, onSelect, placeholder }: UserSearchProps) {
                     ))}
                 </div>
             )}
+        </div>
+    );
+}
+
+// ─── Вкладка «Текущие» ───────────────────────────────────────────────────────
+
+interface ActiveTasksTabProps {
+    instanceId: string;
+    tokens: BpmTokenDto[];
+    authToken: string;
+    onComplete: () => void;
+}
+
+function ActiveTasksTab({ instanceId, tokens, authToken, onComplete }: ActiveTasksTabProps) {
+    const [completing, setCompleting] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
+
+    const activeTokens = tokens.filter(t => t.status !== 'Completed');
+    const tasks = activeTokens.filter(t => t.status === 'WaitingUserAction');
+    const operations = activeTokens.filter(t => t.status === 'Active');
+    const waiting = activeTokens.filter(t =>
+        t.status === 'WaitingSignal' ||
+        t.status === 'WaitingMessage' ||
+        t.status === 'WaitingTimer' ||
+        t.status === 'WaitingCallActivity' ||
+        t.status === 'WaitingJoin'
+    );
+
+    const handleComplete = async (elementId: string) => {
+        setCompleting(elementId);
+        setError(null);
+        try {
+            await api.completeToken(authToken, instanceId, elementId);
+            onComplete();
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'Ошибка выполнения задачи');
+        } finally {
+            setCompleting(null);
+        }
+    };
+
+    if (activeTokens.length === 0) {
+        return <div className="inst-empty">Нет активных токенов</div>;
+    }
+
+    const renderSection = (title: string, items: BpmTokenDto[]) => {
+        if (items.length === 0) return null;
+        return (
+            <div style={{ marginBottom: 24 }}>
+                <p style={{ fontWeight: 600, fontSize: 14, marginBottom: 10, color: '#374151' }}>{title}</p>
+                <div className="inst-tokens-list">
+                    {items.map(t => (
+                        <div key={t.id} className="inst-token-row">
+                            <div className="inst-token-info">
+                                <span className={`inst-token-badge ${TOKEN_STATUS_CLASS[t.status]}`}>
+                                    {TOKEN_STATUS_LABELS[t.status]}
+                                </span>
+                                <span className="inst-token-name">{t.elementName ?? t.elementId}</span>
+                                <span className="inst-token-type" title={t.elementId}>{t.elementType}</span>
+                                <span style={{ fontSize: 11, color: '#9ca3af', marginLeft: 6 }}>
+                                    {formatDateTime(t.createdAt)}
+                                </span>
+                                {t.status === 'WaitingCallActivity' && (
+                                    <span style={{ fontSize: 11, color: '#6b7280', marginLeft: 6, fontStyle: 'italic' }}>
+                                        дочерний подпроцесс
+                                    </span>
+                                )}
+                            </div>
+                            {t.status === 'WaitingUserAction' && (
+                                <button
+                                    className="inst-btn-primary"
+                                    style={{ padding: '4px 12px', fontSize: 12 }}
+                                    onClick={() => handleComplete(t.elementId)}
+                                    disabled={completing === t.elementId}
+                                    title="Завершить вручную"
+                                >
+                                    {completing === t.elementId ? '…' : '⏩ Завершить вручную'}
+                                </button>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    };
+
+    return (
+        <div>
+            {error && <div className="inst-error">{error}</div>}
+            {renderSection('Задачи', tasks)}
+            {renderSection('Операции', operations)}
+            {renderSection('Ожидание', waiting)}
         </div>
     );
 }

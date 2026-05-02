@@ -933,7 +933,9 @@ export interface BpmProcessStatsDto {
     suspendedCount: number;
     completedCount: number;
     cancelledCount: number;
+    faultedCount: number;
     totalCount: number;
+    averageCycleTimeMinutes?: number;
     processName: string;
     processDescription?: string;
     activeVersionNumber?: number;
@@ -1277,3 +1279,23 @@ export const importDiagram = (token: string, processId: string, diagramXml: stri
         method: 'POST',
         body: JSON.stringify({ diagramXml }),
     });
+
+// ─── Задачи пользователя (FR-BPM) ────────────────────────────────────────────
+
+export interface MyTaskDto {
+    instanceId: string;
+    instanceName: string;
+    processName: string;
+    elementId: string;
+    elementName?: string;
+    activatedAt: string;
+}
+
+/** Список активных задач текущего пользователя. */
+export async function getMyTasks(token: string): Promise<MyTaskDto[]> {
+    const res = await fetch('/api/bpm/instances/my/tasks', {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error('Ошибка загрузки задач');
+    return res.json();
+}
