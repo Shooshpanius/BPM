@@ -14,6 +14,7 @@ public class TaskTemplatesController : ControllerBase
     private readonly ITaskService _service;
     public TaskTemplatesController(ITaskService service) => _service = service;
 
+    /// <summary>Возвращает список шаблонов задач текущего пользователя.</summary>
     [HttpGet("api/task-templates")]
     public async Task<ActionResult<IReadOnlyList<TaskTemplateDto>>> List(CancellationToken ct)
     {
@@ -22,6 +23,7 @@ public class TaskTemplatesController : ControllerBase
         return Ok(await _service.ListTemplatesAsync(userId.Value, ct));
     }
 
+    /// <summary>Создаёт новый шаблон задачи.</summary>
     [HttpPost("api/task-templates")]
     public async Task<ActionResult<TaskTemplateDto>> Create([FromBody] CreateTaskTemplateRequest req, CancellationToken ct)
     {
@@ -31,6 +33,7 @@ public class TaskTemplatesController : ControllerBase
         return Created($"/api/task-templates/{dto.Id}", dto);
     }
 
+    /// <summary>Обновляет существующий шаблон задачи.</summary>
     [HttpPut("api/task-templates/{id:guid}")]
     public async Task<ActionResult<TaskTemplateDto>> Update(Guid id, [FromBody] CreateTaskTemplateRequest req, CancellationToken ct)
     {
@@ -39,6 +42,7 @@ public class TaskTemplatesController : ControllerBase
         return Ok(await _service.UpdateTemplateAsync(id, req, userId.Value, ct));
     }
 
+    /// <summary>Удаляет шаблон задачи.</summary>
     [HttpDelete("api/task-templates/{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {

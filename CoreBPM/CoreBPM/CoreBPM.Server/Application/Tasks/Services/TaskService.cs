@@ -301,7 +301,7 @@ public class TaskService : ITaskService
     }
 
     /// <inheritdoc/>
-    public async Task<TaskParticipantDto> AddParticipantAsync(Guid taskId, AddTaskParticipantRequest req, CancellationToken ct = default)
+    public async Task<TaskParticipantDto> AddParticipantAsync(Guid taskId, AddTaskParticipantRequest req, Guid actorId, CancellationToken ct = default)
     {
         if (!await _db.TaskItems.AnyAsync(t => t.Id == taskId, ct))
             throw new NotFoundException($"Задача {taskId} не найдена.");
@@ -314,7 +314,7 @@ public class TaskService : ITaskService
         var now = DateTimeOffset.UtcNow;
         var participant = new TaskParticipant { Id = Guid.NewGuid(), TaskId = taskId, UserId = req.UserId, Role = req.Role, CreatedAt = now };
         _db.TaskParticipants.Add(participant);
-        _db.TaskHistoryEntries.Add(new TaskHistoryEntry { Id = Guid.NewGuid(), TaskId = taskId, ActorUserId = req.UserId, Action = TaskHistoryAction.ParticipantAdded, NewValue = req.Role.ToString(), CreatedAt = now });
+        _db.TaskHistoryEntries.Add(new TaskHistoryEntry { Id = Guid.NewGuid(), TaskId = taskId, ActorUserId = actorId, Action = TaskHistoryAction.ParticipantAdded, NewValue = req.Role.ToString(), CreatedAt = now });
         await _db.SaveChangesAsync(ct);
         var userName = await GetDisplayNameAsync(req.UserId, ct);
         return new TaskParticipantDto { Id = participant.Id, UserId = req.UserId, UserName = userName, Role = req.Role.ToString() };
@@ -342,7 +342,7 @@ public class TaskService : ITaskService
     }
 
     /// <inheritdoc/>
-    public async Task<TaskRelationDto> AddRelationAsync(Guid taskId, AddTaskRelationRequest req, CancellationToken ct = default)
+    public async Task<TaskRelationDto> AddRelationAsync(Guid taskId, AddTaskRelationRequest req, Guid actorId, CancellationToken ct = default)
     {
         if (!await _db.TaskItems.AnyAsync(t => t.Id == taskId, ct))
             throw new NotFoundException($"Задача {taskId} не найдена.");
@@ -351,7 +351,7 @@ public class TaskService : ITaskService
         var now = DateTimeOffset.UtcNow;
         var relation = new TaskRelation { Id = Guid.NewGuid(), SourceTaskId = taskId, TargetTaskId = req.TargetTaskId, RelationType = req.RelationType, CreatedAt = now };
         _db.TaskRelations.Add(relation);
-        _db.TaskHistoryEntries.Add(new TaskHistoryEntry { Id = Guid.NewGuid(), TaskId = taskId, ActorUserId = Guid.Empty, Action = TaskHistoryAction.RelationAdded, NewValue = req.TargetTaskId.ToString(), CreatedAt = now });
+        _db.TaskHistoryEntries.Add(new TaskHistoryEntry { Id = Guid.NewGuid(), TaskId = taskId, ActorUserId = actorId, Action = TaskHistoryAction.RelationAdded, NewValue = req.TargetTaskId.ToString(), CreatedAt = now });
         await _db.SaveChangesAsync(ct);
         return new TaskRelationDto { Id = relation.Id, SourceTaskId = taskId, TargetTaskId = req.TargetTaskId, TargetSubject = target.Subject, TargetNumber = target.Number, RelationType = req.RelationType.ToString() };
     }
@@ -373,24 +373,24 @@ public class TaskService : ITaskService
     }
 
     /// <inheritdoc/>
-    public async Task RemoveRelationAsync(Guid taskId, Guid relationId, CancellationToken ct = default)
+    public async Task RemoveRelationAsync(Guid taskId, Guid relationId, Guid actorId, CancellationToken ct = default)
     {
         var r = await _db.TaskRelations.FirstOrDefaultAsync(x => x.Id == relationId, ct);
         if (r == null) return;
         _db.TaskRelations.Remove(r);
-        _db.TaskHistoryEntries.Add(new TaskHistoryEntry { Id = Guid.NewGuid(), TaskId = taskId, ActorUserId = Guid.Empty, Action = TaskHistoryAction.RelationRemoved, OldValue = r.TargetTaskId.ToString(), CreatedAt = DateTimeOffset.UtcNow });
+        _db.TaskHistoryEntries.Add(new TaskHistoryEntry { Id = Guid.NewGuid(), TaskId = taskId, ActorUserId = actorId, Action = TaskHistoryAction.RelationRemoved, OldValue = r.TargetTaskId.ToString(), CreatedAt = DateTimeOffset.UtcNow });
         await _db.SaveChangesAsync(ct);
     }
 
     /// <inheritdoc/>
-    public async Task<TaskTagResultDto> AddTagAsync(Guid taskId, AddTaskTagRequest req, CancellationToken ct = default)
+    public async Task<TaskTagResultDto> AddTagAsync(Guid taskId, AddTaskTagRequest req, Guid actorId, CancellationToken ct = default)
     {
         if (!await _db.TaskItems.AnyAsync(t => t.Id == taskId, ct))
             throw new NotFoundException($"Задача {taskId} не найдена.");
         var now = DateTimeOffset.UtcNow;
         var tag = new TaskTag { Id = Guid.NewGuid(), TaskId = taskId, Value = req.Value.Trim(), CreatedAt = now };
         _db.TaskTags.Add(tag);
-        _db.TaskHistoryEntries.Add(new TaskHistoryEntry { Id = Guid.NewGuid(), TaskId = taskId, ActorUserId = Guid.Empty, Action = TaskHistoryAction.TagAdded, NewValue = req.Value, CreatedAt = now });
+        _db.TaskHistoryEntries.Add(new TaskHistoryEntry { Id = Guid.NewGuid(), TaskId = taskId, ActorUserId = actorId, Action = TaskHistoryAction.TagAdded, NewValue = req.Value, CreatedAt = now });
         await _db.SaveChangesAsync(ct);
         return new TaskTagResultDto { Id = tag.Id, Value = tag.Value };
     }
@@ -400,12 +400,12 @@ public class TaskService : ITaskService
         => await _db.TaskTags.AsNoTracking().Where(t => t.TaskId == taskId).Select(t => t.Value).ToListAsync(ct);
 
     /// <inheritdoc/>
-    public async Task RemoveTagAsync(Guid taskId, Guid tagId, CancellationToken ct = default)
+    public async Task RemoveTagAsync(Guid taskId, Guid tagId, Guid actorId, CancellationToken ct = default)
     {
         var tag = await _db.TaskTags.FirstOrDefaultAsync(t => t.Id == tagId && t.TaskId == taskId, ct);
         if (tag == null) return;
         _db.TaskTags.Remove(tag);
-        _db.TaskHistoryEntries.Add(new TaskHistoryEntry { Id = Guid.NewGuid(), TaskId = taskId, ActorUserId = Guid.Empty, Action = TaskHistoryAction.TagRemoved, OldValue = tag.Value, CreatedAt = DateTimeOffset.UtcNow });
+        _db.TaskHistoryEntries.Add(new TaskHistoryEntry { Id = Guid.NewGuid(), TaskId = taskId, ActorUserId = actorId, Action = TaskHistoryAction.TagRemoved, OldValue = tag.Value, CreatedAt = DateTimeOffset.UtcNow });
         await _db.SaveChangesAsync(ct);
     }
 

@@ -193,7 +193,9 @@ public class TasksController : ControllerBase
     [ProducesResponseType(typeof(TaskParticipantDto), StatusCodes.Status201Created)]
     public async Task<ActionResult<TaskParticipantDto>> AddParticipant(Guid id, [FromBody] AddTaskParticipantRequest req, CancellationToken ct)
     {
-        var dto = await _service.AddParticipantAsync(id, req, ct);
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        var dto = await _service.AddParticipantAsync(id, req, userId.Value, ct);
         return Created($"/api/tasks/{id}/participants/{dto.Id}", dto);
     }
 
@@ -217,7 +219,9 @@ public class TasksController : ControllerBase
     [ProducesResponseType(typeof(TaskRelationDto), StatusCodes.Status201Created)]
     public async Task<ActionResult<TaskRelationDto>> AddRelation(Guid id, [FromBody] AddTaskRelationRequest req, CancellationToken ct)
     {
-        var dto = await _service.AddRelationAsync(id, req, ct);
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        var dto = await _service.AddRelationAsync(id, req, userId.Value, ct);
         return Created($"/api/tasks/{id}/relations/{dto.Id}", dto);
     }
 
@@ -226,7 +230,9 @@ public class TasksController : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> RemoveRelation(Guid id, Guid relationId, CancellationToken ct)
     {
-        await _service.RemoveRelationAsync(id, relationId, ct);
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        await _service.RemoveRelationAsync(id, relationId, userId.Value, ct);
         return NoContent();
     }
 
@@ -235,7 +241,9 @@ public class TasksController : ControllerBase
     [ProducesResponseType(typeof(TaskTagResultDto), StatusCodes.Status201Created)]
     public async Task<ActionResult<TaskTagResultDto>> AddTag(Guid id, [FromBody] AddTaskTagRequest req, CancellationToken ct)
     {
-        var dto = await _service.AddTagAsync(id, req, ct);
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        var dto = await _service.AddTagAsync(id, req, userId.Value, ct);
         return Created($"/api/tasks/{id}/tags/{dto.Id}", dto);
     }
 
@@ -244,7 +252,9 @@ public class TasksController : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> RemoveTag(Guid id, Guid tagId, CancellationToken ct)
     {
-        await _service.RemoveTagAsync(id, tagId, ct);
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        await _service.RemoveTagAsync(id, tagId, userId.Value, ct);
         return NoContent();
     }
 
