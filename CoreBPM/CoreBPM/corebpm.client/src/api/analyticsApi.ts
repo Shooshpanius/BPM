@@ -197,7 +197,7 @@ export const exportAnalyticsSummary = (
     const url = `/api/analytics/summary/export${qs}`;
     // Создаём временный скрытый link с заголовком Authorization через fetch + Blob
     fetch(url, { headers: { Authorization: `Bearer ${token}` } })
-        .then(res => {
+        .then(async res => {
             if (!res.ok) {
                 const text = await res.text().catch(() => '');
                 let message = text || `HTTP ${res.status}`;
