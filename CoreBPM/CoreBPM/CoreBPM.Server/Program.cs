@@ -7,6 +7,8 @@ using CoreBPM.Server.Application.Org.Interfaces;
 using CoreBPM.Server.Application.Org.Services;
 using CoreBPM.Server.Application.Rules.Interfaces;
 using CoreBPM.Server.Application.Rules.Services;
+using CoreBPM.Server.Application.Tasks.Interfaces;
+using CoreBPM.Server.Application.Tasks.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -124,6 +126,9 @@ builder.Services.AddScoped<IBpmGlobalModuleService, BpmGlobalModuleService>();
 builder.Services.AddScoped<IBpmImprovementService, BpmImprovementService>();
 builder.Services.AddScoped<IBpmAnalyticsService, BpmAnalyticsService>();
 builder.Services.AddScoped<IDmnService, DmnService>();
+
+// Регистрация сервисов задач (FR-TASK-01.1)
+builder.Services.AddScoped<ITaskService, TaskService>();
 
 // Регистрация сервисов Forms (конструктор форм задач FR-BPM-01.4)
 builder.Services.AddScoped<IFormService, FormService>();

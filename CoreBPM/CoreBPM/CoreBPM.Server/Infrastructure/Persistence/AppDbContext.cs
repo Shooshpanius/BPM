@@ -3,6 +3,7 @@ using CoreBPM.Server.Domain.Auth;
 using CoreBPM.Server.Domain.Bpm;
 using CoreBPM.Server.Domain.Org;
 using CoreBPM.Server.Domain.Rules;
+using CoreBPM.Server.Domain.Tasks;
 
 namespace CoreBPM.Server.Infrastructure.Persistence;
 
@@ -52,6 +53,16 @@ public class AppDbContext : DbContext
     public DbSet<BpmDocTemplate> BpmDocTemplates { get; set; } = null!;
     public DbSet<BpmSignal> BpmSignals => Set<BpmSignal>();
     public DbSet<BpmMessage> BpmMessages => Set<BpmMessage>();
+    public DbSet<TaskItem> TaskItems => Set<TaskItem>();
+    public DbSet<TaskParticipant> TaskParticipants => Set<TaskParticipant>();
+    public DbSet<TaskComment> TaskComments => Set<TaskComment>();
+    public DbSet<TaskAttachment> TaskAttachments => Set<TaskAttachment>();
+    public DbSet<TaskRelation> TaskRelations => Set<TaskRelation>();
+    public DbSet<TaskTag> TaskTags => Set<TaskTag>();
+    public DbSet<TaskReminder> TaskReminders => Set<TaskReminder>();
+    public DbSet<TaskTemplate> TaskTemplates => Set<TaskTemplate>();
+    public DbSet<TaskHistoryEntry> TaskHistoryEntries => Set<TaskHistoryEntry>();
+    public DbSet<TaskSavedFilter> TaskSavedFilters => Set<TaskSavedFilter>();
     public DbSet<DmnTable> DmnTables => Set<DmnTable>();
     public DbSet<DmnTableVersion> DmnTableVersions => Set<DmnTableVersion>();
     public DbSet<DmnColumn> DmnColumns => Set<DmnColumn>();
@@ -1002,5 +1013,112 @@ public class AppDbContext : DbContext
                 CreatedAt = now
             }
         );
+
+        // ─── Модуль задач (FR-TASK-01.1) ─────────────────────────────────────────
+
+        modelBuilder.Entity<TaskItem>(e =>
+        {
+            e.ToTable("task_items");
+            e.HasKey(t => t.Id);
+            e.HasIndex(t => t.Number).IsUnique();
+            e.HasIndex(t => t.AssigneeUserId);
+            e.HasIndex(t => t.AuthorUserId);
+            e.HasIndex(t => t.Status);
+            e.HasOne(t => t.ParentTask).WithMany(t => t.Subtasks)
+                .HasForeignKey(t => t.ParentTaskId).OnDelete(DeleteBehavior.Restrict).IsRequired(false);
+            e.Property(t => t.Subject).HasMaxLength(500);
+            e.Property(t => t.Description).HasMaxLength(5000);
+            e.Property(t => t.CategoryId).HasMaxLength(200);
+            e.Property(t => t.SourceElementId).HasMaxLength(200);
+        });
+
+        modelBuilder.Entity<TaskParticipant>(e =>
+        {
+            e.ToTable("task_participants");
+            e.HasKey(p => p.Id);
+            e.HasIndex(p => new { p.TaskId, p.UserId, p.Role }).IsUnique();
+            e.HasOne(p => p.Task).WithMany(t => t.Participants)
+                .HasForeignKey(p => p.TaskId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<TaskComment>(e =>
+        {
+            e.ToTable("task_comments");
+            e.HasKey(c => c.Id);
+            e.HasIndex(c => c.TaskId);
+            e.HasOne(c => c.Task).WithMany(t => t.Comments)
+                .HasForeignKey(c => c.TaskId).OnDelete(DeleteBehavior.Cascade);
+            e.Property(c => c.Body).HasMaxLength(5000);
+        });
+
+        modelBuilder.Entity<TaskAttachment>(e =>
+        {
+            e.ToTable("task_attachments");
+            e.HasKey(a => a.Id);
+            e.HasIndex(a => a.TaskId);
+            e.HasOne(a => a.Task).WithMany(t => t.Attachments)
+                .HasForeignKey(a => a.TaskId).OnDelete(DeleteBehavior.Cascade);
+            e.Property(a => a.FileName).HasMaxLength(500);
+            e.Property(a => a.StorageKey).HasMaxLength(500);
+        });
+
+        modelBuilder.Entity<TaskRelation>(e =>
+        {
+            e.ToTable("task_relations");
+            e.HasKey(r => r.Id);
+            e.HasIndex(r => new { r.SourceTaskId, r.TargetTaskId, r.RelationType }).IsUnique();
+            e.HasOne(r => r.SourceTask).WithMany()
+                .HasForeignKey(r => r.SourceTaskId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(r => r.TargetTask).WithMany()
+                .HasForeignKey(r => r.TargetTaskId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<TaskTag>(e =>
+        {
+            e.ToTable("task_tags");
+            e.HasKey(t => t.Id);
+            e.HasIndex(t => new { t.TaskId, t.Value }).IsUnique();
+            e.HasOne(t => t.Task).WithMany(t => t.Tags)
+                .HasForeignKey(t => t.TaskId).OnDelete(DeleteBehavior.Cascade);
+            e.Property(t => t.Value).HasMaxLength(100);
+        });
+
+        modelBuilder.Entity<TaskReminder>(e =>
+        {
+            e.ToTable("task_reminders");
+            e.HasKey(r => r.Id);
+            e.HasIndex(r => r.TaskId);
+            e.HasOne(r => r.Task).WithMany(t => t.Reminders)
+                .HasForeignKey(r => r.TaskId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<TaskTemplate>(e =>
+        {
+            e.ToTable("task_templates");
+            e.HasKey(t => t.Id);
+            e.Property(t => t.Name).HasMaxLength(300);
+            e.Property(t => t.TagsJson).HasColumnType("jsonb");
+        });
+
+        modelBuilder.Entity<TaskHistoryEntry>(e =>
+        {
+            e.ToTable("task_history");
+            e.HasKey(h => h.Id);
+            e.HasIndex(h => h.TaskId);
+            e.HasOne(h => h.Task).WithMany()
+                .HasForeignKey(h => h.TaskId).OnDelete(DeleteBehavior.Cascade);
+            e.Property(h => h.FieldName).HasMaxLength(100);
+            e.Property(h => h.OldValue).HasMaxLength(1000);
+            e.Property(h => h.NewValue).HasMaxLength(1000);
+        });
+
+        modelBuilder.Entity<TaskSavedFilter>(e =>
+        {
+            e.ToTable("task_saved_filters");
+            e.HasKey(f => f.Id);
+            e.HasIndex(f => f.UserId);
+            e.Property(f => f.Name).HasMaxLength(200);
+            e.Property(f => f.FilterJson).HasColumnType("jsonb");
+        });
     }
 }
