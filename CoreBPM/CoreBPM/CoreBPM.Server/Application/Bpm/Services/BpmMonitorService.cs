@@ -1,3 +1,4 @@
+using System.Xml.Linq;
 using Microsoft.EntityFrameworkCore;
 using CoreBPM.Server.Application.Bpm.DTOs;
 using CoreBPM.Server.Application.Bpm.Interfaces;
@@ -276,6 +277,119 @@ public class BpmMonitorService : IBpmMonitorService
             )).ToList()
         );
     }
+
+    // ─── Зоны ответственности (FR-BPM-02.4) ──────────────────────────────────
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<ResponsibilityZoneDto>> GetResponsibilityZonesAsync(
+        Guid processId,
+        CancellationToken ct = default)
+    {
+        // Получаем активную версию процесса с XML-диаграммой
+        var version = await _db.BpmProcessVersions
+            .AsNoTracking()
+            .Where(v => v.ProcessId == processId && v.Status == BpmProcessVersionStatus.Active)
+            .OrderByDescending(v => v.VersionNumber)
+            .FirstOrDefaultAsync(ct)
+            ?? throw new NotFoundException($"Активная версия процесса {processId} не найдена");
+
+        if (string.IsNullOrWhiteSpace(version.DiagramXml))
+            return [];
+
+        // Парсим BPMN XML для поиска плавательных дорожек (lane)
+        var lanes = ParseLanes(version.DiagramXml);
+        if (lanes.Count == 0) return [];
+
+        // Получаем активные токены для активных экземпляров данного процесса
+        var activeTokens = await _db.BpmTokens
+            .AsNoTracking()
+            .Include(t => t.Instance)
+            .Where(t => t.Instance.ProcessId == processId
+                     && t.Instance.State == BpmInstanceState.Active
+                     && t.Status == BpmTokenStatus.WaitingUserAction)
+            .ToListAsync(ct);
+
+        if (activeTokens.Count == 0)
+        {
+            // Возвращаем дорожки без пользователей
+            return lanes.Select(l => new ResponsibilityZoneDto(l.Name, [])).ToList();
+        }
+
+        // Собираем идентификаторы ответственных пользователей
+        var responsibleUserIds = activeTokens
+            .Select(t => t.Instance.ResponsibleUserId)
+            .Where(id => id.HasValue)
+            .Select(id => id!.Value)
+            .Distinct()
+            .ToList();
+
+        var userNames = await _db.OrgUsers
+            .AsNoTracking()
+            .Where(u => responsibleUserIds.Contains(u.Id))
+            .Select(u => new { u.Id, u.DisplayName })
+            .ToListAsync(ct);
+
+        // Для каждой дорожки определяем ответственных пользователей
+        var result = new List<ResponsibilityZoneDto>();
+        foreach (var lane in lanes)
+        {
+            // Токены, принадлежащие элементам данной дорожки
+            var laneTokens = activeTokens
+                .Where(t => lane.FlowNodeRefs.Contains(t.ElementId))
+                .ToList();
+
+            // Группируем по ответственному пользователю
+            var userGroups = laneTokens
+                .Where(t => t.Instance.ResponsibleUserId.HasValue)
+                .GroupBy(t => t.Instance.ResponsibleUserId!.Value)
+                .Select(g => new ResponsibilityZoneUserDto(
+                    UserId:         g.Key,
+                    UserName:       userNames.FirstOrDefault(u => u.Id == g.Key)?.DisplayName,
+                    ActiveTaskCount: g.Count()
+                ))
+                .OrderByDescending(u => u.ActiveTaskCount)
+                .ToList();
+
+            result.Add(new ResponsibilityZoneDto(lane.Name, userGroups));
+        }
+
+        return result;
+    }
+
+    /// <summary>Парсит плавательные дорожки из BPMN 2.0 XML-диаграммы.</summary>
+    private static IReadOnlyList<BpmnLaneInfo> ParseLanes(string diagramXml)
+    {
+        try
+        {
+            var doc = XDocument.Parse(diagramXml);
+            var ns = XNamespace.Get("http://www.omg.org/spec/BPMN/20100524/MODEL");
+
+            // Ищем элементы <lane> независимо от пространства имён
+            var laneElements = doc.Descendants()
+                .Where(e => e.Name.LocalName == "lane")
+                .ToList();
+
+            return laneElements
+                .Select(lane => new BpmnLaneInfo(
+                    Name: lane.Attribute("name")?.Value ?? lane.Attribute("id")?.Value ?? "Без названия",
+                    FlowNodeRefs: lane.Elements()
+                        .Where(e => e.Name.LocalName == "flowNodeRef")
+                        .Select(e => e.Value.Trim())
+                        .Where(v => !string.IsNullOrEmpty(v))
+                        .ToHashSet()
+                ))
+                .Where(l => l.FlowNodeRefs.Count > 0)
+                .ToList();
+        }
+        catch
+        {
+            // Невалидный XML — возвращаем пустой список
+            return [];
+        }
+    }
+
+    /// <summary>Информация о плавательной дорожке BPMN.</summary>
+    private sealed record BpmnLaneInfo(string Name, HashSet<string> FlowNodeRefs);
 
     // ─── Вспомогательные методы ───────────────────────────────────────────────
 

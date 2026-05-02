@@ -12,6 +12,12 @@ public interface IBpmDocumentationService
     Task GenerateAndSaveSnapshotAsync(Guid processId, Guid versionId, Guid generatedByUserId, CancellationToken ct = default);
 
     /// <summary>
+    /// Пересоздаёт HTML-снапшот документации с встроенной SVG-диаграммой.
+    /// SVG-контент сохраняется в поле DiagramSvg снапшота и встраивается в HTML после заголовка h1.
+    /// </summary>
+    Task RegenerateSnapshotWithSvgAsync(Guid processId, Guid versionId, Guid userId, string? svgContent, CancellationToken ct = default);
+
+    /// <summary>
     /// Возвращает список процессов пользователя (Владелец или Куратор)
     /// с таблицей опубликованных версий.
     /// </summary>

@@ -71,6 +71,29 @@ public class BpmQueueController : ControllerBase
         await _service.RescheduleTimerAsync(jobId, request.NewRunAt, ct);
         return NoContent();
     }
+
+    // ─── Retry-политики ───────────────────────────────────────────────────────
+
+    /// <summary>Экспортирует retry-политики всех элементов процессов в виде JSON-массива.</summary>
+    [HttpGet("api/admin/queue/policies/export")]
+    [ProducesResponseType(typeof(IReadOnlyList<JobRetryPolicyDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<JobRetryPolicyDto>>> ExportPolicies(CancellationToken ct)
+        => Ok(await _service.ExportRetryPoliciesAsync(ct));
+
+    /// <summary>Импортирует retry-политики: создаёт или обновляет конфигурации элементов процессов.</summary>
+    [HttpPost("api/admin/queue/policies/import")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ImportPolicies(
+        [FromBody] ImportRetryPoliciesRequest request,
+        CancellationToken ct)
+    {
+        if (request.Policies.Count == 0)
+            return BadRequest("Список политик не может быть пустым");
+
+        await _service.ImportRetryPoliciesAsync(request, ct);
+        return NoContent();
+    }
 }
 
 /// <summary>API аналитики узлов процесса.</summary>

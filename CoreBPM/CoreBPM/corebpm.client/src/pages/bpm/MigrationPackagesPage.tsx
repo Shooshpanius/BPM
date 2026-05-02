@@ -1,8 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import {
     getMigrationPackages,
     createMigrationPackage,
+    exportMigrationPackage,
+    importMigrationPackage,
     type MigrationPackageListItemDto,
     type MigrationPackageStatus,
     type CreateMigrationPackageRequest,
@@ -67,6 +69,7 @@ function CreateMigrationDialog({ token, onCreated, onClose }: CreateDialogProps)
     const [step, setStep] = useState<1 | 2 | 3>(1);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [scheduledAt, setScheduledAt] = useState('');
 
     useEffect(() => {
         // Получаем список процессов (используем пустой organizationId — сервер вернёт все доступные)
@@ -111,6 +114,7 @@ function CreateMigrationDialog({ token, onCreated, onClose }: CreateDialogProps)
                     instanceId,
                     targetVersionId: selectedTargetVersionId,
                 })),
+                scheduledAt: scheduledAt ? new Date(scheduledAt).toISOString() : undefined,
             };
             const pkg = await createMigrationPackage(token, req);
             onCreated(pkg.id);
@@ -208,6 +212,13 @@ function CreateMigrationDialog({ token, onCreated, onClose }: CreateDialogProps)
                                 <option key={v.id} value={v.id}>Версия {v.versionNumber}</option>
                             ))}
                         </select>
+                        <label className="mp-field-label">Запустить по расписанию (необязательно)</label>
+                        <input
+                            className="mp-field-input"
+                            type="datetime-local"
+                            value={scheduledAt}
+                            onChange={e => setScheduledAt(e.target.value)}
+                        />
                         {error && <p className="mp-dialog-error">{error}</p>}
                         <div className="mp-dialog-actions">
                             <button className="mp-btn mp-btn--secondary" onClick={() => { setError(null); setStep(2); }}>← Назад</button>
@@ -232,6 +243,7 @@ export function MigrationPackagesPage({ onOpenDetail }: Props) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [showCreateDialog, setShowCreateDialog] = useState(false);
+    const importRef = useRef<HTMLInputElement>(null);
 
     const loadPackages = useCallback(async () => {
         if (!accessToken) return;
@@ -250,10 +262,37 @@ export function MigrationPackagesPage({ onOpenDetail }: Props) {
 
     useEffect(() => { loadPackages(); }, [loadPackages]);
 
+    const handleExport = async (pkgId: string) => {
+        if (!accessToken) return;
+        try {
+            const blob = await exportMigrationPackage(pkgId, accessToken);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `migration-package-${pkgId}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch { alert('Ошибка экспорта пакета'); }
+    };
+
+    const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!accessToken || !e.target.files?.length) return;
+        try {
+            const text = await e.target.files[0].text();
+            const data = JSON.parse(text);
+            const result = await importMigrationPackage(data, accessToken);
+            await loadPackages();
+            onOpenDetail(result.id);
+        } catch { alert('Ошибка импорта пакета'); }
+        e.target.value = '';
+    };
+
     return (
         <div className="mp-root">
             <div className="mp-header">
                 <h1 className="mp-title">Смена версии (миграция)</h1>
+                <button className="mp-btn mp-btn--secondary" onClick={() => importRef.current?.click()} title="Импортировать пакет из JSON">⬆ Импорт</button>
+                <input ref={importRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImportFile} />
                 <button className="mp-btn mp-btn--primary" onClick={() => setShowCreateDialog(true)}>
                     + Создать пакет
                 </button>
@@ -289,6 +328,7 @@ export function MigrationPackagesPage({ onOpenDetail }: Props) {
                                 <th>Элементов</th>
                                 <th>Выполнено</th>
                                 <th>Ошибок</th>
+                                <th></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -305,6 +345,9 @@ export function MigrationPackagesPage({ onOpenDetail }: Props) {
                                     <td>{pkg.totalItems}</td>
                                     <td className="mp-cell--ok">{pkg.migratedItems}</td>
                                     <td className={pkg.errorItems > 0 ? 'mp-cell--err' : ''}>{pkg.errorItems}</td>
+                                    <td onClick={e => e.stopPropagation()}>
+                                        <button className="mp-btn mp-btn--small" onClick={() => handleExport(pkg.id)} title="Экспортировать пакет в JSON">⬇</button>
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>

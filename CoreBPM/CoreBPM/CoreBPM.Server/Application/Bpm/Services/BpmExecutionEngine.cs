@@ -273,7 +273,7 @@ public class BpmExecutionEngine : IBpmExecutionEngine
     }
 
     /// <inheritdoc />
-    public async Task SendSignalAsync(string signalCode, CancellationToken ct = default)
+    public async Task SendSignalAsync(string signalCode, Dictionary<string, string>? variables = null, CancellationToken ct = default)
     {
         var waitingTokens = await _db.BpmTokens
             .Where(t => t.Status == BpmTokenStatus.WaitingSignal && t.SignalCode == signalCode)
@@ -296,10 +296,13 @@ public class BpmExecutionEngine : IBpmExecutionEngine
             await _db.SaveChangesAsync(ct);
             await AdvanceFromAsync(token.InstanceId, token.ElementId, ct);
         }
+
+        // Запускаем новые экземпляры для процессов с сигнальным стартовым событием
+        await StartInstancesForSignalAsync(signalCode, variables, now, ct);
     }
 
     /// <inheritdoc />
-    public async Task SendMessageAsync(string messageCode, string? correlationKey, CancellationToken ct = default)
+    public async Task SendMessageAsync(string messageCode, string? correlationKey, Dictionary<string, string>? variables = null, CancellationToken ct = default)
     {
         var query = _db.BpmTokens
             .Where(t => t.Status == BpmTokenStatus.WaitingMessage && t.MessageCode == messageCode);
@@ -325,6 +328,150 @@ public class BpmExecutionEngine : IBpmExecutionEngine
             });
             await _db.SaveChangesAsync(ct);
             await AdvanceFromAsync(token.InstanceId, token.ElementId, ct);
+        }
+
+        // Запускаем новые экземпляры для процессов с сообщённым стартовым событием
+        await StartInstancesForMessageAsync(messageCode, correlationKey, variables, now, ct);
+    }
+
+    /// <summary>
+    /// Ищет активные версии процессов с сигнальными стартовыми событиями и запускает новые экземпляры.
+    /// </summary>
+    private async Task StartInstancesForSignalAsync(
+        string signalCode,
+        Dictionary<string, string>? variables,
+        DateTimeOffset now,
+        CancellationToken ct)
+    {
+        // Загружаем все активные версии процессов с XML
+        var activeVersions = await _db.BpmProcessVersions
+            .AsNoTracking()
+            .Include(v => v.Process)
+            .Where(v => v.Status == BpmProcessVersionStatus.Active && v.DiagramXml != null)
+            .ToListAsync(ct);
+
+        foreach (var version in activeVersions)
+        {
+            ProcessModel model;
+            try { model = ParseXml(version.Id, version.DiagramXml!); }
+            catch { continue; }
+
+            // Ищем стартовые события с соответствующим SignalCode
+            var matchingStarts = model.StartEvents
+                .Where(e => string.Equals(e.SignalCode, signalCode, StringComparison.Ordinal))
+                .ToList();
+
+            foreach (var startEl in matchingStarts)
+            {
+                var instance = new BpmInstance
+                {
+                    Id = Guid.NewGuid(),
+                    ProcessId = version.ProcessId,
+                    ProcessVersionId = version.Id,
+                    Name = $"{version.Process?.Name ?? version.ProcessId.ToString()} — сигнал «{signalCode}» {now:dd.MM.yyyy HH:mm}",
+                    State = BpmInstanceState.Active,
+                    LaunchSource = BpmInstanceLaunchSource.Signal,
+                    StartedAt = now,
+                    UpdatedAt = now,
+                };
+                _db.BpmInstances.Add(instance);
+
+                // Передаём входные переменные в новый экземпляр
+                if (variables != null)
+                {
+                    foreach (var kv in variables)
+                    {
+                        _db.BpmInstanceVariables.Add(new BpmInstanceVariable
+                        {
+                            Id = Guid.NewGuid(),
+                            InstanceId = instance.Id,
+                            Name = kv.Key,
+                            ValueJson = JsonSerializer.Serialize(kv.Value),
+                            SetAt = now,
+                        });
+                    }
+                }
+
+                await _db.SaveChangesAsync(ct);
+
+                // Санируем код сигнала перед записью в лог
+                var safeSignalCode = signalCode.Replace('\n', '_').Replace('\r', '_');
+                _logger.LogInformation(
+                    "Signal «{SignalCode}»: запущен экземпляр {InstanceId} процесса {ProcessId} (стартовый элемент «{ElementId}»)",
+                    safeSignalCode, instance.Id, version.ProcessId, startEl.Id);
+
+                _ = StartAsync(instance.Id, CancellationToken.None);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Ищет активные версии процессов с сообщёнными стартовыми событиями и запускает новые экземпляры.
+    /// </summary>
+    private async Task StartInstancesForMessageAsync(
+        string messageCode,
+        string? correlationKey,
+        Dictionary<string, string>? variables,
+        DateTimeOffset now,
+        CancellationToken ct)
+    {
+        var activeVersions = await _db.BpmProcessVersions
+            .AsNoTracking()
+            .Include(v => v.Process)
+            .Where(v => v.Status == BpmProcessVersionStatus.Active && v.DiagramXml != null)
+            .ToListAsync(ct);
+
+        foreach (var version in activeVersions)
+        {
+            ProcessModel model;
+            try { model = ParseXml(version.Id, version.DiagramXml!); }
+            catch { continue; }
+
+            var matchingStarts = model.StartEvents
+                .Where(e => string.Equals(e.MessageCode, messageCode, StringComparison.Ordinal))
+                .ToList();
+
+            foreach (var startEl in matchingStarts)
+            {
+                var instance = new BpmInstance
+                {
+                    Id = Guid.NewGuid(),
+                    ProcessId = version.ProcessId,
+                    ProcessVersionId = version.Id,
+                    Name = $"{version.Process?.Name ?? version.ProcessId.ToString()} — сообщение «{messageCode}» {now:dd.MM.yyyy HH:mm}",
+                    State = BpmInstanceState.Active,
+                    LaunchSource = BpmInstanceLaunchSource.Message,
+                    ExternalReference = correlationKey,
+                    StartedAt = now,
+                    UpdatedAt = now,
+                };
+                _db.BpmInstances.Add(instance);
+
+                if (variables != null)
+                {
+                    foreach (var kv in variables)
+                    {
+                        _db.BpmInstanceVariables.Add(new BpmInstanceVariable
+                        {
+                            Id = Guid.NewGuid(),
+                            InstanceId = instance.Id,
+                            Name = kv.Key,
+                            ValueJson = JsonSerializer.Serialize(kv.Value),
+                            SetAt = now,
+                        });
+                    }
+                }
+
+                await _db.SaveChangesAsync(ct);
+
+                // Санируем код сообщения перед записью в лог
+                var safeMessageCode = messageCode.Replace('\n', '_').Replace('\r', '_');
+                _logger.LogInformation(
+                    "Message «{MessageCode}»: запущен экземпляр {InstanceId} процесса {ProcessId} (стартовый элемент «{ElementId}»)",
+                    safeMessageCode, instance.Id, version.ProcessId, startEl.Id);
+
+                _ = StartAsync(instance.Id, CancellationToken.None);
+            }
         }
     }
 
@@ -485,7 +632,7 @@ public class BpmExecutionEngine : IBpmExecutionEngine
 
             case "userTask":
             case "receiveTask":
-                await HandleUserTaskAsync(instance.Id, elementId, elementType, elementName, now, ct);
+                await HandleUserTaskAsync(instance, model, elementId, elementType, elementName, now, ct);
                 break;
 
             case "serviceTask":
@@ -633,6 +780,9 @@ public class BpmExecutionEngine : IBpmExecutionEngine
             OccurredAt = now,
         });
 
+        // Применяем выходные маппинги переменных (outputMappings из конфигурации CallActivity)
+        await ApplyCallActivityOutputMappingsAsync(parentInstanceId, childInstanceId, callActivityElementId, now, ct);
+
         await _db.SaveChangesAsync(ct);
 
         // Продвигаем родительский поток
@@ -730,6 +880,9 @@ public class BpmExecutionEngine : IBpmExecutionEngine
         };
         _db.BpmInstances.Add(childInstance);
 
+        // Применяем входные маппинги переменных (inputMappings из конфигурации CallActivity)
+        await ApplyCallActivityInputMappingsAsync(instance, childInstance, elementId, now, ct);
+
         // Устанавливаем токен родителя в ожидание
         await CreateOrUpdateTokenAsync(instance.Id, elementId, "callActivity", elementName, BpmTokenStatus.WaitingCallActivity, now, ct);
 
@@ -748,6 +901,143 @@ public class BpmExecutionEngine : IBpmExecutionEngine
 
         // Запускаем дочерний экземпляр (fire-and-forget)
         _ = StartAsync(childInstance.Id, CancellationToken.None);
+    }
+
+    /// <summary>
+    /// Применяет входные маппинги переменных CallActivity: копирует переменные
+    /// из родительского экземпляра в дочерний согласно настройкам <c>inputMappings</c>.
+    /// Ожидаемый формат ConfigJson: <c>{ "inputMappings": [{ "sourceVar": "x", "targetVar": "y" }] }</c>
+    /// </summary>
+    private async Task ApplyCallActivityInputMappingsAsync(
+        BpmInstance parentInstance,
+        BpmInstance childInstance,
+        string callActivityElementId,
+        DateTimeOffset now,
+        CancellationToken ct)
+    {
+        var configJson = await _db.BpmElementConfigs
+            .AsNoTracking()
+            .Where(c => c.ProcessId == parentInstance.ProcessId && c.ElementId == callActivityElementId)
+            .Select(c => c.ConfigJson)
+            .FirstOrDefaultAsync(ct);
+
+        if (string.IsNullOrWhiteSpace(configJson)) return;
+
+        List<VariableMapping>? mappings;
+        try
+        {
+            using var doc = JsonDocument.Parse(configJson);
+            if (!doc.RootElement.TryGetProperty("inputMappings", out var mappingsEl)) return;
+            mappings = JsonSerializer.Deserialize<List<VariableMapping>>(mappingsEl.GetRawText());
+        }
+        catch
+        {
+            return;
+        }
+
+        if (mappings == null || mappings.Count == 0) return;
+
+        // Загружаем переменные родительского экземпляра
+        var sourceNames = mappings.Select(m => m.SourceVar).ToList();
+        var parentVars = await _db.BpmInstanceVariables
+            .AsNoTracking()
+            .Where(v => v.InstanceId == parentInstance.Id && sourceNames.Contains(v.Name))
+            .ToDictionaryAsync(v => v.Name, ct);
+
+        foreach (var mapping in mappings)
+        {
+            if (!parentVars.TryGetValue(mapping.SourceVar, out var sourceVar)) continue;
+
+            _db.BpmInstanceVariables.Add(new BpmInstanceVariable
+            {
+                Id = Guid.NewGuid(),
+                InstanceId = childInstance.Id,
+                Name = mapping.TargetVar,
+                ValueJson = sourceVar.ValueJson,
+                SetAt = now,
+            });
+        }
+    }
+
+    /// <summary>
+    /// Применяет выходные маппинги переменных CallActivity: копирует переменные
+    /// из завершённого дочернего экземпляра обратно в родительский согласно <c>outputMappings</c>.
+    /// Ожидаемый формат ConfigJson: <c>{ "outputMappings": [{ "sourceVar": "result", "targetVar": "parentResult" }] }</c>
+    /// </summary>
+    private async Task ApplyCallActivityOutputMappingsAsync(
+        Guid parentInstanceId,
+        Guid childInstanceId,
+        string callActivityElementId,
+        DateTimeOffset now,
+        CancellationToken ct)
+    {
+        // Получаем ProcessId родительского экземпляра для поиска конфигурации
+        var parentProcessId = await _db.BpmInstances
+            .AsNoTracking()
+            .Where(i => i.Id == parentInstanceId)
+            .Select(i => i.ProcessId)
+            .FirstOrDefaultAsync(ct);
+
+        if (parentProcessId == Guid.Empty) return;
+
+        var configJson = await _db.BpmElementConfigs
+            .AsNoTracking()
+            .Where(c => c.ProcessId == parentProcessId && c.ElementId == callActivityElementId)
+            .Select(c => c.ConfigJson)
+            .FirstOrDefaultAsync(ct);
+
+        if (string.IsNullOrWhiteSpace(configJson)) return;
+
+        List<VariableMapping>? mappings;
+        try
+        {
+            using var doc = JsonDocument.Parse(configJson);
+            if (!doc.RootElement.TryGetProperty("outputMappings", out var mappingsEl)) return;
+            mappings = JsonSerializer.Deserialize<List<VariableMapping>>(mappingsEl.GetRawText());
+        }
+        catch
+        {
+            return;
+        }
+
+        if (mappings == null || mappings.Count == 0) return;
+
+        // Загружаем переменные дочернего экземпляра
+        var sourceNames = mappings.Select(m => m.SourceVar).ToList();
+        var childVars = await _db.BpmInstanceVariables
+            .AsNoTracking()
+            .Where(v => v.InstanceId == childInstanceId && sourceNames.Contains(v.Name))
+            .ToDictionaryAsync(v => v.Name, ct);
+
+        if (childVars.Count == 0) return;
+
+        // Загружаем существующие переменные родительского экземпляра для upsert
+        var targetNames = mappings.Select(m => m.TargetVar).ToList();
+        var parentVars = await _db.BpmInstanceVariables
+            .Where(v => v.InstanceId == parentInstanceId && targetNames.Contains(v.Name))
+            .ToDictionaryAsync(v => v.Name, ct);
+
+        foreach (var mapping in mappings)
+        {
+            if (!childVars.TryGetValue(mapping.SourceVar, out var sourceVar)) continue;
+
+            if (parentVars.TryGetValue(mapping.TargetVar, out var existing))
+            {
+                existing.ValueJson = sourceVar.ValueJson;
+                existing.SetAt = now;
+            }
+            else
+            {
+                _db.BpmInstanceVariables.Add(new BpmInstanceVariable
+                {
+                    Id = Guid.NewGuid(),
+                    InstanceId = parentInstanceId,
+                    Name = mapping.TargetVar,
+                    ValueJson = sourceVar.ValueJson,
+                    SetAt = now,
+                });
+            }
+        }
     }
 
     private async Task HandleSubProcessAsync(
@@ -796,19 +1086,20 @@ public class BpmExecutionEngine : IBpmExecutionEngine
     }
 
     private async Task HandleUserTaskAsync(
-        Guid instanceId,
+        BpmInstance instance,
+        ProcessModel model,
         string elementId,
         string elementType,
         string? elementName,
         DateTimeOffset now,
         CancellationToken ct)
     {
-        await CreateOrUpdateTokenAsync(instanceId, elementId, elementType, elementName, BpmTokenStatus.WaitingUserAction, now, ct);
+        await CreateOrUpdateTokenAsync(instance.Id, elementId, elementType, elementName, BpmTokenStatus.WaitingUserAction, now, ct);
 
         _db.BpmInstanceHistoryEntries.Add(new BpmInstanceHistoryEntry
         {
             Id = Guid.NewGuid(),
-            InstanceId = instanceId,
+            InstanceId = instance.Id,
             EventType = BpmHistoryEventType.NodeExecuted,
             ElementId = elementId,
             ElementName = elementName,
@@ -818,20 +1109,23 @@ public class BpmExecutionEngine : IBpmExecutionEngine
 
         await _db.SaveChangesAsync(ct);
 
+        // Планируем граничные таймерные события для этой задачи
+        await TryScheduleBoundaryTimerEventsAsync(instance, model, elementId, now, ct);
+
         // Уведомляем участников процесса о появлении новой задачи
         try
         {
-            var instance = await _db.BpmInstances
+            var instanceWithProcess = await _db.BpmInstances
                 .AsNoTracking()
                 .Include(i => i.Process)
-                .FirstOrDefaultAsync(i => i.Id == instanceId, ct);
+                .FirstOrDefaultAsync(i => i.Id == instance.Id, ct);
 
-            if (instance != null)
+            if (instanceWithProcess != null)
             {
                 await _notificationService.NotifyUserTaskActivatedAsync(
-                    instanceId,
-                    instance.Name,
-                    instance.Process?.Name ?? string.Empty,
+                    instance.Id,
+                    instanceWithProcess.Name,
+                    instanceWithProcess.Process?.Name ?? string.Empty,
                     elementId,
                     elementName,
                     ct);
@@ -893,6 +1187,9 @@ public class BpmExecutionEngine : IBpmExecutionEngine
         _db.BpmExecutionJobs.Add(job);
 
         await _db.SaveChangesAsync(ct);
+
+        // Планируем граничные таймерные события для этой задачи
+        await TryScheduleBoundaryTimerEventsAsync(instance, model, elementId, now, ct);
     }
 
     private async Task HandleIntermediateCatchEventAsync(
@@ -1017,7 +1314,7 @@ public class BpmExecutionEngine : IBpmExecutionEngine
 
         // Если это событие отправляет сигнал — рассылаем его другим экземплярам
         if (!string.IsNullOrWhiteSpace(signalCode))
-            await SendSignalAsync(signalCode, ct);
+            await SendSignalAsync(signalCode, ct: ct);
 
         await AdvanceFromAsync(instanceId, elementId, ct);
     }
@@ -1052,6 +1349,14 @@ public class BpmExecutionEngine : IBpmExecutionEngine
                     job.ElementId, job.InstanceId);
                 await FinalizeTimerTokenAsync(instance.Id, job.ElementId, job, DateTimeOffset.UtcNow, ct);
                 return; // Не вызываем AdvanceFromAsync из ExecuteJobAsync — уже сделано внутри
+
+            case "boundaryEvent" when job.IsTimer:
+                // Граничный таймер сработал — активируем граничное событие
+                _logger.LogInformation(
+                    "Граничный таймер [{ElementId}] сработал в экземпляре {InstanceId}",
+                    job.ElementId, job.InstanceId);
+                await TryActivateBoundaryTimerEventAsync(instance, job.ElementId, DateTimeOffset.UtcNow, ct);
+                return; // Продвижение потока происходит внутри TryActivateBoundaryTimerEventAsync
 
             default:
                 _logger.LogInformation("Задание типа {ElementType} — пассивное выполнение (заглушка)", job.ElementType);
@@ -1570,6 +1875,127 @@ public class BpmExecutionEngine : IBpmExecutionEngine
         _logger.LogInformation(
             "BusinessRuleTask [{ElementId}]: DMN-результат записан в {Count} переменных(ую)",
             job.ElementId, outputMappings.Count);
+    }
+
+    /// <summary>
+    /// Ищет граничные таймерные события, прикреплённые к задаче, и планирует задания для их выполнения.
+    /// </summary>
+    private async Task TryScheduleBoundaryTimerEventsAsync(
+        BpmInstance instance,
+        ProcessModel model,
+        string taskElementId,
+        DateTimeOffset now,
+        CancellationToken ct)
+    {
+        // Ищем граничные события с таймером, прикреплённые к данному элементу
+        var boundaryTimerEvents = model.AllElements
+            .Where(e => e.ElementType == "boundaryEvent"
+                     && e.BoundaryFor == taskElementId
+                     && (!string.IsNullOrWhiteSpace(e.TimerDuration)
+                         || !string.IsNullOrWhiteSpace(e.TimerCycle)
+                         || !string.IsNullOrWhiteSpace(e.TimerDate)))
+            .ToList();
+
+        if (boundaryTimerEvents.Count == 0)
+            return;
+
+        foreach (var be in boundaryTimerEvents)
+        {
+            var fireAt = ResolveTimerFireAt(now, be.TimerDuration, be.TimerCycle, be.TimerDate);
+
+            var timerJob = new BpmExecutionJob
+            {
+                Id = Guid.NewGuid(),
+                ProcessId = instance.ProcessId,
+                ProcessVersionId = model.VersionId,
+                InstanceId = instance.Id,
+                ElementId = be.Id,
+                ElementType = "boundaryEvent",
+                OperationName = be.Name,
+                Status = BpmJobStatus.Pending,
+                IsTimer = true,
+                MaxAttempts = 1,
+                NextRunAt = fireAt,
+                CreatedAt = now,
+                UpdatedAt = now,
+            };
+            _db.BpmExecutionJobs.Add(timerJob);
+
+            _logger.LogInformation(
+                "Запланирован граничный таймер {BoundaryId} для задачи {TaskId} — срабатывание в {FireAt:u}",
+                be.Id, taskElementId, fireAt);
+        }
+
+        await _db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
+    /// Активирует граничное таймерное событие при его срабатывании.
+    /// Возвращает true если граничное событие было найдено и активировано.
+    /// </summary>
+    private async Task<bool> TryActivateBoundaryTimerEventAsync(
+        BpmInstance instance,
+        string boundaryEventElementId,
+        DateTimeOffset now,
+        CancellationToken ct)
+    {
+        var model = await ParseModelAsync(instance.ProcessVersionId, ct);
+        if (model == null) return false;
+
+        // Ищем описание граничного события в модели
+        var be = model.AllElements.FirstOrDefault(e =>
+            e.ElementType == "boundaryEvent" && e.Id == boundaryEventElementId);
+
+        if (be == null)
+        {
+            _logger.LogWarning(
+                "Граничное таймерное событие {BoundaryId} не найдено в модели процесса {VersionId}",
+                boundaryEventElementId, instance.ProcessVersionId);
+            return false;
+        }
+
+        _logger.LogInformation(
+            "Граничное таймерное событие {BoundaryId} активировано для задачи {TaskId}",
+            be.Id, be.BoundaryFor ?? "(не задана)");
+
+        // Если cancelActivity=true (по умолчанию) — отменяем хост-задачу
+        if (be.IsCancelActivity != false && !string.IsNullOrWhiteSpace(be.BoundaryFor))
+        {
+            await CancelTaskTokenAsync(instance.Id, be.BoundaryFor, now, ct);
+
+            // Отменяем также незавершённые задания хост-задачи
+            var pendingJobs = await _db.BpmExecutionJobs
+                .Where(j => j.InstanceId == instance.Id
+                         && j.ElementId == be.BoundaryFor
+                         && (j.Status == BpmJobStatus.Pending || j.Status == BpmJobStatus.Running))
+                .ToListAsync(ct);
+
+            foreach (var pj in pendingJobs)
+            {
+                pj.Status = BpmJobStatus.Cancelled;
+                pj.UpdatedAt = now;
+            }
+        }
+
+        // Создаём активный токен граничного события
+        await CreateOrUpdateTokenAsync(instance.Id, be.Id, be.ElementType, be.Name,
+            BpmTokenStatus.Active, now, ct);
+
+        _db.BpmInstanceHistoryEntries.Add(new BpmInstanceHistoryEntry
+        {
+            Id = Guid.NewGuid(),
+            InstanceId = instance.Id,
+            EventType = BpmHistoryEventType.NodeExecuted,
+            ElementId = be.Id,
+            ElementName = be.Name,
+            Text = $"Граничное таймерное событие «{be.Name ?? be.Id}» сработало",
+            OccurredAt = now,
+        });
+        await _db.SaveChangesAsync(ct);
+
+        // Продвигаем поток от граничного события
+        await AdvanceFromAsync(instance.Id, be.Id, ct);
+        return true;
     }
 
     /// <summary>
@@ -2151,4 +2577,9 @@ public class BpmExecutionEngine : IBpmExecutionEngine
         string SourceRef,
         string TargetRef,
         string? ConditionExpression);
+
+    /// <summary>Маппинг переменной CallActivity (входной или выходной).</summary>
+    private record VariableMapping(
+        [property: System.Text.Json.Serialization.JsonPropertyName("sourceVar")] string SourceVar,
+        [property: System.Text.Json.Serialization.JsonPropertyName("targetVar")] string TargetVar);
 }

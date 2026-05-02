@@ -26,6 +26,9 @@ public class BpmVersionMigrationPackage
     /// <summary>Время завершения обработки пакета.</summary>
     public DateTimeOffset? CompletedAt { get; set; }
 
+    /// <summary>Время автоматического запуска пакета по расписанию (UTC). Null — без расписания.</summary>
+    public DateTimeOffset? ScheduledAt { get; set; }
+
     // Навигационные свойства
     public ICollection<BpmVersionMigrationItem> Items { get; set; } = new List<BpmVersionMigrationItem>();
 }

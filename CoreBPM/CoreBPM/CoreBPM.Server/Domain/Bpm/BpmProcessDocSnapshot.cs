@@ -23,6 +23,9 @@ public class BpmProcessDocSnapshot
     /// <summary>Идентификатор пользователя, опубликовавшего версию (кто инициировал генерацию).</summary>
     public Guid GeneratedByUserId { get; set; }
 
+    /// <summary>SVG-диаграмма процесса, встраиваемая в HTML-документацию (опционально).</summary>
+    public string? DiagramSvg { get; set; }
+
     // Навигационные свойства
     public BpmProcess Process { get; set; } = null!;
     public BpmProcessVersion ProcessVersion { get; set; } = null!;

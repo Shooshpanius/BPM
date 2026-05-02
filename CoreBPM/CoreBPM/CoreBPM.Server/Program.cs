@@ -133,6 +133,7 @@ builder.Services.AddHttpClient("BpmEngine");
 builder.Services.AddSingleton<IBpmScriptExecutor, BpmRoslynScriptExecutor>();
 builder.Services.AddScoped<IBpmExecutionEngine, BpmExecutionEngine>();
 builder.Services.AddHostedService<BpmEngineWorker>();
+builder.Services.AddHostedService<BpmSchedulerWorker>();
 builder.Services.AddHostedService<BpmKpiAlertWorker>();
 
 var app = builder.Build();

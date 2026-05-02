@@ -49,6 +49,7 @@ public class AppDbContext : DbContext
     public DbSet<BpmGlobalModuleFile> BpmGlobalModuleFiles => Set<BpmGlobalModuleFile>();
     public DbSet<BpmImprovement> BpmImprovements => Set<BpmImprovement>();
     public DbSet<BpmKpiAlert> BpmKpiAlerts => Set<BpmKpiAlert>();
+    public DbSet<BpmDocTemplate> BpmDocTemplates { get; set; } = null!;
     public DbSet<BpmSignal> BpmSignals => Set<BpmSignal>();
     public DbSet<BpmMessage> BpmMessages => Set<BpmMessage>();
     public DbSet<DmnTable> DmnTables => Set<DmnTable>();
@@ -957,6 +958,17 @@ public class AppDbContext : DbContext
             e.Property(a => a.ProcessName).IsRequired().HasMaxLength(300);
             e.HasIndex(a => a.ProcessId);
             e.HasIndex(a => a.DetectedAt);
+        });
+
+        // ─── Шаблоны документов процессов ──────────────────────────────────────
+
+        modelBuilder.Entity<BpmDocTemplate>(e =>
+        {
+            e.ToTable("bpm_doc_templates");
+            e.HasKey(t => t.Id);
+            e.Property(t => t.Name).IsRequired().HasMaxLength(300);
+            e.Property(t => t.FileName).IsRequired().HasMaxLength(500);
+            e.HasIndex(t => t.UploadedAt);
         });
     }
 

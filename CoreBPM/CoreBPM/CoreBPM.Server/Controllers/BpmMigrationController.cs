@@ -106,6 +106,33 @@ public class BpmMigrationController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>Экспортирует пакет миграции в JSON-файл для переноса между средами.</summary>
+    [HttpGet("api/bpm/migration-packages/{id:guid}/export")]
+    [ProducesResponseType(typeof(MigrationPackageExportDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<MigrationPackageExportDto>> ExportPackage(
+        Guid id,
+        CancellationToken ct = default)
+    {
+        var export = await _service.ExportPackageAsync(id, ct);
+        var fileName = $"migration-package-{id:N}.json";
+        Response.Headers.ContentDisposition = $"attachment; filename=\"{fileName}\"";
+        return Ok(export);
+    }
+
+    /// <summary>Импортирует пакет миграции из JSON-тела запроса и создаёт новый пакет в статусе New.</summary>
+    [HttpPost("api/bpm/migration-packages/import")]
+    [ProducesResponseType(typeof(MigrationPackageDetailDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<MigrationPackageDetailDto>> ImportPackage(
+        [FromBody] MigrationPackageExportDto export,
+        CancellationToken ct = default)
+    {
+        var userId = GetCurrentUserId() ?? Guid.Empty;
+        var result = await _service.ImportPackageAsync(userId, export, ct);
+        return CreatedAtAction(nameof(GetPackage), new { id = result.Id }, result);
+    }
+
     private Guid? GetCurrentUserId()
     {
         var sub = User.FindFirstValue(ClaimTypes.NameIdentifier)

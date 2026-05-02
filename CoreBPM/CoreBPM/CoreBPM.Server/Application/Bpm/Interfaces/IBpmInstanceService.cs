@@ -101,4 +101,21 @@ public interface IBpmInstanceService
         SwitchInstanceVersionRequest request,
         Guid actorUserId,
         CancellationToken ct = default);
+
+    // ─── Мои задачи (FR-BPM-02.3) ────────────────────────────────────────────
+
+    /// <summary>
+    /// Возвращает токены в статусе WaitingUserAction для экземпляров,
+    /// в которых указанный пользователь является ответственным или участником.
+    /// </summary>
+    Task<IReadOnlyList<MyTaskDto>> GetMyTasksAsync(
+        Guid userId,
+        CancellationToken ct = default);
+
+    // ─── Дерево подпроцессов (FR-BPM-02.2) ───────────────────────────────────
+
+    /// <summary>Возвращает список дочерних экземпляров (подпроцессов) для заданного родительского экземпляра.</summary>
+    Task<IReadOnlyList<BpmInstanceListItemDto>> GetChildInstancesAsync(
+        Guid parentInstanceId,
+        CancellationToken ct = default);
 }

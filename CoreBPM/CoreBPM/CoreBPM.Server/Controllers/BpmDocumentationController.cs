@@ -58,6 +58,7 @@ public class BpmDocumentationController : ControllerBase
 
     /// <summary>
     /// Генерирует (пересоздаёт) HTML-снапшот документации для указанной версии.
+    /// Принимает опциональный SVG-контент диаграммы для встраивания в документ.
     /// Доступно только администраторам.
     /// </summary>
     [HttpPost("api/bpm/processes/{processId:guid}/versions/{versionId:guid}/snapshot/regenerate")]
@@ -67,10 +68,11 @@ public class BpmDocumentationController : ControllerBase
     public async Task<IActionResult> RegenerateSnapshot(
         Guid processId,
         Guid versionId,
+        [FromBody] RegenerateSnapshotRequest? request,
         CancellationToken ct)
     {
         var userId = GetCurrentUserId() ?? Guid.Empty;
-        await _service.GenerateAndSaveSnapshotAsync(processId, versionId, userId, ct);
+        await _service.RegenerateSnapshotWithSvgAsync(processId, versionId, userId, request?.SvgContent, ct);
         return NoContent();
     }
 

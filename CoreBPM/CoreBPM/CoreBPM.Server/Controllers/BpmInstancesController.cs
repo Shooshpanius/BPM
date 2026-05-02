@@ -274,4 +274,26 @@ public class BpmInstancesController : ControllerBase
                ?? User.FindFirstValue("sub");
         return Guid.TryParse(sub, out var id) ? id : null;
     }
+
+    // ─── Мои задачи ───────────────────────────────────────────────────────────
+
+    /// <summary>Возвращает задачи текущего пользователя — токены в статусе ожидания действия.</summary>
+    [HttpGet("api/bpm/instances/my/tasks")]
+    [ProducesResponseType(typeof(IReadOnlyList<MyTaskDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<MyTaskDto>>> GetMyTasks(CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.GetMyTasksAsync(userId.Value, ct));
+    }
+
+    // ─── Дерево подпроцессов ──────────────────────────────────────────────────
+
+    /// <summary>Возвращает дочерние экземпляры (подпроцессы) для указанного родительского экземпляра.</summary>
+    [HttpGet("api/bpm/instances/{id}/children")]
+    [ProducesResponseType(typeof(IReadOnlyList<BpmInstanceListItemDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<BpmInstanceListItemDto>>> GetChildren(
+        Guid id,
+        CancellationToken ct)
+        => Ok(await _service.GetChildInstancesAsync(id, ct));
 }

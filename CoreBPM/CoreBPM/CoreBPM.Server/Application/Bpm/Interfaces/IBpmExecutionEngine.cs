@@ -19,11 +19,17 @@ public interface IBpmExecutionEngine
         IDictionary<string, string?>? outputVariables,
         CancellationToken ct = default);
 
-    /// <summary>Рассылает сигнал всем экземплярам, ожидающим данный сигнал.</summary>
-    Task SendSignalAsync(string signalCode, CancellationToken ct = default);
+    /// <summary>
+    /// Рассылает сигнал всем экземплярам, ожидающим данный сигнал,
+    /// а также запускает новые экземпляры для процессов с сигнальным стартовым событием.
+    /// </summary>
+    Task SendSignalAsync(string signalCode, Dictionary<string, string>? variables = null, CancellationToken ct = default);
 
-    /// <summary>Доставляет сообщение экземплярам, ожидающим данный код сообщения (с опциональной корреляцией).</summary>
-    Task SendMessageAsync(string messageCode, string? correlationKey, CancellationToken ct = default);
+    /// <summary>
+    /// Доставляет сообщение экземплярам, ожидающим данный код сообщения (с опциональной корреляцией),
+    /// а также запускает новые экземпляры для процессов с сообщённым стартовым событием.
+    /// </summary>
+    Task SendMessageAsync(string messageCode, string? correlationKey, Dictionary<string, string>? variables = null, CancellationToken ct = default);
 
     /// <summary>Выполняет одно задание из очереди (вызывается фоновым воркером).</summary>
     Task ExecuteJobAsync(Guid jobId, CancellationToken ct = default);

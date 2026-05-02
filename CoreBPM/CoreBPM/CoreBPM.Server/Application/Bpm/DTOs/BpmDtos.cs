@@ -829,7 +829,8 @@ public record MigrationItemDto(
 /// <summary>Запрос на создание пакета миграции.</summary>
 public record CreateMigrationPackageRequest(
     string Name,
-    IReadOnlyList<MigrationItemRequest> Items
+    IReadOnlyList<MigrationItemRequest> Items,
+    DateTimeOffset? ScheduledAt = null
 );
 
 /// <summary>Элемент запроса на создание пакета миграции.</summary>
@@ -841,6 +842,22 @@ public record MigrationItemRequest(
 /// <summary>Запрос на ручную обработку элемента миграции.</summary>
 public record ManualMigrateItemRequest(
     string? ManualChangeUrl
+);
+
+// ─── Экспорт/импорт пакетов миграции (FR-BPM-02.7) ──────────────────────────
+
+/// <summary>DTO для экспорта пакета миграции в JSON-файл.</summary>
+public record MigrationPackageExportDto(
+    string Name,
+    IReadOnlyList<MigrationPackageExportItemDto> Items
+);
+
+/// <summary>Элемент экспортируемого пакета миграции.</summary>
+public record MigrationPackageExportItemDto(
+    Guid InstanceId,
+    string? InstanceName,
+    Guid TargetVersionId,
+    int? TargetVersionNumber
 );
 
 // ─── Пакетный запуск экземпляров (FR-BPM-02.1) ───────────────────────────────
@@ -927,7 +944,9 @@ public record CompleteUserTaskRequest(
 /// <summary>Запрос на отправку сигнала.</summary>
 public record SendSignalRequest(
     /// <summary>Код сигнала BPMN.</summary>
-    string SignalCode
+    string SignalCode,
+    /// <summary>Переменные для передачи новым экземплярам, запускаемым по сигнальному стартовому событию.</summary>
+    Dictionary<string, string>? Variables = null
 );
 
 /// <summary>Запрос на отправку сообщения.</summary>
@@ -935,7 +954,9 @@ public record SendMessageRequest(
     /// <summary>Код сообщения BPMN.</summary>
     string MessageCode,
     /// <summary>Ключ корреляции (опционально).</summary>
-    string? CorrelationKey = null
+    string? CorrelationKey = null,
+    /// <summary>Переменные для передачи новым экземплярам, запускаемым по сообщённому стартовому событию.</summary>
+    Dictionary<string, string>? Variables = null
 );
 
 // ─── FR-BPM-03.1: Предложения по улучшению ──────────────────────────────────
@@ -1091,3 +1112,59 @@ public record KpiAlertDto(
 
 /// <summary>Запрос импорта BPMN XML-диаграммы.</summary>
 public record ImportDiagramRequest(string DiagramXml);
+
+/// <summary>Запрос на пересоздание HTML-снапшота с опциональной SVG-диаграммой.</summary>
+public record RegenerateSnapshotRequest(string? SvgContent);
+
+// ─── Шаблоны документов (FR-BPM-02.6) ───────────────────────────────────────
+
+/// <summary>Элемент списка шаблонов документов.</summary>
+public record DocTemplateListItemDto(
+    Guid Id,
+    string Name,
+    string FileName,
+    DateTimeOffset UploadedAt
+);
+
+// ─── Мои задачи (FR-BPM-02.3) ────────────────────────────────────────────────
+
+/// <summary>DTO задачи текущего пользователя — токен в статусе ожидания действия.</summary>
+public record MyTaskDto(
+    Guid InstanceId,
+    string InstanceName,
+    string ProcessName,
+    string ElementId,
+    string? ElementName,
+    DateTimeOffset ActivatedAt
+);
+
+// ─── Зоны ответственности (FR-BPM-02.4) ─────────────────────────────────────
+
+/// <summary>Зона ответственности (плавательная дорожка BPMN) с активными исполнителями.</summary>
+public record ResponsibilityZoneDto(
+    string LaneName,
+    IReadOnlyList<ResponsibilityZoneUserDto> Users
+);
+
+/// <summary>Ответственный пользователь в зоне ответственности.</summary>
+public record ResponsibilityZoneUserDto(
+    Guid UserId,
+    string? UserName,
+    int ActiveTaskCount
+);
+
+// ─── Импорт/экспорт retry-политик (FR-BPM-02.5) ─────────────────────────────
+
+/// <summary>DTO политики повторных попыток для одного элемента процесса.</summary>
+public record JobRetryPolicyDto(
+    Guid ProcessId,
+    string? ProcessName,
+    string ElementId,
+    string? ElementName,
+    int MaxRetries,
+    int RetryDelaySeconds,
+    string? BoundaryErrorCode
+);
+
+/// <summary>Запрос на импорт retry-политик.</summary>
+public record ImportRetryPoliciesRequest(IReadOnlyList<JobRetryPolicyDto> Policies);

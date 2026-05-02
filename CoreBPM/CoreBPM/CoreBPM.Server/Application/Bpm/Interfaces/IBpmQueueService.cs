@@ -34,4 +34,12 @@ public interface IBpmQueueService
         DateTimeOffset? from,
         DateTimeOffset? to,
         CancellationToken ct = default);
+
+    // ─── Retry-политики (FR-BPM-02.5) ────────────────────────────────────────
+
+    /// <summary>Экспортирует retry-политики всех элементов процессов, у которых они заданы.</summary>
+    Task<IReadOnlyList<JobRetryPolicyDto>> ExportRetryPoliciesAsync(CancellationToken ct = default);
+
+    /// <summary>Импортирует retry-политики: создаёт или обновляет конфигурации элементов процессов.</summary>
+    Task ImportRetryPoliciesAsync(ImportRetryPoliciesRequest request, CancellationToken ct = default);
 }

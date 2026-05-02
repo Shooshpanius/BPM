@@ -20,7 +20,11 @@ public class BpmDocumentationService : IBpmDocumentationService
     }
 
     /// <inheritdoc />
-    public async Task GenerateAndSaveSnapshotAsync(Guid processId, Guid versionId, Guid generatedByUserId, CancellationToken ct = default)
+    public Task GenerateAndSaveSnapshotAsync(Guid processId, Guid versionId, Guid generatedByUserId, CancellationToken ct = default)
+        => RegenerateSnapshotWithSvgAsync(processId, versionId, generatedByUserId, svgContent: null, ct);
+
+    /// <inheritdoc />
+    public async Task RegenerateSnapshotWithSvgAsync(Guid processId, Guid versionId, Guid userId, string? svgContent, CancellationToken ct = default)
     {
         var process = await _db.BpmProcesses
             .AsNoTracking()
@@ -53,9 +57,9 @@ public class BpmDocumentationService : IBpmDocumentationService
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.ProcessVersionId == versionId, ct);
 
-        var html = BuildHtml(process, version, variables, raciEntries, roles, scriptModule);
+        var html = BuildHtml(process, version, variables, raciEntries, roles, scriptModule, svgContent);
 
-        // Удаляем старый снапшот для этой версии (если вдруг пересоздаётся)
+        // Обновляем существующий снапшот или создаём новый
         var existing = await _db.BpmProcessDocSnapshots
             .Where(s => s.ProcessVersionId == versionId)
             .FirstOrDefaultAsync(ct);
@@ -63,8 +67,9 @@ public class BpmDocumentationService : IBpmDocumentationService
         if (existing is not null)
         {
             existing.HtmlContent = html;
+            existing.DiagramSvg = svgContent;
             existing.GeneratedAt = DateTimeOffset.UtcNow;
-            existing.GeneratedByUserId = generatedByUserId;
+            existing.GeneratedByUserId = userId;
         }
         else
         {
@@ -74,8 +79,9 @@ public class BpmDocumentationService : IBpmDocumentationService
                 ProcessId = processId,
                 ProcessVersionId = versionId,
                 HtmlContent = html,
+                DiagramSvg = svgContent,
                 GeneratedAt = DateTimeOffset.UtcNow,
-                GeneratedByUserId = generatedByUserId
+                GeneratedByUserId = userId
             });
         }
 
@@ -188,7 +194,8 @@ public class BpmDocumentationService : IBpmDocumentationService
         List<BpmProcessVariable> variables,
         List<BpmRaciEntry> raciEntries,
         List<BpmProcessRoleConfig> roles,
-        BpmScriptModule? scriptModule)
+        BpmScriptModule? scriptModule,
+        string? svgContent = null)
     {
         var model = ParseBpmnModel(version.DiagramXml ?? string.Empty);
         var owners = roles.Where(r => r.RoleType == BpmProcessRoleType.Owner).Select(r => r.DisplayName).ToList();
@@ -211,6 +218,14 @@ public class BpmDocumentationService : IBpmDocumentationService
         sb.AppendLine($"  <h1>{HtmlEncode(process.Name)}</h1>");
         sb.AppendLine($"  <div class=\"doc-meta\">Версия {version.VersionNumber} &bull; Опубликована: {version.PublishedAt?.ToString("dd.MM.yyyy HH:mm") ?? "—"} &bull; Сформировано: {now:dd.MM.yyyy HH:mm}</div>");
         sb.AppendLine("</header>");
+
+        // ─── SVG-диаграмма (если передана) ──────────────────────────────────
+        if (!string.IsNullOrWhiteSpace(svgContent))
+        {
+            sb.AppendLine("<div class=\"doc-diagram\">");
+            sb.AppendLine(svgContent);
+            sb.AppendLine("</div>");
+        }
 
         sb.AppendLine("<main>");
 
@@ -413,6 +428,8 @@ public class BpmDocumentationService : IBpmDocumentationService
         .badge-raci-i { background: #d1fae5; color: #065f46; }
         p { margin-bottom: 8px; }
         .doc-footer { margin-top: 48px; padding: 16px 40px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #9ca3af; text-align: center; }
+        .doc-diagram { padding: 24px 40px; border-bottom: 1px solid #e5e7eb; overflow-x: auto; background: #f9fafb; }
+        .doc-diagram svg { max-width: 100%; height: auto; }
         </style>
         """;
 

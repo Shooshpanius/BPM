@@ -6,11 +6,15 @@ import {
     createSavedFilter,
     deleteSavedFilter,
     exportMyInstances,
+    getProcessStats,
+    getMyTasks,
     type MyInstancesFilter,
     type MyInstancesRole,
     type BpmInstanceListItemDto,
     type BpmSavedFilterDto,
     type BpmInstanceState,
+    type BpmProcessStatsDto,
+    type MyTaskDto,
 } from '../../api/bpmApi';
 import './MyProcessesPage.css';
 interface MyProcessesPageProps {
@@ -80,6 +84,17 @@ export function MyProcessesPage({ onOpenInstance }: MyProcessesPageProps) {
     const [savedFilters, setSavedFilters] = useState<BpmSavedFilterDto[]>([]);
     const [saveFilterName, setSaveFilterName] = useState('');
     const [showSaveForm, setShowSaveForm] = useState(false);
+
+    // ─── Статистика процесса ─────────────────────────────────────────────────
+    const [selectedProcessId, setSelectedProcessId] = useState<string | null>(null);
+    const [selectedProcessName, setSelectedProcessName] = useState('');
+    const [processStats, setProcessStats] = useState<BpmProcessStatsDto | null>(null);
+    const [statsLoading, setStatsLoading] = useState(false);
+
+    // ─── Мои задачи ─────────────────────────────────────────────────────────
+    const [myTasks, setMyTasks] = useState<MyTaskDto[]>([]);
+    const [tasksLoading, setTasksLoading] = useState(false);
+    const [tasksError, setTasksError] = useState<string | null>(null);
 
     // ─── Загрузка списка процессов (один раз) ───────────────────────────────
     useEffect(() => {
@@ -186,6 +201,31 @@ export function MyProcessesPage({ onOpenInstance }: MyProcessesPageProps) {
             URL.revokeObjectURL(url);
         } catch { /* тихая обработка */ }
     };
+
+    const handleOpenStats = async (pid: string, pname: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        setSelectedProcessId(pid);
+        setSelectedProcessName(pname);
+        setProcessStats(null);
+        if (!accessToken) return;
+        setStatsLoading(true);
+        try {
+            const stats = await getProcessStats(accessToken, pid);
+            setProcessStats(stats);
+        } catch { /* игнорируем */ }
+        finally { setStatsLoading(false); }
+    };
+
+    // Загружаем задачи при переключении на вкладку «Мои задачи»
+    useEffect(() => {
+        if (tab !== 'tasks' || !accessToken) return;
+        setTasksLoading(true);
+        setTasksError(null);
+        getMyTasks(accessToken)
+            .then(setMyTasks)
+            .catch(() => setTasksError('Ошибка загрузки задач'))
+            .finally(() => setTasksLoading(false));
+    }, [tab, accessToken]);
 
     return (
         <div className="mpp-root">
@@ -364,7 +404,19 @@ export function MyProcessesPage({ onOpenInstance }: MyProcessesPageProps) {
                                             onKeyDown={e => e.key === 'Enter' && onOpenInstance(item.id)}
                                         >
                                             <td className="mpp-cell-name">{item.name}</td>
-                                            <td>{item.processName}</td>
+                                            <td>
+                                                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                    {item.processName}
+                                                    <button
+                                                        className="mpp-btn-icon"
+                                                        title="Статистика процесса"
+                                                        onClick={e => handleOpenStats(item.processId, item.processName, e)}
+                                                        style={{ fontSize: 12, padding: '1px 5px', opacity: 0.6 }}
+                                                    >
+                                                        📊
+                                                    </button>
+                                                </span>
+                                            </td>
                                             <td>
                                                 <span className={`mpp-badge ${STATE_BADGE[item.state]}`}>
                                                     {STATE_LABEL[item.state]}
@@ -407,10 +459,108 @@ export function MyProcessesPage({ onOpenInstance }: MyProcessesPageProps) {
             )}
 
             {tab === 'tasks' && (
-                <div className="mpp-tasks-placeholder">
-                    <div className="mpp-empty-icon">🗂️</div>
-                    <p>Вкладка «Мои задачи» будет доступна после запуска движка выполнения процессов.</p>
-                    <p className="mpp-empty-hint">Здесь будут отображаться активные задачи, назначенные вам в рамках бизнес-процессов.</p>
+                <div className="mpp-tasks-section">
+                    {tasksLoading && <div className="mpp-loading">Загрузка задач…</div>}
+                    {tasksError && <div className="mpp-error">{tasksError}</div>}
+                    {!tasksLoading && !tasksError && myTasks.length === 0 && (
+                        <div className="mpp-empty">
+                            <div className="mpp-empty-icon">🗂️</div>
+                            <p>Нет активных задач</p>
+                            <p className="mpp-empty-hint">Здесь отображаются задачи, назначенные вам в рамках бизнес-процессов.</p>
+                        </div>
+                    )}
+                    {!tasksLoading && myTasks.length > 0 && (
+                        <div className="mpp-table-wrap">
+                            <table className="mpp-table">
+                                <thead>
+                                    <tr>
+                                        <th>Задача</th>
+                                        <th>Экземпляр</th>
+                                        <th>Процесс</th>
+                                        <th>Дата активации</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {myTasks.map(t => (
+                                        <tr key={`${t.instanceId}-${t.elementId}`} className="mpp-row">
+                                            <td>{t.elementName ?? t.elementId}</td>
+                                            <td>{t.instanceName}</td>
+                                            <td>{t.processName}</td>
+                                            <td>{new Date(t.activatedAt).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+                                            <td>
+                                                <button
+                                                    className="mpp-btn-primary"
+                                                    style={{ padding: '4px 12px', fontSize: 12 }}
+                                                    onClick={() => onOpenInstance(t.instanceId)}
+                                                >
+                                                    Открыть
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Панель статистики процесса */}
+            {selectedProcessId && (
+                <div
+                    style={{
+                        position: 'fixed', top: 0, right: 0, bottom: 0, width: 340,
+                        background: '#fff', borderLeft: '1px solid #e5e7eb',
+                        boxShadow: '-4px 0 16px rgba(0,0,0,.1)', zIndex: 200,
+                        display: 'flex', flexDirection: 'column', padding: 24, gap: 16, overflowY: 'auto',
+                    }}
+                >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div>
+                            <p style={{ fontWeight: 700, fontSize: 15, marginBottom: 2 }}>Статистика процесса</p>
+                            <p style={{ fontSize: 13, color: '#6b7280' }}>{selectedProcessName}</p>
+                        </div>
+                        <button
+                            className="mpp-btn-icon"
+                            onClick={() => { setSelectedProcessId(null); setProcessStats(null); }}
+                            style={{ fontSize: 16 }}
+                        >✕</button>
+                    </div>
+
+                    {statsLoading && <div className="mpp-loading">Загрузка…</div>}
+                    {!statsLoading && processStats && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                            {([
+                                ['Активных', processStats.activeCount, '#3b82f6'],
+                                ['На паузе', processStats.suspendedCount, '#f59e0b'],
+                                ['Завершено', processStats.completedCount, '#10b981'],
+                                ['Прервано', processStats.cancelledCount, '#ef4444'],
+                                ['С ошибкой', processStats.faultedCount ?? 0, '#dc2626'],
+                                ['Всего', processStats.totalCount, '#374151'],
+                            ] as [string, number, string][]).map(([label, val, color]) => (
+                                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: '#f9fafb', borderRadius: 6 }}>
+                                    <span style={{ fontSize: 13, color: '#6b7280' }}>{label}</span>
+                                    <span style={{ fontWeight: 700, fontSize: 15, color }}>{val}</span>
+                                </div>
+                            ))}
+                            {processStats.averageCycleTimeMinutes != null && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: '#f9fafb', borderRadius: 6 }}>
+                                    <span style={{ fontSize: 13, color: '#6b7280' }}>Среднее время (мин)</span>
+                                    <span style={{ fontWeight: 700, fontSize: 15 }}>{processStats.averageCycleTimeMinutes.toFixed(1)}</span>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    <div style={{ marginTop: 'auto', display: 'flex', gap: 8 }}>
+                        <button
+                            className="mpp-btn-secondary"
+                            style={{ flex: 1 }}
+                            onClick={() => { setSelectedProcessId(null); setProcessStats(null); }}
+                        >
+                            Закрыть
+                        </button>
+                    </div>
                 </div>
             )}
         </div>

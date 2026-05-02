@@ -70,4 +70,15 @@ public class BpmMonitorController : ControllerBase
                ?? User.FindFirstValue("sub");
         return Guid.TryParse(sub, out var id) ? id : null;
     }
+
+    // ─── Зоны ответственности ─────────────────────────────────────────────────
+
+    /// <summary>Возвращает зоны ответственности (плавательные дорожки) активной версии процесса с исполнителями.</summary>
+    [HttpGet("api/bpm/processes/{processId}/responsibility-zones")]
+    [ProducesResponseType(typeof(IReadOnlyList<ResponsibilityZoneDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<IReadOnlyList<ResponsibilityZoneDto>>> GetResponsibilityZones(
+        Guid processId,
+        CancellationToken ct)
+        => Ok(await _service.GetResponsibilityZonesAsync(processId, ct));
 }
