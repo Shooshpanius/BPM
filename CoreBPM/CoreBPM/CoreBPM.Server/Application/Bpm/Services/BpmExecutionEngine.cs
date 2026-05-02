@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Xml.Linq;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Npgsql;
 using CoreBPM.Server.Application.Bpm.DTOs;
 using CoreBPM.Server.Application.Bpm.Interfaces;
 using CoreBPM.Server.Application.Bpm.Scripting;
@@ -1680,12 +1681,17 @@ public class BpmExecutionEngine : IBpmExecutionEngine
         DateTimeOffset now,
         CancellationToken ct)
     {
-        var counter = await _db.BpmJoinCounters
-            .FirstOrDefaultAsync(c => c.InstanceId == instanceId && c.GatewayElementId == gatewayElementId, ct);
+        // Атомарно инкрементируем счётчик (без read-modify-write гонки)
+        var updatedRows = await _db.BpmJoinCounters
+            .Where(c => c.InstanceId == instanceId && c.GatewayElementId == gatewayElementId)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(c => c.ArrivedCount, c => c.ArrivedCount + 1)
+                .SetProperty(c => c.UpdatedAt, now), ct);
 
-        if (counter == null)
+        if (updatedRows == 0)
         {
-            counter = new BpmJoinCounter
+            // Счётчик ещё не существует — создаём
+            var counter = new BpmJoinCounter
             {
                 Id = Guid.NewGuid(),
                 InstanceId = instanceId,
@@ -1696,27 +1702,68 @@ public class BpmExecutionEngine : IBpmExecutionEngine
                 UpdatedAt = now,
             };
             _db.BpmJoinCounters.Add(counter);
-        }
-        else
-        {
-            counter.ArrivedCount++;
-            counter.UpdatedAt = now;
+
+            try
+            {
+                await _db.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
+            {
+                // Конкурентная вставка — счётчик уже создан другим потоком, делаем инкремент
+                _db.Entry(counter).State = EntityState.Detached;
+                await _db.BpmJoinCounters
+                    .Where(c => c.InstanceId == instanceId && c.GatewayElementId == gatewayElementId)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(c => c.ArrivedCount, c => c.ArrivedCount + 1)
+                        .SetProperty(c => c.UpdatedAt, now), ct);
+            }
         }
 
-        await _db.SaveChangesAsync(ct);
+        // Перечитываем актуальное значение счётчика
+        var current = await _db.BpmJoinCounters
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.InstanceId == instanceId && c.GatewayElementId == gatewayElementId, ct);
 
-        if (counter.ArrivedCount >= counter.ExpectedCount)
+        if (current == null || current.ArrivedCount < current.ExpectedCount)
         {
-            // Все ветки пришли — удаляем счётчик и пропускаем шлюз
-            _db.BpmJoinCounters.Remove(counter);
-            await _db.SaveChangesAsync(ct);
+            _logger.LogDebug(
+                "AND-Join {GatewayId}: пришло {Arrived}/{Expected} — ждём",
+                gatewayElementId, current?.ArrivedCount ?? 1, expectedCount);
+            return false;
+        }
+
+        // Атомарное удаление: только один конкурентный поток получит deleted > 0 и продолжит
+        var deletedRows = await _db.BpmJoinCounters
+            .Where(c => c.InstanceId == instanceId && c.GatewayElementId == gatewayElementId)
+            .ExecuteDeleteAsync(ct);
+
+        if (deletedRows > 0)
+        {
             _logger.LogInformation(
                 "AND-Join {GatewayId}: все {Count} входящих токена прибыли — проходим", gatewayElementId, expectedCount);
             return true;
         }
 
+        // Счётчик уже удалён другим потоком — не дублируем продвижение
         _logger.LogDebug(
-            "AND-Join {GatewayId}: пришло {Arrived}/{Expected} — ждём", gatewayElementId, counter.ArrivedCount, expectedCount);
+            "AND-Join {GatewayId}: счётчик уже удалён конкурентным потоком — пропускаем", gatewayElementId);
+        return false;
+    }
+
+    /// <summary>
+    /// Определяет, является ли исключение нарушением unique-ограничения PostgreSQL.
+    /// Проверка выполняется через SqlState ("23505") — не зависит от языковой локали сервера.
+    /// </summary>
+    private static bool IsUniqueConstraintViolation(DbUpdateException ex)
+    {
+        // Обходим цепочку вложенных исключений
+        Exception? inner = ex;
+        while (inner != null)
+        {
+            if (inner is PostgresException pgEx)
+                return pgEx.SqlState == "23505";  // unique_violation (не зависит от локали)
+            inner = inner.InnerException;
+        }
         return false;
     }
 

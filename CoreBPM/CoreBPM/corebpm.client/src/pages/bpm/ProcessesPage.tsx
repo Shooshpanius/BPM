@@ -62,8 +62,13 @@ export function ProcessesPage({ onOpenDesigner, onOpenMonitor }: ProcessesPagePr
         fetch('/api/org/directory/organizations', {
             headers: { Authorization: `Bearer ${token}` },
         })
-            .then(r => {
-                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            .then(async r => {
+                if (!r.ok) {
+                    const t = await r.text().catch(() => '');
+                    let msg = t || `HTTP ${r.status}`;
+                    try { const b = JSON.parse(t); if (b?.error) msg = b.error; } catch { /* не JSON */ }
+                    throw new Error(msg);
+                }
                 return r.json();
             })
             .then((orgs: { id: string; name: string }[]) => {

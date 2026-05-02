@@ -58,7 +58,7 @@ public class BpmEngineWorker : BackgroundService
 
         var now = DateTimeOffset.UtcNow;
 
-        // Атомарно захватываем пачку заданий (до 20 за раз)
+        // Захватываем пачку заданий (до 20 за раз)
         var jobs = await db.BpmExecutionJobs
             .Where(j =>
                 (j.Status == BpmJobStatus.Pending || j.Status == BpmJobStatus.Scheduled) &&
@@ -78,13 +78,63 @@ public class BpmEngineWorker : BackgroundService
             job.ServerHost = _serverHost;
             job.UpdatedAt = now;
         }
-        await db.SaveChangesAsync(ct);
+
+        // Сохраняем с обработкой конкурентных конфликтов (строка могла быть удалена или изменена)
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            _logger.LogWarning(
+                "BpmEngineWorker: конфликт при захвате заданий ({Count} конфликтов) — пропускаем конфликтующие",
+                ex.Entries.Count);
+
+            var conflictedIds = ex.Entries
+                .Select(e => ((BpmExecutionJob)e.Entity).Id)
+                .ToHashSet();
+
+            // Отсоединяем конфликтные сущности и убираем их из списка
+            foreach (var entry in ex.Entries)
+                entry.State = EntityState.Detached;
+
+            jobs.RemoveAll(j => conflictedIds.Contains(j.Id));
+
+            if (jobs.Count == 0) return;
+
+            await db.SaveChangesAsync(ct);
+        }
 
         _logger.LogDebug("BpmEngineWorker: захвачено {Count} заданий", jobs.Count);
 
-        // Выполняем каждое задание в отдельном scope
-        var tasks = jobs.Select(job => ExecuteJobSafeAsync(job.Id, ct));
+        // Группируем по InstanceId: задания одного экземпляра выполняем последовательно,
+        // задания разных экземпляров — параллельно.
+        // Это предотвращает гонку на AND-Join счётчиках и состоянии токенов
+        // внутри одного экземпляра процесса.
+        var groups = jobs
+            .GroupBy(j => j.InstanceId ?? j.Id)
+            .ToList();
+
+        var tasks = groups.Select(group =>
+        {
+            var ids = group.Select(j => j.Id).ToList();
+            return ExecuteGroupSafeAsync(ids, ct);
+        });
         await Task.WhenAll(tasks);
+    }
+
+    /// <summary>
+    /// Выполняет группу заданий (одного экземпляра) последовательно,
+    /// чтобы исключить конкурентные обновления токенов и шлюзовых счётчиков.
+    /// Каждое задание выполняется независимо: ошибка в одном не останавливает остальные.
+    /// </summary>
+    private async Task ExecuteGroupSafeAsync(IReadOnlyList<Guid> jobIds, CancellationToken ct)
+    {
+        foreach (var jobId in jobIds)
+        {
+            if (ct.IsCancellationRequested) break;
+            await ExecuteJobSafeAsync(jobId, ct);
+        }
     }
 
     private async Task ExecuteJobSafeAsync(Guid jobId, CancellationToken ct)

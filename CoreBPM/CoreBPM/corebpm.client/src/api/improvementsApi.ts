@@ -103,7 +103,12 @@ async function apiFetch<T>(url: string, token: string, init?: RequestInit): Prom
     });
     if (!res.ok) {
         const text = await res.text().catch(() => '');
-        throw new Error(text || `HTTP ${res.status}`);
+        let message = text || `HTTP ${res.status}`;
+        try {
+            const body = JSON.parse(text);
+            if (body?.error) message = body.error;
+        } catch { /* тело не является JSON */ }
+        throw new Error(message);
     }
     if (res.status === 204) return undefined as T;
     return res.json();
@@ -204,8 +209,13 @@ export function exportImprovements(token: string): void {
     fetch('/api/bpm/improvements/export', {
         headers: { Authorization: `Bearer ${token}` },
     })
-        .then(res => {
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        .then(async res => {
+            if (!res.ok) {
+                const text = await res.text().catch(() => '');
+                let message = text || `HTTP ${res.status}`;
+                try { const b = JSON.parse(text); if (b?.error) message = b.error; } catch { /* не JSON */ }
+                throw new Error(message);
+            }
             return res.blob();
         })
         .then(blob => {
