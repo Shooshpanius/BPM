@@ -1018,6 +1018,51 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                     b.ToTable("bpm_join_counters", (string)null);
                 });
 
+            modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmKpiAlert", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<double>("AvgCycleTimeMinutes")
+                        .HasColumnType("double precision")
+                        .HasColumnName("avg_cycle_time_minutes");
+
+                    b.Property<DateTimeOffset>("DetectedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("detected_at");
+
+                    b.Property<double>("ExceedPercent")
+                        .HasColumnType("double precision")
+                        .HasColumnName("exceed_percent");
+
+                    b.Property<Guid>("ProcessId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("process_id");
+
+                    b.Property<string>("ProcessName")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("process_name");
+
+                    b.Property<double>("TargetCycleTimeMinutes")
+                        .HasColumnType("double precision")
+                        .HasColumnName("target_cycle_time_minutes");
+
+                    b.HasKey("Id")
+                        .HasName("pk_bpm_kpi_alerts");
+
+                    b.HasIndex("DetectedAt")
+                        .HasDatabaseName("ix_bpm_kpi_alerts_detected_at");
+
+                    b.HasIndex("ProcessId")
+                        .HasDatabaseName("ix_bpm_kpi_alerts_process_id");
+
+                    b.ToTable("bpm_kpi_alerts", (string)null);
+                });
+
             modelBuilder.Entity("CoreBPM.Server.Domain.Bpm.BpmMessage", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1202,6 +1247,18 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("tags_json");
+
+                    b.Property<decimal?>("TargetCostPerInstance")
+                        .HasColumnType("numeric")
+                        .HasColumnName("target_cost_per_instance");
+
+                    b.Property<double?>("TargetCycleTimeMinutes")
+                        .HasColumnType("double precision")
+                        .HasColumnName("target_cycle_time_minutes");
+
+                    b.Property<double?>("TargetOnTimePercent")
+                        .HasColumnType("double precision")
+                        .HasColumnName("target_on_time_percent");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
