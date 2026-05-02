@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
 using CoreBPM.Server.Application.Bpm.DTOs;
 using CoreBPM.Server.Application.Bpm.Interfaces;
@@ -216,4 +218,129 @@ public class BpmQueueService : IBpmQueueService
         j.TimerDeadline,
         j.CreatedAt
     );
+
+    // ─── Retry-политики ───────────────────────────────────────────────────────
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<JobRetryPolicyDto>> ExportRetryPoliciesAsync(
+        CancellationToken ct = default)
+    {
+        var configs = await _db.BpmElementConfigs
+            .AsNoTracking()
+            .Include(c => c.Process)
+            .OrderBy(c => c.Process.Name)
+            .ThenBy(c => c.ElementId)
+            .ToListAsync(ct);
+
+        var result = new List<JobRetryPolicyDto>();
+        foreach (var config in configs)
+        {
+            var fields = ParseRetryFields(config.ConfigJson);
+            // Включаем запись только если задана хотя бы одна retry-настройка
+            if (fields.MaxRetries <= 0 && fields.RetryDelaySeconds <= 0 && fields.BoundaryErrorCode == null)
+                continue;
+
+            result.Add(new JobRetryPolicyDto(
+                ProcessId:          config.ProcessId,
+                ProcessName:        config.Process.Name,
+                ElementId:          config.ElementId,
+                ElementName:        null,
+                MaxRetries:         fields.MaxRetries,
+                RetryDelaySeconds:  fields.RetryDelaySeconds,
+                BoundaryErrorCode:  fields.BoundaryErrorCode
+            ));
+        }
+
+        return result;
+    }
+
+    /// <inheritdoc />
+    public async Task ImportRetryPoliciesAsync(
+        ImportRetryPoliciesRequest request,
+        CancellationToken ct = default)
+    {
+        if (request.Policies.Count == 0) return;
+
+        var now = DateTimeOffset.UtcNow;
+
+        // Загружаем существующие конфигурации одним запросом
+        var processIds  = request.Policies.Select(p => p.ProcessId).Distinct().ToList();
+        var elementIds  = request.Policies.Select(p => p.ElementId).Distinct().ToList();
+
+        var existing = await _db.BpmElementConfigs
+            .Where(c => processIds.Contains(c.ProcessId) && elementIds.Contains(c.ElementId))
+            .ToListAsync(ct);
+
+        foreach (var policy in request.Policies)
+        {
+            var config = existing.FirstOrDefault(
+                c => c.ProcessId == policy.ProcessId && c.ElementId == policy.ElementId);
+
+            if (config == null)
+            {
+                config = new BpmElementConfig
+                {
+                    Id         = Guid.NewGuid(),
+                    ProcessId  = policy.ProcessId,
+                    ElementId  = policy.ElementId,
+                    ConfigJson = "{}",
+                    UpdatedAt  = now,
+                };
+                _db.BpmElementConfigs.Add(config);
+            }
+
+            config.ConfigJson = MergeRetryFields(config.ConfigJson, policy);
+            config.UpdatedAt  = now;
+        }
+
+        await _db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>Извлекает retry-поля из JSON-конфигурации элемента.</summary>
+    private static (int MaxRetries, int RetryDelaySeconds, string? BoundaryErrorCode) ParseRetryFields(
+        string configJson)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(configJson);
+            var root = doc.RootElement;
+
+            var maxRetries = root.TryGetProperty("maxRetries", out var mr) && mr.TryGetInt32(out var mrv)
+                ? mrv : 0;
+            var retryDelay = root.TryGetProperty("retryDelaySeconds", out var rd) && rd.TryGetInt32(out var rdv)
+                ? rdv : 0;
+            var errorCode = root.TryGetProperty("boundaryErrorCode", out var be) && be.ValueKind == JsonValueKind.String
+                ? be.GetString() : null;
+
+            return (maxRetries, retryDelay, errorCode);
+        }
+        catch
+        {
+            return (0, 0, null);
+        }
+    }
+
+    /// <summary>Объединяет retry-поля политики с существующим JSON-объектом конфигурации элемента.</summary>
+    private static string MergeRetryFields(string existingJson, JobRetryPolicyDto policy)
+    {
+        JsonObject node;
+        try
+        {
+            node = JsonNode.Parse(existingJson) as JsonObject ?? new JsonObject();
+        }
+        catch
+        {
+            node = new JsonObject();
+        }
+
+        node["maxRetries"]        = policy.MaxRetries;
+        node["retryDelaySeconds"] = policy.RetryDelaySeconds;
+
+        if (!string.IsNullOrEmpty(policy.BoundaryErrorCode))
+            node["boundaryErrorCode"] = policy.BoundaryErrorCode;
+        else
+            node.Remove("boundaryErrorCode");
+
+        return node.ToJsonString();
+    }
 }

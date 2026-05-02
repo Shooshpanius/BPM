@@ -153,7 +153,8 @@ public class BpmMigrationService : IBpmMigrationService
             Status = BpmMigrationPackageStatus.New,
             IsActive = true,
             CreatedAt = now,
-            UpdatedAt = now
+            UpdatedAt = now,
+            ScheduledAt = request.ScheduledAt
         };
 
         _db.BpmVersionMigrationPackages.Add(package);
@@ -429,5 +430,53 @@ public class BpmMigrationService : IBpmMigrationService
             item.ProcessedAt = DateTimeOffset.UtcNow;
             await _db.SaveChangesAsync(ct);
         }
+    }
+
+    // ─── Экспорт / Импорт ────────────────────────────────────────────────────────
+
+    /// <inheritdoc />
+    public async Task<MigrationPackageExportDto> ExportPackageAsync(Guid packageId, CancellationToken ct = default)
+    {
+        var package = await _db.BpmVersionMigrationPackages
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == packageId, ct)
+            ?? throw new NotFoundException($"Пакет миграции {packageId} не найден");
+
+        var items = await _db.BpmVersionMigrationItems
+            .AsNoTracking()
+            .Include(i => i.Instance)
+            .Include(i => i.TargetVersion)
+            .Where(i => i.PackageId == packageId)
+            .ToListAsync(ct);
+
+        var exportItems = items.Select(i => new MigrationPackageExportItemDto(
+            i.InstanceId,
+            i.Instance?.Name,
+            i.TargetVersionId,
+            i.TargetVersion?.VersionNumber
+        )).ToList();
+
+        return new MigrationPackageExportDto(package.Name, exportItems);
+    }
+
+    /// <inheritdoc />
+    public async Task<MigrationPackageDetailDto> ImportPackageAsync(
+        Guid createdByUserId,
+        MigrationPackageExportDto export,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(export.Name))
+            throw new ValidationException("Наименование импортируемого пакета миграции не может быть пустым");
+
+        if (export.Items == null || export.Items.Count == 0)
+            throw new ValidationException("Импортируемый пакет миграции должен содержать хотя бы один элемент");
+
+        // Делегируем создание стандартному методу через запрос
+        var request = new CreateMigrationPackageRequest(
+            export.Name,
+            export.Items.Select(i => new MigrationItemRequest(i.InstanceId, i.TargetVersionId)).ToList()
+        );
+
+        return await CreatePackageAsync(createdByUserId, request, ct);
     }
 }

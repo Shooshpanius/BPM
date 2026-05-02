@@ -46,4 +46,16 @@ public interface IBpmMigrationService
         Guid itemId,
         ManualMigrateItemRequest request,
         CancellationToken ct = default);
+
+    /// <summary>Экспортирует пакет миграции в переносимый DTO для сохранения в JSON-файл.</summary>
+    Task<MigrationPackageExportDto> ExportPackageAsync(Guid packageId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Импортирует пакет миграции из DTO: создаёт новый пакет со статусом New
+    /// и элементами из переданного экспорта.
+    /// </summary>
+    Task<MigrationPackageDetailDto> ImportPackageAsync(
+        Guid createdByUserId,
+        MigrationPackageExportDto export,
+        CancellationToken ct = default);
 }

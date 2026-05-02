@@ -5,7 +5,6 @@ using Microsoft.Extensions.Logging;
 using CoreBPM.Server.Application.Bpm.Interfaces;
 using CoreBPM.Server.Domain.Bpm;
 using CoreBPM.Server.Infrastructure.Persistence;
-
 namespace CoreBPM.Server.Infrastructure.Workers;
 
 /// <summary>
@@ -39,6 +38,7 @@ public class BpmEngineWorker : BackgroundService
             try
             {
                 await ProcessPendingJobsAsync(stoppingToken);
+                await ProcessScheduledMigrationPackagesAsync(stoppingToken);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -167,6 +167,54 @@ public class BpmEngineWorker : BackgroundService
             catch (Exception innerEx)
             {
                 _logger.LogError(innerEx, "BpmEngineWorker: не удалось обновить статус задания {JobId} после ошибки", jobId);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Проверяет пакеты миграции с расписанием и запускает те, у которых наступило время (ScheduledAt &lt;= now).
+    /// </summary>
+    private async Task ProcessScheduledMigrationPackagesAsync(CancellationToken ct)
+    {
+        await using var scope = _scopeFactory.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var now = DateTimeOffset.UtcNow;
+
+        // Находим пакеты в статусе New с наступившим временем запуска
+        var packages = await db.BpmVersionMigrationPackages
+            .Where(p =>
+                p.Status == BpmMigrationPackageStatus.New &&
+                p.ScheduledAt != null &&
+                p.ScheduledAt <= now)
+            .Select(p => p.Id)
+            .ToListAsync(ct);
+
+        if (packages.Count == 0) return;
+
+        _logger.LogInformation(
+            "BpmEngineWorker: найдено {Count} пакетов миграции для автозапуска по расписанию",
+            packages.Count);
+
+        foreach (var packageId in packages)
+        {
+            if (ct.IsCancellationRequested) break;
+            try
+            {
+                await using var pkgScope = _scopeFactory.CreateAsyncScope();
+                var migrationService = pkgScope.ServiceProvider
+                    .GetRequiredService<IBpmMigrationService>();
+                await migrationService.StartPackageAsync(packageId, ct);
+                _logger.LogInformation(
+                    "BpmEngineWorker: пакет миграции {PackageId} запущен по расписанию",
+                    packageId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "BpmEngineWorker: ошибка при автозапуске пакета миграции {PackageId}",
+                    packageId);
             }
         }
     }

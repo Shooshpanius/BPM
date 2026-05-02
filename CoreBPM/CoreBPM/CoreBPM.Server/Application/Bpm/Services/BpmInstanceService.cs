@@ -1271,4 +1271,105 @@ public class BpmInstanceService : IBpmInstanceService
                 module.Id, instance.Id, ex.Message);
         }
     }
+
+    // ─── Мои задачи ───────────────────────────────────────────────────────────
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<MyTaskDto>> GetMyTasksAsync(
+        Guid userId,
+        CancellationToken ct = default)
+    {
+        // Идентификаторы экземпляров, где пользователь — ответственный
+        var responsibleInstanceIds = await _db.BpmInstances
+            .AsNoTracking()
+            .Where(i => i.ResponsibleUserId == userId && i.State == BpmInstanceState.Active)
+            .Select(i => i.Id)
+            .ToListAsync(ct);
+
+        // Идентификаторы экземпляров, где пользователь — участник
+        var participantInstanceIds = await _db.BpmInstanceParticipants
+            .AsNoTracking()
+            .Where(p => p.UserId == userId)
+            .Select(p => p.InstanceId)
+            .ToListAsync(ct);
+
+        // Объединяем оба набора
+        var allInstanceIds = responsibleInstanceIds
+            .Union(participantInstanceIds)
+            .Distinct()
+            .ToList();
+
+        if (allInstanceIds.Count == 0) return [];
+
+        // Получаем токены в статусе WaitingUserAction для найденных экземпляров
+        var tokens = await _db.BpmTokens
+            .AsNoTracking()
+            .Include(t => t.Instance)
+                .ThenInclude(i => i.Process)
+            .Where(t => allInstanceIds.Contains(t.InstanceId)
+                     && t.Status == BpmTokenStatus.WaitingUserAction)
+            .OrderBy(t => t.CreatedAt)
+            .ToListAsync(ct);
+
+        return tokens.Select(t => new MyTaskDto(
+            InstanceId:   t.InstanceId,
+            InstanceName: t.Instance.Name,
+            ProcessName:  t.Instance.Process.Name,
+            ElementId:    t.ElementId,
+            ElementName:  t.ElementName,
+            ActivatedAt:  t.CreatedAt
+        )).ToList();
+    }
+
+    // ─── Дерево подпроцессов ──────────────────────────────────────────────────
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<BpmInstanceListItemDto>> GetChildInstancesAsync(
+        Guid parentInstanceId,
+        CancellationToken ct = default)
+    {
+        var instances = await _db.BpmInstances
+            .AsNoTracking()
+            .Include(i => i.Process)
+            .Include(i => i.ProcessVersion)
+            .Where(i => i.ParentInstanceId == parentInstanceId)
+            .OrderBy(i => i.StartedAt)
+            .ToListAsync(ct);
+
+        if (instances.Count == 0) return [];
+
+        var userIds = instances
+            .SelectMany(i => new[] { i.InitiatorUserId, i.ResponsibleUserId })
+            .Where(id => id.HasValue)
+            .Select(id => id!.Value)
+            .Distinct()
+            .ToList();
+
+        var userNames = await _db.OrgUsers
+            .AsNoTracking()
+            .Where(u => userIds.Contains(u.Id))
+            .Select(u => new { u.Id, u.DisplayName })
+            .ToListAsync(ct);
+
+        string? GetName(Guid? id) =>
+            id.HasValue ? userNames.FirstOrDefault(u => u.Id == id.Value)?.DisplayName : null;
+
+        return instances.Select(i => new BpmInstanceListItemDto(
+            i.Id,
+            i.ProcessId,
+            i.Process.Name,
+            i.ProcessVersionId,
+            i.ProcessVersion.VersionNumber,
+            i.Name,
+            i.State,
+            i.LaunchSource,
+            i.InitiatorUserId,
+            GetName(i.InitiatorUserId),
+            i.ResponsibleUserId,
+            GetName(i.ResponsibleUserId),
+            i.StartedAt,
+            i.CompletedAt,
+            i.CancelledAt
+        )).ToList();
+    }
 }

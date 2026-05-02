@@ -35,4 +35,12 @@ public interface IBpmMonitorService
         Guid? userId,
         bool isAdmin,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Возвращает зоны ответственности (плавательные дорожки) активной версии процесса
+    /// с перечнем ответственных пользователей и количеством их активных задач.
+    /// </summary>
+    Task<IReadOnlyList<ResponsibilityZoneDto>> GetResponsibilityZonesAsync(
+        Guid processId,
+        CancellationToken ct = default);
 }
