@@ -1245,7 +1245,8 @@ public class BpmExecutionEngine : IBpmExecutionEngine
                 Subject = subject,
                 Status = Domain.Tasks.TaskStatus.New,
                 Priority = priority,
-                AuthorUserId = assigneeId.Value, // автор = исполнитель при автосоздании
+                // Автор — инициатор процесса; если не задан, используем исполнителя
+                AuthorUserId = instance.InitiatorUserId ?? assigneeId.Value,
                 AssigneeUserId = assigneeId.Value,
                 StartDate = now,
                 DueDate = dueDate,
@@ -1261,7 +1262,7 @@ public class BpmExecutionEngine : IBpmExecutionEngine
             {
                 Id = Guid.NewGuid(),
                 TaskId = task.Id,
-                ActorUserId = assigneeId.Value,
+                ActorUserId = instance.InitiatorUserId ?? assigneeId.Value,
                 Action = TaskHistoryAction.Created,
                 NewValue = $"Создана из процесса, экземпляр {instance.Id}, узел {elementId}",
                 CreatedAt = now,
@@ -1372,9 +1373,12 @@ public class BpmExecutionEngine : IBpmExecutionEngine
             }
         }
 
-        // По умолчанию — 3 рабочих дня
-        return now.AddDays(3);
+        // По умолчанию — смещение по константе DefaultUserTaskDueDaysOffset
+        return now.AddDays(DefaultUserTaskDueDaysOffset);
     }
+
+    /// <summary>Смещение срока задачи по умолчанию, если конфиг UserTask не содержит явного значения (в днях).</summary>
+    private const int DefaultUserTaskDueDaysOffset = 3;
 
     /// <summary>Внутренняя модель конфига UserTask-элемента (соответствует UserTaskConfig в UserTaskTab.tsx).</summary>
     private sealed class UserTaskConfig
