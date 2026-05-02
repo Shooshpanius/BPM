@@ -38,6 +38,12 @@ public class BpmToken
     /// <summary>Время завершения токена (переход к следующему узлу).</summary>
     public DateTimeOffset? CompletedAt { get; set; }
 
+    /// <summary>
+    /// Идентификатор связанной задачи (task_items), созданной при активации UserTask.
+    /// Заполняется автоматически движком BPM при достижении узла типа UserTask.
+    /// </summary>
+    public Guid? LinkedTaskItemId { get; set; }
+
     // Навигационные свойства
     public BpmInstance Instance { get; set; } = null!;
 }

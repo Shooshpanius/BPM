@@ -9,6 +9,7 @@ using CoreBPM.Server.Application.Bpm.Scripting;
 using CoreBPM.Server.Application.Rules.DTOs;
 using CoreBPM.Server.Application.Rules.Interfaces;
 using CoreBPM.Server.Domain.Bpm;
+using CoreBPM.Server.Domain.Tasks;
 using CoreBPM.Server.Infrastructure.Persistence;
 
 namespace CoreBPM.Server.Application.Bpm.Services;
@@ -261,6 +262,30 @@ public class BpmExecutionEngine : IBpmExecutionEngine
             Text = $"Пользовательская задача «{token.ElementName ?? elementId}» выполнена",
             OccurredAt = now,
         });
+
+        // Завершаем связанную задачу task_items (если была создана автоматически)
+        if (token.LinkedTaskItemId.HasValue)
+        {
+            var linkedTask = await _db.TaskItems
+                .FirstOrDefaultAsync(t => t.Id == token.LinkedTaskItemId.Value, ct);
+            if (linkedTask != null && linkedTask.Status != Domain.Tasks.TaskStatus.Done)
+            {
+                var oldStatus = linkedTask.Status;
+                linkedTask.Status = Domain.Tasks.TaskStatus.Done;
+                linkedTask.UpdatedAt = now;
+                _db.TaskHistoryEntries.Add(new TaskHistoryEntry
+                {
+                    Id = Guid.NewGuid(),
+                    TaskId = linkedTask.Id,
+                    ActorUserId = actorUserId,
+                    Action = TaskHistoryAction.StatusChanged,
+                    FieldName = "Status",
+                    OldValue = oldStatus.ToString(),
+                    NewValue = Domain.Tasks.TaskStatus.Done.ToString(),
+                    CreatedAt = now,
+                });
+            }
+        }
 
         await _db.SaveChangesAsync(ct);
 
@@ -1109,6 +1134,9 @@ public class BpmExecutionEngine : IBpmExecutionEngine
 
         await _db.SaveChangesAsync(ct);
 
+        // Создаём задачу task_items, связанную с этим UserTask-узлом
+        await TryCreateLinkedTaskItemAsync(instance, elementId, elementName, now, ct);
+
         // Планируем граничные таймерные события для этой задачи
         await TryScheduleBoundaryTimerEventsAsync(instance, model, elementId, now, ct);
 
@@ -1136,6 +1164,230 @@ public class BpmExecutionEngine : IBpmExecutionEngine
             // Уведомление не критично — не прерываем выполнение
             _logger.LogWarning(ex, "Ошибка отправки уведомления о UserTask {ElementId}", elementId);
         }
+    }
+
+    /// <summary>
+    /// Создаёт запись task_items для UserTask-узла и проставляет LinkedTaskItemId в токен.
+    /// Разрешает исполнителя, срок и приоритет из конфига элемента и переменных экземпляра.
+    /// </summary>
+    private async Task TryCreateLinkedTaskItemAsync(
+        BpmInstance instance,
+        string elementId,
+        string? elementName,
+        DateTimeOffset now,
+        CancellationToken ct)
+    {
+        try
+        {
+            // Загружаем конфиг элемента
+            var configJson = await _db.BpmElementConfigs
+                .AsNoTracking()
+                .Where(c => c.ProcessId == instance.ProcessId && c.ElementId == elementId)
+                .Select(c => c.ConfigJson)
+                .FirstOrDefaultAsync(ct);
+
+            UserTaskConfig config;
+            try
+            {
+                config = string.IsNullOrWhiteSpace(configJson)
+                    ? new UserTaskConfig()
+                    : JsonSerializer.Deserialize<UserTaskConfig>(configJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                      ?? new UserTaskConfig();
+            }
+            catch
+            {
+                config = new UserTaskConfig();
+            }
+
+            // Загружаем переменные экземпляра (нужны для Expression/Variable резолюции)
+            var variables = await _db.BpmInstanceVariables
+                .AsNoTracking()
+                .Where(v => v.InstanceId == instance.Id)
+                .ToDictionaryAsync(v => v.Name, v => v.ValueJson, StringComparer.OrdinalIgnoreCase, ct);
+
+            // Резолюция исполнителя
+            Guid? assigneeId = await ResolveAssigneeAsync(config, variables, ct);
+            if (assigneeId == null)
+            {
+                _logger.LogWarning("HandleUserTask: не удалось разрешить исполнителя для {ElementId}", SanitizeForLog(elementId));
+                return;
+            }
+
+            // Резолюция срока
+            DateTimeOffset dueDate = ResolveUserTaskDueDate(config, variables, now);
+
+            // Маппинг приоритета
+            TaskPriority priority = config.Priority?.ToLowerInvariant() switch
+            {
+                "low" => TaskPriority.Low,
+                "high" => TaskPriority.High,
+                "critical" => TaskPriority.Critical,
+                _ => TaskPriority.Medium,
+            };
+
+            // Загружаем имя процесса для формирования темы
+            var processName = await _db.BpmProcesses
+                .AsNoTracking()
+                .Where(p => p.Id == instance.ProcessId)
+                .Select(p => p.Name)
+                .FirstOrDefaultAsync(ct);
+
+            var subject = !string.IsNullOrWhiteSpace(elementName)
+                ? elementName
+                : $"Задача из процесса «{processName ?? instance.ProcessId.ToString()}»";
+
+            var maxNum = await _db.TaskItems.MaxAsync(t => (int?)t.Number, ct) ?? 0;
+
+            var task = new TaskItem
+            {
+                Id = Guid.NewGuid(),
+                Number = maxNum + 1,
+                Subject = subject,
+                Status = Domain.Tasks.TaskStatus.New,
+                Priority = priority,
+                // Автор — инициатор процесса; если не задан, используем исполнителя
+                AuthorUserId = instance.InitiatorUserId ?? assigneeId.Value,
+                AssigneeUserId = assigneeId.Value,
+                StartDate = now,
+                DueDate = dueDate,
+                SourceInstanceId = instance.Id,
+                SourceElementId = elementId,
+                IsOverdue = false,
+                CreatedAt = now,
+                UpdatedAt = now,
+            };
+
+            _db.TaskItems.Add(task);
+            _db.TaskHistoryEntries.Add(new TaskHistoryEntry
+            {
+                Id = Guid.NewGuid(),
+                TaskId = task.Id,
+                ActorUserId = instance.InitiatorUserId ?? assigneeId.Value,
+                Action = TaskHistoryAction.Created,
+                NewValue = $"Создана из процесса, экземпляр {instance.Id}, узел {elementId}",
+                CreatedAt = now,
+            });
+
+            // Проставляем LinkedTaskItemId в токен
+            var token = await _db.BpmTokens
+                .FirstOrDefaultAsync(t => t.InstanceId == instance.Id && t.ElementId == elementId && t.Status == BpmTokenStatus.WaitingUserAction, ct);
+            if (token != null)
+                token.LinkedTaskItemId = task.Id;
+
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            // Создание задачи не критично — не прерываем выполнение процесса
+            _logger.LogWarning(ex, "Ошибка автосоздания TaskItem для UserTask {ElementId}", SanitizeForLog(elementId));
+        }
+    }
+
+    /// <summary>Разрешает исполнителя UserTask из конфига (User / Role / Expression).</summary>
+    private async Task<Guid?> ResolveAssigneeAsync(
+        UserTaskConfig config,
+        Dictionary<string, string?> variables,
+        CancellationToken ct)
+    {
+        var assigneeType = config.AssigneeType ?? "User";
+        var assigneeValue = config.AssigneeValue ?? string.Empty;
+
+        if (assigneeType.Equals("Expression", StringComparison.OrdinalIgnoreCase))
+        {
+            // Подставляем переменную формата ${varName} или просто имя переменной
+            var varName = assigneeValue.TrimStart('$', '{').TrimEnd('}').Trim();
+            variables.TryGetValue(varName, out var varVal);
+            assigneeValue = varVal?.Trim('"') ?? string.Empty;
+            // После подстановки обрабатываем как User
+            assigneeType = "User";
+        }
+
+        if (assigneeType.Equals("User", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrWhiteSpace(assigneeValue)) return null;
+
+            // Пробуем разобрать как GUID
+            if (Guid.TryParse(assigneeValue, out var userId))
+            {
+                var exists = await _db.OrgUsers.AnyAsync(u => u.Id == userId, ct);
+                return exists ? userId : null;
+            }
+
+            // Иначе ищем по email (через AuthAccount)
+            var account = await _db.AuthAccounts
+                .AsNoTracking()
+                .FirstOrDefaultAsync(a => a.Username == assigneeValue, ct);
+            return account?.UserId;
+        }
+
+        if (assigneeType.Equals("Role", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrWhiteSpace(assigneeValue)) return null;
+
+            // Ищем первого пользователя с заданной ролью
+            var userRole = await _db.AuthUserRoles
+                .AsNoTracking()
+                .Include(ur => ur.Role)
+                .Include(ur => ur.Account)
+                .FirstOrDefaultAsync(ur => ur.Role.Name == assigneeValue, ct);
+            return userRole?.Account?.UserId;
+        }
+
+        return null;
+    }
+
+    /// <summary>Рассчитывает дату завершения задачи из конфига UserTask.</summary>
+    private static DateTimeOffset ResolveUserTaskDueDate(
+        UserTaskConfig config,
+        Dictionary<string, string?> variables,
+        DateTimeOffset now)
+    {
+        var dueDateType = config.DueDateType ?? "Relative";
+        var dueDateValue = config.DueDateValue ?? string.Empty;
+
+        if (dueDateType.Equals("Fixed", StringComparison.OrdinalIgnoreCase))
+        {
+            if (DateTimeOffset.TryParse(dueDateValue, out var fixedDate))
+                return fixedDate;
+        }
+        else if (dueDateType.Equals("Variable", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!string.IsNullOrWhiteSpace(dueDateValue))
+            {
+                variables.TryGetValue(dueDateValue, out var varVal);
+                var rawVal = varVal?.Trim('"') ?? string.Empty;
+                if (DateTimeOffset.TryParse(rawVal, out var varDate))
+                    return varDate;
+            }
+        }
+        else // Relative (по умолчанию)
+        {
+            if (!string.IsNullOrWhiteSpace(dueDateValue))
+            {
+                try
+                {
+                    var duration = System.Xml.XmlConvert.ToTimeSpan(dueDateValue);
+                    return now.Add(duration);
+                }
+                catch { /* некорректный формат — используем значение по умолчанию */ }
+            }
+        }
+
+        // По умолчанию — смещение по константе DefaultUserTaskDueDaysOffset
+        return now.AddDays(DefaultUserTaskDueDaysOffset);
+    }
+
+    /// <summary>Смещение срока задачи по умолчанию, если конфиг UserTask не содержит явного значения (в днях).</summary>
+    private const int DefaultUserTaskDueDaysOffset = 3;
+
+    /// <summary>Внутренняя модель конфига UserTask-элемента (соответствует UserTaskConfig в UserTaskTab.tsx).</summary>
+    private sealed class UserTaskConfig
+    {
+        public string? AssigneeType { get; set; }
+        public string? AssigneeValue { get; set; }
+        public string? DueDateType { get; set; }
+        public string? DueDateValue { get; set; }
+        public string? Priority { get; set; }
     }
 
     private async Task HandleAsyncTaskAsync(
@@ -2529,7 +2781,7 @@ public class BpmExecutionEngine : IBpmExecutionEngine
     }
 
     private static BpmTokenDto MapTokenToDto(BpmToken t) =>
-        new(t.Id, t.InstanceId, t.ElementId, t.ElementType, t.ElementName, t.Status, t.SignalCode, t.MessageCode, t.CreatedAt, t.CompletedAt);
+        new(t.Id, t.InstanceId, t.ElementId, t.ElementType, t.ElementName, t.Status, t.SignalCode, t.MessageCode, t.CreatedAt, t.CompletedAt, t.LinkedTaskItemId);
 
     /// <summary>
     /// Санирует строку для логирования: убирает переводы строк, ограничивает длину.

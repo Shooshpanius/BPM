@@ -3484,6 +3484,4 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
 #pragma warning restore 612, 618
         }
     }
-        }
-    }
 }

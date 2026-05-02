@@ -24,6 +24,8 @@ import { ImprovementsPage } from './bpm/ImprovementsPage';
 import { AnalyticsSummaryPage } from './bpm/AnalyticsSummaryPage';
 import { ProcessAnalyticsPage } from './bpm/ProcessAnalyticsPage';
 import { MyColleaguesWidget } from '../components/org/MyColleaguesWidget';
+import { TasksPage } from './tasks/TasksPage';
+import { TaskDetailPage } from './tasks/TaskDetailPage';
 import './HomePage.css';
 
 interface HomePageProps {
@@ -35,7 +37,7 @@ export function HomePage({ onAdmin }: HomePageProps) {
     const { logout, hasRole } = useAuth();
     const canManageOrg = hasRole('Admin') || hasRole('HR');
     const isMobile = useMobile();
-    const [section, setSection] = useState<SidebarSection>('contacts');
+    const [section, setSection] = useState<SidebarSection>('tasks');
     const [designerProcessId, setDesignerProcessId] = useState<string | null>(null);
     const [monitorProcess, setMonitorProcess] = useState<{ id: string; name: string } | null>(null);
     const [openInstanceId, setOpenInstanceId] = useState<string | null>(null);
@@ -43,6 +45,7 @@ export function HomePage({ onAdmin }: HomePageProps) {
     const [formBuilderId, setFormBuilderId] = useState<string | null>(null);
     const [migrationPackageId, setMigrationPackageId] = useState<string | null>(null);
     const [analyticsProcess, setAnalyticsProcess] = useState<{ id: string; name: string } | null>(null);
+    const [openTaskId, setOpenTaskId] = useState<string | null>(null);
 
     const handleSelect = (s: SidebarSection) => {
         // Обычные пользователи не имеют доступа к разделу «Оргструктура»
@@ -54,6 +57,7 @@ export function HomePage({ onAdmin }: HomePageProps) {
         setOpenInstanceId(null);
         setMigrationPackageId(null);
         setAnalyticsProcess(null);
+        setOpenTaskId(null);
         setSection(s);
     };
 
@@ -75,6 +79,12 @@ export function HomePage({ onAdmin }: HomePageProps) {
 
     const handleBackFromInstance = () => {
         setOpenInstanceId(null);
+    };
+
+    const handleOpenTaskFromInstance = (taskId: string) => {
+        setSection('tasks');
+        setOpenInstanceId(null);
+        setOpenTaskId(taskId);
     };
 
     return (
@@ -99,6 +109,11 @@ export function HomePage({ onAdmin }: HomePageProps) {
             <div className="hp-body">
                 {!isMobile && <Sidebar active={section} onSelect={handleSelect} />}
                 <main className="hp-content">
+                    {section === 'tasks' && (
+                        openTaskId
+                            ? <TaskDetailPage taskId={openTaskId} onBack={() => setOpenTaskId(null)} />
+                            : <TasksPage onOpenTask={setOpenTaskId} />
+                    )}
                     {section === 'contacts' && (
                         <div className="hp-contacts-layout">
                             <ContactsPage />
@@ -118,6 +133,7 @@ export function HomePage({ onAdmin }: HomePageProps) {
                                 ? <InstancePage
                                     instanceId={openInstanceId}
                                     onBack={handleBackFromInstance}
+                                    onOpenTask={handleOpenTaskFromInstance}
                                   />
                                 : monitorProcess
                                     ? <ProcessMonitorPage
@@ -136,6 +152,7 @@ export function HomePage({ onAdmin }: HomePageProps) {
                             ? <InstancePage
                                 instanceId={openInstanceId}
                                 onBack={handleBackFromInstance}
+                                onOpenTask={handleOpenTaskFromInstance}
                               />
                             : <MyProcessesPage onOpenInstance={handleOpenInstance} />
                     )}
@@ -144,6 +161,7 @@ export function HomePage({ onAdmin }: HomePageProps) {
                             ? <InstancePage
                                 instanceId={openInstanceId}
                                 onBack={handleBackFromInstance}
+                                onOpenTask={handleOpenTaskFromInstance}
                               />
                             : monitorProcess
                                 ? <ProcessMonitorPage

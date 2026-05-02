@@ -2,7 +2,7 @@ import { useAuth } from '../context/AuthContext';
 import { APP_VERSION, LAST_PR_DATE } from '../version';
 import './Sidebar.css';
 
-export type SidebarSection = 'contacts' | 'org-structure' | 'bpm-processes' | 'bpm-my-processes' | 'bpm-monitor' | 'bpm-queue' | 'bpm-documentation' | 'bpm-rules' | 'bpm-forms' | 'bpm-scripts' | 'bpm-migration' | 'bpm-improvements' | 'bpm-analytics';
+export type SidebarSection = 'tasks' | 'contacts' | 'org-structure' | 'bpm-processes' | 'bpm-my-processes' | 'bpm-monitor' | 'bpm-queue' | 'bpm-documentation' | 'bpm-rules' | 'bpm-forms' | 'bpm-scripts' | 'bpm-migration' | 'bpm-improvements' | 'bpm-analytics';
 
 interface SidebarProps {
     active: SidebarSection;
@@ -16,6 +16,19 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
 
     return (
         <nav className="sidebar" aria-label="Разделы системы">
+            <SidebarItem
+                id="tasks"
+                label="Задачи"
+                active={active === 'tasks'}
+                onClick={() => onSelect('tasks')}
+                icon={
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <polyline points="9 11 12 14 22 4"/>
+                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                    </svg>
+                }
+            />
+            <div className="sidebar-divider" role="separator" />
             <SidebarItem
                 id="contacts"
                 label="Контакты"

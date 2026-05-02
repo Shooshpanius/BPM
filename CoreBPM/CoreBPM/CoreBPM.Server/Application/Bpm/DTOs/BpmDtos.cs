@@ -932,7 +932,9 @@ public record BpmTokenDto(
     string? SignalCode,
     string? MessageCode,
     DateTimeOffset CreatedAt,
-    DateTimeOffset? CompletedAt
+    DateTimeOffset? CompletedAt,
+    /// <summary>Идентификатор задачи (task_items), созданной при активации UserTask.</summary>
+    Guid? LinkedTaskItemId = null
 );
 
 /// <summary>Запрос на завершение UserTask/ReceiveTask.</summary>

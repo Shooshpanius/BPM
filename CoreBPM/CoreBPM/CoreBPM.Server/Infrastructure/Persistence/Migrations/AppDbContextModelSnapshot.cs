@@ -1920,6 +1920,10 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("status");
 
+                    b.Property<Guid?>("LinkedTaskItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("linked_task_item_id");
+
                     b.HasKey("Id")
                         .HasName("pk_bpm_tokens");
 

@@ -1,0 +1,583 @@
+using System.Text;
+using Microsoft.EntityFrameworkCore;
+using CoreBPM.Server.Application.Tasks.DTOs;
+using CoreBPM.Server.Application.Tasks.Interfaces;
+using CoreBPM.Server.Domain.Tasks;
+using CoreBPM.Server.Exceptions;
+using CoreBPM.Server.Infrastructure.Persistence;
+using TaskStatus = CoreBPM.Server.Domain.Tasks.TaskStatus;
+
+namespace CoreBPM.Server.Application.Tasks.Services;
+
+/// <summary>Реализация сервиса задач (FR-TASK-01.1).</summary>
+public class TaskService : ITaskService
+{
+    private readonly AppDbContext _db;
+
+    public TaskService(AppDbContext db) => _db = db;
+
+    /// <inheritdoc/>
+    public async Task<TaskDto> CreateAsync(CreateTaskRequest req, Guid authorId, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(req.Subject))
+            throw new ValidationException("Тема задачи обязательна.");
+        if (req.AssigneeUserId == Guid.Empty)
+            throw new ValidationException("Исполнитель задачи обязателен.");
+
+        var now = DateTimeOffset.UtcNow;
+        var maxNum = await _db.TaskItems.MaxAsync(t => (int?)t.Number, ct) ?? 0;
+
+        var task = new TaskItem
+        {
+            Id = Guid.NewGuid(),
+            Number = maxNum + 1,
+            Subject = req.Subject.Trim(),
+            Description = req.Description?.Trim(),
+            Status = TaskStatus.New,
+            Priority = req.Priority,
+            CategoryId = req.CategoryId?.Trim(),
+            AuthorUserId = authorId,
+            AssigneeUserId = req.AssigneeUserId,
+            StartDate = req.StartDate,
+            DueDate = req.DueDate,
+            DateCorrectionMode = req.DateCorrectionMode,
+            PlannedEffortMinutes = req.PlannedEffortMinutes,
+            ControlType = req.ControlType,
+            ControllerUserId = req.ControllerUserId,
+            ParentTaskId = req.ParentTaskId,
+            IsOverdue = false,
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+
+        _db.TaskItems.Add(task);
+
+        foreach (var id in req.CoExecutorIds)
+            _db.TaskParticipants.Add(new TaskParticipant { Id = Guid.NewGuid(), TaskId = task.Id, UserId = id, Role = TaskParticipantRole.CoExecutor, CreatedAt = now });
+        foreach (var id in req.ObserverIds)
+            _db.TaskParticipants.Add(new TaskParticipant { Id = Guid.NewGuid(), TaskId = task.Id, UserId = id, Role = TaskParticipantRole.Observer, CreatedAt = now });
+        if (req.ApproverId.HasValue)
+            _db.TaskParticipants.Add(new TaskParticipant { Id = Guid.NewGuid(), TaskId = task.Id, UserId = req.ApproverId.Value, Role = TaskParticipantRole.Approver, CreatedAt = now });
+        if (req.ControllerUserId.HasValue)
+            _db.TaskParticipants.Add(new TaskParticipant { Id = Guid.NewGuid(), TaskId = task.Id, UserId = req.ControllerUserId.Value, Role = TaskParticipantRole.Controller, CreatedAt = now });
+
+        foreach (var tag in req.Tags.Where(t => !string.IsNullOrWhiteSpace(t)))
+            _db.TaskTags.Add(new TaskTag { Id = Guid.NewGuid(), TaskId = task.Id, Value = tag.Trim(), CreatedAt = now });
+
+        if (req.ReminderAt.HasValue)
+            _db.TaskReminders.Add(new TaskReminder { Id = Guid.NewGuid(), TaskId = task.Id, UserId = authorId, RemindAt = req.ReminderAt.Value, IsSent = false, CreatedAt = now });
+
+        _db.TaskHistoryEntries.Add(new TaskHistoryEntry { Id = Guid.NewGuid(), TaskId = task.Id, ActorUserId = authorId, Action = TaskHistoryAction.Created, CreatedAt = now });
+
+        await _db.SaveChangesAsync(ct);
+        return await BuildDtoAsync(task.Id, ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<TaskDto> CreateSubtaskAsync(Guid parentTaskId, CreateTaskRequest req, Guid authorId, CancellationToken ct = default)
+    {
+        req.ParentTaskId = parentTaskId;
+        return await CreateAsync(req, authorId, ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<TaskDto> GetAsync(Guid taskId, CancellationToken ct = default)
+    {
+        var exists = await _db.TaskItems.AnyAsync(t => t.Id == taskId, ct);
+        if (!exists) throw new NotFoundException($"Задача {taskId} не найдена.");
+        return await BuildDtoAsync(taskId, ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<TaskSummaryDto>> ListAsync(Guid userId, bool isAdmin, TaskListFilter filter, CancellationToken ct = default)
+    {
+        var query = _db.TaskItems.AsNoTracking();
+
+        if (!isAdmin)
+        {
+            var participantTaskIds = _db.TaskParticipants
+                .Where(p => p.UserId == userId)
+                .Select(p => p.TaskId);
+            query = query.Where(t => t.AuthorUserId == userId || t.AssigneeUserId == userId || participantTaskIds.Contains(t.Id));
+        }
+
+        if (!string.IsNullOrEmpty(filter.Status) && Enum.TryParse<TaskStatus>(filter.Status, out var status))
+            query = query.Where(t => t.Status == status);
+        if (!string.IsNullOrEmpty(filter.Priority) && Enum.TryParse<Domain.Tasks.TaskPriority>(filter.Priority, out var priority))
+            query = query.Where(t => t.Priority == priority);
+        if (filter.AssigneeId.HasValue)
+            query = query.Where(t => t.AssigneeUserId == filter.AssigneeId.Value);
+        if (filter.AuthorId.HasValue)
+            query = query.Where(t => t.AuthorUserId == filter.AuthorId.Value);
+        if (!string.IsNullOrEmpty(filter.CategoryId))
+            query = query.Where(t => t.CategoryId == filter.CategoryId);
+        if (filter.IsOverdue.HasValue)
+            query = query.Where(t => t.IsOverdue == filter.IsOverdue.Value);
+        if (!string.IsNullOrEmpty(filter.Search))
+            query = query.Where(t => t.Subject.Contains(filter.Search));
+        if (filter.DateFrom.HasValue)
+            query = query.Where(t => t.DueDate >= filter.DateFrom.Value);
+        if (filter.DateTo.HasValue)
+            query = query.Where(t => t.DueDate <= filter.DateTo.Value);
+
+        var tasks = await query.OrderByDescending(t => t.CreatedAt).ToListAsync(ct);
+
+        var taskIds = tasks.Select(t => t.Id).ToList();
+        var tags = await _db.TaskTags.AsNoTracking()
+            .Where(t => taskIds.Contains(t.TaskId))
+            .ToListAsync(ct);
+        var userIds = tasks.Select(t => t.AssigneeUserId).Distinct().ToList();
+        var users = await _db.OrgUsers.AsNoTracking()
+            .Where(u => userIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => u.DisplayName, ct);
+
+        if (!string.IsNullOrEmpty(filter.TagValue))
+        {
+            var taggedTaskIds = tags.Where(t => t.Value == filter.TagValue).Select(t => t.TaskId).ToHashSet();
+            tasks = tasks.Where(t => taggedTaskIds.Contains(t.Id)).ToList();
+        }
+
+        return tasks.Select(t => new TaskSummaryDto
+        {
+            Id = t.Id,
+            Number = t.Number,
+            Subject = t.Subject,
+            Status = t.Status.ToString(),
+            Priority = t.Priority.ToString(),
+            CategoryId = t.CategoryId,
+            AssigneeUserId = t.AssigneeUserId,
+            AssigneeName = users.GetValueOrDefault(t.AssigneeUserId, t.AssigneeUserId.ToString()),
+            DueDate = t.DueDate,
+            IsOverdue = t.IsOverdue,
+            CreatedAt = t.CreatedAt,
+            Tags = tags.Where(tag => tag.TaskId == t.Id).Select(tag => tag.Value).ToList(),
+        }).ToList();
+    }
+
+    /// <inheritdoc/>
+    public async Task<TaskDto> UpdateAsync(Guid taskId, UpdateTaskRequest req, Guid actorId, CancellationToken ct = default)
+    {
+        var task = await _db.TaskItems.FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+        var now = DateTimeOffset.UtcNow;
+        var changes = new List<TaskHistoryEntry>();
+
+        void Track(string field, string? oldVal, string? newVal)
+        {
+            if (oldVal != newVal)
+                changes.Add(new TaskHistoryEntry { Id = Guid.NewGuid(), TaskId = taskId, ActorUserId = actorId, Action = TaskHistoryAction.Updated, FieldName = field, OldValue = oldVal, NewValue = newVal, CreatedAt = now });
+        }
+
+        if (!string.IsNullOrEmpty(req.Subject) && req.Subject != task.Subject) { Track("Subject", task.Subject, req.Subject); task.Subject = req.Subject.Trim(); }
+        if (req.Description != null && req.Description != task.Description) { Track("Description", task.Description, req.Description); task.Description = req.Description.Trim(); }
+        if (req.Priority.HasValue && req.Priority.Value != task.Priority) { Track("Priority", task.Priority.ToString(), req.Priority.Value.ToString()); task.Priority = req.Priority.Value; }
+        if (req.CategoryId != null && req.CategoryId != task.CategoryId) { Track("CategoryId", task.CategoryId, req.CategoryId); task.CategoryId = req.CategoryId; }
+        if (req.StartDate.HasValue && req.StartDate.Value != task.StartDate) { Track("StartDate", task.StartDate.ToString("O"), req.StartDate.Value.ToString("O")); task.StartDate = req.StartDate.Value; }
+        if (req.DueDate.HasValue && req.DueDate.Value != task.DueDate) { Track("DueDate", task.DueDate.ToString("O"), req.DueDate.Value.ToString("O")); task.DueDate = req.DueDate.Value; }
+        if (req.PlannedEffortMinutes.HasValue && req.PlannedEffortMinutes.Value != task.PlannedEffortMinutes) { Track("PlannedEffortMinutes", task.PlannedEffortMinutes?.ToString(), req.PlannedEffortMinutes.Value.ToString()); task.PlannedEffortMinutes = req.PlannedEffortMinutes.Value; }
+        if (req.ControlType.HasValue && req.ControlType.Value != task.ControlType) { Track("ControlType", task.ControlType.ToString(), req.ControlType.Value.ToString()); task.ControlType = req.ControlType.Value; }
+        if (req.ControllerUserId.HasValue && req.ControllerUserId.Value != task.ControllerUserId) { Track("ControllerUserId", task.ControllerUserId?.ToString(), req.ControllerUserId.Value.ToString()); task.ControllerUserId = req.ControllerUserId.Value; }
+
+        task.UpdatedAt = now;
+        _db.TaskHistoryEntries.AddRange(changes);
+        await _db.SaveChangesAsync(ct);
+        return await BuildDtoAsync(taskId, ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task DeleteAsync(Guid taskId, Guid actorId, CancellationToken ct = default)
+    {
+        var task = await _db.TaskItems.FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+        _db.TaskItems.Remove(task);
+        await _db.SaveChangesAsync(ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<TaskDto> CopyAsync(Guid taskId, Guid actorId, CancellationToken ct = default)
+    {
+        var src = await _db.TaskItems.AsNoTracking().FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+        var tags = await _db.TaskTags.AsNoTracking().Where(t => t.TaskId == taskId).Select(t => t.Value).ToListAsync(ct);
+
+        var req = new CreateTaskRequest
+        {
+            Subject = $"Копия: {src.Subject}",
+            Description = src.Description,
+            Priority = src.Priority,
+            CategoryId = src.CategoryId,
+            AssigneeUserId = src.AssigneeUserId,
+            StartDate = DateTimeOffset.UtcNow,
+            DueDate = src.DueDate > DateTimeOffset.UtcNow ? src.DueDate : DateTimeOffset.UtcNow.AddDays(7),
+            DateCorrectionMode = src.DateCorrectionMode,
+            PlannedEffortMinutes = src.PlannedEffortMinutes,
+            ControlType = src.ControlType,
+            ControllerUserId = src.ControllerUserId,
+            Tags = tags,
+        };
+        var dto = await CreateAsync(req, actorId, ct);
+
+        _db.TaskHistoryEntries.Add(new TaskHistoryEntry { Id = Guid.NewGuid(), TaskId = dto.Id, ActorUserId = actorId, Action = TaskHistoryAction.Copied, NewValue = taskId.ToString(), CreatedAt = DateTimeOffset.UtcNow });
+        await _db.SaveChangesAsync(ct);
+        return dto;
+    }
+
+    /// <inheritdoc/>
+    public async Task MarkReadAsync(Guid taskId, Guid userId, CancellationToken ct = default)
+    {
+        var task = await _db.TaskItems.FirstOrDefaultAsync(t => t.Id == taskId, ct);
+        if (task == null || task.Status != TaskStatus.New || task.AssigneeUserId != userId) return;
+        var now = DateTimeOffset.UtcNow;
+        task.Status = TaskStatus.Read;
+        task.UpdatedAt = now;
+        _db.TaskHistoryEntries.Add(new TaskHistoryEntry { Id = Guid.NewGuid(), TaskId = taskId, ActorUserId = userId, Action = TaskHistoryAction.StatusChanged, FieldName = "Status", OldValue = TaskStatus.New.ToString(), NewValue = TaskStatus.Read.ToString(), CreatedAt = now });
+        await _db.SaveChangesAsync(ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<TaskDto> ReassignAsync(Guid taskId, ReassignTaskRequest req, Guid actorId, CancellationToken ct = default)
+    {
+        var task = await _db.TaskItems.FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+        var now = DateTimeOffset.UtcNow;
+        var oldAssignee = task.AssigneeUserId;
+        task.AssigneeUserId = req.AssigneeUserId;
+        task.Status = TaskStatus.New;
+        task.UpdatedAt = now;
+        _db.TaskHistoryEntries.Add(new TaskHistoryEntry { Id = Guid.NewGuid(), TaskId = taskId, ActorUserId = actorId, Action = TaskHistoryAction.Reassigned, FieldName = "AssigneeUserId", OldValue = oldAssignee.ToString(), NewValue = req.AssigneeUserId.ToString(), CreatedAt = now });
+        if (!string.IsNullOrWhiteSpace(req.Comment))
+            _db.TaskComments.Add(new TaskComment { Id = Guid.NewGuid(), TaskId = taskId, AuthorUserId = actorId, Body = req.Comment.Trim(), CreatedAt = now });
+        await _db.SaveChangesAsync(ct);
+        return await BuildDtoAsync(taskId, ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<TaskCommentDto> AddCommentAsync(Guid taskId, AddTaskCommentRequest req, Guid authorId, CancellationToken ct = default)
+    {
+        if (!await _db.TaskItems.AnyAsync(t => t.Id == taskId, ct))
+            throw new NotFoundException($"Задача {taskId} не найдена.");
+        var now = DateTimeOffset.UtcNow;
+        var comment = new TaskComment { Id = Guid.NewGuid(), TaskId = taskId, AuthorUserId = authorId, Body = req.Body.Trim(), CreatedAt = now };
+        _db.TaskComments.Add(comment);
+        _db.TaskHistoryEntries.Add(new TaskHistoryEntry { Id = Guid.NewGuid(), TaskId = taskId, ActorUserId = authorId, Action = TaskHistoryAction.CommentAdded, CreatedAt = now });
+        await _db.SaveChangesAsync(ct);
+        var authorName = await GetDisplayNameAsync(authorId, ct);
+        return new TaskCommentDto { Id = comment.Id, AuthorUserId = authorId, AuthorName = authorName, Body = comment.Body, CreatedAt = comment.CreatedAt };
+    }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<TaskCommentDto>> GetCommentsAsync(Guid taskId, CancellationToken ct = default)
+    {
+        var comments = await _db.TaskComments.AsNoTracking()
+            .Where(c => c.TaskId == taskId)
+            .OrderBy(c => c.CreatedAt)
+            .ToListAsync(ct);
+        var userIds = comments.Select(c => c.AuthorUserId).Distinct().ToList();
+        var users = await _db.OrgUsers.AsNoTracking().Where(u => userIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.DisplayName, ct);
+        return comments.Select(c => new TaskCommentDto { Id = c.Id, AuthorUserId = c.AuthorUserId, AuthorName = users.GetValueOrDefault(c.AuthorUserId, c.AuthorUserId.ToString()), Body = c.Body, CreatedAt = c.CreatedAt }).ToList();
+    }
+
+    /// <inheritdoc/>
+    public async Task<TaskAttachmentDto> AddAttachmentAsync(Guid taskId, AddTaskAttachmentRequest req, Guid uploadedBy, CancellationToken ct = default)
+    {
+        if (!await _db.TaskItems.AnyAsync(t => t.Id == taskId, ct))
+            throw new NotFoundException($"Задача {taskId} не найдена.");
+        var now = DateTimeOffset.UtcNow;
+        var att = new TaskAttachment { Id = Guid.NewGuid(), TaskId = taskId, UploadedByUserId = uploadedBy, FileName = req.FileName, ContentType = req.ContentType, StorageKey = req.StorageKey, SizeBytes = req.SizeBytes, CreatedAt = now };
+        _db.TaskAttachments.Add(att);
+        _db.TaskHistoryEntries.Add(new TaskHistoryEntry { Id = Guid.NewGuid(), TaskId = taskId, ActorUserId = uploadedBy, Action = TaskHistoryAction.AttachmentAdded, NewValue = req.FileName, CreatedAt = now });
+        await _db.SaveChangesAsync(ct);
+        return new TaskAttachmentDto { Id = att.Id, FileName = att.FileName, ContentType = att.ContentType, SizeBytes = att.SizeBytes, UploadedByUserId = uploadedBy, CreatedAt = att.CreatedAt };
+    }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<TaskAttachmentDto>> GetAttachmentsAsync(Guid taskId, CancellationToken ct = default)
+    {
+        return await _db.TaskAttachments.AsNoTracking()
+            .Where(a => a.TaskId == taskId)
+            .OrderBy(a => a.CreatedAt)
+            .Select(a => new TaskAttachmentDto { Id = a.Id, FileName = a.FileName, ContentType = a.ContentType, SizeBytes = a.SizeBytes, UploadedByUserId = a.UploadedByUserId, CreatedAt = a.CreatedAt })
+            .ToListAsync(ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<TaskParticipantDto> AddParticipantAsync(Guid taskId, AddTaskParticipantRequest req, Guid actorId, CancellationToken ct = default)
+    {
+        if (!await _db.TaskItems.AnyAsync(t => t.Id == taskId, ct))
+            throw new NotFoundException($"Задача {taskId} не найдена.");
+        var existing = await _db.TaskParticipants.FirstOrDefaultAsync(p => p.TaskId == taskId && p.UserId == req.UserId && p.Role == req.Role, ct);
+        if (existing != null)
+        {
+            var existName = await GetDisplayNameAsync(existing.UserId, ct);
+            return new TaskParticipantDto { Id = existing.Id, UserId = existing.UserId, UserName = existName, Role = existing.Role.ToString() };
+        }
+        var now = DateTimeOffset.UtcNow;
+        var participant = new TaskParticipant { Id = Guid.NewGuid(), TaskId = taskId, UserId = req.UserId, Role = req.Role, CreatedAt = now };
+        _db.TaskParticipants.Add(participant);
+        _db.TaskHistoryEntries.Add(new TaskHistoryEntry { Id = Guid.NewGuid(), TaskId = taskId, ActorUserId = actorId, Action = TaskHistoryAction.ParticipantAdded, NewValue = req.Role.ToString(), CreatedAt = now });
+        await _db.SaveChangesAsync(ct);
+        var userName = await GetDisplayNameAsync(req.UserId, ct);
+        return new TaskParticipantDto { Id = participant.Id, UserId = req.UserId, UserName = userName, Role = req.Role.ToString() };
+    }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<TaskParticipantDto>> GetParticipantsAsync(Guid taskId, CancellationToken ct = default)
+    {
+        var participants = await _db.TaskParticipants.AsNoTracking()
+            .Where(p => p.TaskId == taskId)
+            .ToListAsync(ct);
+        var userIds = participants.Select(p => p.UserId).Distinct().ToList();
+        var users = await _db.OrgUsers.AsNoTracking().Where(u => userIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.DisplayName, ct);
+        return participants.Select(p => new TaskParticipantDto { Id = p.Id, UserId = p.UserId, UserName = users.GetValueOrDefault(p.UserId, p.UserId.ToString()), Role = p.Role.ToString() }).ToList();
+    }
+
+    /// <inheritdoc/>
+    public async Task RemoveParticipantAsync(Guid taskId, Guid participantId, CancellationToken ct = default)
+    {
+        var p = await _db.TaskParticipants.FirstOrDefaultAsync(x => x.Id == participantId && x.TaskId == taskId, ct);
+        if (p == null) return;
+        _db.TaskParticipants.Remove(p);
+        _db.TaskHistoryEntries.Add(new TaskHistoryEntry { Id = Guid.NewGuid(), TaskId = taskId, ActorUserId = p.UserId, Action = TaskHistoryAction.ParticipantRemoved, OldValue = p.Role.ToString(), CreatedAt = DateTimeOffset.UtcNow });
+        await _db.SaveChangesAsync(ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<TaskRelationDto> AddRelationAsync(Guid taskId, AddTaskRelationRequest req, Guid actorId, CancellationToken ct = default)
+    {
+        if (!await _db.TaskItems.AnyAsync(t => t.Id == taskId, ct))
+            throw new NotFoundException($"Задача {taskId} не найдена.");
+        var target = await _db.TaskItems.AsNoTracking().FirstOrDefaultAsync(t => t.Id == req.TargetTaskId, ct)
+            ?? throw new NotFoundException($"Целевая задача {req.TargetTaskId} не найдена.");
+        var now = DateTimeOffset.UtcNow;
+        var relation = new TaskRelation { Id = Guid.NewGuid(), SourceTaskId = taskId, TargetTaskId = req.TargetTaskId, RelationType = req.RelationType, CreatedAt = now };
+        _db.TaskRelations.Add(relation);
+        _db.TaskHistoryEntries.Add(new TaskHistoryEntry { Id = Guid.NewGuid(), TaskId = taskId, ActorUserId = actorId, Action = TaskHistoryAction.RelationAdded, NewValue = req.TargetTaskId.ToString(), CreatedAt = now });
+        await _db.SaveChangesAsync(ct);
+        return new TaskRelationDto { Id = relation.Id, SourceTaskId = taskId, TargetTaskId = req.TargetTaskId, TargetSubject = target.Subject, TargetNumber = target.Number, RelationType = req.RelationType.ToString() };
+    }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<TaskRelationDto>> GetRelationsAsync(Guid taskId, CancellationToken ct = default)
+    {
+        var relations = await _db.TaskRelations.AsNoTracking()
+            .Where(r => r.SourceTaskId == taskId || r.TargetTaskId == taskId)
+            .ToListAsync(ct);
+        var targetIds = relations.Select(r => r.TargetTaskId == taskId ? r.SourceTaskId : r.TargetTaskId).Distinct().ToList();
+        var targets = await _db.TaskItems.AsNoTracking().Where(t => targetIds.Contains(t.Id)).ToDictionaryAsync(t => t.Id, ct);
+        return relations.Select(r =>
+        {
+            var otherId = r.TargetTaskId == taskId ? r.SourceTaskId : r.TargetTaskId;
+            targets.TryGetValue(otherId, out var other);
+            return new TaskRelationDto { Id = r.Id, SourceTaskId = r.SourceTaskId, TargetTaskId = r.TargetTaskId, TargetSubject = other?.Subject ?? string.Empty, TargetNumber = other?.Number ?? 0, RelationType = r.RelationType.ToString() };
+        }).ToList();
+    }
+
+    /// <inheritdoc/>
+    public async Task RemoveRelationAsync(Guid taskId, Guid relationId, Guid actorId, CancellationToken ct = default)
+    {
+        var r = await _db.TaskRelations.FirstOrDefaultAsync(x => x.Id == relationId, ct);
+        if (r == null) return;
+        _db.TaskRelations.Remove(r);
+        _db.TaskHistoryEntries.Add(new TaskHistoryEntry { Id = Guid.NewGuid(), TaskId = taskId, ActorUserId = actorId, Action = TaskHistoryAction.RelationRemoved, OldValue = r.TargetTaskId.ToString(), CreatedAt = DateTimeOffset.UtcNow });
+        await _db.SaveChangesAsync(ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<TaskTagResultDto> AddTagAsync(Guid taskId, AddTaskTagRequest req, Guid actorId, CancellationToken ct = default)
+    {
+        if (!await _db.TaskItems.AnyAsync(t => t.Id == taskId, ct))
+            throw new NotFoundException($"Задача {taskId} не найдена.");
+        var now = DateTimeOffset.UtcNow;
+        var tag = new TaskTag { Id = Guid.NewGuid(), TaskId = taskId, Value = req.Value.Trim(), CreatedAt = now };
+        _db.TaskTags.Add(tag);
+        _db.TaskHistoryEntries.Add(new TaskHistoryEntry { Id = Guid.NewGuid(), TaskId = taskId, ActorUserId = actorId, Action = TaskHistoryAction.TagAdded, NewValue = req.Value, CreatedAt = now });
+        await _db.SaveChangesAsync(ct);
+        return new TaskTagResultDto { Id = tag.Id, Value = tag.Value };
+    }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<string>> GetTagsAsync(Guid taskId, CancellationToken ct = default)
+        => await _db.TaskTags.AsNoTracking().Where(t => t.TaskId == taskId).Select(t => t.Value).ToListAsync(ct);
+
+    /// <inheritdoc/>
+    public async Task RemoveTagAsync(Guid taskId, Guid tagId, Guid actorId, CancellationToken ct = default)
+    {
+        var tag = await _db.TaskTags.FirstOrDefaultAsync(t => t.Id == tagId && t.TaskId == taskId, ct);
+        if (tag == null) return;
+        _db.TaskTags.Remove(tag);
+        _db.TaskHistoryEntries.Add(new TaskHistoryEntry { Id = Guid.NewGuid(), TaskId = taskId, ActorUserId = actorId, Action = TaskHistoryAction.TagRemoved, OldValue = tag.Value, CreatedAt = DateTimeOffset.UtcNow });
+        await _db.SaveChangesAsync(ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<TaskHistoryEntryDto>> GetHistoryAsync(Guid taskId, CancellationToken ct = default)
+    {
+        var entries = await _db.TaskHistoryEntries.AsNoTracking()
+            .Where(h => h.TaskId == taskId)
+            .OrderByDescending(h => h.CreatedAt)
+            .Take(50)
+            .ToListAsync(ct);
+        var userIds = entries.Where(e => e.ActorUserId != Guid.Empty).Select(e => e.ActorUserId).Distinct().ToList();
+        var users = await _db.OrgUsers.AsNoTracking().Where(u => userIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.DisplayName, ct);
+        return entries.Select(h => new TaskHistoryEntryDto { Id = h.Id, ActorUserId = h.ActorUserId, ActorName = users.GetValueOrDefault(h.ActorUserId, h.ActorUserId.ToString()), Action = h.Action.ToString(), FieldName = h.FieldName, OldValue = h.OldValue, NewValue = h.NewValue, CreatedAt = h.CreatedAt }).ToList();
+    }
+
+    /// <inheritdoc/>
+    public async Task<byte[]> ExportToCsvAsync(Guid userId, bool isAdmin, TaskListFilter filter, CancellationToken ct = default)
+    {
+        var tasks = await ListAsync(userId, isAdmin, filter, ct);
+        var sb = new StringBuilder();
+        sb.AppendLine("Номер;Тема;Статус;Приоритет;Исполнитель;Срок;Просрочена");
+        foreach (var t in tasks)
+            sb.AppendLine($"T-{t.Number};\"{t.Subject}\";\"{t.Status}\";\"{t.Priority}\";\"{t.AssigneeName}\";{t.DueDate:dd.MM.yyyy HH:mm};{(t.IsOverdue ? "Да" : "Нет")}");
+        return Encoding.UTF8.GetBytes(sb.ToString());
+    }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<TaskSavedFilterDto>> GetSavedFiltersAsync(Guid userId, CancellationToken ct = default)
+        => await _db.TaskSavedFilters.AsNoTracking()
+            .Where(f => f.UserId == userId)
+            .OrderBy(f => f.Name)
+            .Select(f => new TaskSavedFilterDto { Id = f.Id, Name = f.Name, FilterJson = f.FilterJson, CreatedAt = f.CreatedAt })
+            .ToListAsync(ct);
+
+    /// <inheritdoc/>
+    public async Task<TaskSavedFilterDto> CreateSavedFilterAsync(Guid userId, CreateTaskSavedFilterRequest req, CancellationToken ct = default)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var f = new TaskSavedFilter { Id = Guid.NewGuid(), UserId = userId, Name = req.Name.Trim(), FilterJson = req.FilterJson, CreatedAt = now };
+        _db.TaskSavedFilters.Add(f);
+        await _db.SaveChangesAsync(ct);
+        return new TaskSavedFilterDto { Id = f.Id, Name = f.Name, FilterJson = f.FilterJson, CreatedAt = f.CreatedAt };
+    }
+
+    /// <inheritdoc/>
+    public async Task DeleteSavedFilterAsync(Guid filterId, Guid userId, CancellationToken ct = default)
+    {
+        var f = await _db.TaskSavedFilters.FirstOrDefaultAsync(x => x.Id == filterId && x.UserId == userId, ct);
+        if (f == null) return;
+        _db.TaskSavedFilters.Remove(f);
+        await _db.SaveChangesAsync(ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<TaskTemplateDto> CreateTemplateAsync(CreateTaskTemplateRequest req, Guid userId, CancellationToken ct = default)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var tagsJson = System.Text.Json.JsonSerializer.Serialize(req.Tags);
+        var t = new TaskTemplate { Id = Guid.NewGuid(), Name = req.Name.Trim(), DefaultAssigneeUserId = req.DefaultAssigneeUserId, DefaultPriority = req.DefaultPriority, DefaultCategoryId = req.DefaultCategoryId, Description = req.Description, ControlType = req.ControlType, PlannedEffortMinutes = req.PlannedEffortMinutes, TagsJson = tagsJson, IsPublic = req.IsPublic, CreatedByUserId = userId, CreatedAt = now, UpdatedAt = now };
+        _db.TaskTemplates.Add(t);
+        await _db.SaveChangesAsync(ct);
+        return await BuildTemplateDtoAsync(t, ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<TaskTemplateDto>> ListTemplatesAsync(Guid userId, CancellationToken ct = default)
+    {
+        var templates = await _db.TaskTemplates.AsNoTracking()
+            .Where(t => t.IsPublic || t.CreatedByUserId == userId)
+            .OrderBy(t => t.Name)
+            .ToListAsync(ct);
+        var result = new List<TaskTemplateDto>();
+        foreach (var t in templates) result.Add(await BuildTemplateDtoAsync(t, ct));
+        return result;
+    }
+
+    /// <inheritdoc/>
+    public async Task<TaskTemplateDto> UpdateTemplateAsync(Guid templateId, CreateTaskTemplateRequest req, Guid userId, CancellationToken ct = default)
+    {
+        var t = await _db.TaskTemplates.FirstOrDefaultAsync(x => x.Id == templateId && x.CreatedByUserId == userId, ct)
+            ?? throw new NotFoundException($"Шаблон {templateId} не найден.");
+        t.Name = req.Name.Trim();
+        t.DefaultAssigneeUserId = req.DefaultAssigneeUserId;
+        t.DefaultPriority = req.DefaultPriority;
+        t.DefaultCategoryId = req.DefaultCategoryId;
+        t.Description = req.Description;
+        t.ControlType = req.ControlType;
+        t.PlannedEffortMinutes = req.PlannedEffortMinutes;
+        t.TagsJson = System.Text.Json.JsonSerializer.Serialize(req.Tags);
+        t.IsPublic = req.IsPublic;
+        t.UpdatedAt = DateTimeOffset.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return await BuildTemplateDtoAsync(t, ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task DeleteTemplateAsync(Guid templateId, Guid userId, CancellationToken ct = default)
+    {
+        var t = await _db.TaskTemplates.FirstOrDefaultAsync(x => x.Id == templateId && x.CreatedByUserId == userId, ct);
+        if (t == null) return;
+        _db.TaskTemplates.Remove(t);
+        await _db.SaveChangesAsync(ct);
+    }
+
+    private async Task<TaskDto> BuildDtoAsync(Guid taskId, CancellationToken ct)
+    {
+        var task = await _db.TaskItems.AsNoTracking()
+            .Include(t => t.Participants)
+            .Include(t => t.Tags)
+            .Include(t => t.Comments)
+            .Include(t => t.Attachments)
+            .Include(t => t.Subtasks)
+            .FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+
+        var authorName = await GetDisplayNameAsync(task.AuthorUserId, ct);
+        var assigneeName = await GetDisplayNameAsync(task.AssigneeUserId, ct);
+        string? controllerName = task.ControllerUserId.HasValue ? await GetDisplayNameAsync(task.ControllerUserId.Value, ct) : null;
+
+        var participantUserIds = task.Participants.Select(p => p.UserId).Distinct().ToList();
+        var participantUsers = await _db.OrgUsers.AsNoTracking()
+            .Where(u => participantUserIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => u.DisplayName, ct);
+
+        return new TaskDto
+        {
+            Id = task.Id,
+            Number = task.Number,
+            Subject = task.Subject,
+            Description = task.Description,
+            Status = task.Status.ToString(),
+            Priority = task.Priority.ToString(),
+            CategoryId = task.CategoryId,
+            AuthorUserId = task.AuthorUserId,
+            AuthorName = authorName,
+            AssigneeUserId = task.AssigneeUserId,
+            AssigneeName = assigneeName,
+            StartDate = task.StartDate,
+            DueDate = task.DueDate,
+            DateCorrectionMode = task.DateCorrectionMode.ToString(),
+            PlannedEffortMinutes = task.PlannedEffortMinutes,
+            ControlType = task.ControlType.ToString(),
+            ControllerUserId = task.ControllerUserId,
+            ControllerName = controllerName,
+            ParentTaskId = task.ParentTaskId,
+            IsOverdue = task.IsOverdue,
+            PostponedUntil = task.PostponedUntil,
+            SourceInstanceId = task.SourceInstanceId,
+            SourceElementId = task.SourceElementId,
+            CreatedAt = task.CreatedAt,
+            UpdatedAt = task.UpdatedAt,
+            Participants = task.Participants.Select(p => new TaskParticipantDto { Id = p.Id, UserId = p.UserId, UserName = participantUsers.GetValueOrDefault(p.UserId, p.UserId.ToString()), Role = p.Role.ToString() }).ToList(),
+            Tags = task.Tags.Select(t => t.Value).ToList(),
+            SubtaskCount = task.Subtasks.Count,
+            CommentCount = task.Comments.Count,
+            AttachmentCount = task.Attachments.Count,
+        };
+    }
+
+    private async Task<string> GetDisplayNameAsync(Guid userId, CancellationToken ct)
+    {
+        var user = await _db.OrgUsers.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId, ct);
+        return user?.DisplayName ?? userId.ToString();
+    }
+
+    private async Task<TaskTemplateDto> BuildTemplateDtoAsync(TaskTemplate t, CancellationToken ct)
+    {
+        string? assigneeName = t.DefaultAssigneeUserId.HasValue ? await GetDisplayNameAsync(t.DefaultAssigneeUserId.Value, ct) : null;
+        List<string> tags = new();
+        if (!string.IsNullOrEmpty(t.TagsJson))
+            try { tags = System.Text.Json.JsonSerializer.Deserialize<List<string>>(t.TagsJson) ?? new(); } catch { }
+        return new TaskTemplateDto { Id = t.Id, Name = t.Name, DefaultAssigneeUserId = t.DefaultAssigneeUserId, DefaultAssigneeName = assigneeName, DefaultPriority = t.DefaultPriority.ToString(), DefaultCategoryId = t.DefaultCategoryId, Description = t.Description, ControlType = t.ControlType.ToString(), PlannedEffortMinutes = t.PlannedEffortMinutes, Tags = tags, IsPublic = t.IsPublic, CreatedByUserId = t.CreatedByUserId, CreatedAt = t.CreatedAt };
+    }
+}
