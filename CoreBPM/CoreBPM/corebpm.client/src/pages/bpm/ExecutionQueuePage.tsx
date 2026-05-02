@@ -6,6 +6,8 @@ import {
     retryJob,
     cancelQueueTimer,
     rescheduleTimer,
+    exportRetryPolicies,
+    importRetryPolicies,
     type BpmExecutionJobDto,
     type BpmJobStatus,
     type QueueStatsDto,
@@ -87,6 +89,7 @@ export function ExecutionQueuePage() {
     const [ctxPos, setCtxPos] = useState({ x: 0, y: 0 });
     const [rescheduleModal, setRescheduleModal] = useState<BpmExecutionJobDto | null>(null);
     const [rescheduleValue, setRescheduleValue] = useState('');
+    const importPoliciesRef = useRef<HTMLInputElement>(null);
 
     // ─── Загрузка данных ──────────────────────────────────────────────────────
 
@@ -154,6 +157,32 @@ export function ExecutionQueuePage() {
             setRescheduleModal(null);
             load();
         } catch { setError('Ошибка при переносе таймера'); }
+    };
+
+    const handleExportPolicies = async () => {
+        if (!accessToken) return;
+        try {
+            const blob = await exportRetryPolicies(accessToken);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'retry-policies.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch { setError('Ошибка при экспорте политик'); }
+    };
+
+    const handleImportPoliciesFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !accessToken) return;
+        try {
+            const text = await file.text();
+            const data = JSON.parse(text);
+            const policies = Array.isArray(data) ? data : (data.policies ?? []);
+            await importRetryPolicies(policies, accessToken);
+            load();
+        } catch { setError('Ошибка при импорте политик'); }
+        e.target.value = '';
     };
 
     // ─── Рендер ───────────────────────────────────────────────────────────────
@@ -228,6 +257,9 @@ export function ExecutionQueuePage() {
                     </label>
                 )}
                 <span className="eq-count">{jobs.length} записей</span>
+                <button className="eq-btn" onClick={handleExportPolicies} title="Экспортировать retry-политики узлов в JSON">⬇ Экспорт политик</button>
+                <button className="eq-btn" onClick={() => importPoliciesRef.current?.click()} title="Импортировать retry-политики из JSON">⬆ Импорт политик</button>
+                <input ref={importPoliciesRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImportPoliciesFile} />
             </div>
 
             {error && <div className="eq-error">{error}</div>}

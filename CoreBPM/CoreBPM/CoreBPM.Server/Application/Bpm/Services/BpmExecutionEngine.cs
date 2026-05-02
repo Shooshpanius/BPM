@@ -632,7 +632,7 @@ public class BpmExecutionEngine : IBpmExecutionEngine
 
             case "userTask":
             case "receiveTask":
-                await HandleUserTaskAsync(instance.Id, elementId, elementType, elementName, now, ct);
+                await HandleUserTaskAsync(instance, model, elementId, elementType, elementName, now, ct);
                 break;
 
             case "serviceTask":
@@ -1086,19 +1086,20 @@ public class BpmExecutionEngine : IBpmExecutionEngine
     }
 
     private async Task HandleUserTaskAsync(
-        Guid instanceId,
+        BpmInstance instance,
+        ProcessModel model,
         string elementId,
         string elementType,
         string? elementName,
         DateTimeOffset now,
         CancellationToken ct)
     {
-        await CreateOrUpdateTokenAsync(instanceId, elementId, elementType, elementName, BpmTokenStatus.WaitingUserAction, now, ct);
+        await CreateOrUpdateTokenAsync(instance.Id, elementId, elementType, elementName, BpmTokenStatus.WaitingUserAction, now, ct);
 
         _db.BpmInstanceHistoryEntries.Add(new BpmInstanceHistoryEntry
         {
             Id = Guid.NewGuid(),
-            InstanceId = instanceId,
+            InstanceId = instance.Id,
             EventType = BpmHistoryEventType.NodeExecuted,
             ElementId = elementId,
             ElementName = elementName,
@@ -1108,20 +1109,23 @@ public class BpmExecutionEngine : IBpmExecutionEngine
 
         await _db.SaveChangesAsync(ct);
 
+        // Планируем граничные таймерные события для этой задачи
+        await TryScheduleBoundaryTimerEventsAsync(instance, model, elementId, now, ct);
+
         // Уведомляем участников процесса о появлении новой задачи
         try
         {
-            var instance = await _db.BpmInstances
+            var instanceWithProcess = await _db.BpmInstances
                 .AsNoTracking()
                 .Include(i => i.Process)
-                .FirstOrDefaultAsync(i => i.Id == instanceId, ct);
+                .FirstOrDefaultAsync(i => i.Id == instance.Id, ct);
 
-            if (instance != null)
+            if (instanceWithProcess != null)
             {
                 await _notificationService.NotifyUserTaskActivatedAsync(
-                    instanceId,
-                    instance.Name,
-                    instance.Process?.Name ?? string.Empty,
+                    instance.Id,
+                    instanceWithProcess.Name,
+                    instanceWithProcess.Process?.Name ?? string.Empty,
                     elementId,
                     elementName,
                     ct);
@@ -1183,6 +1187,9 @@ public class BpmExecutionEngine : IBpmExecutionEngine
         _db.BpmExecutionJobs.Add(job);
 
         await _db.SaveChangesAsync(ct);
+
+        // Планируем граничные таймерные события для этой задачи
+        await TryScheduleBoundaryTimerEventsAsync(instance, model, elementId, now, ct);
     }
 
     private async Task HandleIntermediateCatchEventAsync(
@@ -1342,6 +1349,14 @@ public class BpmExecutionEngine : IBpmExecutionEngine
                     job.ElementId, job.InstanceId);
                 await FinalizeTimerTokenAsync(instance.Id, job.ElementId, job, DateTimeOffset.UtcNow, ct);
                 return; // Не вызываем AdvanceFromAsync из ExecuteJobAsync — уже сделано внутри
+
+            case "boundaryEvent" when job.IsTimer:
+                // Граничный таймер сработал — активируем граничное событие
+                _logger.LogInformation(
+                    "Граничный таймер [{ElementId}] сработал в экземпляре {InstanceId}",
+                    job.ElementId, job.InstanceId);
+                await TryActivateBoundaryTimerEventAsync(instance, job.ElementId, DateTimeOffset.UtcNow, ct);
+                return; // Продвижение потока происходит внутри TryActivateBoundaryTimerEventAsync
 
             default:
                 _logger.LogInformation("Задание типа {ElementType} — пассивное выполнение (заглушка)", job.ElementType);
@@ -1860,6 +1875,127 @@ public class BpmExecutionEngine : IBpmExecutionEngine
         _logger.LogInformation(
             "BusinessRuleTask [{ElementId}]: DMN-результат записан в {Count} переменных(ую)",
             job.ElementId, outputMappings.Count);
+    }
+
+    /// <summary>
+    /// Ищет граничные таймерные события, прикреплённые к задаче, и планирует задания для их выполнения.
+    /// </summary>
+    private async Task TryScheduleBoundaryTimerEventsAsync(
+        BpmInstance instance,
+        ProcessModel model,
+        string taskElementId,
+        DateTimeOffset now,
+        CancellationToken ct)
+    {
+        // Ищем граничные события с таймером, прикреплённые к данному элементу
+        var boundaryTimerEvents = model.AllElements
+            .Where(e => e.ElementType == "boundaryEvent"
+                     && e.BoundaryFor == taskElementId
+                     && (!string.IsNullOrWhiteSpace(e.TimerDuration)
+                         || !string.IsNullOrWhiteSpace(e.TimerCycle)
+                         || !string.IsNullOrWhiteSpace(e.TimerDate)))
+            .ToList();
+
+        if (boundaryTimerEvents.Count == 0)
+            return;
+
+        foreach (var be in boundaryTimerEvents)
+        {
+            var fireAt = ResolveTimerFireAt(now, be.TimerDuration, be.TimerCycle, be.TimerDate);
+
+            var timerJob = new BpmExecutionJob
+            {
+                Id = Guid.NewGuid(),
+                ProcessId = instance.ProcessId,
+                ProcessVersionId = model.VersionId,
+                InstanceId = instance.Id,
+                ElementId = be.Id,
+                ElementType = "boundaryEvent",
+                OperationName = be.Name,
+                Status = BpmJobStatus.Pending,
+                IsTimer = true,
+                MaxAttempts = 1,
+                NextRunAt = fireAt,
+                CreatedAt = now,
+                UpdatedAt = now,
+            };
+            _db.BpmExecutionJobs.Add(timerJob);
+
+            _logger.LogInformation(
+                "Запланирован граничный таймер {BoundaryId} для задачи {TaskId} — срабатывание в {FireAt:u}",
+                be.Id, taskElementId, fireAt);
+        }
+
+        await _db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
+    /// Активирует граничное таймерное событие при его срабатывании.
+    /// Возвращает true если граничное событие было найдено и активировано.
+    /// </summary>
+    private async Task<bool> TryActivateBoundaryTimerEventAsync(
+        BpmInstance instance,
+        string boundaryEventElementId,
+        DateTimeOffset now,
+        CancellationToken ct)
+    {
+        var model = await ParseModelAsync(instance.ProcessVersionId, ct);
+        if (model == null) return false;
+
+        // Ищем описание граничного события в модели
+        var be = model.AllElements.FirstOrDefault(e =>
+            e.ElementType == "boundaryEvent" && e.Id == boundaryEventElementId);
+
+        if (be == null)
+        {
+            _logger.LogWarning(
+                "Граничное таймерное событие {BoundaryId} не найдено в модели процесса {VersionId}",
+                boundaryEventElementId, instance.ProcessVersionId);
+            return false;
+        }
+
+        _logger.LogInformation(
+            "Граничное таймерное событие {BoundaryId} активировано для задачи {TaskId}",
+            be.Id, be.BoundaryFor ?? "(не задана)");
+
+        // Если cancelActivity=true (по умолчанию) — отменяем хост-задачу
+        if (be.IsCancelActivity != false && !string.IsNullOrWhiteSpace(be.BoundaryFor))
+        {
+            await CancelTaskTokenAsync(instance.Id, be.BoundaryFor, now, ct);
+
+            // Отменяем также незавершённые задания хост-задачи
+            var pendingJobs = await _db.BpmExecutionJobs
+                .Where(j => j.InstanceId == instance.Id
+                         && j.ElementId == be.BoundaryFor
+                         && (j.Status == BpmJobStatus.Pending || j.Status == BpmJobStatus.Running))
+                .ToListAsync(ct);
+
+            foreach (var pj in pendingJobs)
+            {
+                pj.Status = BpmJobStatus.Cancelled;
+                pj.UpdatedAt = now;
+            }
+        }
+
+        // Создаём активный токен граничного события
+        await CreateOrUpdateTokenAsync(instance.Id, be.Id, be.ElementType, be.Name,
+            BpmTokenStatus.Active, now, ct);
+
+        _db.BpmInstanceHistoryEntries.Add(new BpmInstanceHistoryEntry
+        {
+            Id = Guid.NewGuid(),
+            InstanceId = instance.Id,
+            EventType = BpmHistoryEventType.NodeExecuted,
+            ElementId = be.Id,
+            ElementName = be.Name,
+            Text = $"Граничное таймерное событие «{be.Name ?? be.Id}» сработало",
+            OccurredAt = now,
+        });
+        await _db.SaveChangesAsync(ct);
+
+        // Продвигаем поток от граничного события
+        await AdvanceFromAsync(instance.Id, be.Id, ct);
+        return true;
     }
 
     /// <summary>

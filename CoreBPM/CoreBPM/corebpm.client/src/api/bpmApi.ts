@@ -1299,3 +1299,69 @@ export async function getMyTasks(token: string): Promise<MyTaskDto[]> {
     if (!res.ok) throw new Error('Ошибка загрузки задач');
     return res.json();
 }
+
+// ─── Дочерние экземпляры (Step 9) ────────────────────────────────────────────
+
+/** Получить дочерние экземпляры (подпроцессы). */
+export async function getInstanceChildren(instanceId: string, token: string): Promise<BpmInstanceListItemDto[]> {
+    const res = await fetch(`/api/bpm/instances/${instanceId}/children`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error('Ошибка загрузки дочерних экземпляров');
+    return res.json();
+}
+
+// ─── Зоны ответственности (Step 10) ──────────────────────────────────────────
+
+export interface ResponsibilityZoneUserDto {
+    userId: string;
+    userName?: string;
+    activeTaskCount: number;
+}
+
+export interface ResponsibilityZoneDto {
+    laneName: string;
+    users: ResponsibilityZoneUserDto[];
+}
+
+/** Получить зоны ответственности процесса (дорожки + участники). */
+export async function getResponsibilityZones(processId: string, token: string): Promise<ResponsibilityZoneDto[]> {
+    const res = await fetch(`/api/bpm/processes/${processId}/responsibility-zones`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error('Ошибка загрузки зон ответственности');
+    return res.json();
+}
+
+// ─── Экспорт/импорт retry-политик (Step 11) ──────────────────────────────────
+
+/** Экспортировать retry-политики очереди в JSON. */
+export async function exportRetryPolicies(token: string): Promise<Blob> {
+    const res = await fetch('/api/admin/queue/policies/export', {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error('Ошибка экспорта');
+    return res.blob();
+}
+
+/** Импортировать retry-политики из JSON. */
+export async function importRetryPolicies(policies: unknown[], token: string): Promise<void> {
+    const res = await fetch('/api/admin/queue/policies/import', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ policies }),
+    });
+    if (!res.ok) throw new Error('Ошибка импорта');
+}
+
+// ─── Снапшот документации (Step 12) ──────────────────────────────────────────
+
+/** Перегенерировать снапшот документации версии процесса. */
+export async function regenerateSnapshot(processId: string, versionId: string, token: string, svgContent?: string): Promise<void> {
+    const res = await fetch(`/api/bpm/processes/${processId}/versions/${versionId}/snapshot/regenerate`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ svgContent: svgContent ?? null }),
+    });
+    if (!res.ok) throw new Error('Ошибка регенерации снапшота');
+}

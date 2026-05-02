@@ -60,6 +60,7 @@ export interface MigrationItemDto {
 export interface CreateMigrationPackageRequest {
     name: string;
     items: MigrationItemRequest[];
+    scheduledAt?: string;
 }
 
 export interface MigrationItemRequest {
@@ -161,3 +162,25 @@ export const manualMigrateItem = (
         method: 'POST',
         body: JSON.stringify(request),
     });
+
+// ─── Экспорт/импорт пакетов миграции (Step 14) ────────────────────────────────
+
+/** Экспортировать пакет миграции в JSON (Blob). */
+export async function exportMigrationPackage(packageId: string, token: string): Promise<Blob> {
+    const res = await fetch(`/api/bpm/migration-packages/${packageId}/export`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error('Ошибка экспорта пакета');
+    return res.blob();
+}
+
+/** Импортировать пакет миграции из JSON. */
+export async function importMigrationPackage(data: unknown, token: string): Promise<{ id: string }> {
+    const res = await fetch('/api/bpm/migration-packages/import', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Ошибка импорта пакета');
+    return res.json();
+}

@@ -6,6 +6,7 @@ import type {
     BpmInstanceState,
     InstanceStatusOptionDto,
     BpmProcessStatsDto,
+    ResponsibilityZoneDto,
 } from '../../api/bpmApi';
 import { NodeAnalyticsPanel } from '../../components/bpm/NodeAnalyticsPanel';
 import './ProcessMonitorPage.css';
@@ -54,7 +55,7 @@ interface Props {
     onOpenInstance?: (instanceId: string) => void;
 }
 
-type ViewMode = 'list' | 'kanban' | 'analytics';
+type ViewMode = 'list' | 'kanban' | 'analytics' | 'zones';
 
 // ─── Компонент ───────────────────────────────────────────────────────────────
 
@@ -74,6 +75,14 @@ export function ProcessMonitorPage({ processId, processName, onBack, onOpenInsta
     const [error, setError] = useState<string | null>(null);
     const [page, setPage] = useState(1);
     const PAGE_SIZE = 50;
+
+    // Дерево подпроцессов
+    const [expandedInstanceIds, setExpandedInstanceIds] = useState<Set<string>>(new Set());
+    const [childrenMap, setChildrenMap] = useState<Record<string, BpmInstanceListItemDto[]>>({});
+
+    // Зоны ответственности
+    const [zones, setZones] = useState<ResponsibilityZoneDto[]>([]);
+    const [zonesLoading, setZonesLoading] = useState(false);
 
     // ─── Загрузка ─────────────────────────────────────────────────────────────
 
@@ -98,6 +107,35 @@ export function ProcessMonitorPage({ processId, processName, onBack, onOpenInsta
     }, [token, processId, page]);
 
     useEffect(() => { loadData(); }, [loadData]);
+
+    // Загрузка зон ответственности при переключении режима
+    useEffect(() => {
+        if (viewMode !== 'zones' || !token) return;
+        setZonesLoading(true);
+        api.getResponsibilityZones(processId, token)
+            .then(setZones)
+            .catch(() => setZones([]))
+            .finally(() => setZonesLoading(false));
+    }, [viewMode, processId, token]);
+
+    // Раскрытие/свёртывание дочерних экземпляров
+    const toggleInstanceExpand = async (inst: BpmInstanceListItemDto) => {
+        const id = inst.id;
+        const next = new Set(expandedInstanceIds);
+        if (next.has(id)) {
+            next.delete(id);
+            setExpandedInstanceIds(next);
+        } else {
+            next.add(id);
+            setExpandedInstanceIds(next);
+            if (!childrenMap[id] && token) {
+                try {
+                    const children = await api.getInstanceChildren(id, token);
+                    setChildrenMap(prev => ({ ...prev, [id]: children }));
+                } catch { setChildrenMap(prev => ({ ...prev, [id]: [] })); }
+            }
+        }
+    };
 
     // ─── Фильтрация ───────────────────────────────────────────────────────────
 
@@ -144,6 +182,11 @@ export function ProcessMonitorPage({ processId, processName, onBack, onOpenInsta
                         onClick={() => setViewMode('analytics')}
                         title="Аналитика узлов"
                     >📊 Аналитика</button>
+                    <button
+                        className={`pmon-view-btn${viewMode === 'zones' ? ' active' : ''}`}
+                        onClick={() => setViewMode('zones')}
+                        title="Зоны ответственности"
+                    >🏊 Зоны</button>
                     <button
                         className="pmon-view-btn"
                         onClick={async () => {
@@ -252,6 +295,7 @@ export function ProcessMonitorPage({ processId, processName, onBack, onOpenInsta
                     <table className="pmon-table">
                         <thead>
                             <tr>
+                                <th style={{ width: 32 }}></th>
                                 <th>Название</th>
                                 <th>Состояние</th>
                                 <th>Запущен</th>
@@ -262,11 +306,16 @@ export function ProcessMonitorPage({ processId, processName, onBack, onOpenInsta
                         </thead>
                         <tbody>
                             {filtered.map(inst => (
+                                <>
                                 <tr
                                     key={inst.id}
                                     style={{ cursor: onOpenInstance ? 'pointer' : 'default' }}
                                     onClick={() => onOpenInstance?.(inst.id)}
                                 >
+                                    <td onClick={e => { e.stopPropagation(); toggleInstanceExpand(inst); }}
+                                        style={{ textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}>
+                                        {expandedInstanceIds.has(inst.id) ? '▼' : '▶'}
+                                    </td>
                                     <td>
                                         <span style={{ fontWeight: 500 }}>{inst.name}</span>
                                     </td>
@@ -286,6 +335,26 @@ export function ProcessMonitorPage({ processId, processName, onBack, onOpenInsta
                                     <td>{inst.responsibleDisplayName ?? '—'}</td>
                                     <td>v{inst.processVersionNumber}</td>
                                 </tr>
+                                {expandedInstanceIds.has(inst.id) && (childrenMap[inst.id] ?? []).map(child => (
+                                    <tr key={child.id} style={{ background: '#f9fafb', cursor: onOpenInstance ? 'pointer' : 'default' }}
+                                        onClick={() => onOpenInstance?.(child.id)}>
+                                        <td />
+                                        <td style={{ paddingLeft: 24 }}>
+                                            <span style={{ color: '#6b7280', marginRight: 6 }}>↳</span>
+                                            <span style={{ fontWeight: 500 }}>{child.name}</span>
+                                        </td>
+                                        <td>
+                                            <span className="pmon-status-badge" style={{ background: STATE_COLORS[child.state], color: STATE_TEXT_COLORS[child.state] }}>
+                                                {STATE_LABELS[child.state]}
+                                            </span>
+                                        </td>
+                                        <td>{formatDate(child.startedAt)}</td>
+                                        <td>{child.initiatorDisplayName ?? '—'}</td>
+                                        <td>{child.responsibleDisplayName ?? '—'}</td>
+                                        <td>v{child.processVersionNumber}</td>
+                                    </tr>
+                                ))}
+                                </>
                             ))}
                         </tbody>
                     </table>
@@ -351,6 +420,52 @@ export function ProcessMonitorPage({ processId, processName, onBack, onOpenInsta
             {viewMode === 'analytics' && (
                 <div className="pmon-analytics">
                     <NodeAnalyticsPanel processId={processId} />
+                </div>
+            )}
+
+            {/* Зоны ответственности */}
+            {viewMode === 'zones' && (
+                <div className="pmon-zones">
+                    {zonesLoading && <div style={{ padding: 24, color: '#9ca3af' }}>Загрузка зон…</div>}
+                    {!zonesLoading && zones.length === 0 && (
+                        <div className="pmon-placeholder">
+                            <div className="pmon-placeholder-icon">🏊</div>
+                            <div className="pmon-placeholder-title">Зоны ответственности не настроены</div>
+                        </div>
+                    )}
+                    {!zonesLoading && zones.length > 0 && (
+                        <table className="pmon-table">
+                            <thead>
+                                <tr>
+                                    <th>Зона (дорожка)</th>
+                                    <th>Пользователь</th>
+                                    <th>Активных задач</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {zones.flatMap(zone =>
+                                    zone.users.length > 0
+                                        ? zone.users.map((u, idx) => (
+                                            <tr key={`${zone.laneName}-${u.userId}`}>
+                                                {idx === 0 && (
+                                                    <td rowSpan={zone.users.length} style={{ fontWeight: 600, background: '#f3f4f6' }}>
+                                                        {zone.laneName}
+                                                    </td>
+                                                )}
+                                                <td>{u.userName ?? u.userId}</td>
+                                                <td>{u.activeTaskCount}</td>
+                                            </tr>
+                                        ))
+                                        : [
+                                            <tr key={zone.laneName}>
+                                                <td style={{ fontWeight: 600, background: '#f3f4f6' }}>{zone.laneName}</td>
+                                                <td colSpan={2} style={{ color: '#9ca3af' }}>Нет участников</td>
+                                            </tr>
+                                        ]
+                                )}
+                            </tbody>
+                        </table>
+                    )}
                 </div>
             )}
         </div>
