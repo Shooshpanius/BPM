@@ -209,7 +209,7 @@ export function exportImprovements(token: string): void {
     fetch('/api/bpm/improvements/export', {
         headers: { Authorization: `Bearer ${token}` },
     })
-        .then(res => {
+        .then(async res => {
             if (!res.ok) {
                 const text = await res.text().catch(() => '');
                 let message = text || `HTTP ${res.status}`;
