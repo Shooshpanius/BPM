@@ -70,4 +70,7 @@ public interface IBpmProcessService
 
     /// <summary>Генерирует PDF-регламент по активной версии процесса.</summary>
     Task<(byte[] Content, string FileName)> GenerateDocumentAsync(Guid processId, CancellationToken ct = default);
+
+    /// <summary>Импортирует BPMN XML как новый черновик версии процесса.</summary>
+    Task<BpmDiagramDto> ImportDiagramAsync(Guid processId, string diagramXml, Guid userId, CancellationToken ct = default);
 }

@@ -39,4 +39,10 @@ public interface IBpmGlobalModuleService
 
     /// <summary>Изменяет порядок файлов модуля.</summary>
     Task ReorderFilesAsync(Guid moduleId, IReadOnlyList<Guid> orderedIds, CancellationToken ct = default);
+
+    /// <summary>Экспортирует все модули организации (с файлами) как JSON-байты.</summary>
+    Task<byte[]> ExportAsync(Guid organizationId, CancellationToken ct = default);
+
+    /// <summary>Импортирует модули из JSON-байт (создаёт или обновляет по имени).</summary>
+    Task<IReadOnlyList<BpmGlobalModuleDto>> ImportAsync(Guid organizationId, byte[] jsonData, Guid createdByUserId, CancellationToken ct = default);
 }

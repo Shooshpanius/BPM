@@ -107,6 +107,12 @@ export interface FormField {
     validationMessage?: string;
     /** Статичные варианты для Select (ключ/значение). */
     options?: { value: string; label: string }[];
+    /** Источник вариантов из переменной процесса. */
+    optionsFrom?: string;
+    /** Условная обязательность (JS-выражение). */
+    requiredWhen?: string;
+    /** Дочерние поля (для tab-container / accordion-container). */
+    children?: FormField[];
     /** Дополнительные настройки специфичные для типа поля. */
     extra?: Record<string, unknown>;
 }
@@ -129,7 +135,12 @@ export type FormFieldType =
     | 'divider'
     | 'html-block'
     // Специальные
-    | 'approval';
+    | 'approval'
+    // Контейнеры
+    | 'tab-container'
+    | 'accordion-container'
+    // Вложенная форма
+    | 'subform';
 
 // ─── Пустая схема по умолчанию ────────────────────────────────────────────────
 
@@ -204,3 +215,20 @@ export const publishFormVersion = (token: string, formId: string, versionId: str
 /** Откатить к версии (создаёт копию). */
 export const rollbackFormVersion = (token: string, formId: string, versionId: string): Promise<FormVersionDto> =>
     fetchJson(`/api/forms/${formId}/versions/${versionId}/rollback`, token, { method: 'POST' });
+
+/** Экспортировать версию формы в JSON-файл (возвращает Blob). */
+export const exportFormVersion = async (token: string, formId: string, versionId: string): Promise<Blob> => {
+    const response = await fetch(`/api/forms/${formId}/versions/${versionId}/export`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.blob();
+};
+
+/** Импортировать версию формы из JSON-файла. */
+export const importFormVersion = (token: string, formId: string, data: unknown): Promise<FormVersionDto> =>
+    fetchJson(`/api/forms/${formId}/versions/import`, token, {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });

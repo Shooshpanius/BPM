@@ -1,7 +1,9 @@
+using System.IO;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using CoreBPM.Server.Application.Bpm.DTOs;
 using CoreBPM.Server.Application.Bpm.Interfaces;
+using CoreBPM.Server.Exceptions;
 
 namespace CoreBPM.Server.Controllers;
 
@@ -116,6 +118,46 @@ public class FormsController : ControllerBase
         Guid formId, Guid versionId, CancellationToken ct)
     {
         var result = await _service.RollbackVersionAsync(formId, versionId, ct);
+        return CreatedAtAction(nameof(GetVersion), new { formId, versionId = result.Id }, result);
+    }
+
+    /// <summary>Экспортирует версию формы как JSON-файл.</summary>
+    [HttpGet("{formId:guid}/versions/{versionId:guid}/export")]
+    [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ExportVersion(Guid formId, Guid versionId, CancellationToken ct)
+    {
+        var data = await _service.ExportVersionAsync(formId, versionId, ct);
+        return File(data, "application/json", $"form-{formId}-v{versionId}.json");
+    }
+
+    /// <summary>Импортирует JSON-данные как новый черновик версии формы. Принимает JSON-тело или multipart-файл.</summary>
+    [HttpPost("{formId:guid}/versions/import")]
+    [ProducesResponseType(typeof(FormVersionDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<FormVersionDto>> ImportVersion(
+        Guid formId,
+        CancellationToken ct)
+    {
+        byte[] data;
+
+        if (Request.ContentType?.Contains("multipart/form-data") == true)
+        {
+            var file = Request.Form.Files.FirstOrDefault()
+                ?? throw new ValidationException("Файл не передан");
+            using var ms = new MemoryStream();
+            await file.CopyToAsync(ms, ct);
+            data = ms.ToArray();
+        }
+        else
+        {
+            using var ms = new MemoryStream();
+            await Request.Body.CopyToAsync(ms, ct);
+            data = ms.ToArray();
+        }
+
+        var result = await _service.ImportVersionAsync(formId, data, ct);
         return CreatedAtAction(nameof(GetVersion), new { formId, versionId = result.Id }, result);
     }
 }

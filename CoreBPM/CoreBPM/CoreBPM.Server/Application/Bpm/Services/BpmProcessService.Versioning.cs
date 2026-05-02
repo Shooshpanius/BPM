@@ -145,6 +145,36 @@ public partial class BpmProcessService
         return new BpmVersionDiffDto(leftVersionId, rightVersionId, changes, properties);
     }
 
+    public async Task<BpmDiagramDto> ImportDiagramAsync(Guid processId, string diagramXml, Guid userId, CancellationToken ct = default)
+    {
+        // Валидируем, что XML корректен
+        try { System.Xml.Linq.XDocument.Parse(diagramXml); }
+        catch (Exception ex) { throw new ValidationException($"Невалидный XML BPMN: {ex.Message}"); }
+
+        var maxVersion = await _db.BpmProcessVersions
+            .Where(v => v.ProcessId == processId)
+            .MaxAsync(v => (int?)v.VersionNumber, ct) ?? 0;
+
+        var now = DateTimeOffset.UtcNow;
+        var version = new BpmProcessVersion
+        {
+            Id = Guid.NewGuid(),
+            ProcessId = processId,
+            VersionNumber = maxVersion + 1,
+            Status = BpmProcessVersionStatus.Draft,
+            DiagramXml = diagramXml,
+            CreatedByUserId = userId,
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+
+        _db.BpmProcessVersions.Add(version);
+        var process = await _db.BpmProcesses.FindAsync(new object[] { processId }, ct);
+        if (process is not null) process.UpdatedAt = now;
+        await _db.SaveChangesAsync(ct);
+        return MapVersionToDto(version);
+    }
+
     private async Task<BpmProcessVersion> GetCurrentVersionEntityAsync(Guid processId, CancellationToken ct)
         => await _db.BpmProcessVersions
             .AsNoTracking()

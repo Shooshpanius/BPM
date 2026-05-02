@@ -1088,3 +1088,6 @@ public record KpiAlertDto(
     double ExceedPercent,
     DateTimeOffset DetectedAt
 );
+
+/// <summary>Запрос импорта BPMN XML-диаграммы.</summary>
+public record ImportDiagramRequest(string DiagramXml);

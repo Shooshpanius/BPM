@@ -258,6 +258,69 @@ public class FormService : IFormService
         return await GetVersionAsync(formId, rollback.Id, ct);
     }
 
+    /// <inheritdoc />
+    public async Task<byte[]> ExportVersionAsync(Guid formId, Guid versionId, CancellationToken ct = default)
+    {
+        var form = await _db.BpmTaskForms
+            .AsNoTracking()
+            .FirstOrDefaultAsync(f => f.Id == formId, ct)
+            ?? throw new NotFoundException($"Форма {formId} не найдена");
+
+        var version = await _db.BpmTaskFormVersions
+            .AsNoTracking()
+            .FirstOrDefaultAsync(v => v.Id == versionId && v.FormId == formId, ct)
+            ?? throw new NotFoundException($"Версия {versionId} формы {formId} не найдена");
+
+        var exportObj = new
+        {
+            formId = form.Id,
+            formName = form.Name,
+            versionNumber = version.VersionNumber,
+            status = version.Status.ToString(),
+            schema = version.Schema,
+            exportedAt = DateTimeOffset.UtcNow
+        };
+
+        return JsonSerializer.SerializeToUtf8Bytes(exportObj);
+    }
+
+    /// <inheritdoc />
+    public async Task<FormVersionDto> ImportVersionAsync(Guid formId, byte[] jsonData, CancellationToken ct = default)
+    {
+        var form = await _db.BpmTaskForms
+            .Include(f => f.Versions)
+            .FirstOrDefaultAsync(f => f.Id == formId, ct)
+            ?? throw new NotFoundException($"Форма {formId} не найдена");
+
+        // Парсим JSON
+        JsonElement root;
+        try { root = JsonDocument.Parse(jsonData).RootElement; }
+        catch (Exception ex) { throw new ValidationException($"Невалидный JSON: {ex.Message}"); }
+
+        // Извлекаем схему
+        var schemaJson = root.TryGetProperty("schema", out var schemaProp)
+            ? schemaProp.GetRawText()
+            : "{}";
+
+        var maxVersion = form.Versions.Any() ? form.Versions.Max(v => v.VersionNumber) : 0;
+        var now = DateTimeOffset.UtcNow;
+        var draft = new BpmTaskFormVersion
+        {
+            Id = Guid.NewGuid(),
+            FormId = formId,
+            VersionNumber = maxVersion + 1,
+            Schema = schemaJson,
+            Status = BpmFormVersionStatus.Draft,
+            CreatedAt = now
+        };
+
+        _db.BpmTaskFormVersions.Add(draft);
+        form.UpdatedAt = now;
+        await _db.SaveChangesAsync(ct);
+
+        return await GetVersionAsync(formId, draft.Id, ct);
+    }
+
     // ─── Вспомогательные методы ───────────────────────────────────────────────
 
     private static FormDto MapToDto(BpmTaskForm f) =>

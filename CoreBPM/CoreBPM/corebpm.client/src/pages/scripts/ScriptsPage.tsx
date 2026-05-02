@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import * as api from '../../api/scriptsApi';
 import type {
@@ -333,6 +333,7 @@ function ExtensionsTab({ orgId }: ExtensionsTabProps) {
     const [deleteId, setDeleteId] = useState<string | null>(null);
     const [deleting, setDeleting] = useState(false);
     const [actionMsg, setActionMsg] = useState<string | null>(null);
+    const extensionImportRef = useRef<HTMLInputElement>(null);
 
     const load = useCallback(async () => {
         if (!token) return;
@@ -449,6 +450,35 @@ function ExtensionsTab({ orgId }: ExtensionsTabProps) {
         });
     };
 
+    const handleExportExtensions = async () => {
+        if (!token) return;
+        try {
+            const blob = await api.exportExtensions(token, orgId);
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `extensions-${orgId}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'Ошибка экспорта');
+        }
+    };
+
+    const handleImportExtensions = async (ev: React.ChangeEvent<HTMLInputElement>) => {
+        const file = ev.target.files?.[0];
+        if (!file || !token) return;
+        try {
+            const imported = await api.importExtensions(token, orgId, file);
+            setItems(imported);
+            setActionMsg(`Импортировано ${imported.length} расширений`);
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'Ошибка импорта');
+        } finally {
+            if (extensionImportRef.current) extensionImportRef.current.value = '';
+        }
+    };
+
     // Группировка по папкам
     const grouped = items.reduce<Record<string, BpmDesignerExtensionDto[]>>((acc, item) => {
         const key = item.folderPath ?? '__root__';
@@ -461,6 +491,9 @@ function ExtensionsTab({ orgId }: ExtensionsTabProps) {
         <div className="scripts-full-col">
             <div className="scripts-toolbar">
                 <button className="scripts-btn-primary" onClick={openCreate}>+ Создать расширение</button>
+                <button className="scripts-btn-secondary" onClick={handleExportExtensions} title="Экспорт расширений">↑ Экспорт</button>
+                <button className="scripts-btn-secondary" onClick={() => extensionImportRef.current?.click()} title="Импорт расширений">↓ Импорт</button>
+                <input ref={extensionImportRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImportExtensions} />
                 {actionMsg && <span className="scripts-action-msg">{actionMsg}</span>}
             </div>
 
@@ -603,6 +636,7 @@ function GlobalModulesTab({ orgId }: GlobalModulesTabProps) {
     const [addingFile, setAddingFile] = useState(false);
     const [deleteFileId, setDeleteFileId] = useState<string | null>(null);
     const [deletingFile, setDeletingFile] = useState(false);
+    const moduleImportRef = useRef<HTMLInputElement>(null);
 
     const loadModules = useCallback(async () => {
         if (!token) return;
@@ -781,12 +815,45 @@ function GlobalModulesTab({ orgId }: GlobalModulesTabProps) {
         }
     };
 
+    const handleExportModules = async () => {
+        if (!token) return;
+        try {
+            const blob = await api.exportGlobalModules(token, orgId);
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `global-modules-${orgId}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            setActionMsg(e instanceof Error ? e.message : 'Ошибка экспорта');
+        }
+    };
+
+    const handleImportModules = async (ev: React.ChangeEvent<HTMLInputElement>) => {
+        const file = ev.target.files?.[0];
+        if (!file || !token) return;
+        try {
+            const imported = await api.importGlobalModules(token, orgId, file);
+            setModules(imported);
+            setActionMsg(`Импортировано ${imported.length} модулей`);
+        } catch (e) {
+            setActionMsg(e instanceof Error ? e.message : 'Ошибка импорта');
+        } finally {
+            if (moduleImportRef.current) moduleImportRef.current.value = '';
+        }
+    };
+
     return (
         <div className="scripts-pane scripts-three-col">
             {/* Список модулей */}
             <div className="scripts-list-col scripts-modules-col">
                 <div className="scripts-toolbar">
                     <button className="scripts-btn-primary" onClick={openCreateModule}>+ Создать модуль</button>
+                    <button className="scripts-btn-secondary" onClick={handleExportModules} title="Экспорт модулей">↑ Экспорт</button>
+                    <button className="scripts-btn-secondary" onClick={() => moduleImportRef.current?.click()} title="Импорт модулей">↓ Импорт</button>
+                    <input ref={moduleImportRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImportModules} />
+                    {actionMsg && <span className="scripts-action-msg">{actionMsg}</span>}
                 </div>
                 {loading && <p className="scripts-loading">Загрузка…</p>}
                 {error && <p className="scripts-error">{error}</p>}

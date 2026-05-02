@@ -22,6 +22,7 @@ import { SignalMessageEventTab } from './SignalMessageEventTab';
 import { BoundaryEventTab } from './BoundaryEventTab';
 import { EscalationTab } from './EscalationTab';
 import { ErrorPolicyTab } from './ErrorPolicyTab';
+import SendReceiveTaskTab from './SendReceiveTaskTab';
 import './BpmPropertiesPanel.css';
 
 type BpmnModeler = import('bpmn-js/lib/Modeler').default;
@@ -241,8 +242,26 @@ export function BpmPropertiesPanel({ modeler, processId, token }: Props) {
                 if (elType === 'bpmn:BusinessRuleTask') {
                     return <BusinessRuleTaskTab processId={processId} token={token} elementId={elId} />;
                 }
-                if (elType === 'bpmn:ServiceTask' || elType === 'bpmn:SendTask' || elType === 'bpmn:ReceiveTask') {
+                if (elType === 'bpmn:ServiceTask') {
                     return <ServiceTaskTab processId={processId} token={token} elementId={elId} />;
+                }
+                if (elType === 'bpmn:SendTask' || elType === 'bpmn:ReceiveTask') {
+                    const ext = bo?.extensionElements?.values?.[0];
+                    return (
+                        <SendReceiveTaskTab
+                            taskType={elType as 'bpmn:SendTask' | 'bpmn:ReceiveTask'}
+                            messageRef={ext?.messageRef ?? ''}
+                            correlationKeys={ext?.correlationKeys ?? ''}
+                            messageBody={ext?.messageBody ?? ''}
+                            timeoutSeconds={parseInt(ext?.timeoutSeconds ?? '0', 10)}
+                            onChange={(field, value) => {
+                                const modeling = modeler?.get?.('modeling');
+                                if (modeling) {
+                                    modeling.updateModdleProperties(selectedElement, ext ?? bo, { [field]: String(value) });
+                                }
+                            }}
+                        />
+                    );
                 }
                 if (elType === 'bpmn:ScriptTask') {
                     return <ScriptTaskTab processId={processId} token={token} elementId={elId} />;
