@@ -1,0 +1,342 @@
+// API-клиент модуля «Задачи» (FR-TASK-01.1)
+
+export type TaskStatus =
+    | 'New' | 'Read' | 'InProgress' | 'PreApproval' | 'OnApproval'
+    | 'Approved' | 'PreApprovalRejected' | 'ApprovalRejected' | 'Done'
+    | 'DoneNeedsControl' | 'DoneControlled' | 'CannotDo'
+    | 'CannotDoNeedsControl' | 'CannotDoControlled' | 'Closed' | 'Postponed';
+
+export type TaskPriority = 'Critical' | 'High' | 'Medium' | 'Low';
+
+export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
+    New: 'Новая',
+    Read: 'Прочитана',
+    InProgress: 'Выполняется',
+    PreApproval: 'На предварит. согласовании',
+    OnApproval: 'На согласовании',
+    Approved: 'Согласовано',
+    PreApprovalRejected: 'Отказано (предварит.)',
+    ApprovalRejected: 'Отказано в согласовании',
+    Done: 'Выполнено',
+    DoneNeedsControl: 'Выполнено, нужен контроль',
+    DoneControlled: 'Выполнено и проконтролировано',
+    CannotDo: 'Невозможно выполнить',
+    CannotDoNeedsControl: 'Невозможно, нужен контроль',
+    CannotDoControlled: 'Невозможно, проконтролировано',
+    Closed: 'Закрыто',
+    Postponed: 'Отложена',
+};
+
+export const TASK_PRIORITY_LABELS: Record<TaskPriority, string> = {
+    Critical: 'Критический',
+    High: 'Высокий',
+    Medium: 'Средний',
+    Low: 'Низкий',
+};
+
+export interface TaskParticipantDto {
+    id: string;
+    userId: string;
+    userName: string;
+    role: string;
+}
+
+export interface TaskSummaryDto {
+    id: string;
+    number: number;
+    subject: string;
+    status: TaskStatus;
+    priority: TaskPriority;
+    categoryId?: string;
+    assigneeUserId: string;
+    assigneeName: string;
+    dueDate: string;
+    isOverdue: boolean;
+    createdAt: string;
+    tags: string[];
+}
+
+export interface TaskDto {
+    id: string;
+    number: number;
+    subject: string;
+    description?: string;
+    status: TaskStatus;
+    priority: TaskPriority;
+    categoryId?: string;
+    authorUserId: string;
+    authorName: string;
+    assigneeUserId: string;
+    assigneeName: string;
+    startDate: string;
+    dueDate: string;
+    dateCorrectionMode: string;
+    plannedEffortMinutes?: number;
+    controlType: string;
+    controllerUserId?: string;
+    controllerName?: string;
+    parentTaskId?: string;
+    isOverdue: boolean;
+    postponedUntil?: string;
+    sourceInstanceId?: string;
+    sourceElementId?: string;
+    createdAt: string;
+    updatedAt: string;
+    participants: TaskParticipantDto[];
+    tags: string[];
+    subtaskCount: number;
+    commentCount: number;
+    attachmentCount: number;
+}
+
+export interface TaskCommentDto {
+    id: string;
+    authorUserId: string;
+    authorName: string;
+    body: string;
+    createdAt: string;
+}
+
+export interface TaskAttachmentDto {
+    id: string;
+    fileName: string;
+    contentType: string;
+    sizeBytes: number;
+    uploadedByUserId: string;
+    createdAt: string;
+}
+
+export interface TaskRelationDto {
+    id: string;
+    sourceTaskId: string;
+    targetTaskId: string;
+    targetSubject: string;
+    targetNumber: number;
+    relationType: string;
+}
+
+export interface TaskHistoryEntryDto {
+    id: string;
+    actorUserId: string;
+    actorName: string;
+    action: string;
+    fieldName?: string;
+    oldValue?: string;
+    newValue?: string;
+    createdAt: string;
+}
+
+export interface TaskTemplateDto {
+    id: string;
+    name: string;
+    defaultAssigneeUserId?: string;
+    defaultAssigneeName?: string;
+    defaultPriority: string;
+    defaultCategoryId?: string;
+    description?: string;
+    controlType: string;
+    plannedEffortMinutes?: number;
+    tags: string[];
+    isPublic: boolean;
+    createdByUserId: string;
+    createdAt: string;
+}
+
+export interface TaskSavedFilterDto {
+    id: string;
+    name: string;
+    filterJson: string;
+    createdAt: string;
+}
+
+export interface TaskListParams {
+    status?: string;
+    priority?: string;
+    assigneeId?: string;
+    authorId?: string;
+    categoryId?: string;
+    tagValue?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    isOverdue?: boolean;
+    search?: string;
+    sortBy?: string;
+    sortDir?: string;
+}
+
+async function apiFetch<T>(token: string, url: string, options?: RequestInit): Promise<T> {
+    const res = await fetch(url, {
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+            ...(options?.headers ?? {}),
+        },
+    });
+    if (!res.ok) {
+        let msg = `HTTP ${res.status}`;
+        try { const j = await res.json(); msg = j.error ?? j.title ?? msg; } catch { /* игнорируем */ }
+        throw new Error(msg);
+    }
+    const text = await res.text();
+    return text ? JSON.parse(text) as T : undefined as unknown as T;
+}
+
+export async function listTasks(token: string, params: TaskListParams = {}): Promise<TaskSummaryDto[]> {
+    const q = new URLSearchParams();
+    if (params.status) q.set('status', params.status);
+    if (params.priority) q.set('priority', params.priority);
+    if (params.assigneeId) q.set('assigneeId', params.assigneeId);
+    if (params.authorId) q.set('authorId', params.authorId);
+    if (params.categoryId) q.set('categoryId', params.categoryId);
+    if (params.tagValue) q.set('tagValue', params.tagValue);
+    if (params.dateFrom) q.set('dateFrom', params.dateFrom);
+    if (params.dateTo) q.set('dateTo', params.dateTo);
+    if (params.isOverdue !== undefined) q.set('isOverdue', String(params.isOverdue));
+    if (params.search) q.set('search', params.search);
+    if (params.sortBy) q.set('sortBy', params.sortBy);
+    if (params.sortDir) q.set('sortDir', params.sortDir);
+    return apiFetch<TaskSummaryDto[]>(token, `/api/tasks?${q}`);
+}
+
+export async function createTask(token: string, req: {
+    subject: string;
+    assigneeUserId: string;
+    startDate: string;
+    dueDate: string;
+    description?: string;
+    priority?: string;
+    categoryId?: string;
+    plannedEffortMinutes?: number;
+    controlType?: string;
+    controllerUserId?: string;
+    parentTaskId?: string;
+    approverId?: string;
+    coExecutorIds?: string[];
+    observerIds?: string[];
+    tags?: string[];
+    reminderAt?: string;
+}): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, '/api/tasks', { method: 'POST', body: JSON.stringify(req) });
+}
+
+export async function getTask(token: string, id: string): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, `/api/tasks/${id}`);
+}
+
+export async function updateTask(token: string, id: string, req: Record<string, unknown>): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, `/api/tasks/${id}`, { method: 'PUT', body: JSON.stringify(req) });
+}
+
+export async function deleteTask(token: string, id: string): Promise<void> {
+    await apiFetch<void>(token, `/api/tasks/${id}`, { method: 'DELETE' });
+}
+
+export async function copyTask(token: string, id: string): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, `/api/tasks/${id}/copy`, { method: 'POST' });
+}
+
+export async function markTaskRead(token: string, id: string): Promise<void> {
+    await apiFetch<void>(token, `/api/tasks/${id}/read`, { method: 'POST' });
+}
+
+export async function reassignTask(token: string, id: string, assigneeUserId: string, comment?: string): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, `/api/tasks/${id}/assignee`, { method: 'PUT', body: JSON.stringify({ assigneeUserId, comment }) });
+}
+
+export async function createSubtask(token: string, parentId: string, req: Record<string, unknown>): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, `/api/tasks/${parentId}/subtasks`, { method: 'POST', body: JSON.stringify(req) });
+}
+
+export async function getTaskComments(token: string, id: string): Promise<TaskCommentDto[]> {
+    return apiFetch<TaskCommentDto[]>(token, `/api/tasks/${id}/comments`);
+}
+
+export async function addTaskComment(token: string, id: string, body: string): Promise<TaskCommentDto> {
+    return apiFetch<TaskCommentDto>(token, `/api/tasks/${id}/comments`, { method: 'POST', body: JSON.stringify({ body }) });
+}
+
+export async function getTaskAttachments(token: string, id: string): Promise<TaskAttachmentDto[]> {
+    return apiFetch<TaskAttachmentDto[]>(token, `/api/tasks/${id}/attachments`);
+}
+
+export async function addTaskAttachment(token: string, id: string, req: { fileName: string; contentType: string; storageKey: string; sizeBytes: number }): Promise<TaskAttachmentDto> {
+    return apiFetch<TaskAttachmentDto>(token, `/api/tasks/${id}/attachments`, { method: 'POST', body: JSON.stringify(req) });
+}
+
+export async function getTaskParticipants(token: string, id: string): Promise<TaskParticipantDto[]> {
+    return apiFetch<TaskParticipantDto[]>(token, `/api/tasks/${id}/participants`);
+}
+
+export async function addTaskParticipant(token: string, id: string, userId: string, role: string): Promise<TaskParticipantDto> {
+    return apiFetch<TaskParticipantDto>(token, `/api/tasks/${id}/participants`, { method: 'POST', body: JSON.stringify({ userId, role }) });
+}
+
+export async function removeTaskParticipant(token: string, id: string, participantId: string): Promise<void> {
+    await apiFetch<void>(token, `/api/tasks/${id}/participants/${participantId}`, { method: 'DELETE' });
+}
+
+export async function getTaskRelations(token: string, id: string): Promise<TaskRelationDto[]> {
+    return apiFetch<TaskRelationDto[]>(token, `/api/tasks/${id}/relations`);
+}
+
+export async function addTaskRelation(token: string, id: string, targetTaskId: string, relationType: string): Promise<TaskRelationDto> {
+    return apiFetch<TaskRelationDto>(token, `/api/tasks/${id}/relations`, { method: 'POST', body: JSON.stringify({ targetTaskId, relationType }) });
+}
+
+export async function removeTaskRelation(token: string, id: string, relationId: string): Promise<void> {
+    await apiFetch<void>(token, `/api/tasks/${id}/relations/${relationId}`, { method: 'DELETE' });
+}
+
+export async function addTaskTag(token: string, id: string, value: string): Promise<{ id: string; value: string }> {
+    return apiFetch<{ id: string; value: string }>(token, `/api/tasks/${id}/tags`, { method: 'POST', body: JSON.stringify({ value }) });
+}
+
+export async function removeTaskTag(token: string, id: string, tagId: string): Promise<void> {
+    await apiFetch<void>(token, `/api/tasks/${id}/tags/${tagId}`, { method: 'DELETE' });
+}
+
+export async function getTaskHistory(token: string, id: string): Promise<TaskHistoryEntryDto[]> {
+    return apiFetch<TaskHistoryEntryDto[]>(token, `/api/tasks/${id}/history`);
+}
+
+export async function exportTasksCsv(token: string, params: TaskListParams = {}): Promise<Blob> {
+    const q = new URLSearchParams();
+    if (params.status) q.set('status', params.status);
+    if (params.priority) q.set('priority', params.priority);
+    if (params.assigneeId) q.set('assigneeId', params.assigneeId);
+    if (params.search) q.set('search', params.search);
+    const res = await fetch(`/api/tasks/export?${q}`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.blob();
+}
+
+export async function getTaskSavedFilters(token: string): Promise<TaskSavedFilterDto[]> {
+    return apiFetch<TaskSavedFilterDto[]>(token, '/api/tasks/saved-filters');
+}
+
+export async function createTaskSavedFilter(token: string, name: string, filterJson: string): Promise<TaskSavedFilterDto> {
+    return apiFetch<TaskSavedFilterDto>(token, '/api/tasks/saved-filters', { method: 'POST', body: JSON.stringify({ name, filterJson }) });
+}
+
+export async function deleteTaskSavedFilter(token: string, id: string): Promise<void> {
+    await apiFetch<void>(token, `/api/tasks/saved-filters/${id}`, { method: 'DELETE' });
+}
+
+export async function listTaskTemplates(token: string): Promise<TaskTemplateDto[]> {
+    return apiFetch<TaskTemplateDto[]>(token, '/api/task-templates');
+}
+
+export async function createTaskTemplate(token: string, req: Record<string, unknown>): Promise<TaskTemplateDto> {
+    return apiFetch<TaskTemplateDto>(token, '/api/task-templates', { method: 'POST', body: JSON.stringify(req) });
+}
+
+export async function updateTaskTemplate(token: string, id: string, req: Record<string, unknown>): Promise<TaskTemplateDto> {
+    return apiFetch<TaskTemplateDto>(token, `/api/task-templates/${id}`, { method: 'PUT', body: JSON.stringify(req) });
+}
+
+export async function deleteTaskTemplate(token: string, id: string): Promise<void> {
+    await apiFetch<void>(token, `/api/task-templates/${id}`, { method: 'DELETE' });
+}
