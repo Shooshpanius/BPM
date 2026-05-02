@@ -91,6 +91,8 @@ type TabId = 'overview' | 'active' | 'variables' | 'history' | 'participants' | 
 interface Props {
     instanceId: string;
     onBack: () => void;
+    /** Опциональный коллбэк навигации к карточке задачи по её ID */
+    onOpenTask?: (taskId: string) => void;
 }
 
 // ─── Компонент ────────────────────────────────────────────────────────────────
@@ -101,7 +103,7 @@ interface Props {
  * Поддерживает: прерывание, приостановку/возобновление, смену ответственного,
  * редактирование переменных, добавление комментариев/вопросов, управление участниками.
  */
-export function InstancePage({ instanceId, onBack }: Props) {
+export function InstancePage({ instanceId, onBack, onOpenTask }: Props) {
     const { accessToken: token, userId } = useAuth();
 
     const [activeTab, setActiveTab] = useState<TabId>('overview');
@@ -482,6 +484,7 @@ export function InstancePage({ instanceId, onBack }: Props) {
                         tokens={tokens}
                         authToken={token ?? ''}
                         onComplete={loadTokens}
+                        onOpenTask={onOpenTask}
                     />
                 )}
 
@@ -1245,9 +1248,10 @@ interface ActiveTasksTabProps {
     tokens: BpmTokenDto[];
     authToken: string;
     onComplete: () => void;
+    onOpenTask?: (taskId: string) => void;
 }
 
-function ActiveTasksTab({ instanceId, tokens, authToken, onComplete }: ActiveTasksTabProps) {
+function ActiveTasksTab({ instanceId, tokens, authToken, onComplete, onOpenTask }: ActiveTasksTabProps) {
     const [completing, setCompleting] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
@@ -1303,15 +1307,27 @@ function ActiveTasksTab({ instanceId, tokens, authToken, onComplete }: ActiveTas
                                 )}
                             </div>
                             {t.status === 'WaitingUserAction' && (
-                                <button
-                                    className="inst-btn-primary"
-                                    style={{ padding: '4px 12px', fontSize: 12 }}
-                                    onClick={() => handleComplete(t.elementId)}
-                                    disabled={completing === t.elementId}
-                                    title="Завершить вручную"
-                                >
-                                    {completing === t.elementId ? '…' : '⏩ Завершить вручную'}
-                                </button>
+                                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                                    {t.linkedTaskItemId && onOpenTask && (
+                                        <button
+                                            className="inst-btn-secondary"
+                                            style={{ padding: '4px 10px', fontSize: 12 }}
+                                            onClick={() => onOpenTask(t.linkedTaskItemId!)}
+                                            title="Открыть карточку задачи"
+                                        >
+                                            📋 Задача
+                                        </button>
+                                    )}
+                                    <button
+                                        className="inst-btn-primary"
+                                        style={{ padding: '4px 12px', fontSize: 12 }}
+                                        onClick={() => handleComplete(t.elementId)}
+                                        disabled={completing === t.elementId}
+                                        title="Завершить вручную"
+                                    >
+                                        {completing === t.elementId ? '…' : '⏩ Завершить вручную'}
+                                    </button>
+                                </div>
                             )}
                         </div>
                     ))}

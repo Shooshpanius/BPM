@@ -81,6 +81,12 @@ export function HomePage({ onAdmin }: HomePageProps) {
         setOpenInstanceId(null);
     };
 
+    const handleOpenTaskFromInstance = (taskId: string) => {
+        setSection('tasks');
+        setOpenInstanceId(null);
+        setOpenTaskId(taskId);
+    };
+
     return (
         <div className={`hp-root${isMobile ? ' hp-root--mobile' : ''}`}>
             <header className="hp-header">
@@ -127,6 +133,7 @@ export function HomePage({ onAdmin }: HomePageProps) {
                                 ? <InstancePage
                                     instanceId={openInstanceId}
                                     onBack={handleBackFromInstance}
+                                    onOpenTask={handleOpenTaskFromInstance}
                                   />
                                 : monitorProcess
                                     ? <ProcessMonitorPage
@@ -145,6 +152,7 @@ export function HomePage({ onAdmin }: HomePageProps) {
                             ? <InstancePage
                                 instanceId={openInstanceId}
                                 onBack={handleBackFromInstance}
+                                onOpenTask={handleOpenTaskFromInstance}
                               />
                             : <MyProcessesPage onOpenInstance={handleOpenInstance} />
                     )}
@@ -153,6 +161,7 @@ export function HomePage({ onAdmin }: HomePageProps) {
                             ? <InstancePage
                                 instanceId={openInstanceId}
                                 onBack={handleBackFromInstance}
+                                onOpenTask={handleOpenTaskFromInstance}
                               />
                             : monitorProcess
                                 ? <ProcessMonitorPage

@@ -1231,6 +1231,8 @@ export interface BpmTokenDto {
     messageCode?: string;
     createdAt: string;
     completedAt?: string;
+    /** Идентификатор задачи (task_items), созданной при активации UserTask */
+    linkedTaskItemId?: string;
 }
 
 export interface CompleteUserTaskRequest {

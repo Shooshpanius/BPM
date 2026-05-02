@@ -266,6 +266,19 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                         <strong>Теги:</strong> {task.tags.map(tag => <span key={tag} className="task-detail__tag">{tag}</span>)}
                     </span>
                 )}
+                {task.sourceInstanceId && (
+                    <span className="task-detail__meta-item">
+                        <strong>Источник:</strong>{' '}
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 4, padding: '2px 8px', fontSize: 12, color: '#1d4ed8' }}>
+                            🔗 Из процесса
+                            {task.sourceElementId && (
+                                <span style={{ color: '#6b7280', fontSize: 11 }}>
+                                    (узел: {task.sourceElementId})
+                                </span>
+                            )}
+                        </span>
+                    </span>
+                )}
             </div>
 
             <div className="task-detail__tabs">
