@@ -242,6 +242,8 @@ public class BpmGlobalModuleService : IBpmGlobalModuleService
     /// <inheritdoc />
     public async Task<IReadOnlyList<BpmGlobalModuleDto>> ImportAsync(Guid organizationId, byte[] jsonData, Guid createdByUserId, CancellationToken ct = default)
     {
+        const string DefaultModuleFileName = "module.cs";
+
         List<JsonElement> elements;
         try
         {
@@ -287,7 +289,7 @@ public class BpmGlobalModuleService : IBpmGlobalModuleService
                 var order = 0;
                 foreach (var fileEl in filesProp.EnumerateArray())
                 {
-                    var fileName = fileEl.TryGetProperty("fileName", out var fnProp) ? fnProp.GetString() ?? "module.cs" : "module.cs";
+                    var fileName = fileEl.TryGetProperty("fileName", out var fnProp) ? fnProp.GetString() ?? DefaultModuleFileName : DefaultModuleFileName;
                     var scriptBody = fileEl.TryGetProperty("scriptBody", out var sbProp) ? sbProp.GetString() ?? string.Empty : string.Empty;
                     var file = new BpmGlobalModuleFile
                     {

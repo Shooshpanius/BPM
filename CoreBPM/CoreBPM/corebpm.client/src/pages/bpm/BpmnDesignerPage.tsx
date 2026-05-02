@@ -472,6 +472,8 @@ export function BpmnDesignerPage({ processId, onBack }: BpmnDesignerPageProps) {
     const handleExportPNG = async () => {
         if (!modelerRef.current) return;
         setShowExportMenu(false);
+        const DEFAULT_PNG_WIDTH = 1200;
+        const DEFAULT_PNG_HEIGHT = 800;
         try {
             const { svg } = await modelerRef.current.saveSVG();
             const img = new Image();
@@ -479,8 +481,8 @@ export function BpmnDesignerPage({ processId, onBack }: BpmnDesignerPageProps) {
             const url = URL.createObjectURL(svgBlob);
             img.onload = () => {
                 const canvas = document.createElement('canvas');
-                canvas.width = img.width || 1200;
-                canvas.height = img.height || 800;
+                canvas.width = img.width || DEFAULT_PNG_WIDTH;
+                canvas.height = img.height || DEFAULT_PNG_HEIGHT;
                 const ctx = canvas.getContext('2d');
                 if (!ctx) return;
                 ctx.fillStyle = '#ffffff';

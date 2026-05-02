@@ -319,7 +319,7 @@ function PropertiesPanel({ field, onChange }: PropertiesPanelProps) {
             {field.type === 'subform' && (
                 <div className="fb-props-field">
                     <label>ID вложенной формы</label>
-                    <input className="fb-props-input" value={String(field.extra?.formId ?? '')} onChange={e => upd('extra', { ...field.extra, formId: e.target.value || undefined })} placeholder="uuid формы" />
+                    <input className="fb-props-input" value={String(field.extra?.formId ?? '')} onChange={e => upd('extra', { ...field.extra, formId: e.target.value || undefined })} placeholder="Идентификатор (UUID) связанной формы" />
                 </div>
             )}
         </div>

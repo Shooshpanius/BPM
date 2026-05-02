@@ -1,9 +1,10 @@
+using System.IO;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using CoreBPM.Server.Application.Bpm.DTOs;
 using CoreBPM.Server.Application.Bpm.Interfaces;
-
+using CoreBPM.Server.Exceptions;
 namespace CoreBPM.Server.Controllers;
 
 /// <summary>API управления пользовательскими расширениями палитры дизайнера (FR-BPM-01.7).</summary>
@@ -109,14 +110,14 @@ public class BpmExtensionsController : ControllerBase
         if (Request.ContentType?.Contains("multipart/form-data") == true)
         {
             var file = Request.Form.Files.FirstOrDefault()
-                ?? throw new CoreBPM.Server.Exceptions.ValidationException("Файл не передан");
-            using var ms = new System.IO.MemoryStream();
+                ?? throw new ValidationException("Файл не передан");
+            using var ms = new MemoryStream();
             await file.CopyToAsync(ms, ct);
             data = ms.ToArray();
         }
         else
         {
-            using var ms = new System.IO.MemoryStream();
+            using var ms = new MemoryStream();
             await Request.Body.CopyToAsync(ms, ct);
             data = ms.ToArray();
         }

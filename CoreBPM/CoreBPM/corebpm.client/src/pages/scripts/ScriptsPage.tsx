@@ -333,7 +333,7 @@ function ExtensionsTab({ orgId }: ExtensionsTabProps) {
     const [deleteId, setDeleteId] = useState<string | null>(null);
     const [deleting, setDeleting] = useState(false);
     const [actionMsg, setActionMsg] = useState<string | null>(null);
-    const extImportRef = useRef<HTMLInputElement>(null);
+    const extensionImportRef = useRef<HTMLInputElement>(null);
 
     const load = useCallback(async () => {
         if (!token) return;
@@ -475,7 +475,7 @@ function ExtensionsTab({ orgId }: ExtensionsTabProps) {
         } catch (e) {
             setError(e instanceof Error ? e.message : 'Ошибка импорта');
         } finally {
-            if (extImportRef.current) extImportRef.current.value = '';
+            if (extensionImportRef.current) extensionImportRef.current.value = '';
         }
     };
 
@@ -492,8 +492,8 @@ function ExtensionsTab({ orgId }: ExtensionsTabProps) {
             <div className="scripts-toolbar">
                 <button className="scripts-btn-primary" onClick={openCreate}>+ Создать расширение</button>
                 <button className="scripts-btn-secondary" onClick={handleExportExtensions} title="Экспорт расширений">↑ Экспорт</button>
-                <button className="scripts-btn-secondary" onClick={() => extImportRef.current?.click()} title="Импорт расширений">↓ Импорт</button>
-                <input ref={extImportRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImportExtensions} />
+                <button className="scripts-btn-secondary" onClick={() => extensionImportRef.current?.click()} title="Импорт расширений">↓ Импорт</button>
+                <input ref={extensionImportRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImportExtensions} />
                 {actionMsg && <span className="scripts-action-msg">{actionMsg}</span>}
             </div>
 
@@ -636,7 +636,7 @@ function GlobalModulesTab({ orgId }: GlobalModulesTabProps) {
     const [addingFile, setAddingFile] = useState(false);
     const [deleteFileId, setDeleteFileId] = useState<string | null>(null);
     const [deletingFile, setDeletingFile] = useState(false);
-    const modImportRef = useRef<HTMLInputElement>(null);
+    const moduleImportRef = useRef<HTMLInputElement>(null);
 
     const loadModules = useCallback(async () => {
         if (!token) return;
@@ -840,7 +840,7 @@ function GlobalModulesTab({ orgId }: GlobalModulesTabProps) {
         } catch (e) {
             setActionMsg(e instanceof Error ? e.message : 'Ошибка импорта');
         } finally {
-            if (modImportRef.current) modImportRef.current.value = '';
+            if (moduleImportRef.current) moduleImportRef.current.value = '';
         }
     };
 
@@ -851,8 +851,8 @@ function GlobalModulesTab({ orgId }: GlobalModulesTabProps) {
                 <div className="scripts-toolbar">
                     <button className="scripts-btn-primary" onClick={openCreateModule}>+ Создать модуль</button>
                     <button className="scripts-btn-secondary" onClick={handleExportModules} title="Экспорт модулей">↑ Экспорт</button>
-                    <button className="scripts-btn-secondary" onClick={() => modImportRef.current?.click()} title="Импорт модулей">↓ Импорт</button>
-                    <input ref={modImportRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImportModules} />
+                    <button className="scripts-btn-secondary" onClick={() => moduleImportRef.current?.click()} title="Импорт модулей">↓ Импорт</button>
+                    <input ref={moduleImportRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImportModules} />
                     {actionMsg && <span className="scripts-action-msg">{actionMsg}</span>}
                 </div>
                 {loading && <p className="scripts-loading">Загрузка…</p>}
