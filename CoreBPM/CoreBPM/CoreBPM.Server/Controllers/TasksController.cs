@@ -446,5 +446,36 @@ public class TasksController : ControllerBase
         if (userId == null) return Unauthorized();
         return Ok(await _service.GetTimeLogsAsync(id, ct));
     }
+
+    /// <summary>Удалить запись трудозатрат.</summary>
+    [HttpDelete("api/tasks/{id:guid}/timelogs/{logId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> DeleteTimeLog(Guid id, Guid logId, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        await _service.DeleteTimeLogAsync(id, logId, userId.Value, User.IsInRole("Admin"), ct);
+        return NoContent();
+    }
+
+    /// <summary>Взять задачу на текущий контроль.</summary>
+    [HttpPost("api/tasks/{id:guid}/actions/take-control")]
+    [ProducesResponseType(typeof(TaskDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TaskDto>> TakeControl(Guid id, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.TakeControlAsync(id, userId.Value, ct));
+    }
+
+    /// <summary>Снять задачу с контроля.</summary>
+    [HttpPost("api/tasks/{id:guid}/actions/release-control")]
+    [ProducesResponseType(typeof(TaskDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TaskDto>> ReleaseControl(Guid id, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.ReleaseControlAsync(id, userId.Value, User.IsInRole("Admin"), ct));
+    }
 }
 

@@ -429,6 +429,21 @@ export async function getTaskTimeLogs(token: string, id: string): Promise<TaskTi
     return apiFetch<TaskTimeLogDto[]>(token, `/api/tasks/${id}/timelogs`);
 }
 
+/** Удалить запись трудозатрат задачи. */
+export async function deleteTaskTimeLog(token: string, taskId: string, logId: string): Promise<void> {
+    await apiFetch<void>(token, `/api/tasks/${taskId}/timelogs/${logId}`, { method: 'DELETE' });
+}
+
+/** Взять задачу на текущий контроль. */
+export async function takeControl(token: string, taskId: string): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, `/api/tasks/${taskId}/actions/take-control`, { method: 'POST' });
+}
+
+/** Снять задачу с контроля. */
+export async function releaseControl(token: string, taskId: string): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, `/api/tasks/${taskId}/actions/release-control`, { method: 'POST' });
+}
+
 /** Получить справочник видов деятельности (Admin). */
 export async function listActivityTypes(token: string): Promise<TaskActivityTypeDto[]> {
     return apiFetch<TaskActivityTypeDto[]>(token, '/api/admin/activity-types');
@@ -447,4 +462,29 @@ export async function updateActivityType(token: string, id: string, name: string
 /** Удалить вид деятельности (Admin). */
 export async function deleteActivityType(token: string, id: string): Promise<void> {
     await apiFetch<void>(token, `/api/admin/activity-types/${id}`, { method: 'DELETE' });
+}
+
+// ─── TaskControlSettings API (Admin) ──────────────────────────────────────
+
+export interface TaskControlSettingsDto {
+    defaultControlType: string;
+    isEffortRequired: boolean;
+    isActivityTypeRequired: boolean;
+    updatedAt: string;
+}
+
+/** Получить системные настройки контроля и трудозатрат (Admin). */
+export async function getTaskControlSettings(token: string): Promise<TaskControlSettingsDto> {
+    return apiFetch<TaskControlSettingsDto>(token, '/api/admin/task-control-settings');
+}
+
+/** Обновить системные настройки контроля и трудозатрат (Admin). */
+export async function updateTaskControlSettings(
+    token: string,
+    req: { defaultControlType: string; isEffortRequired: boolean; isActivityTypeRequired: boolean },
+): Promise<TaskControlSettingsDto> {
+    return apiFetch<TaskControlSettingsDto>(token, '/api/admin/task-control-settings', {
+        method: 'PUT',
+        body: JSON.stringify(req),
+    });
 }

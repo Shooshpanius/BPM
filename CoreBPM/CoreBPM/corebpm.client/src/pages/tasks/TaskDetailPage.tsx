@@ -6,7 +6,7 @@ import {
     getTaskRelations, addTaskRelation, removeTaskRelation,
     getTaskHistory, copyTask, reassignTask, createSubtask, listTasks,
     getAllowedActions, approvePreTask, rejectPreTask, sendTaskForApproval, approveTask, rejectTask,
-    getTaskTimeLogs, addTaskTimeLog,
+    getTaskTimeLogs, addTaskTimeLog, deleteTaskTimeLog, takeControl, releaseControl,
     TASK_STATUS_LABELS, TASK_PRIORITY_LABELS,
 } from '../../api/tasksApi';
 import type {
@@ -98,7 +98,7 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
 
     const loadEmployees = useCallback(async () => {
         if (employees.length === 0 && token) {
-            try { setEmployees(await getDirectoryEmployees(token)); } catch { /* игнорируем */ }
+            try { setEmployees(await getDirectoryEmployees(token, {})); } catch { /* игнорируем */ }
         }
     }, [employees.length, token]);
 
@@ -235,6 +235,46 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
             alert(e instanceof Error ? e.message : 'Ошибка');
         } finally {
             setTimeLogSaving(false);
+        }
+    };
+
+    // FR-TASK-01.4: удалить запись трудозатрат
+    const handleDeleteTimeLog = async (logId: string) => {
+        if (!token) return;
+        if (!window.confirm('Удалить запись трудозатрат?')) return;
+        try {
+            await deleteTaskTimeLog(token, taskId, logId);
+            setTimeLogs(prev => prev.filter(l => l.id !== logId));
+            const updated = await getTask(token, taskId);
+            setTask(updated);
+        } catch (e) {
+            alert(e instanceof Error ? e.message : 'Ошибка');
+        }
+    };
+
+    // FR-TASK-01.4: взять / снять задачу с контроля
+    const handleTakeControl = async () => {
+        if (!token) return;
+        try {
+            const updated = await takeControl(token, taskId);
+            setTask(updated);
+            const actions = await getAllowedActions(token, taskId).catch(() => []);
+            setAllowedActions(actions);
+        } catch (e) {
+            alert(e instanceof Error ? e.message : 'Ошибка');
+        }
+    };
+
+    const handleReleaseControl = async () => {
+        if (!token) return;
+        if (!window.confirm('Снять задачу с контроля?')) return;
+        try {
+            const updated = await releaseControl(token, taskId);
+            setTask(updated);
+            const actions = await getAllowedActions(token, taskId).catch(() => []);
+            setAllowedActions(actions);
+        } catch (e) {
+            alert(e instanceof Error ? e.message : 'Ошибка');
         }
     };
 
@@ -408,6 +448,28 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                     </span>
                 )}
                 {task.categoryId && <span className="task-detail__meta-item"><strong>Категория:</strong> {task.categoryId}</span>}
+                {/* FR-TASK-01.4: Контроль */}
+                {task.controlType && task.controlType !== 'None' && (
+                    <span className="task-detail__meta-item">
+                        <strong>Контроль:</strong>{' '}
+                        {{ ControlAfterExecution: 'Контроль выполнения', CurrentControl: 'Текущий контроль', NotifyOnCompletion: 'Оповещать при выполнении' }[task.controlType] ?? task.controlType}
+                        {task.controllerName && <> — {task.controllerName}</>}
+                    </span>
+                )}
+                {hasAction('take-control') && (
+                    <span className="task-detail__meta-item">
+                        <button className="task-detail__btn task-detail__btn--sm" onClick={handleTakeControl}>
+                            👁 Взять на контроль
+                        </button>
+                    </span>
+                )}
+                {hasAction('release-control') && (
+                    <span className="task-detail__meta-item">
+                        <button className="task-detail__btn task-detail__btn--sm task-detail__btn--danger" onClick={handleReleaseControl}>
+                            ✕ Снять с контроля
+                        </button>
+                    </span>
+                )}
                 {task.plannedEffortMinutes && (
                     <span className="task-detail__meta-item">
                         <strong>Трудозатраты:</strong>{' '}
@@ -609,6 +671,7 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                                             <th>Длительность</th>
                                             <th>Вид деятельности</th>
                                             <th>Комментарий</th>
+                                            <th></th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -619,6 +682,14 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                                                 <td>{l.durationMinutes} мин.</td>
                                                 <td>{l.activityTypeName ?? '—'}</td>
                                                 <td>{l.comment ?? '—'}</td>
+                                                <td>
+                                                    <button
+                                                        className="task-detail__btn task-detail__btn--sm task-detail__btn--danger"
+                                                        title="Удалить запись"
+                                                        onClick={() => handleDeleteTimeLog(l.id)}>
+                                                        ✕
+                                                    </button>
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>

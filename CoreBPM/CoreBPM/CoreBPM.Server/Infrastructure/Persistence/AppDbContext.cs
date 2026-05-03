@@ -66,6 +66,7 @@ public class AppDbContext : DbContext
     public DbSet<TaskSlaRule> TaskSlaRules => Set<TaskSlaRule>();
     public DbSet<TaskActivityType> TaskActivityTypes => Set<TaskActivityType>();
     public DbSet<TaskTimeLog> TaskTimeLogs => Set<TaskTimeLog>();
+    public DbSet<TaskControlSettings> TaskControlSettings => Set<TaskControlSettings>();
     public DbSet<DmnTable> DmnTables => Set<DmnTable>();
     public DbSet<DmnTableVersion> DmnTableVersions => Set<DmnTableVersion>();
     public DbSet<DmnColumn> DmnColumns => Set<DmnColumn>();
@@ -1140,6 +1141,13 @@ public class AppDbContext : DbContext
             e.HasOne(l => l.Task).WithMany(t => t.TimeLogs)
                 .HasForeignKey(l => l.TaskId).OnDelete(DeleteBehavior.Cascade);
             e.Property(l => l.Comment).HasMaxLength(1000);
+        });
+
+        modelBuilder.Entity<TaskControlSettings>(e =>
+        {
+            e.ToTable("task_control_settings");
+            e.HasKey(s => s.Id);
+            e.Property(s => s.DefaultControlType).IsRequired();
         });
     }
 }

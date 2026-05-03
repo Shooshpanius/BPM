@@ -23,6 +23,7 @@ import { MigrationPackageDetailPage } from './bpm/MigrationPackageDetailPage';
 import { ImprovementsPage } from './bpm/ImprovementsPage';
 import { AnalyticsSummaryPage } from './bpm/AnalyticsSummaryPage';
 import { ProcessAnalyticsPage } from './bpm/ProcessAnalyticsPage';
+import TaskControlSettingsPage from './admin/TaskControlSettingsPage';
 import { MyColleaguesWidget } from '../components/org/MyColleaguesWidget';
 import { TasksPage } from './tasks/TasksPage';
 import { TaskDetailPage } from './tasks/TaskDetailPage';
@@ -211,6 +212,7 @@ export function HomePage({ onAdmin }: HomePageProps) {
                               />
                             : <MigrationPackagesPage onOpenDetail={setMigrationPackageId} />
                     )}
+                    {section === 'task-control-settings' && <TaskControlSettingsPage />}
                 </main>
             </div>
             {isMobile && <MobileNav active={section} onSelect={handleSelect} />}

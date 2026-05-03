@@ -48,3 +48,23 @@ public class UpdateControlRequest
     public Guid? ControllerUserId { get; set; }
     public string? ControlType { get; set; }
 }
+
+/// <summary>DTO системных настроек контроля задач (FR-TASK-01.4).</summary>
+public class TaskControlSettingsDto
+{
+    /// <summary>Тип контроля по умолчанию при создании задачи.</summary>
+    public string DefaultControlType { get; set; } = "None";
+    /// <summary>Обязательно ли вводить трудозатраты перед завершением задачи.</summary>
+    public bool IsEffortRequired { get; set; }
+    /// <summary>Обязателен ли вид деятельности при добавлении трудозатрат.</summary>
+    public bool IsActivityTypeRequired { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+}
+
+/// <summary>Запрос на обновление системных настроек контроля задач.</summary>
+public class UpdateTaskControlSettingsRequest
+{
+    public string DefaultControlType { get; set; } = "None";
+    public bool IsEffortRequired { get; set; }
+    public bool IsActivityTypeRequired { get; set; }
+}

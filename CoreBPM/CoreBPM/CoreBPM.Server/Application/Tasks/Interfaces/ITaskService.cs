@@ -88,9 +88,18 @@ public interface ITaskService
     /// <summary>Изменить контролёра и/или тип контроля после создания задачи. Доступно автору, контролёру и Admin.</summary>
     Task<TaskDto> UpdateControlAsync(Guid taskId, UpdateControlRequest req, Guid actorId, bool isAdmin, CancellationToken ct = default);
 
+    /// <summary>Взять задачу на текущий контроль. Устанавливает актора контролёром с типом CurrentControl.</summary>
+    Task<TaskDto> TakeControlAsync(Guid taskId, Guid actorId, CancellationToken ct = default);
+
+    /// <summary>Снять задачу с контроля. Доступно текущему контролёру и Admin.</summary>
+    Task<TaskDto> ReleaseControlAsync(Guid taskId, Guid actorId, bool isAdmin, CancellationToken ct = default);
+
     /// <summary>Добавить трудозатраты к задаче.</summary>
     Task<TaskTimeLogDto> AddTimeLogAsync(Guid taskId, AddTimeLogRequest req, Guid userId, CancellationToken ct = default);
 
     /// <summary>Получить журнал трудозатрат по задаче.</summary>
     Task<IReadOnlyList<TaskTimeLogDto>> GetTimeLogsAsync(Guid taskId, CancellationToken ct = default);
+
+    /// <summary>Удалить запись трудозатрат. Доступно автору записи и Admin.</summary>
+    Task DeleteTimeLogAsync(Guid taskId, Guid logId, Guid actorId, bool isAdmin, CancellationToken ct = default);
 }

@@ -15,6 +15,7 @@ public class TaskService : ITaskService
 {
     private readonly AppDbContext _db;
     private readonly IBpmNotificationService _notifications;
+    private readonly ITaskControlSettingsService _controlSettings;
 
     /// <summary>Финальные статусы — задача не может перейти в следующий статус из этих.</summary>
     private static readonly HashSet<TaskStatus> FinalStatuses = new()
@@ -24,10 +25,11 @@ public class TaskService : ITaskService
         TaskStatus.Closed,
     };
 
-    public TaskService(AppDbContext db, IBpmNotificationService notifications)
+    public TaskService(AppDbContext db, IBpmNotificationService notifications, ITaskControlSettingsService controlSettings)
     {
         _db = db;
         _notifications = notifications;
+        _controlSettings = controlSettings;
     }
 
     /// <inheritdoc/>
@@ -689,6 +691,13 @@ public class TaskService : ITaskService
             actions.Add(new TaskAllowedActionDto { Action = "return", Label = "Вернуть на доработку" });
         }
 
+        // FR-TASK-01.4: взять / снять задачу с текущего контроля
+        if (!FinalStatuses.Contains(status) && task.ControllerUserId != actorId)
+            actions.Add(new TaskAllowedActionDto { Action = "take-control", Label = "Взять на контроль" });
+
+        if (!FinalStatuses.Contains(status) && (isController || isAdmin) && task.ControllerUserId.HasValue)
+            actions.Add(new TaskAllowedActionDto { Action = "release-control", Label = "Снять с контроля" });
+
         return actions;
     }
 
@@ -746,6 +755,16 @@ public class TaskService : ITaskService
 
         if (!IsAssigneeOrCoExecutor(task, actorId))
             throw new ValidationException("Только исполнитель или соисполнитель может выполнить задачу.");
+
+        // FR-TASK-01.4: проверка обязательности трудозатрат
+        var ctrlSettings = await _controlSettings.GetAsync(ct);
+        if (ctrlSettings.IsEffortRequired)
+        {
+            var hasLogs = await _db.TaskTimeLogs.AsNoTracking()
+                .AnyAsync(l => l.TaskId == taskId, ct);
+            if (!hasLogs)
+                throw new ValidationException("Перед выполнением задачи необходимо добавить трудозатраты.");
+        }
 
         var now = DateTimeOffset.UtcNow;
         var oldStatus = task.Status;
@@ -1209,6 +1228,11 @@ public class TaskService : ITaskService
         if (req.DurationMinutes <= 0)
             throw new ValidationException("Длительность должна быть больше 0 минут.");
 
+        // FR-TASK-01.4: проверка обязательности вида деятельности
+        var ctrlSettings = await _controlSettings.GetAsync(ct);
+        if (ctrlSettings.IsActivityTypeRequired && req.ActivityTypeId is null)
+            throw new ValidationException("Вид деятельности является обязательным полем при добавлении трудозатрат.");
+
         var now = DateTimeOffset.UtcNow;
         var log = new TaskTimeLog
         {
@@ -1323,5 +1347,89 @@ public class TaskService : ITaskService
             candidate = trimmed;
 
         return int.TryParse(candidate, out number);
+    }
+
+    // ─── FR-TASK-01.4: Взять / снять контроль, удалить трудозатраты ──────────
+
+    /// <inheritdoc/>
+    public async Task<TaskDto> TakeControlAsync(Guid taskId, Guid actorId, CancellationToken ct = default)
+    {
+        var task = await _db.TaskItems
+            .FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+
+        if (FinalStatuses.Contains(task.Status))
+            throw new ValidationException("Нельзя взять на контроль задачу в финальном статусе.");
+
+        var now = DateTimeOffset.UtcNow;
+
+        _db.TaskHistoryEntries.Add(new TaskHistoryEntry
+        {
+            Id = Guid.NewGuid(), TaskId = taskId, ActorUserId = actorId,
+            Action = TaskHistoryAction.Updated, FieldName = "ControllerUserId",
+            OldValue = task.ControllerUserId?.ToString(),
+            NewValue = actorId.ToString(), CreatedAt = now,
+        });
+
+        task.ControllerUserId = actorId;
+        task.ControlType = TaskControlType.CurrentControl;
+        task.UpdatedAt = now;
+        await _db.SaveChangesAsync(ct);
+
+        return await BuildDtoAsync(taskId, ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<TaskDto> ReleaseControlAsync(Guid taskId, Guid actorId, bool isAdmin, CancellationToken ct = default)
+    {
+        var task = await _db.TaskItems
+            .FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+
+        if (task.ControllerUserId != actorId && !isAdmin)
+            throw new ValidationException("Снять контроль может только текущий контролёр или администратор.");
+
+        var now = DateTimeOffset.UtcNow;
+
+        _db.TaskHistoryEntries.Add(new TaskHistoryEntry
+        {
+            Id = Guid.NewGuid(), TaskId = taskId, ActorUserId = actorId,
+            Action = TaskHistoryAction.Updated, FieldName = "ControllerUserId",
+            OldValue = task.ControllerUserId?.ToString(),
+            NewValue = null, CreatedAt = now,
+        });
+
+        task.ControllerUserId = null;
+        task.ControlType = TaskControlType.None;
+        task.UpdatedAt = now;
+        await _db.SaveChangesAsync(ct);
+
+        return await BuildDtoAsync(taskId, ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task DeleteTimeLogAsync(Guid taskId, Guid logId, Guid actorId, bool isAdmin, CancellationToken ct = default)
+    {
+        _ = await _db.TaskItems.AsNoTracking().FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+
+        var log = await _db.TaskTimeLogs
+            .FirstOrDefaultAsync(l => l.Id == logId && l.TaskId == taskId, ct)
+            ?? throw new NotFoundException($"Запись трудозатрат {logId} не найдена.");
+
+        if (log.UserId != actorId && !isAdmin)
+            throw new ValidationException("Удалить трудозатраты может только их автор или администратор.");
+
+        _db.TaskTimeLogs.Remove(log);
+
+        _db.TaskHistoryEntries.Add(new TaskHistoryEntry
+        {
+            Id = Guid.NewGuid(), TaskId = taskId, ActorUserId = actorId,
+            Action = TaskHistoryAction.Updated, FieldName = "TimeLog",
+            OldValue = $"{log.DurationMinutes} мин ({log.StartDate:d})", NewValue = null,
+            CreatedAt = DateTimeOffset.UtcNow,
+        });
+
+        await _db.SaveChangesAsync(ct);
     }
 }

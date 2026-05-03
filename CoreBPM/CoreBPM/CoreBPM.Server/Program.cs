@@ -130,6 +130,7 @@ builder.Services.AddScoped<IDmnService, DmnService>();
 // Регистрация сервисов задач (FR-TASK-01.1, FR-TASK-01.2)
 builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddScoped<ITaskSlaService, TaskSlaService>();
+builder.Services.AddScoped<ITaskControlSettingsService, TaskControlSettingsService>();
 
 // Регистрация сервисов Forms (конструктор форм задач FR-BPM-01.4)
 builder.Services.AddScoped<IFormService, FormService>();
