@@ -139,13 +139,7 @@ public class TaskService : ITaskService
         if (!string.IsNullOrEmpty(filter.Search))
         {
             // Поиск по номеру задачи: "T-5", "T5" или просто "5"
-            var search = filter.Search.Trim();
-            var numberStr = search.StartsWith("T-", StringComparison.OrdinalIgnoreCase)
-                ? search[2..]
-                : search.StartsWith("T", StringComparison.OrdinalIgnoreCase) && search.Length > 1
-                    ? search[1..]
-                    : search;
-            if (int.TryParse(numberStr, out var taskNumber))
+            if (TryExtractTaskNumber(filter.Search, out var taskNumber))
                 query = query.Where(t => t.Number == taskNumber);
             else
                 query = query.Where(t => t.Subject.Contains(filter.Search));
@@ -916,4 +910,24 @@ public class TaskService : ITaskService
     private static bool IsAssigneeOrCoExecutor(TaskItem task, Guid actorId)
         => task.AssigneeUserId == actorId
            || task.Participants.Any(p => p.UserId == actorId && p.Role == TaskParticipantRole.CoExecutor);
+
+    /// <summary>
+    /// Пытается извлечь номер задачи из строки поиска.
+    /// Поддерживаемые форматы: «T-5», «T5» и просто «5».
+    /// Возвращает <c>true</c> и значение <paramref name="number"/>, если строка является номером задачи.
+    /// </summary>
+    private static bool TryExtractTaskNumber(string search, out int number)
+    {
+        var trimmed = search.Trim();
+
+        string candidate;
+        if (trimmed.StartsWith("T-", StringComparison.OrdinalIgnoreCase))
+            candidate = trimmed[2..];
+        else if (trimmed.StartsWith("T", StringComparison.OrdinalIgnoreCase) && trimmed.Length > 1)
+            candidate = trimmed[1..];
+        else
+            candidate = trimmed;
+
+        return int.TryParse(candidate, out number);
+    }
 }
