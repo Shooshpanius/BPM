@@ -20,6 +20,9 @@ public class TaskDto
     public string ControlType { get; set; } = string.Empty;
     public Guid? ControllerUserId { get; set; }
     public string? ControllerName { get; set; }
+    /// <summary>Согласующий (участник с ролью Approver), если назначен (FR-TASK-01.3).</summary>
+    public Guid? ApproverUserId { get; set; }
+    public string? ApproverName { get; set; }
     public Guid? ParentTaskId { get; set; }
     public bool IsOverdue { get; set; }
     public DateTimeOffset? PostponedUntil { get; set; }

@@ -345,6 +345,30 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                     <strong>Срок:</strong> {new Date(task.dueDate).toLocaleString('ru-RU')}
                     {task.isOverdue && <span className="task-detail__overdue-badge"> ⚠ Просрочена</span>}
                 </span>
+                {/* FR-TASK-01.3: согласующий */}
+                {task.approverName && (
+                    <span className="task-detail__meta-item">
+                        <strong>Согласующий:</strong>{' '}
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                            {task.approverName}
+                            {(task.status === 'PreApproval' || task.status === 'OnApproval') && (
+                                <span style={{ fontSize: 11, background: '#fef9c3', border: '1px solid #fde047', color: '#92400e', borderRadius: 4, padding: '1px 6px' }}>
+                                    ⏳ Ожидает решения
+                                </span>
+                            )}
+                            {(task.status === 'PreApprovalRejected' || task.status === 'ApprovalRejected') && (
+                                <span style={{ fontSize: 11, background: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', borderRadius: 4, padding: '1px 6px' }}>
+                                    ✗ Отказано
+                                </span>
+                            )}
+                            {task.status === 'New' && task.approverName && allowedActions.length === 0 && (
+                                <span style={{ fontSize: 11, background: '#dcfce7', border: '1px solid #86efac', color: '#166534', borderRadius: 4, padding: '1px 6px' }}>
+                                    ✓ Согласовано
+                                </span>
+                            )}
+                        </span>
+                    </span>
+                )}
                 {task.categoryId && <span className="task-detail__meta-item"><strong>Категория:</strong> {task.categoryId}</span>}
                 {task.plannedEffortMinutes && <span className="task-detail__meta-item"><strong>Трудозатраты:</strong> {task.plannedEffortMinutes} мин.</span>}
                 {task.tags.length > 0 && (

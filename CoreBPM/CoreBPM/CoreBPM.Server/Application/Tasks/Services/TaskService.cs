@@ -563,6 +563,9 @@ public class TaskService : ITaskService
         var assigneeName = await GetDisplayNameAsync(task.AssigneeUserId, ct);
         string? controllerName = task.ControllerUserId.HasValue ? await GetDisplayNameAsync(task.ControllerUserId.Value, ct) : null;
 
+        var approverParticipant = task.Participants.FirstOrDefault(p => p.Role == TaskParticipantRole.Approver);
+        string? approverName = approverParticipant != null ? await GetDisplayNameAsync(approverParticipant.UserId, ct) : null;
+
         var participantUserIds = task.Participants.Select(p => p.UserId).Distinct().ToList();
         var participantUsers = await _db.OrgUsers.AsNoTracking()
             .Where(u => participantUserIds.Contains(u.Id))
@@ -588,6 +591,8 @@ public class TaskService : ITaskService
             ControlType = task.ControlType.ToString(),
             ControllerUserId = task.ControllerUserId,
             ControllerName = controllerName,
+            ApproverUserId = approverParticipant?.UserId,
+            ApproverName = approverName,
             ParentTaskId = task.ParentTaskId,
             IsOverdue = task.IsOverdue,
             PostponedUntil = task.PostponedUntil,
@@ -647,7 +652,7 @@ public class TaskService : ITaskService
 
         // Согласование от исполнителя: исполнитель может отправить на согласование из активных статусов
         if ((status == TaskStatus.New || status == TaskStatus.Read || status == TaskStatus.InProgress
-             || status == TaskStatus.ApprovalRejected) && (isAssignee || isAdmin))
+             || status == TaskStatus.ApprovalRejected || status == TaskStatus.PreApprovalRejected) && (isAssignee || isAdmin))
             actions.Add(new TaskAllowedActionDto { Action = "send-for-approval", Label = "Отправить на согласование" });
 
         // Основное согласование: согласующий или Admin могут принять / отказать
@@ -912,6 +917,7 @@ public class TaskService : ITaskService
         task.Status = TaskStatus.New;
         task.UpdatedAt = now;
         AddStatusHistory(task.Id, actorId, oldStatus, TaskStatus.New, now);
+        _db.TaskHistoryEntries.Add(new TaskHistoryEntry { Id = Guid.NewGuid(), TaskId = taskId, ActorUserId = actorId, Action = TaskHistoryAction.ApprovalDecisionApproved, NewValue = req.Comment?.Trim(), CreatedAt = now });
 
         if (!string.IsNullOrWhiteSpace(req.Comment))
             _db.TaskComments.Add(new TaskComment { Id = Guid.NewGuid(), TaskId = taskId, AuthorUserId = actorId, Body = req.Comment.Trim(), CreatedAt = now });
@@ -944,6 +950,7 @@ public class TaskService : ITaskService
         task.Status = TaskStatus.PreApprovalRejected;
         task.UpdatedAt = now;
         AddStatusHistory(task.Id, actorId, oldStatus, TaskStatus.PreApprovalRejected, now);
+        _db.TaskHistoryEntries.Add(new TaskHistoryEntry { Id = Guid.NewGuid(), TaskId = taskId, ActorUserId = actorId, Action = TaskHistoryAction.ApprovalDecisionRejected, NewValue = req.Comment?.Trim(), CreatedAt = now });
 
         if (!string.IsNullOrWhiteSpace(req.Comment))
             _db.TaskComments.Add(new TaskComment { Id = Guid.NewGuid(), TaskId = taskId, AuthorUserId = actorId, Body = req.Comment.Trim(), CreatedAt = now });
@@ -964,7 +971,7 @@ public class TaskService : ITaskService
             .FirstOrDefaultAsync(t => t.Id == taskId, ct)
             ?? throw new NotFoundException($"Задача {taskId} не найдена.");
 
-        var allowedStatuses = new[] { TaskStatus.New, TaskStatus.Read, TaskStatus.InProgress, TaskStatus.ApprovalRejected };
+        var allowedStatuses = new[] { TaskStatus.New, TaskStatus.Read, TaskStatus.InProgress, TaskStatus.ApprovalRejected, TaskStatus.PreApprovalRejected };
         if (!allowedStatuses.Contains(task.Status))
             throw new ValidationException($"Нельзя отправить на согласование задачу в статусе «{task.Status}».");
 
@@ -1003,6 +1010,7 @@ public class TaskService : ITaskService
         task.Status = TaskStatus.OnApproval;
         task.UpdatedAt = now;
         AddStatusHistory(task.Id, actorId, oldStatus, TaskStatus.OnApproval, now);
+        _db.TaskHistoryEntries.Add(new TaskHistoryEntry { Id = Guid.NewGuid(), TaskId = taskId, ActorUserId = actorId, Action = TaskHistoryAction.SentForApproval, NewValue = req.Comment?.Trim(), CreatedAt = now });
 
         if (!string.IsNullOrWhiteSpace(req.Comment))
             _db.TaskComments.Add(new TaskComment { Id = Guid.NewGuid(), TaskId = taskId, AuthorUserId = actorId, Body = req.Comment.Trim(), CreatedAt = now });
@@ -1039,6 +1047,7 @@ public class TaskService : ITaskService
         task.Status = TaskStatus.New;
         task.UpdatedAt = now;
         AddStatusHistory(task.Id, actorId, oldStatus, TaskStatus.New, now);
+        _db.TaskHistoryEntries.Add(new TaskHistoryEntry { Id = Guid.NewGuid(), TaskId = taskId, ActorUserId = actorId, Action = TaskHistoryAction.ApprovalDecisionApproved, NewValue = req.Comment?.Trim(), CreatedAt = now });
 
         if (!string.IsNullOrWhiteSpace(req.Comment))
             _db.TaskComments.Add(new TaskComment { Id = Guid.NewGuid(), TaskId = taskId, AuthorUserId = actorId, Body = req.Comment.Trim(), CreatedAt = now });
@@ -1071,6 +1080,7 @@ public class TaskService : ITaskService
         task.Status = TaskStatus.ApprovalRejected;
         task.UpdatedAt = now;
         AddStatusHistory(task.Id, actorId, oldStatus, TaskStatus.ApprovalRejected, now);
+        _db.TaskHistoryEntries.Add(new TaskHistoryEntry { Id = Guid.NewGuid(), TaskId = taskId, ActorUserId = actorId, Action = TaskHistoryAction.ApprovalDecisionRejected, NewValue = req.Comment?.Trim(), CreatedAt = now });
 
         if (!string.IsNullOrWhiteSpace(req.Comment))
             _db.TaskComments.Add(new TaskComment { Id = Guid.NewGuid(), TaskId = taskId, AuthorUserId = actorId, Body = req.Comment.Trim(), CreatedAt = now });

@@ -75,6 +75,9 @@ export interface TaskDto {
     controlType: string;
     controllerUserId?: string;
     controllerName?: string;
+    /** FR-TASK-01.3: согласующий */
+    approverUserId?: string;
+    approverName?: string;
     parentTaskId?: string;
     isOverdue: boolean;
     postponedUntil?: string;
