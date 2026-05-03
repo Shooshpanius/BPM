@@ -27,6 +27,7 @@ import TaskControlSettingsPage from './admin/TaskControlSettingsPage';
 import { MyColleaguesWidget } from '../components/org/MyColleaguesWidget';
 import { TasksPage } from './tasks/TasksPage';
 import { TaskDetailPage } from './tasks/TaskDetailPage';
+import { PeriodicTasksPage } from './tasks/PeriodicTasksPage';
 import './HomePage.css';
 
 interface HomePageProps {
@@ -114,6 +115,11 @@ export function HomePage({ onAdmin }: HomePageProps) {
                         openTaskId
                             ? <TaskDetailPage taskId={openTaskId} onBack={() => setOpenTaskId(null)} />
                             : <TasksPage onOpenTask={setOpenTaskId} />
+                    )}
+                    {section === 'tasks-periodic' && (
+                        openTaskId
+                            ? <TaskDetailPage taskId={openTaskId} onBack={() => setOpenTaskId(null)} />
+                            : <PeriodicTasksPage onOpenTask={setOpenTaskId} />
                     )}
                     {section === 'contacts' && (
                         <div className="hp-contacts-layout">

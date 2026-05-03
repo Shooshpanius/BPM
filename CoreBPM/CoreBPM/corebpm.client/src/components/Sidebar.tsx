@@ -2,7 +2,7 @@ import { useAuth } from '../context/AuthContext';
 import { APP_VERSION, LAST_PR_DATE } from '../version';
 import './Sidebar.css';
 
-export type SidebarSection = 'tasks' | 'contacts' | 'org-structure' | 'bpm-processes' | 'bpm-my-processes' | 'bpm-monitor' | 'bpm-queue' | 'bpm-documentation' | 'bpm-rules' | 'bpm-forms' | 'bpm-scripts' | 'bpm-migration' | 'bpm-improvements' | 'bpm-analytics' | 'task-control-settings';
+export type SidebarSection = 'tasks' | 'tasks-periodic' | 'contacts' | 'org-structure' | 'bpm-processes' | 'bpm-my-processes' | 'bpm-monitor' | 'bpm-queue' | 'bpm-documentation' | 'bpm-rules' | 'bpm-forms' | 'bpm-scripts' | 'bpm-migration' | 'bpm-improvements' | 'bpm-analytics' | 'task-control-settings';
 
 interface SidebarProps {
     active: SidebarSection;
@@ -25,6 +25,19 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         <polyline points="9 11 12 14 22 4"/>
                         <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                    </svg>
+                }
+            />
+            <SidebarItem
+                id="tasks-periodic"
+                label="Периодические задачи"
+                active={active === 'tasks-periodic'}
+                onClick={() => onSelect('tasks-periodic')}
+                icon={
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M17 2.1l4 4-4 4"/>
+                        <path d="M3 12.2v-2a4 4 0 0 1 4-4h12.8M7 21.9l-4-4 4-4"/>
+                        <path d="M21 11.8v2a4 4 0 0 1-4 4H4.2"/>
                     </svg>
                 }
             />

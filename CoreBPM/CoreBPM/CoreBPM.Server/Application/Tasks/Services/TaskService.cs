@@ -587,7 +587,7 @@ public class TaskService : ITaskService
             .Where(l => l.TaskId == taskId)
             .SumAsync(l => (int?)l.DurationMinutes, ct) ?? 0;
 
-        return new TaskDto
+        var dto = new TaskDto
         {
             Id = task.Id,
             Number = task.Number,
@@ -626,6 +626,20 @@ public class TaskService : ITaskService
             CommentCount = task.Comments.Count,
             AttachmentCount = task.Attachments.Count,
         };
+
+        // Заполняем детали процесса (FR-TASK-01.5.2)
+        if (task.Kind == TaskKind.ProcessTask && task.SourceInstanceId.HasValue)
+            dto.ProcessInfo = await GetProcessTaskInfoAsync(task.Id, ct);
+
+        // Заполняем конфигурацию серии (FR-TASK-01.5.1)
+        if (task.Kind == TaskKind.Periodic)
+        {
+            var recId = task.SeriesId ?? task.Id;
+            var rec = await _db.TaskRecurrences.AsNoTracking().FirstOrDefaultAsync(r => r.RootTaskId == task.Id || r.Id == recId, ct);
+            if (rec != null) dto.Recurrence = MapRecurrenceDto(rec);
+        }
+
+        return dto;
     }
 
     private async Task<string> GetDisplayNameAsync(Guid userId, CancellationToken ct)

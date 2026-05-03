@@ -85,6 +85,12 @@ export interface TaskDto {
     postponedUntil?: string;
     sourceInstanceId?: string;
     sourceElementId?: string;
+    /** FR-TASK-01.5: вид задачи */
+    kind: 'Regular' | 'Periodic' | 'ProcessTask' | 'Resolution';
+    documentId?: string;
+    seriesId?: string;
+    processInfo?: ProcessTaskInfoDto;
+    recurrence?: TaskRecurrenceDto;
     createdAt: string;
     updatedAt: string;
     participants: TaskParticipantDto[];
@@ -487,4 +493,113 @@ export async function updateTaskControlSettings(
         method: 'PUT',
         body: JSON.stringify(req),
     });
+}
+
+// ─── FR-TASK-01.5: Типы задач ─────────────────────────────────────────────────
+
+export interface ProcessTaskInfoDto {
+    instanceId: string;
+    instanceTitle: string;
+    processName: string;
+    processVersionNumber: string;
+    launchedAt: string;
+    initiatorUserId: string;
+    initiatorName: string;
+    ownerUserId?: string;
+    ownerName?: string;
+}
+
+export interface TaskRecurrenceDto {
+    id: string;
+    rootTaskId: string;
+    periodicity: string;
+    endCondition: string;
+    endDate?: string;
+    lookAheadCount: number;
+    durationMinutes: number;
+    isActive: boolean;
+}
+
+export interface PeriodicSeriesItemDto {
+    id: string;
+    number: number;
+    subject: string;
+    status: string;
+    startDate: string;
+    dueDate: string;
+    isOverdue: boolean;
+}
+
+export interface CreatePeriodicTaskRequest {
+    subject: string;
+    description?: string;
+    priority?: string;
+    categoryId?: string;
+    assigneeUserId: string;
+    startDate: string;
+    dueDate: string;
+    plannedEffortMinutes?: number;
+    controlType?: string;
+    controllerUserId?: string;
+    tags?: string[];
+    periodicity: string;
+    endCondition: string;
+    endDate?: string;
+    lookAheadCount: number;
+    durationMinutes: number;
+}
+
+export interface CreateResolutionTaskRequest {
+    subject: string;
+    description?: string;
+    assigneeUserId: string;
+    startDate: string;
+    dueDate: string;
+    documentId: string;
+}
+
+/** Создать периодическую задачу (FR-TASK-01.5.1). */
+export async function createPeriodicTask(token: string, req: CreatePeriodicTaskRequest): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, '/api/tasks/periodic', { method: 'POST', body: JSON.stringify(req) });
+}
+
+/** Получить экземпляры серии периодической задачи (FR-TASK-01.5.1). */
+export async function getSeriesItems(token: string, rootTaskId: string, activeOnly = false): Promise<PeriodicSeriesItemDto[]> {
+    return apiFetch<PeriodicSeriesItemDto[]>(token, `/api/tasks/${rootTaskId}/series?activeOnly=${activeOnly}`);
+}
+
+/** Обновить конфигурацию серии (FR-TASK-01.5.1). */
+export async function updateSeries(token: string, rootTaskId: string, req: Partial<{
+    periodicity: string; endCondition: string; endDate?: string; lookAheadCount: number; durationMinutes: number;
+}>): Promise<TaskRecurrenceDto> {
+    return apiFetch<TaskRecurrenceDto>(token, `/api/tasks/${rootTaskId}/series`, { method: 'PUT', body: JSON.stringify(req) });
+}
+
+/** Остановить серию периодических задач (FR-TASK-01.5.1). */
+export async function stopSeries(token: string, rootTaskId: string): Promise<void> {
+    await apiFetch<void>(token, `/api/tasks/${rootTaskId}/series`, { method: 'DELETE' });
+}
+
+/** Создать задачу по резолюции документа (FR-TASK-01.5.3). */
+export async function createResolutionTask(token: string, req: CreateResolutionTaskRequest): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, '/api/tasks/resolution', { method: 'POST', body: JSON.stringify(req) });
+}
+
+/** Получить задачи-резолюции по документу (FR-TASK-01.5.3). */
+export async function getDocumentResolutions(token: string, documentId: string): Promise<TaskDto[]> {
+    return apiFetch<TaskDto[]>(token, `/api/documents/${documentId}/resolutions`);
+}
+
+/** Получить детали процесса для задачи по процессу (FR-TASK-01.5.2). */
+export async function getProcessTaskInfo(token: string, taskId: string): Promise<ProcessTaskInfoDto | null> {
+    try {
+        return await apiFetch<ProcessTaskInfoDto>(token, `/api/tasks/${taskId}/process-info`);
+    } catch {
+        return null;
+    }
+}
+
+/** Скачать все вложения задачи архивом ZIP (FR-TASK-01.5.2, FR-TASK-01.5.3). */
+export function getDownloadAttachmentsUrl(taskId: string): string {
+    return `/api/tasks/${taskId}/attachments/download`;
 }

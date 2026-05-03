@@ -23,7 +23,7 @@ interface TaskDetailPageProps {
     onBack: () => void;
 }
 
-type TabId = 'description' | 'subtasks' | 'relations' | 'participants' | 'timelogs';
+type TabId = 'description' | 'subtasks' | 'relations' | 'participants' | 'timelogs' | 'process-info';
 
 const RELATION_LABELS: Record<string, string> = {
     DependsOn: 'Зависит от', Blocks: 'Блокирует', RelatedTo: 'Связана с',
@@ -497,6 +497,43 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                         </span>
                     </span>
                 )}
+                {/* FR-TASK-01.5: вид задачи */}
+                {task.kind && task.kind !== 'Regular' && (
+                    <span className="task-detail__meta-item">
+                        <span style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 4,
+                            padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 600,
+                            background: task.kind === 'Periodic' ? '#e6f7ff' : task.kind === 'ProcessTask' ? '#eff6ff' : '#fff7e6',
+                            color: task.kind === 'Periodic' ? '#1890ff' : task.kind === 'ProcessTask' ? '#1d4ed8' : '#d46b08',
+                            border: `1px solid ${task.kind === 'Periodic' ? '#91d5ff' : task.kind === 'ProcessTask' ? '#bfdbfe' : '#ffd591'}`,
+                        }}>
+                            {task.kind === 'Periodic' && '🔄 Периодическая'}
+                            {task.kind === 'ProcessTask' && '⚙️ Задача по процессу'}
+                            {task.kind === 'Resolution' && '📄 Задача по резолюции'}
+                        </span>
+                    </span>
+                )}
+                {/* FR-TASK-01.5.3: ссылка на документ */}
+                {task.documentId && (
+                    <span className="task-detail__meta-item">
+                        <strong>Документ:</strong>{' '}
+                        <span style={{ color: '#1890ff', cursor: 'pointer' }}
+                            onClick={() => window.open(`/documents/${task.documentId}`, '_blank')}>
+                            🔗 Открыть документ
+                        </span>
+                    </span>
+                )}
+                {/* FR-TASK-01.5: скачать вложения архивом */}
+                {(task.kind === 'ProcessTask' || task.kind === 'Resolution') && task.attachmentCount > 0 && (
+                    <span className="task-detail__meta-item">
+                        <a
+                            href={`/api/tasks/${task.id}/attachments/download`}
+                            download
+                            style={{ color: '#1890ff', textDecoration: 'none', fontSize: 13 }}>
+                            📦 Скачать вложения ({task.attachmentCount})
+                        </a>
+                    </span>
+                )}
             </div>
 
             <div className="task-detail__tabs">
@@ -506,6 +543,9 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                     { id: 'relations', label: 'Связи' },
                     { id: 'participants', label: 'Участники' },
                     { id: 'timelogs', label: 'Трудозатраты' },
+                    ...(task.kind === 'ProcessTask' && task.processInfo
+                        ? [{ id: 'process-info' as TabId, label: '⚙️ Процесс' }]
+                        : []),
                 ] as { id: TabId; label: string }[]).map(t => (
                     <button key={t.id} className={`task-detail__tab${tab === t.id ? ' task-detail__tab--active' : ''}`} onClick={() => setTab(t.id)}>{t.label}</button>
                 ))}
@@ -696,6 +736,46 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                                 </table>
                             )
                         }
+                    </div>
+                )}
+                {/* FR-TASK-01.5.2: Информация о процессе */}
+                {tab === 'process-info' && task.processInfo && (
+                    <div className="task-detail__tab-content">
+                        <h4 style={{ marginTop: 0 }}>Информация о процессе</h4>
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                            <tbody>
+                                <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
+                                    <td style={{ padding: '10px 8px', color: '#888', width: '40%' }}>Процесс</td>
+                                    <td style={{ padding: '10px 8px', fontWeight: 600 }}>
+                                        {task.processInfo.processName}{' '}
+                                        <span style={{ fontSize: 12, color: '#888' }}>({task.processInfo.processVersionNumber})</span>
+                                    </td>
+                                </tr>
+                                <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
+                                    <td style={{ padding: '10px 8px', color: '#888' }}>Экземпляр</td>
+                                    <td style={{ padding: '10px 8px' }}>
+                                        <span style={{ color: '#1890ff', cursor: 'pointer' }}
+                                            onClick={() => window.open(`/bpm/instances/${task.processInfo!.instanceId}`, '_blank')}>
+                                            🔗 {task.processInfo.instanceTitle || task.processInfo.instanceId}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
+                                    <td style={{ padding: '10px 8px', color: '#888' }}>Дата запуска</td>
+                                    <td style={{ padding: '10px 8px' }}>{new Date(task.processInfo.launchedAt).toLocaleString('ru-RU')}</td>
+                                </tr>
+                                <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
+                                    <td style={{ padding: '10px 8px', color: '#888' }}>Инициатор</td>
+                                    <td style={{ padding: '10px 8px' }}>{task.processInfo.initiatorName}</td>
+                                </tr>
+                                {task.processInfo.ownerName && (
+                                    <tr>
+                                        <td style={{ padding: '10px 8px', color: '#888' }}>Ответственный</td>
+                                        <td style={{ padding: '10px 8px' }}>{task.processInfo.ownerName}</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
                     </div>
                 )}
             </div>
