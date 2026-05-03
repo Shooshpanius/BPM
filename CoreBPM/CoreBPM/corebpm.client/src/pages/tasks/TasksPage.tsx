@@ -155,8 +155,6 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
             return next;
         });
     };
-        } catch { /* игнорируем */ }
-    };
 
     const getStatusClass = (status: TaskStatus, isOverdue: boolean) => {
         if (isOverdue) return 'task-badge task-badge--overdue';
