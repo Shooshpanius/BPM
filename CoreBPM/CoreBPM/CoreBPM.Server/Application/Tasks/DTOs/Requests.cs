@@ -86,3 +86,10 @@ public class TaskListFilter
     public string SortBy { get; set; } = "created_at";
     public string SortDir { get; set; } = "desc";
 }
+
+/// <summary>Запрос на откладывание задачи (FR-TASK-01.2).</summary>
+public class PostponeTaskRequest
+{
+    public DateTimeOffset PostponeUntil { get; set; }
+    public string? Comment { get; set; }
+}

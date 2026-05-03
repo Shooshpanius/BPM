@@ -2,7 +2,7 @@ using CoreBPM.Server.Application.Tasks.DTOs;
 
 namespace CoreBPM.Server.Application.Tasks.Interfaces;
 
-/// <summary>Сервис управления задачами (FR-TASK-01.1).</summary>
+/// <summary>Сервис управления задачами (FR-TASK-01.1, FR-TASK-01.2).</summary>
 public interface ITaskService
 {
     Task<TaskDto> CreateAsync(CreateTaskRequest req, Guid authorId, CancellationToken ct = default);
@@ -36,4 +36,30 @@ public interface ITaskService
     Task<IReadOnlyList<TaskTemplateDto>> ListTemplatesAsync(Guid userId, CancellationToken ct = default);
     Task<TaskTemplateDto> UpdateTemplateAsync(Guid templateId, CreateTaskTemplateRequest req, Guid userId, CancellationToken ct = default);
     Task DeleteTemplateAsync(Guid templateId, Guid userId, CancellationToken ct = default);
+
+    // --- FR-TASK-01.2: Действия по статусам ---
+
+    /// <summary>Возвращает список допустимых действий для актора над задачей.</summary>
+    Task<IReadOnlyList<TaskAllowedActionDto>> GetAllowedActionsAsync(Guid taskId, Guid actorId, bool isAdmin, CancellationToken ct = default);
+
+    /// <summary>Начать работу: New/Read → InProgress. Доступно исполнителю, соисполнителю, Admin.</summary>
+    Task<TaskDto> StartWorkAsync(Guid taskId, Guid actorId, CancellationToken ct = default);
+
+    /// <summary>Сделано: InProgress → Done / DoneNeedsControl. Доступно исполнителю, соисполнителю, Admin.</summary>
+    Task<TaskDto> MarkDoneAsync(Guid taskId, Guid actorId, CancellationToken ct = default);
+
+    /// <summary>Невозможно выполнить: InProgress → CannotDo / CannotDoNeedsControl. Доступно исполнителю, соисполнителю, Admin.</summary>
+    Task<TaskDto> MarkCannotDoAsync(Guid taskId, Guid actorId, CancellationToken ct = default);
+
+    /// <summary>Закрыть (отменить): не-финальный → Closed. Доступно автору и Admin.</summary>
+    Task<TaskDto> CloseAsync(Guid taskId, Guid actorId, bool isAdmin, CancellationToken ct = default);
+
+    /// <summary>Отложить: не-финальный → Postponed + PostponedUntil. Доступно исполнителю и Admin.</summary>
+    Task<TaskDto> PostponeAsync(Guid taskId, PostponeTaskRequest req, Guid actorId, bool isAdmin, CancellationToken ct = default);
+
+    /// <summary>Принять контроль: DoneNeedsControl/CannotDoNeedsControl → *Controlled. Доступно контролёру и Admin.</summary>
+    Task<TaskDto> AcceptControlAsync(Guid taskId, Guid actorId, bool isAdmin, CancellationToken ct = default);
+
+    /// <summary>Вернуть на доработку: DoneNeedsControl/CannotDoNeedsControl → New. Доступно контролёру и Admin.</summary>
+    Task<TaskDto> ReturnToWorkAsync(Guid taskId, Guid actorId, bool isAdmin, CancellationToken ct = default);
 }

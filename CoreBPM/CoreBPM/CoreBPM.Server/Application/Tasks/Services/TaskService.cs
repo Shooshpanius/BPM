@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.EntityFrameworkCore;
+using CoreBPM.Server.Application.Bpm.Interfaces;
 using CoreBPM.Server.Application.Tasks.DTOs;
 using CoreBPM.Server.Application.Tasks.Interfaces;
 using CoreBPM.Server.Domain.Tasks;
@@ -9,12 +10,25 @@ using TaskStatus = CoreBPM.Server.Domain.Tasks.TaskStatus;
 
 namespace CoreBPM.Server.Application.Tasks.Services;
 
-/// <summary>Реализация сервиса задач (FR-TASK-01.1).</summary>
+/// <summary>Реализация сервиса задач (FR-TASK-01.1, FR-TASK-01.2).</summary>
 public class TaskService : ITaskService
 {
     private readonly AppDbContext _db;
+    private readonly IBpmNotificationService _notifications;
 
-    public TaskService(AppDbContext db) => _db = db;
+    /// <summary>Финальные статусы — задача не может перейти в следующий статус из этих.</summary>
+    private static readonly HashSet<TaskStatus> FinalStatuses = new()
+    {
+        TaskStatus.Done, TaskStatus.DoneControlled,
+        TaskStatus.CannotDo, TaskStatus.CannotDoControlled,
+        TaskStatus.Closed,
+    };
+
+    public TaskService(AppDbContext db, IBpmNotificationService notifications)
+    {
+        _db = db;
+        _notifications = notifications;
+    }
 
     /// <inheritdoc/>
     public async Task<TaskDto> CreateAsync(CreateTaskRequest req, Guid authorId, CancellationToken ct = default)
@@ -580,4 +594,269 @@ public class TaskService : ITaskService
             try { tags = System.Text.Json.JsonSerializer.Deserialize<List<string>>(t.TagsJson) ?? new(); } catch { }
         return new TaskTemplateDto { Id = t.Id, Name = t.Name, DefaultAssigneeUserId = t.DefaultAssigneeUserId, DefaultAssigneeName = assigneeName, DefaultPriority = t.DefaultPriority.ToString(), DefaultCategoryId = t.DefaultCategoryId, Description = t.Description, ControlType = t.ControlType.ToString(), PlannedEffortMinutes = t.PlannedEffortMinutes, Tags = tags, IsPublic = t.IsPublic, CreatedByUserId = t.CreatedByUserId, CreatedAt = t.CreatedAt };
     }
+
+    // ─── FR-TASK-01.2: действия по статусам ────────────────────────────────────
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<TaskAllowedActionDto>> GetAllowedActionsAsync(
+        Guid taskId, Guid actorId, bool isAdmin, CancellationToken ct = default)
+    {
+        var task = await _db.TaskItems.AsNoTracking()
+            .Include(t => t.Participants)
+            .FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+
+        var status = task.Status;
+        var isAssignee = task.AssigneeUserId == actorId;
+        var isAuthor = task.AuthorUserId == actorId;
+        var isController = task.ControllerUserId == actorId;
+        var isAssigneeOrCo = IsAssigneeOrCoExecutor(task, actorId);
+
+        var actions = new List<TaskAllowedActionDto>();
+
+        if ((status == TaskStatus.New || status == TaskStatus.Read) && (isAssigneeOrCo || isAdmin))
+            actions.Add(new TaskAllowedActionDto { Action = "start", Label = "Начать работу" });
+
+        if (status == TaskStatus.InProgress && (isAssigneeOrCo || isAdmin))
+        {
+            actions.Add(new TaskAllowedActionDto { Action = "done", Label = "Сделано" });
+            actions.Add(new TaskAllowedActionDto { Action = "cannot-do", Label = "Невозможно выполнить" });
+        }
+
+        if (!FinalStatuses.Contains(status) && (isAuthor || isAdmin))
+            actions.Add(new TaskAllowedActionDto { Action = "close", Label = "Закрыть" });
+
+        if (!FinalStatuses.Contains(status) && status != TaskStatus.Postponed && (isAssignee || isAdmin))
+            actions.Add(new TaskAllowedActionDto { Action = "postpone", Label = "Отложить" });
+
+        if ((status == TaskStatus.DoneNeedsControl || status == TaskStatus.CannotDoNeedsControl) && (isController || isAdmin))
+        {
+            actions.Add(new TaskAllowedActionDto { Action = "accept-control", Label = "Принять контроль" });
+            actions.Add(new TaskAllowedActionDto { Action = "return", Label = "Вернуть на доработку" });
+        }
+
+        return actions;
+    }
+
+    /// <inheritdoc/>
+    public async Task<TaskDto> StartWorkAsync(Guid taskId, Guid actorId, CancellationToken ct = default)
+    {
+        var task = await _db.TaskItems.Include(t => t.Participants)
+            .FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+
+        if (task.Status != TaskStatus.New && task.Status != TaskStatus.Read)
+            throw new ValidationException($"Нельзя начать работу над задачей в статусе «{task.Status}».");
+
+        if (!IsAssigneeOrCoExecutor(task, actorId))
+            throw new ValidationException("Только исполнитель или соисполнитель может начать работу по задаче.");
+
+        var now = DateTimeOffset.UtcNow;
+        var oldStatus = task.Status;
+        task.Status = TaskStatus.InProgress;
+        task.UpdatedAt = now;
+        AddStatusHistory(task.Id, actorId, oldStatus, TaskStatus.InProgress, now);
+        await _db.SaveChangesAsync(ct);
+        return await BuildDtoAsync(taskId, ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<TaskDto> MarkDoneAsync(Guid taskId, Guid actorId, CancellationToken ct = default)
+    {
+        var task = await _db.TaskItems.Include(t => t.Participants)
+            .FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+
+        if (task.Status != TaskStatus.InProgress)
+            throw new ValidationException($"Нельзя выполнить задачу в статусе «{task.Status}».");
+
+        if (!IsAssigneeOrCoExecutor(task, actorId))
+            throw new ValidationException("Только исполнитель или соисполнитель может выполнить задачу.");
+
+        var now = DateTimeOffset.UtcNow;
+        var oldStatus = task.Status;
+        var newStatus = (task.ControlType == TaskControlType.ControlAfterExecution || task.ControlType == TaskControlType.CurrentControl)
+            ? TaskStatus.DoneNeedsControl
+            : TaskStatus.Done;
+
+        task.Status = newStatus;
+        task.UpdatedAt = now;
+        AddStatusHistory(task.Id, actorId, oldStatus, newStatus, now);
+        await _db.SaveChangesAsync(ct);
+
+        // Уведомление наблюдателям при финальном статусе
+        if (newStatus == TaskStatus.Done)
+            await NotifyObserversAsync(task, "TaskCompleted", ct);
+
+        return await BuildDtoAsync(taskId, ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<TaskDto> MarkCannotDoAsync(Guid taskId, Guid actorId, CancellationToken ct = default)
+    {
+        var task = await _db.TaskItems.Include(t => t.Participants)
+            .FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+
+        if (task.Status != TaskStatus.InProgress)
+            throw new ValidationException($"Нельзя отметить «Невозможно» задачу в статусе «{task.Status}».");
+
+        if (!IsAssigneeOrCoExecutor(task, actorId))
+            throw new ValidationException("Только исполнитель или соисполнитель может отметить задачу как невыполнимую.");
+
+        var now = DateTimeOffset.UtcNow;
+        var oldStatus = task.Status;
+        var newStatus = (task.ControlType == TaskControlType.ControlAfterExecution || task.ControlType == TaskControlType.CurrentControl)
+            ? TaskStatus.CannotDoNeedsControl
+            : TaskStatus.CannotDo;
+
+        task.Status = newStatus;
+        task.UpdatedAt = now;
+        AddStatusHistory(task.Id, actorId, oldStatus, newStatus, now);
+        await _db.SaveChangesAsync(ct);
+
+        if (newStatus == TaskStatus.CannotDo)
+            await NotifyObserversAsync(task, "TaskCompleted", ct);
+
+        return await BuildDtoAsync(taskId, ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<TaskDto> CloseAsync(Guid taskId, Guid actorId, bool isAdmin, CancellationToken ct = default)
+    {
+        var task = await _db.TaskItems.Include(t => t.Participants)
+            .FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+
+        if (FinalStatuses.Contains(task.Status))
+            throw new ValidationException($"Нельзя закрыть задачу в финальном статусе «{task.Status}».");
+
+        if (task.AuthorUserId != actorId && !isAdmin)
+            throw new ValidationException("Только автор задачи или администратор может закрыть задачу.");
+
+        var now = DateTimeOffset.UtcNow;
+        var oldStatus = task.Status;
+        task.Status = TaskStatus.Closed;
+        task.UpdatedAt = now;
+        AddStatusHistory(task.Id, actorId, oldStatus, TaskStatus.Closed, now);
+        await _db.SaveChangesAsync(ct);
+
+        await NotifyObserversAsync(task, "TaskCompleted", ct);
+        return await BuildDtoAsync(taskId, ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<TaskDto> PostponeAsync(
+        Guid taskId, PostponeTaskRequest req, Guid actorId, bool isAdmin, CancellationToken ct = default)
+    {
+        var task = await _db.TaskItems.Include(t => t.Participants)
+            .FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+
+        if (FinalStatuses.Contains(task.Status))
+            throw new ValidationException($"Нельзя отложить задачу в финальном статусе «{task.Status}».");
+        if (task.Status == TaskStatus.Postponed)
+            throw new ValidationException("Задача уже отложена.");
+
+        if (!IsAssigneeOrCoExecutor(task, actorId) && !isAdmin)
+            throw new ValidationException("Только исполнитель, соисполнитель или администратор может отложить задачу.");
+
+        if (req.PostponeUntil <= DateTimeOffset.UtcNow)
+            throw new ValidationException("Дата откладывания должна быть в будущем.");
+
+        var now = DateTimeOffset.UtcNow;
+        var oldStatus = task.Status;
+        task.Status = TaskStatus.Postponed;
+        task.PostponedUntil = req.PostponeUntil;
+        task.UpdatedAt = now;
+        AddStatusHistory(task.Id, actorId, oldStatus, TaskStatus.Postponed, now);
+
+        if (!string.IsNullOrWhiteSpace(req.Comment))
+            _db.TaskComments.Add(new TaskComment { Id = Guid.NewGuid(), TaskId = taskId, AuthorUserId = actorId, Body = req.Comment.Trim(), CreatedAt = now });
+
+        await _db.SaveChangesAsync(ct);
+        return await BuildDtoAsync(taskId, ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<TaskDto> AcceptControlAsync(Guid taskId, Guid actorId, bool isAdmin, CancellationToken ct = default)
+    {
+        var task = await _db.TaskItems.Include(t => t.Participants)
+            .FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+
+        if (task.Status != TaskStatus.DoneNeedsControl && task.Status != TaskStatus.CannotDoNeedsControl)
+            throw new ValidationException($"Принять контроль нельзя для задачи в статусе «{task.Status}».");
+
+        if (task.ControllerUserId != actorId && !isAdmin)
+            throw new ValidationException("Только контролёр или администратор может принять контроль.");
+
+        var now = DateTimeOffset.UtcNow;
+        var oldStatus = task.Status;
+        var newStatus = task.Status == TaskStatus.DoneNeedsControl
+            ? TaskStatus.DoneControlled
+            : TaskStatus.CannotDoControlled;
+
+        task.Status = newStatus;
+        task.UpdatedAt = now;
+        AddStatusHistory(task.Id, actorId, oldStatus, newStatus, now);
+        await _db.SaveChangesAsync(ct);
+
+        await NotifyObserversAsync(task, "TaskCompleted", ct);
+        return await BuildDtoAsync(taskId, ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<TaskDto> ReturnToWorkAsync(Guid taskId, Guid actorId, bool isAdmin, CancellationToken ct = default)
+    {
+        var task = await _db.TaskItems.Include(t => t.Participants)
+            .FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+
+        if (task.Status != TaskStatus.DoneNeedsControl && task.Status != TaskStatus.CannotDoNeedsControl)
+            throw new ValidationException($"Вернуть на доработку нельзя задачу в статусе «{task.Status}».");
+
+        if (task.ControllerUserId != actorId && !isAdmin)
+            throw new ValidationException("Только контролёр или администратор может вернуть задачу на доработку.");
+
+        var now = DateTimeOffset.UtcNow;
+        var oldStatus = task.Status;
+        task.Status = TaskStatus.New;
+        task.UpdatedAt = now;
+        AddStatusHistory(task.Id, actorId, oldStatus, TaskStatus.New, now);
+        await _db.SaveChangesAsync(ct);
+        return await BuildDtoAsync(taskId, ct);
+    }
+
+    private void AddStatusHistory(Guid taskId, Guid actorId, TaskStatus from, TaskStatus to, DateTimeOffset now)
+    {
+        _db.TaskHistoryEntries.Add(new TaskHistoryEntry
+        {
+            Id = Guid.NewGuid(),
+            TaskId = taskId,
+            ActorUserId = actorId,
+            Action = TaskHistoryAction.StatusChanged,
+            FieldName = "Status",
+            OldValue = from.ToString(),
+            NewValue = to.ToString(),
+            CreatedAt = now,
+        });
+    }
+
+    private async Task NotifyObserversAsync(TaskItem task, string eventType, CancellationToken ct)
+    {
+        var observerIds = task.Participants
+            .Where(p => p.Role == TaskParticipantRole.Observer)
+            .Select(p => p.UserId)
+            .ToList();
+
+        var payload = new { taskId = task.Id, subject = task.Subject, status = task.Status.ToString() };
+        foreach (var userId in observerIds)
+            await _notifications.NotifyUserAsync(userId, eventType, payload, ct);
+    }
+
+    /// <summary>Проверяет, является ли актор исполнителем или соисполнителем задачи.</summary>
+    private static bool IsAssigneeOrCoExecutor(TaskItem task, Guid actorId)
+        => task.AssigneeUserId == actorId
+           || task.Participants.Any(p => p.UserId == actorId && p.Role == TaskParticipantRole.CoExecutor);
 }

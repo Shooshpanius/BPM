@@ -63,6 +63,7 @@ public class AppDbContext : DbContext
     public DbSet<TaskTemplate> TaskTemplates => Set<TaskTemplate>();
     public DbSet<TaskHistoryEntry> TaskHistoryEntries => Set<TaskHistoryEntry>();
     public DbSet<TaskSavedFilter> TaskSavedFilters => Set<TaskSavedFilter>();
+    public DbSet<TaskSlaRule> TaskSlaRules => Set<TaskSlaRule>();
     public DbSet<DmnTable> DmnTables => Set<DmnTable>();
     public DbSet<DmnTableVersion> DmnTableVersions => Set<DmnTableVersion>();
     public DbSet<DmnColumn> DmnColumns => Set<DmnColumn>();

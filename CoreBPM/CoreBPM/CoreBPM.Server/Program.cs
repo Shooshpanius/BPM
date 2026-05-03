@@ -127,8 +127,9 @@ builder.Services.AddScoped<IBpmImprovementService, BpmImprovementService>();
 builder.Services.AddScoped<IBpmAnalyticsService, BpmAnalyticsService>();
 builder.Services.AddScoped<IDmnService, DmnService>();
 
-// Регистрация сервисов задач (FR-TASK-01.1)
+// Регистрация сервисов задач (FR-TASK-01.1, FR-TASK-01.2)
 builder.Services.AddScoped<ITaskService, TaskService>();
+builder.Services.AddScoped<ITaskSlaService, TaskSlaService>();
 
 // Регистрация сервисов Forms (конструктор форм задач FR-BPM-01.4)
 builder.Services.AddScoped<IFormService, FormService>();
@@ -140,6 +141,8 @@ builder.Services.AddScoped<IBpmExecutionEngine, BpmExecutionEngine>();
 builder.Services.AddHostedService<BpmEngineWorker>();
 builder.Services.AddHostedService<BpmSchedulerWorker>();
 builder.Services.AddHostedService<BpmKpiAlertWorker>();
+builder.Services.AddHostedService<TaskOverdueWorker>();
+builder.Services.AddHostedService<TaskPostponeWorker>();
 
 var app = builder.Build();
 
