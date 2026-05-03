@@ -576,8 +576,9 @@ export async function updateSeries(token: string, rootTaskId: string, req: Parti
 }
 
 /** Остановить серию периодических задач (FR-TASK-01.5.1). */
-export async function stopSeries(token: string, rootTaskId: string): Promise<void> {
-    await apiFetch<void>(token, `/api/tasks/${rootTaskId}/series`, { method: 'DELETE' });
+export async function stopSeries(token: string, rootTaskId: string, activeTaskAction?: string): Promise<void> {
+    const params = activeTaskAction ? `?action=${encodeURIComponent(activeTaskAction)}` : '';
+    await apiFetch<void>(token, `/api/tasks/${rootTaskId}/series${params}`, { method: 'DELETE' });
 }
 
 /** Создать задачу по резолюции документа (FR-TASK-01.5.3). */

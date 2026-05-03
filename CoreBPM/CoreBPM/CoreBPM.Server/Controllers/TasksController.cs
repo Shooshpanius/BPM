@@ -508,13 +508,14 @@ public class TasksController : ControllerBase
     }
 
     /// <summary>Остановить серию периодических задач.</summary>
+    /// <param name="action">Действие с активными экземплярами: пусто — оставить; ForceComplete — завершить; Delete — удалить.</param>
     [HttpDelete("api/tasks/{id:guid}/series")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public async Task<IActionResult> StopSeries(Guid id, CancellationToken ct)
+    public async Task<IActionResult> StopSeries(Guid id, [FromQuery] string? action, CancellationToken ct)
     {
         var userId = GetCurrentUserId();
         if (userId == null) return Unauthorized();
-        await _service.StopSeriesAsync(id, userId.Value, User.IsInRole("Admin"), ct);
+        await _service.StopSeriesAsync(id, userId.Value, User.IsInRole("Admin"), action, ct);
         return NoContent();
     }
 

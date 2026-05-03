@@ -113,7 +113,8 @@ public interface ITaskService
     Task<TaskRecurrenceDto> UpdateSeriesAsync(Guid rootTaskId, UpdateSeriesRequest req, Guid actorId, bool isAdmin, CancellationToken ct = default);
 
     /// <summary>Остановить серию периодических задач (FR-TASK-01.5.1).</summary>
-    Task StopSeriesAsync(Guid rootTaskId, Guid actorId, bool isAdmin, CancellationToken ct = default);
+    /// <param name="activeTaskAction">Действие с активными экземплярами: null — оставить; "ForceComplete" — завершить; "Delete" — удалить.</param>
+    Task StopSeriesAsync(Guid rootTaskId, Guid actorId, bool isAdmin, string? activeTaskAction = null, CancellationToken ct = default);
 
     /// <summary>Получить список экземпляров серии периодических задач (FR-TASK-01.5.1).</summary>
     Task<IReadOnlyList<PeriodicSeriesItemDto>> GetSeriesItemsAsync(Guid rootTaskId, bool activeOnly, CancellationToken ct = default);

@@ -812,6 +812,11 @@ public class TaskService : ITaskService
             await _notifications.NotifyUserAsync(task.ControllerUserId.Value, "TaskDoneNotification",
                 new { taskId = task.Id, number = task.Number, subject = task.Subject }, ct);
 
+        // FR-TASK-01.5.3: уведомить автора резолюции при выполнении задачи по резолюции документа
+        if (task.Kind == TaskKind.Resolution && task.AuthorUserId != actorId)
+            await _notifications.NotifyUserAsync(task.AuthorUserId, "ResolutionTaskDone",
+                new { taskId = task.Id, number = task.Number, subject = task.Subject, documentId = task.DocumentId }, ct);
+
         return await BuildDtoAsync(taskId, ct);
     }
 
@@ -1508,7 +1513,7 @@ public class TaskService : ITaskService
     }
 
     /// <inheritdoc/>
-    public async Task StopSeriesAsync(Guid rootTaskId, Guid actorId, bool isAdmin, CancellationToken ct = default)
+    public async Task StopSeriesAsync(Guid rootTaskId, Guid actorId, bool isAdmin, string? activeTaskAction = null, CancellationToken ct = default)
     {
         var root = await _db.TaskItems.AsNoTracking().FirstOrDefaultAsync(t => t.Id == rootTaskId, ct)
             ?? throw new NotFoundException($"Задача {rootTaskId} не найдена.");
@@ -1519,6 +1524,41 @@ public class TaskService : ITaskService
             ?? throw new NotFoundException($"Серия для задачи {rootTaskId} не найдена.");
         rec.IsActive = false;
         rec.UpdatedAt = DateTimeOffset.UtcNow;
+
+        // FR-TASK-01.5.1: обработка активных экземпляров серии
+        if (!string.IsNullOrEmpty(activeTaskAction))
+        {
+            var activeItems = await _db.TaskItems
+                .Where(t =>
+                    (t.SeriesId == rec.Id || t.Id == rootTaskId)
+                    && t.Status != Domain.Tasks.TaskStatus.Done
+                    && t.Status != Domain.Tasks.TaskStatus.Closed
+                    && t.Status != Domain.Tasks.TaskStatus.CannotDo)
+                .ToListAsync(ct);
+
+            var now = DateTimeOffset.UtcNow;
+            if (activeTaskAction == "ForceComplete")
+            {
+                foreach (var item in activeItems)
+                {
+                    var oldStatus = item.Status;
+                    item.Status = Domain.Tasks.TaskStatus.Done;
+                    item.UpdatedAt = now;
+                    _db.TaskHistoryEntries.Add(new TaskHistoryEntry
+                    {
+                        Id = Guid.NewGuid(), TaskId = item.Id, ActorUserId = actorId,
+                        Action = TaskHistoryAction.StatusChanged,
+                        OldValue = oldStatus.ToString(), NewValue = Domain.Tasks.TaskStatus.Done.ToString(),
+                        CreatedAt = now,
+                    });
+                }
+            }
+            else if (activeTaskAction == "Delete")
+            {
+                _db.TaskItems.RemoveRange(activeItems);
+            }
+        }
+
         await _db.SaveChangesAsync(ct);
     }
 
@@ -1641,6 +1681,15 @@ public class TaskService : ITaskService
         // Проверяем условие завершения серии
         if (rec.EndCondition == TaskSeriesEndCondition.ByDate && rec.EndDate.HasValue && DateTimeOffset.UtcNow >= rec.EndDate.Value)
             return null;
+
+        // FR-TASK-01.5.1: не создавать экземпляр, если исполнитель заблокирован (IsActive = false)
+        if (rec.RootTask.AssigneeUserId != Guid.Empty)
+        {
+            var assignee = await _db.OrgUsers.AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Id == rec.RootTask.AssigneeUserId, ct);
+            if (assignee != null && !assignee.IsActive)
+                return null;
+        }
 
         // Находим последний экземпляр серии
         var lastInstance = await _db.TaskItems.AsNoTracking()

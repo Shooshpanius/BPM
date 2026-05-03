@@ -14,6 +14,51 @@ interface PeriodicTasksPageProps {
 
 type TabId = 'active' | 'completed';
 
+/** Диалог выбора действия при остановке серии (FR-TASK-01.5.1). */
+function StopSeriesDialog({ onClose, onConfirm }: { onClose: () => void; onConfirm: (action: string) => void }) {
+    return (
+        <div style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000,
+        }}>
+            <div style={{
+                background: '#fff', borderRadius: '10px', padding: '28px 32px',
+                minWidth: '360px', boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+            }}>
+                <h3 style={{ margin: '0 0 12px' }}>Остановить серию</h3>
+                <p style={{ margin: '0 0 20px', color: '#555', fontSize: '14px' }}>
+                    Что сделать с активными экземплярами задач серии?
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <button
+                        onClick={() => onConfirm('')}
+                        style={{ padding: '10px 16px', background: '#fafafa', border: '1px solid #d9d9d9', borderRadius: '6px', cursor: 'pointer', textAlign: 'left' }}>
+                        <strong>Оставить активными</strong>
+                        <div style={{ fontSize: '12px', color: '#888' }}>Активные задачи останутся без изменений</div>
+                    </button>
+                    <button
+                        onClick={() => onConfirm('ForceComplete')}
+                        style={{ padding: '10px 16px', background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: '6px', cursor: 'pointer', textAlign: 'left' }}>
+                        <strong>Принудительно завершить</strong>
+                        <div style={{ fontSize: '12px', color: '#888' }}>Все активные задачи будут переведены в статус «Выполнено»</div>
+                    </button>
+                    <button
+                        onClick={() => onConfirm('Delete')}
+                        style={{ padding: '10px 16px', background: '#fff1f0', border: '1px solid #ffa39e', borderRadius: '6px', cursor: 'pointer', textAlign: 'left' }}>
+                        <strong>Удалить активные</strong>
+                        <div style={{ fontSize: '12px', color: '#888' }}>Незавершённые задачи будут удалены</div>
+                    </button>
+                </div>
+                <button
+                    onClick={onClose}
+                    style={{ marginTop: '16px', width: '100%', padding: '8px', background: 'none', border: '1px solid #d9d9d9', borderRadius: '6px', cursor: 'pointer', color: '#555' }}>
+                    Отмена
+                </button>
+            </div>
+        </div>
+    );
+}
+
 /** Страница периодических задач (FR-TASK-01.5.1). */
 export function PeriodicTasksPage({ onOpenTask }: PeriodicTasksPageProps) {
     const { accessToken: token, userId } = useAuth();
@@ -26,6 +71,7 @@ export function PeriodicTasksPage({ onOpenTask }: PeriodicTasksPageProps) {
     const [error, setError] = useState<string | null>(null);
 
     const [showCreate, setShowCreate] = useState(false);
+    const [stopDialogTaskId, setStopDialogTaskId] = useState<string | null>(null);
 
     const load = useCallback(async () => {
         if (!token) return;
@@ -60,9 +106,15 @@ export function PeriodicTasksPage({ onOpenTask }: PeriodicTasksPageProps) {
 
     const handleStopSeries = async (rootTaskId: string) => {
         if (!token) return;
-        if (!window.confirm('Остановить серию периодических задач?')) return;
+        // FR-TASK-01.5.1: открываем диалог выбора действия для активных экземпляров
+        setStopDialogTaskId(rootTaskId);
+    };
+
+    const handleStopConfirm = async (action: string) => {
+        if (!token || !stopDialogTaskId) return;
+        setStopDialogTaskId(null);
         try {
-            await stopSeries(token, rootTaskId);
+            await stopSeries(token, stopDialogTaskId, action || undefined);
             load();
         } catch (e: any) {
             alert(e.message);
@@ -73,6 +125,12 @@ export function PeriodicTasksPage({ onOpenTask }: PeriodicTasksPageProps) {
 
     return (
         <div style={{ padding: '24px' }}>
+            {stopDialogTaskId && (
+                <StopSeriesDialog
+                    onClose={() => setStopDialogTaskId(null)}
+                    onConfirm={handleStopConfirm}
+                />
+            )}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
                 <h2 style={{ margin: 0 }}>Периодические задачи</h2>
                 <button
