@@ -320,7 +320,7 @@ function CreatePeriodicTaskDialog({ token, userId, onClose, onCreated }: CreateP
                     <span style={{ fontSize: '13px', color: '#888' }}>Исполнитель</span>
                     <select value={assigneeId} onChange={e => setAssigneeId(e.target.value)}
                         style={{ display: 'block', width: '100%', marginTop: '4px', padding: '8px', border: '1px solid #d9d9d9', borderRadius: '6px' }}>
-                        {employees.map(e => <option key={e.id} value={e.id}>{e.displayName}</option>)}
+                        {employees.map(e => <option key={e.userId} value={e.userId}>{e.displayName}</option>)}
                     </select>
                 </label>
 
