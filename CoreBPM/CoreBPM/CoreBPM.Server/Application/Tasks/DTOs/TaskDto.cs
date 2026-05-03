@@ -17,6 +17,8 @@ public class TaskDto
     public DateTimeOffset DueDate { get; set; }
     public string DateCorrectionMode { get; set; } = string.Empty;
     public int? PlannedEffortMinutes { get; set; }
+    /// <summary>Фактические трудозатраты — сумма всех записей (FR-TASK-01.4).</summary>
+    public int ActualEffortMinutes { get; set; }
     public string ControlType { get; set; } = string.Empty;
     public Guid? ControllerUserId { get; set; }
     public string? ControllerName { get; set; }

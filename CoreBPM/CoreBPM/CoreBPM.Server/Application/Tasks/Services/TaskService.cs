@@ -571,6 +571,11 @@ public class TaskService : ITaskService
             .Where(u => participantUserIds.Contains(u.Id))
             .ToDictionaryAsync(u => u.Id, u => u.DisplayName, ct);
 
+        // Фактические трудозатраты — сумма по task_timelogs (FR-TASK-01.4)
+        var actualEffort = await _db.TaskTimeLogs.AsNoTracking()
+            .Where(l => l.TaskId == taskId)
+            .SumAsync(l => (int?)l.DurationMinutes, ct) ?? 0;
+
         return new TaskDto
         {
             Id = task.Id,
@@ -588,6 +593,7 @@ public class TaskService : ITaskService
             DueDate = task.DueDate,
             DateCorrectionMode = task.DateCorrectionMode.ToString(),
             PlannedEffortMinutes = task.PlannedEffortMinutes,
+            ActualEffortMinutes = actualEffort,
             ControlType = task.ControlType.ToString(),
             ControllerUserId = task.ControllerUserId,
             ControllerName = controllerName,
@@ -756,6 +762,11 @@ public class TaskService : ITaskService
         if (newStatus == TaskStatus.Done)
             await NotifyObserversAsync(task, "TaskCompleted", ct);
 
+        // FR-TASK-01.4: «Оповещать при выполнении» — уведомить контролёра-наблюдателя
+        if (task.ControlType == TaskControlType.NotifyOnCompletion && task.ControllerUserId.HasValue)
+            await _notifications.NotifyUserAsync(task.ControllerUserId.Value, "TaskDoneNotification",
+                new { taskId = task.Id, number = task.Number, subject = task.Subject }, ct);
+
         return await BuildDtoAsync(taskId, ct);
     }
 
@@ -785,6 +796,11 @@ public class TaskService : ITaskService
 
         if (newStatus == TaskStatus.CannotDo)
             await NotifyObserversAsync(task, "TaskCompleted", ct);
+
+        // FR-TASK-01.4: «Оповещать при выполнении» — уведомить контролёра-наблюдателя
+        if (task.ControlType == TaskControlType.NotifyOnCompletion && task.ControllerUserId.HasValue)
+            await _notifications.NotifyUserAsync(task.ControllerUserId.Value, "TaskDoneNotification",
+                new { taskId = task.Id, number = task.Number, subject = task.Subject }, ct);
 
         return await BuildDtoAsync(taskId, ct);
     }
@@ -1140,6 +1156,121 @@ public class TaskService : ITaskService
             LastDecisionComment = lastComment,
             LastDecisionAt = lastDecision?.CreatedAt,
         };
+    }
+
+    // ─── FR-TASK-01.4: Контроль и трудозатраты ───────────────────────────────
+
+    /// <inheritdoc/>
+    public async Task<TaskDto> UpdateControlAsync(Guid taskId, UpdateControlRequest req, Guid actorId, bool isAdmin, CancellationToken ct = default)
+    {
+        var task = await _db.TaskItems
+            .FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+
+        if (task.AuthorUserId != actorId && task.ControllerUserId != actorId && !isAdmin)
+            throw new ValidationException("Изменить контроль может только автор, текущий контролёр или администратор.");
+
+        var now = DateTimeOffset.UtcNow;
+
+        if (req.ControlType != null && Enum.TryParse<TaskControlType>(req.ControlType, true, out var ct2) && ct2 != task.ControlType)
+        {
+            _db.TaskHistoryEntries.Add(new TaskHistoryEntry
+            {
+                Id = Guid.NewGuid(), TaskId = taskId, ActorUserId = actorId,
+                Action = TaskHistoryAction.Updated, FieldName = "ControlType",
+                OldValue = task.ControlType.ToString(), NewValue = ct2.ToString(), CreatedAt = now,
+            });
+            task.ControlType = ct2;
+        }
+
+        // req.ControllerUserId: null = снять контролёра, значение = назначить
+        if (req.ControllerUserId != task.ControllerUserId)
+        {
+            _db.TaskHistoryEntries.Add(new TaskHistoryEntry
+            {
+                Id = Guid.NewGuid(), TaskId = taskId, ActorUserId = actorId,
+                Action = TaskHistoryAction.Updated, FieldName = "ControllerUserId",
+                OldValue = task.ControllerUserId?.ToString(), NewValue = req.ControllerUserId?.ToString(), CreatedAt = now,
+            });
+            task.ControllerUserId = req.ControllerUserId;
+        }
+
+        task.UpdatedAt = now;
+        await _db.SaveChangesAsync(ct);
+        return await BuildDtoAsync(taskId, ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<TaskTimeLogDto> AddTimeLogAsync(Guid taskId, AddTimeLogRequest req, Guid userId, CancellationToken ct = default)
+    {
+        _ = await _db.TaskItems.AsNoTracking().FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+
+        if (req.DurationMinutes <= 0)
+            throw new ValidationException("Длительность должна быть больше 0 минут.");
+
+        var now = DateTimeOffset.UtcNow;
+        var log = new TaskTimeLog
+        {
+            Id = Guid.NewGuid(),
+            TaskId = taskId,
+            UserId = userId,
+            ActivityTypeId = req.ActivityTypeId,
+            DurationMinutes = req.DurationMinutes,
+            StartDate = req.StartDate == default ? now : req.StartDate,
+            Comment = req.Comment?.Trim(),
+            CreatedAt = now,
+        };
+        _db.TaskTimeLogs.Add(log);
+        await _db.SaveChangesAsync(ct);
+
+        var userName = await GetDisplayNameAsync(userId, ct);
+        string? activityTypeName = null;
+        if (req.ActivityTypeId.HasValue)
+            activityTypeName = (await _db.TaskActivityTypes.AsNoTracking()
+                .FirstOrDefaultAsync(a => a.Id == req.ActivityTypeId.Value, ct))?.Name;
+
+        return new TaskTimeLogDto
+        {
+            Id = log.Id, TaskId = taskId, UserId = userId, UserName = userName,
+            ActivityTypeId = req.ActivityTypeId, ActivityTypeName = activityTypeName,
+            DurationMinutes = req.DurationMinutes, StartDate = log.StartDate,
+            Comment = log.Comment, CreatedAt = log.CreatedAt,
+        };
+    }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<TaskTimeLogDto>> GetTimeLogsAsync(Guid taskId, CancellationToken ct = default)
+    {
+        _ = await _db.TaskItems.AsNoTracking().FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+
+        var logs = await _db.TaskTimeLogs.AsNoTracking()
+            .Where(l => l.TaskId == taskId)
+            .OrderBy(l => l.StartDate)
+            .ToListAsync(ct);
+
+        var userIds = logs.Select(l => l.UserId).Distinct().ToList();
+        var userNames = await _db.OrgUsers.AsNoTracking()
+            .Where(u => userIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => u.DisplayName, ct);
+
+        var activityIds = logs.Where(l => l.ActivityTypeId.HasValue).Select(l => l.ActivityTypeId!.Value).Distinct().ToList();
+        var activityNames = activityIds.Count > 0
+            ? await _db.TaskActivityTypes.AsNoTracking()
+                .Where(a => activityIds.Contains(a.Id))
+                .ToDictionaryAsync(a => a.Id, a => a.Name, ct)
+            : new Dictionary<Guid, string>();
+
+        return logs.Select(l => new TaskTimeLogDto
+        {
+            Id = l.Id, TaskId = l.TaskId, UserId = l.UserId,
+            UserName = userNames.GetValueOrDefault(l.UserId, l.UserId.ToString()),
+            ActivityTypeId = l.ActivityTypeId,
+            ActivityTypeName = l.ActivityTypeId.HasValue ? activityNames.GetValueOrDefault(l.ActivityTypeId.Value) : null,
+            DurationMinutes = l.DurationMinutes, StartDate = l.StartDate,
+            Comment = l.Comment, CreatedAt = l.CreatedAt,
+        }).ToList();
     }
 
     private void AddStatusHistory(Guid taskId, Guid actorId, TaskStatus from, TaskStatus to, DateTimeOffset now)

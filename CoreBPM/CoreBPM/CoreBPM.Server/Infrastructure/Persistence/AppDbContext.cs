@@ -64,6 +64,8 @@ public class AppDbContext : DbContext
     public DbSet<TaskHistoryEntry> TaskHistoryEntries => Set<TaskHistoryEntry>();
     public DbSet<TaskSavedFilter> TaskSavedFilters => Set<TaskSavedFilter>();
     public DbSet<TaskSlaRule> TaskSlaRules => Set<TaskSlaRule>();
+    public DbSet<TaskActivityType> TaskActivityTypes => Set<TaskActivityType>();
+    public DbSet<TaskTimeLog> TaskTimeLogs => Set<TaskTimeLog>();
     public DbSet<DmnTable> DmnTables => Set<DmnTable>();
     public DbSet<DmnTableVersion> DmnTableVersions => Set<DmnTableVersion>();
     public DbSet<DmnColumn> DmnColumns => Set<DmnColumn>();
@@ -1120,6 +1122,24 @@ public class AppDbContext : DbContext
             e.HasIndex(f => f.UserId);
             e.Property(f => f.Name).HasMaxLength(200);
             e.Property(f => f.FilterJson).HasColumnType("jsonb");
+        });
+
+        modelBuilder.Entity<TaskActivityType>(e =>
+        {
+            e.ToTable("task_activity_types");
+            e.HasKey(a => a.Id);
+            e.Property(a => a.Name).IsRequired().HasMaxLength(200);
+        });
+
+        modelBuilder.Entity<TaskTimeLog>(e =>
+        {
+            e.ToTable("task_timelogs");
+            e.HasKey(l => l.Id);
+            e.HasIndex(l => l.TaskId);
+            e.HasIndex(l => l.UserId);
+            e.HasOne(l => l.Task).WithMany(t => t.TimeLogs)
+                .HasForeignKey(l => l.TaskId).OnDelete(DeleteBehavior.Cascade);
+            e.Property(l => l.Comment).HasMaxLength(1000);
         });
     }
 }

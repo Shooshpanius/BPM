@@ -6,12 +6,13 @@ import {
     getTaskRelations, addTaskRelation, removeTaskRelation,
     getTaskHistory, copyTask, reassignTask, createSubtask, listTasks,
     getAllowedActions, approvePreTask, rejectPreTask, sendTaskForApproval, approveTask, rejectTask,
+    getTaskTimeLogs, addTaskTimeLog,
     TASK_STATUS_LABELS, TASK_PRIORITY_LABELS,
 } from '../../api/tasksApi';
 import type {
     TaskDto, TaskCommentDto, TaskAttachmentDto,
     TaskRelationDto, TaskParticipantDto, TaskHistoryEntryDto,
-    TaskSummaryDto,
+    TaskSummaryDto, TaskTimeLogDto,
 } from '../../api/tasksApi';
 import { getDirectoryEmployees } from '../../api/orgDirectoryApi';
 import type { DirectoryEmployeeDto } from '../../api/orgDirectoryApi';
@@ -22,7 +23,7 @@ interface TaskDetailPageProps {
     onBack: () => void;
 }
 
-type TabId = 'description' | 'subtasks' | 'relations' | 'participants';
+type TabId = 'description' | 'subtasks' | 'relations' | 'participants' | 'timelogs';
 
 const RELATION_LABELS: Record<string, string> = {
     DependsOn: 'Зависит от', Blocks: 'Блокирует', RelatedTo: 'Связана с',
@@ -47,6 +48,14 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
     const [participants, setParticipants] = useState<TaskParticipantDto[]>([]);
     const [relations, setRelations] = useState<TaskRelationDto[]>([]);
     const [subtasks, setSubtasks] = useState<TaskSummaryDto[]>([]);
+    const [timeLogs, setTimeLogs] = useState<TaskTimeLogDto[]>([]);
+
+    // ─── FR-TASK-01.4: Добавление трудозатрат ────────────────────────────────
+    const [showAddTimeLog, setShowAddTimeLog] = useState(false);
+    const [timeLogDuration, setTimeLogDuration] = useState('');
+    const [timeLogStartDate, setTimeLogStartDate] = useState('');
+    const [timeLogComment, setTimeLogComment] = useState('');
+    const [timeLogSaving, setTimeLogSaving] = useState(false);
 
     const [commentText, setCommentText] = useState('');
     const [commentSaving, setCommentSaving] = useState(false);
@@ -131,6 +140,8 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
             } else if (tab === 'subtasks') {
                 const all = await listTasks(token, {});
                 setSubtasks(all.filter((t: TaskSummaryDto) => t.id !== taskId));
+            } else if (tab === 'timelogs') {
+                setTimeLogs(await getTaskTimeLogs(token, taskId));
             }
         } catch { /* игнорируем */ }
     }, [token, taskId, tab]);
@@ -197,6 +208,33 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
             alert('Задача скопирована');
         } catch (e) {
             alert(e instanceof Error ? e.message : 'Ошибка');
+        }
+    };
+
+    // FR-TASK-01.4: добавить трудозатраты
+    const handleAddTimeLog = async () => {
+        if (!token || !timeLogDuration) return;
+        const mins = parseInt(timeLogDuration, 10);
+        if (isNaN(mins) || mins <= 0) { alert('Введите корректную длительность в минутах.'); return; }
+        setTimeLogSaving(true);
+        try {
+            const log = await addTaskTimeLog(token, taskId, {
+                durationMinutes: mins,
+                startDate: timeLogStartDate || new Date().toISOString(),
+                comment: timeLogComment || undefined,
+            });
+            setTimeLogs(prev => [...prev, log]);
+            setShowAddTimeLog(false);
+            setTimeLogDuration('');
+            setTimeLogStartDate('');
+            setTimeLogComment('');
+            // Обновить задачу, чтобы обновить actualEffortMinutes
+            const updated = await getTask(token, taskId);
+            setTask(updated);
+        } catch (e) {
+            alert(e instanceof Error ? e.message : 'Ошибка');
+        } finally {
+            setTimeLogSaving(false);
         }
     };
 
@@ -370,7 +408,15 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                     </span>
                 )}
                 {task.categoryId && <span className="task-detail__meta-item"><strong>Категория:</strong> {task.categoryId}</span>}
-                {task.plannedEffortMinutes && <span className="task-detail__meta-item"><strong>Трудозатраты:</strong> {task.plannedEffortMinutes} мин.</span>}
+                {task.plannedEffortMinutes && (
+                    <span className="task-detail__meta-item">
+                        <strong>Трудозатраты:</strong>{' '}
+                        {task.actualEffortMinutes > 0
+                            ? <>{task.actualEffortMinutes} / {task.plannedEffortMinutes} мин.</>
+                            : <>{task.plannedEffortMinutes} мин. (план)</>
+                        }
+                    </span>
+                )}
                 {task.tags.length > 0 && (
                     <span className="task-detail__meta-item">
                         <strong>Теги:</strong> {task.tags.map(tag => <span key={tag} className="task-detail__tag">{tag}</span>)}
@@ -397,6 +443,7 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                     { id: 'subtasks', label: `Подзадачи (${task.subtaskCount})` },
                     { id: 'relations', label: 'Связи' },
                     { id: 'participants', label: 'Участники' },
+                    { id: 'timelogs', label: 'Трудозатраты' },
                 ] as { id: TabId; label: string }[]).map(t => (
                     <button key={t.id} className={`task-detail__tab${tab === t.id ? ' task-detail__tab--active' : ''}`} onClick={() => setTab(t.id)}>{t.label}</button>
                 ))}
@@ -533,6 +580,49 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                                         </li>
                                     ))}
                                 </ul>
+                            )
+                        }
+                    </div>
+                )}
+
+                {/* ─── Трудозатраты ─── */}
+                {tab === 'timelogs' && (
+                    <div className="task-detail__tab-content">
+                        <div className="task-detail__section-header">
+                            <h4>Трудозатраты</h4>
+                            <button className="task-detail__btn" onClick={() => setShowAddTimeLog(true)}>+ Добавить</button>
+                        </div>
+                        {task.plannedEffortMinutes && (
+                            <div className="task-detail__effort-summary">
+                                <span>Плановые: <strong>{task.plannedEffortMinutes} мин.</strong></span>
+                                <span>Фактические: <strong>{task.actualEffortMinutes} мин.</strong></span>
+                            </div>
+                        )}
+                        {timeLogs.length === 0
+                            ? <div className="task-detail__empty">Трудозатраты не добавлены</div>
+                            : (
+                                <table className="task-detail__table">
+                                    <thead>
+                                        <tr>
+                                            <th>Дата</th>
+                                            <th>Сотрудник</th>
+                                            <th>Длительность</th>
+                                            <th>Вид деятельности</th>
+                                            <th>Комментарий</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {timeLogs.map(l => (
+                                            <tr key={l.id}>
+                                                <td>{new Date(l.startDate).toLocaleDateString('ru-RU')}</td>
+                                                <td>{l.userName}</td>
+                                                <td>{l.durationMinutes} мин.</td>
+                                                <td>{l.activityTypeName ?? '—'}</td>
+                                                <td>{l.comment ?? '—'}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
                             )
                         }
                     </div>
@@ -683,6 +773,32 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                         placeholder="Комментарий к решению (необязательно)"
                         value={approvalComment} onChange={e => setApprovalComment(e.target.value)} />
                     {approvalError && <p className="task-detail__error">{approvalError}</p>}
+                </div>
+            )}
+
+            {/* FR-TASK-01.4: Диалог добавления трудозатрат */}
+            {showAddTimeLog && (
+                <div className="task-detail__overlay" onClick={() => setShowAddTimeLog(false)}>
+                    <div className="task-detail__dialog" onClick={e => e.stopPropagation()}>
+                        <h3>Добавить трудозатраты</h3>
+                        <label className="task-detail__field-label">Длительность (мин.) *</label>
+                        <input className="task-detail__input" type="number" min="1" placeholder="Например, 60"
+                            value={timeLogDuration} onChange={e => setTimeLogDuration(e.target.value)} />
+                        <label className="task-detail__field-label">Дата начала</label>
+                        <input className="task-detail__input" type="datetime-local"
+                            value={timeLogStartDate}
+                            onChange={e => setTimeLogStartDate(e.target.value ? new Date(e.target.value).toISOString() : '')} />
+                        <label className="task-detail__field-label">Комментарий</label>
+                        <textarea className="task-detail__input" placeholder="Необязательно"
+                            value={timeLogComment} onChange={e => setTimeLogComment(e.target.value)} rows={2} />
+                        <div className="task-detail__dialog-footer">
+                            <button className="task-detail__btn task-detail__btn--primary" onClick={handleAddTimeLog}
+                                disabled={timeLogSaving || !timeLogDuration}>
+                                {timeLogSaving ? 'Сохранение...' : 'Добавить'}
+                            </button>
+                            <button className="task-detail__btn" onClick={() => setShowAddTimeLog(false)}>Отмена</button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

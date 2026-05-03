@@ -82,4 +82,15 @@ public interface ITaskService
 
     /// <summary>Получить текущее состояние согласования задачи.</summary>
     Task<TaskApprovalStateDto> GetApprovalStateAsync(Guid taskId, CancellationToken ct = default);
+
+    // ─── FR-TASK-01.4: Контроль и трудозатраты ───────────────────────────────
+
+    /// <summary>Изменить контролёра и/или тип контроля после создания задачи. Доступно автору, контролёру и Admin.</summary>
+    Task<TaskDto> UpdateControlAsync(Guid taskId, UpdateControlRequest req, Guid actorId, bool isAdmin, CancellationToken ct = default);
+
+    /// <summary>Добавить трудозатраты к задаче.</summary>
+    Task<TaskTimeLogDto> AddTimeLogAsync(Guid taskId, AddTimeLogRequest req, Guid userId, CancellationToken ct = default);
+
+    /// <summary>Получить журнал трудозатрат по задаче.</summary>
+    Task<IReadOnlyList<TaskTimeLogDto>> GetTimeLogsAsync(Guid taskId, CancellationToken ct = default);
 }

@@ -72,6 +72,8 @@ export interface TaskDto {
     dueDate: string;
     dateCorrectionMode: string;
     plannedEffortMinutes?: number;
+    /** FR-TASK-01.4: фактические трудозатраты (сумма timelogs, в минутах) */
+    actualEffortMinutes: number;
     controlType: string;
     controllerUserId?: string;
     controllerName?: string;
@@ -380,4 +382,69 @@ export async function rejectTask(token: string, id: string, comment?: string): P
 
 export async function getTaskApprovalState(token: string, id: string): Promise<TaskApprovalStateDto> {
     return apiFetch<TaskApprovalStateDto>(token, `/api/tasks/${id}/approval`);
+}
+
+// ─── FR-TASK-01.4: Контроль и трудозатраты ───────────────────────────────────
+
+export interface TaskTimeLogDto {
+    id: string;
+    taskId: string;
+    userId: string;
+    userName: string;
+    activityTypeId?: string;
+    activityTypeName?: string;
+    durationMinutes: number;
+    startDate: string;
+    comment?: string;
+    createdAt: string;
+}
+
+export interface TaskActivityTypeDto {
+    id: string;
+    name: string;
+    isActive: boolean;
+    createdAt: string;
+}
+
+/** Изменить контролёра и/или тип контроля задачи. */
+export async function updateTaskControl(
+    token: string,
+    id: string,
+    req: { controllerUserId?: string | null; controlType?: string },
+): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, `/api/tasks/${id}/control`, { method: 'PUT', body: JSON.stringify(req) });
+}
+
+/** Добавить трудозатраты к задаче. */
+export async function addTaskTimeLog(
+    token: string,
+    id: string,
+    req: { durationMinutes: number; startDate: string; activityTypeId?: string; comment?: string },
+): Promise<TaskTimeLogDto> {
+    return apiFetch<TaskTimeLogDto>(token, `/api/tasks/${id}/timelogs`, { method: 'POST', body: JSON.stringify(req) });
+}
+
+/** Получить журнал трудозатрат задачи. */
+export async function getTaskTimeLogs(token: string, id: string): Promise<TaskTimeLogDto[]> {
+    return apiFetch<TaskTimeLogDto[]>(token, `/api/tasks/${id}/timelogs`);
+}
+
+/** Получить справочник видов деятельности (Admin). */
+export async function listActivityTypes(token: string): Promise<TaskActivityTypeDto[]> {
+    return apiFetch<TaskActivityTypeDto[]>(token, '/api/admin/activity-types');
+}
+
+/** Создать вид деятельности (Admin). */
+export async function createActivityType(token: string, name: string, isActive = true): Promise<TaskActivityTypeDto> {
+    return apiFetch<TaskActivityTypeDto>(token, '/api/admin/activity-types', { method: 'POST', body: JSON.stringify({ name, isActive }) });
+}
+
+/** Обновить вид деятельности (Admin). */
+export async function updateActivityType(token: string, id: string, name: string, isActive: boolean): Promise<TaskActivityTypeDto> {
+    return apiFetch<TaskActivityTypeDto>(token, `/api/admin/activity-types/${id}`, { method: 'PUT', body: JSON.stringify({ name, isActive }) });
+}
+
+/** Удалить вид деятельности (Admin). */
+export async function deleteActivityType(token: string, id: string): Promise<void> {
+    await apiFetch<void>(token, `/api/admin/activity-types/${id}`, { method: 'DELETE' });
 }

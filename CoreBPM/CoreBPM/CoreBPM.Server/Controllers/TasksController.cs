@@ -413,5 +413,38 @@ public class TasksController : ControllerBase
         if (userId == null) return Unauthorized();
         return Ok(await _service.GetApprovalStateAsync(id, ct));
     }
+
+    // ─── FR-TASK-01.4: Контроль и трудозатраты ───────────────────────────────
+
+    /// <summary>Изменить контролёра и/или тип контроля задачи.</summary>
+    [HttpPut("api/tasks/{id:guid}/control")]
+    [ProducesResponseType(typeof(TaskDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TaskDto>> UpdateControl(Guid id, [FromBody] UpdateControlRequest req, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.UpdateControlAsync(id, req, userId.Value, User.IsInRole("Admin"), ct));
+    }
+
+    /// <summary>Добавить трудозатраты к задаче.</summary>
+    [HttpPost("api/tasks/{id:guid}/timelogs")]
+    [ProducesResponseType(typeof(TaskTimeLogDto), StatusCodes.Status201Created)]
+    public async Task<ActionResult<TaskTimeLogDto>> AddTimeLog(Guid id, [FromBody] AddTimeLogRequest req, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        var dto = await _service.AddTimeLogAsync(id, req, userId.Value, ct);
+        return Created($"/api/tasks/{id}/timelogs/{dto.Id}", dto);
+    }
+
+    /// <summary>Получить журнал трудозатрат по задаче.</summary>
+    [HttpGet("api/tasks/{id:guid}/timelogs")]
+    [ProducesResponseType(typeof(IReadOnlyList<TaskTimeLogDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<TaskTimeLogDto>>> GetTimeLogs(Guid id, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.GetTimeLogsAsync(id, ct));
+    }
 }
 

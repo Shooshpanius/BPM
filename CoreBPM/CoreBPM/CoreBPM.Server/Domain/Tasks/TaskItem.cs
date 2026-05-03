@@ -32,4 +32,5 @@ public class TaskItem
     public ICollection<TaskAttachment> Attachments { get; set; } = new List<TaskAttachment>();
     public ICollection<TaskTag> Tags { get; set; } = new List<TaskTag>();
     public ICollection<TaskReminder> Reminders { get; set; } = new List<TaskReminder>();
+    public ICollection<TaskTimeLog> TimeLogs { get; set; } = new List<TaskTimeLog>();
 }
