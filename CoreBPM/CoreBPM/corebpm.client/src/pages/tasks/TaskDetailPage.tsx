@@ -81,6 +81,7 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
     const [allowedActions, setAllowedActions] = useState<{ action: string; label: string }[]>([]);
     const [approvalComment, setApprovalComment] = useState('');
     const [showSendForApproval, setShowSendForApproval] = useState(false);
+    const [sendApprovalApproverQuery, setSendApprovalApproverQuery] = useState('');
     const [sendApprovalApproverId, setSendApprovalApproverId] = useState('');
     const [sendApprovalComment, setSendApprovalComment] = useState('');
     const [approvalSaving, setApprovalSaving] = useState(false);
@@ -180,6 +181,7 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
             setAllowedActions(actions);
             setShowSendForApproval(false);
             setSendApprovalApproverId('');
+            setSendApprovalApproverQuery('');
             setSendApprovalComment('');
         } catch (e) {
             setApprovalError(e instanceof Error ? e.message : 'Ошибка');
@@ -625,13 +627,13 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                 <div className="task-detail__overlay" onClick={() => setShowSendForApproval(false)}>
                     <div className="task-detail__dialog" onClick={e => e.stopPropagation()}>
                         <h3>Отправить на согласование</h3>
-                        <input className="task-detail__input" placeholder="Поиск согласующего..." value={sendApprovalApproverId}
-                            onChange={e => setSendApprovalApproverId(e.target.value)} />
-                        {employees.filter(e => e.displayName.toLowerCase().includes(sendApprovalApproverId.toLowerCase()) && sendApprovalApproverId).slice(0, 8).length > 0 && (
+                        <input className="task-detail__input" placeholder="Поиск согласующего..." value={sendApprovalApproverQuery}
+                            onChange={e => { setSendApprovalApproverQuery(e.target.value); setSendApprovalApproverId(''); }} />
+                        {sendApprovalApproverQuery && employees.filter(e => e.displayName.toLowerCase().includes(sendApprovalApproverQuery.toLowerCase())).slice(0, 8).length > 0 && (
                             <div className="task-detail__dropdown">
-                                {employees.filter(e => e.displayName.toLowerCase().includes(sendApprovalApproverId.toLowerCase())).slice(0, 8).map(e => (
-                                    <div key={e.userId} className="task-detail__dropdown-item"
-                                        onClick={() => setSendApprovalApproverId(e.userId)}>
+                                {employees.filter(e => e.displayName.toLowerCase().includes(sendApprovalApproverQuery.toLowerCase())).slice(0, 8).map(e => (
+                                    <div key={e.userId} className={`task-detail__dropdown-item${sendApprovalApproverId === e.userId ? ' task-detail__dropdown-item--selected' : ''}`}
+                                        onClick={() => { setSendApprovalApproverId(e.userId); setSendApprovalApproverQuery(e.displayName); }}>
                                         {e.displayName}
                                     </div>
                                 ))}
