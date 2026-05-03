@@ -93,3 +93,19 @@ public class PostponeTaskRequest
     public DateTimeOffset PostponeUntil { get; set; }
     public string? Comment { get; set; }
 }
+
+// ─── FR-TASK-01.3: Согласование ─────────────────────────────────────────────
+
+/// <summary>Запрос на отправку задачи на согласование (FR-TASK-01.3).</summary>
+public class SendForApprovalRequest
+{
+    /// <summary>Идентификатор согласующего. Необязателен, если согласующий уже назначен участником.</summary>
+    public Guid? ApproverId { get; set; }
+    public string? Comment { get; set; }
+}
+
+/// <summary>Запрос-решение по согласованию с опциональным комментарием (FR-TASK-01.3).</summary>
+public class ApprovalDecisionRequest
+{
+    public string? Comment { get; set; }
+}

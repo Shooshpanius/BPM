@@ -351,4 +351,67 @@ public class TasksController : ControllerBase
         if (userId == null) return Unauthorized();
         return Ok(await _service.ReturnToWorkAsync(id, userId.Value, User.IsInRole("Admin"), ct));
     }
+
+    // ─── FR-TASK-01.3: Согласование ──────────────────────────────────────────
+
+    /// <summary>Согласовать предварительное согласование (PreApproval → New). Согласующий или Admin.</summary>
+    [HttpPost("api/tasks/{id:guid}/actions/approve-pre")]
+    [ProducesResponseType(typeof(TaskDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TaskDto>> ApprovePre(Guid id, [FromBody] ApprovalDecisionRequest req, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.ApprovePreAsync(id, req, userId.Value, User.IsInRole("Admin"), ct));
+    }
+
+    /// <summary>Отказать в предварительном согласовании (PreApproval → PreApprovalRejected). Согласующий или Admin.</summary>
+    [HttpPost("api/tasks/{id:guid}/actions/reject-pre")]
+    [ProducesResponseType(typeof(TaskDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TaskDto>> RejectPre(Guid id, [FromBody] ApprovalDecisionRequest req, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.RejectPreAsync(id, req, userId.Value, User.IsInRole("Admin"), ct));
+    }
+
+    /// <summary>Отправить задачу на согласование (New/Read/InProgress → OnApproval). Исполнитель или Admin.</summary>
+    [HttpPost("api/tasks/{id:guid}/actions/send-for-approval")]
+    [ProducesResponseType(typeof(TaskDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TaskDto>> SendForApproval(Guid id, [FromBody] SendForApprovalRequest req, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.SendForApprovalAsync(id, req, userId.Value, User.IsInRole("Admin"), ct));
+    }
+
+    /// <summary>Согласовать задачу (OnApproval → New). Согласующий или Admin.</summary>
+    [HttpPost("api/tasks/{id:guid}/actions/approve")]
+    [ProducesResponseType(typeof(TaskDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TaskDto>> Approve(Guid id, [FromBody] ApprovalDecisionRequest req, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.ApproveAsync(id, req, userId.Value, User.IsInRole("Admin"), ct));
+    }
+
+    /// <summary>Отказать в согласовании (OnApproval → ApprovalRejected). Согласующий или Admin.</summary>
+    [HttpPost("api/tasks/{id:guid}/actions/reject")]
+    [ProducesResponseType(typeof(TaskDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TaskDto>> Reject(Guid id, [FromBody] ApprovalDecisionRequest req, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.RejectAsync(id, req, userId.Value, User.IsInRole("Admin"), ct));
+    }
+
+    /// <summary>Получить текущее состояние согласования задачи.</summary>
+    [HttpGet("api/tasks/{id:guid}/approval")]
+    [ProducesResponseType(typeof(TaskApprovalStateDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TaskApprovalStateDto>> GetApprovalState(Guid id, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.GetApprovalStateAsync(id, ct));
+    }
 }
+

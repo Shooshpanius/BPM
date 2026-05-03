@@ -62,4 +62,24 @@ public interface ITaskService
 
     /// <summary>Вернуть на доработку: DoneNeedsControl/CannotDoNeedsControl → New. Доступно контролёру и Admin.</summary>
     Task<TaskDto> ReturnToWorkAsync(Guid taskId, Guid actorId, bool isAdmin, CancellationToken ct = default);
+
+    // ─── FR-TASK-01.3: Согласование ──────────────────────────────────────────
+
+    /// <summary>Согласовать предварительное согласование: PreApproval → New. Доступно согласующему и Admin.</summary>
+    Task<TaskDto> ApprovePreAsync(Guid taskId, ApprovalDecisionRequest req, Guid actorId, bool isAdmin, CancellationToken ct = default);
+
+    /// <summary>Отказать в предварительном согласовании: PreApproval → PreApprovalRejected. Доступно согласующему и Admin.</summary>
+    Task<TaskDto> RejectPreAsync(Guid taskId, ApprovalDecisionRequest req, Guid actorId, bool isAdmin, CancellationToken ct = default);
+
+    /// <summary>Отправить задачу на согласование: New/Read/InProgress → OnApproval. Доступно исполнителю и Admin.</summary>
+    Task<TaskDto> SendForApprovalAsync(Guid taskId, SendForApprovalRequest req, Guid actorId, bool isAdmin, CancellationToken ct = default);
+
+    /// <summary>Согласовать (от исполнителя): OnApproval → New. Доступно согласующему и Admin.</summary>
+    Task<TaskDto> ApproveAsync(Guid taskId, ApprovalDecisionRequest req, Guid actorId, bool isAdmin, CancellationToken ct = default);
+
+    /// <summary>Отказать в согласовании (от исполнителя): OnApproval → ApprovalRejected. Доступно согласующему и Admin.</summary>
+    Task<TaskDto> RejectAsync(Guid taskId, ApprovalDecisionRequest req, Guid actorId, bool isAdmin, CancellationToken ct = default);
+
+    /// <summary>Получить текущее состояние согласования задачи.</summary>
+    Task<TaskApprovalStateDto> GetApprovalStateAsync(Guid taskId, CancellationToken ct = default);
 }

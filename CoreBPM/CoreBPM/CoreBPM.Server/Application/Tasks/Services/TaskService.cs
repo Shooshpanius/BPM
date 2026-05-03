@@ -645,6 +645,18 @@ public class TaskService : ITaskService
             actions.Add(new TaskAllowedActionDto { Action = "reject-pre", Label = "Отказать" });
         }
 
+        // Согласование от исполнителя: исполнитель может отправить на согласование из активных статусов
+        if ((status == TaskStatus.New || status == TaskStatus.Read || status == TaskStatus.InProgress
+             || status == TaskStatus.ApprovalRejected) && (isAssignee || isAdmin))
+            actions.Add(new TaskAllowedActionDto { Action = "send-for-approval", Label = "Отправить на согласование" });
+
+        // Основное согласование: согласующий или Admin могут принять / отказать
+        if (status == TaskStatus.OnApproval && (isApprover || isAdmin))
+        {
+            actions.Add(new TaskAllowedActionDto { Action = "approve", Label = "Согласовать" });
+            actions.Add(new TaskAllowedActionDto { Action = "reject", Label = "Отказать" });
+        }
+
         if ((status == TaskStatus.New || status == TaskStatus.Read) && (isAssigneeOrCo || isAdmin))
             actions.Add(new TaskAllowedActionDto { Action = "start", Label = "Начать работу" });
 
@@ -877,6 +889,247 @@ public class TaskService : ITaskService
         AddStatusHistory(task.Id, actorId, oldStatus, TaskStatus.New, now);
         await _db.SaveChangesAsync(ct);
         return await BuildDtoAsync(taskId, ct);
+    }
+
+    // ─── FR-TASK-01.3: Согласование ──────────────────────────────────────────
+
+    /// <inheritdoc/>
+    public async Task<TaskDto> ApprovePreAsync(Guid taskId, ApprovalDecisionRequest req, Guid actorId, bool isAdmin, CancellationToken ct = default)
+    {
+        var task = await _db.TaskItems.Include(t => t.Participants)
+            .FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+
+        if (task.Status != TaskStatus.PreApproval)
+            throw new ValidationException($"Нельзя согласовать задачу в статусе «{task.Status}».");
+
+        var isApprover = task.Participants.Any(p => p.UserId == actorId && p.Role == TaskParticipantRole.Approver);
+        if (!isApprover && !isAdmin)
+            throw new ValidationException("Только согласующий или администратор может принять решение по согласованию.");
+
+        var now = DateTimeOffset.UtcNow;
+        var oldStatus = task.Status;
+        task.Status = TaskStatus.New;
+        task.UpdatedAt = now;
+        AddStatusHistory(task.Id, actorId, oldStatus, TaskStatus.New, now);
+
+        if (!string.IsNullOrWhiteSpace(req.Comment))
+            _db.TaskComments.Add(new TaskComment { Id = Guid.NewGuid(), TaskId = taskId, AuthorUserId = actorId, Body = req.Comment.Trim(), CreatedAt = now });
+
+        await _db.SaveChangesAsync(ct);
+
+        // Уведомление исполнителю
+        await _notifications.NotifyUserAsync(task.AssigneeUserId, "PreApprovalApproved",
+            new { taskId = task.Id, number = task.Number, subject = task.Subject }, ct);
+
+        return await BuildDtoAsync(taskId, ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<TaskDto> RejectPreAsync(Guid taskId, ApprovalDecisionRequest req, Guid actorId, bool isAdmin, CancellationToken ct = default)
+    {
+        var task = await _db.TaskItems.Include(t => t.Participants)
+            .FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+
+        if (task.Status != TaskStatus.PreApproval)
+            throw new ValidationException($"Нельзя отказать в согласовании задачи в статусе «{task.Status}».");
+
+        var isApprover = task.Participants.Any(p => p.UserId == actorId && p.Role == TaskParticipantRole.Approver);
+        if (!isApprover && !isAdmin)
+            throw new ValidationException("Только согласующий или администратор может принять решение по согласованию.");
+
+        var now = DateTimeOffset.UtcNow;
+        var oldStatus = task.Status;
+        task.Status = TaskStatus.PreApprovalRejected;
+        task.UpdatedAt = now;
+        AddStatusHistory(task.Id, actorId, oldStatus, TaskStatus.PreApprovalRejected, now);
+
+        if (!string.IsNullOrWhiteSpace(req.Comment))
+            _db.TaskComments.Add(new TaskComment { Id = Guid.NewGuid(), TaskId = taskId, AuthorUserId = actorId, Body = req.Comment.Trim(), CreatedAt = now });
+
+        await _db.SaveChangesAsync(ct);
+
+        // Уведомление исполнителю
+        await _notifications.NotifyUserAsync(task.AssigneeUserId, "PreApprovalRejected",
+            new { taskId = task.Id, number = task.Number, subject = task.Subject }, ct);
+
+        return await BuildDtoAsync(taskId, ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<TaskDto> SendForApprovalAsync(Guid taskId, SendForApprovalRequest req, Guid actorId, bool isAdmin, CancellationToken ct = default)
+    {
+        var task = await _db.TaskItems.Include(t => t.Participants)
+            .FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+
+        var allowedStatuses = new[] { TaskStatus.New, TaskStatus.Read, TaskStatus.InProgress, TaskStatus.ApprovalRejected };
+        if (!allowedStatuses.Contains(task.Status))
+            throw new ValidationException($"Нельзя отправить на согласование задачу в статусе «{task.Status}».");
+
+        if (task.AssigneeUserId != actorId && !isAdmin)
+            throw new ValidationException("Только исполнитель или администратор может отправить задачу на согласование.");
+
+        // Если согласующий передан в запросе — добавляем его как участника (если ещё не добавлен)
+        if (req.ApproverId.HasValue)
+        {
+            var alreadyApprover = task.Participants.Any(p => p.UserId == req.ApproverId.Value && p.Role == TaskParticipantRole.Approver);
+            if (!alreadyApprover)
+            {
+                var now2 = DateTimeOffset.UtcNow;
+                _db.TaskParticipants.Add(new TaskParticipant
+                {
+                    Id = Guid.NewGuid(), TaskId = taskId, UserId = req.ApproverId.Value,
+                    Role = TaskParticipantRole.Approver, CreatedAt = now2
+                });
+                _db.TaskHistoryEntries.Add(new TaskHistoryEntry
+                {
+                    Id = Guid.NewGuid(), TaskId = taskId, ActorUserId = actorId,
+                    Action = TaskHistoryAction.ParticipantAdded, NewValue = req.ApproverId.Value.ToString(),
+                    CreatedAt = now2
+                });
+            }
+        }
+        else
+        {
+            // Согласующий должен уже быть назначен
+            if (!task.Participants.Any(p => p.Role == TaskParticipantRole.Approver))
+                throw new ValidationException("Укажите согласующего в запросе или назначьте его заранее.");
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var oldStatus = task.Status;
+        task.Status = TaskStatus.OnApproval;
+        task.UpdatedAt = now;
+        AddStatusHistory(task.Id, actorId, oldStatus, TaskStatus.OnApproval, now);
+
+        if (!string.IsNullOrWhiteSpace(req.Comment))
+            _db.TaskComments.Add(new TaskComment { Id = Guid.NewGuid(), TaskId = taskId, AuthorUserId = actorId, Body = req.Comment.Trim(), CreatedAt = now });
+
+        await _db.SaveChangesAsync(ct);
+
+        // Уведомление согласующему
+        var approverParticipant = task.Participants.FirstOrDefault(p => p.Role == TaskParticipantRole.Approver)
+                                  ?? await _db.TaskParticipants.AsNoTracking()
+                                      .FirstOrDefaultAsync(p => p.TaskId == taskId && p.Role == TaskParticipantRole.Approver, ct);
+        if (approverParticipant != null)
+            await _notifications.NotifyUserAsync(approverParticipant.UserId, "TaskSentForApproval",
+                new { taskId = task.Id, number = task.Number, subject = task.Subject, dueDate = task.DueDate }, ct);
+
+        return await BuildDtoAsync(taskId, ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<TaskDto> ApproveAsync(Guid taskId, ApprovalDecisionRequest req, Guid actorId, bool isAdmin, CancellationToken ct = default)
+    {
+        var task = await _db.TaskItems.Include(t => t.Participants)
+            .FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+
+        if (task.Status != TaskStatus.OnApproval)
+            throw new ValidationException($"Нельзя согласовать задачу в статусе «{task.Status}».");
+
+        var isApprover = task.Participants.Any(p => p.UserId == actorId && p.Role == TaskParticipantRole.Approver);
+        if (!isApprover && !isAdmin)
+            throw new ValidationException("Только согласующий или администратор может принять решение по согласованию.");
+
+        var now = DateTimeOffset.UtcNow;
+        var oldStatus = task.Status;
+        task.Status = TaskStatus.New;
+        task.UpdatedAt = now;
+        AddStatusHistory(task.Id, actorId, oldStatus, TaskStatus.New, now);
+
+        if (!string.IsNullOrWhiteSpace(req.Comment))
+            _db.TaskComments.Add(new TaskComment { Id = Guid.NewGuid(), TaskId = taskId, AuthorUserId = actorId, Body = req.Comment.Trim(), CreatedAt = now });
+
+        await _db.SaveChangesAsync(ct);
+
+        // Уведомление исполнителю
+        await _notifications.NotifyUserAsync(task.AssigneeUserId, "ApprovalApproved",
+            new { taskId = task.Id, number = task.Number, subject = task.Subject }, ct);
+
+        return await BuildDtoAsync(taskId, ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<TaskDto> RejectAsync(Guid taskId, ApprovalDecisionRequest req, Guid actorId, bool isAdmin, CancellationToken ct = default)
+    {
+        var task = await _db.TaskItems.Include(t => t.Participants)
+            .FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+
+        if (task.Status != TaskStatus.OnApproval)
+            throw new ValidationException($"Нельзя отказать в согласовании задачи в статусе «{task.Status}».");
+
+        var isApprover = task.Participants.Any(p => p.UserId == actorId && p.Role == TaskParticipantRole.Approver);
+        if (!isApprover && !isAdmin)
+            throw new ValidationException("Только согласующий или администратор может принять решение по согласованию.");
+
+        var now = DateTimeOffset.UtcNow;
+        var oldStatus = task.Status;
+        task.Status = TaskStatus.ApprovalRejected;
+        task.UpdatedAt = now;
+        AddStatusHistory(task.Id, actorId, oldStatus, TaskStatus.ApprovalRejected, now);
+
+        if (!string.IsNullOrWhiteSpace(req.Comment))
+            _db.TaskComments.Add(new TaskComment { Id = Guid.NewGuid(), TaskId = taskId, AuthorUserId = actorId, Body = req.Comment.Trim(), CreatedAt = now });
+
+        await _db.SaveChangesAsync(ct);
+
+        // Уведомление исполнителю
+        await _notifications.NotifyUserAsync(task.AssigneeUserId, "ApprovalRejected",
+            new { taskId = task.Id, number = task.Number, subject = task.Subject }, ct);
+
+        return await BuildDtoAsync(taskId, ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<TaskApprovalStateDto> GetApprovalStateAsync(Guid taskId, CancellationToken ct = default)
+    {
+        var task = await _db.TaskItems.AsNoTracking()
+            .Include(t => t.Participants)
+            .FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+
+        var approverParticipant = task.Participants.FirstOrDefault(p => p.Role == TaskParticipantRole.Approver);
+        string? approverName = approverParticipant != null
+            ? await GetDisplayNameAsync(approverParticipant.UserId, ct)
+            : null;
+
+        // Последнее решение — последняя запись смены статуса на Approved/Rejected/PreApprovalRejected
+        var approvalStatuses = new[]
+        {
+            TaskStatus.Approved.ToString(), TaskStatus.PreApprovalRejected.ToString(),
+            TaskStatus.ApprovalRejected.ToString(), TaskStatus.New.ToString()
+        };
+        var lastDecision = await _db.TaskHistoryEntries.AsNoTracking()
+            .Where(h => h.TaskId == taskId
+                        && h.Action == TaskHistoryAction.StatusChanged
+                        && approvalStatuses.Contains(h.NewValue ?? ""))
+            .OrderByDescending(h => h.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+
+        // Комментарий согласующего — последний комментарий от него после отправки на согласование
+        string? lastComment = null;
+        if (approverParticipant != null && lastDecision != null)
+        {
+            var commentEntry = await _db.TaskComments.AsNoTracking()
+                .Where(c => c.TaskId == taskId && c.AuthorUserId == approverParticipant.UserId
+                            && c.CreatedAt >= lastDecision.CreatedAt.AddSeconds(-5))
+                .OrderByDescending(c => c.CreatedAt)
+                .FirstOrDefaultAsync(ct);
+            lastComment = commentEntry?.Body;
+        }
+
+        return new TaskApprovalStateDto
+        {
+            ApproverUserId = approverParticipant?.UserId,
+            ApproverName = approverName,
+            Status = task.Status.ToString(),
+            LastDecisionComment = lastComment,
+            LastDecisionAt = lastDecision?.CreatedAt,
+        };
     }
 
     private void AddStatusHistory(Guid taskId, Guid actorId, TaskStatus from, TaskStatus to, DateTimeOffset now)

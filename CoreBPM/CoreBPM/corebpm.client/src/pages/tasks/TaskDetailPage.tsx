@@ -5,6 +5,7 @@ import {
     getTaskAttachments, getTaskParticipants, addTaskParticipant, removeTaskParticipant,
     getTaskRelations, addTaskRelation, removeTaskRelation,
     getTaskHistory, copyTask, reassignTask, createSubtask, listTasks,
+    getAllowedActions, approvePreTask, rejectPreTask, sendTaskForApproval, approveTask, rejectTask,
     TASK_STATUS_LABELS, TASK_PRIORITY_LABELS,
 } from '../../api/tasksApi';
 import type {
@@ -76,6 +77,15 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
 
     const [employees, setEmployees] = useState<DirectoryEmployeeDto[]>([]);
 
+    // FR-TASK-01.3: согласование
+    const [allowedActions, setAllowedActions] = useState<{ action: string; label: string }[]>([]);
+    const [approvalComment, setApprovalComment] = useState('');
+    const [showSendForApproval, setShowSendForApproval] = useState(false);
+    const [sendApprovalApproverId, setSendApprovalApproverId] = useState('');
+    const [sendApprovalComment, setSendApprovalComment] = useState('');
+    const [approvalSaving, setApprovalSaving] = useState(false);
+    const [approvalError, setApprovalError] = useState<string | null>(null);
+
     const loadEmployees = useCallback(async () => {
         if (employees.length === 0 && token) {
             try { setEmployees(await getDirectoryEmployees(token)); } catch { /* игнорируем */ }
@@ -85,8 +95,12 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
     const loadTask = useCallback(async () => {
         if (!token) return;
         try {
-            const data = await getTask(token, taskId);
+            const [data, actions] = await Promise.all([
+                getTask(token, taskId),
+                getAllowedActions(token, taskId).catch(() => []),
+            ]);
             setTask(data);
+            setAllowedActions(actions);
             if (data.status === 'New') {
                 await markTaskRead(token, taskId);
             }
@@ -132,6 +146,45 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
             setCommentText('');
         } finally {
             setCommentSaving(false);
+        }
+    };
+
+    // FR-TASK-01.3: обработчики согласования
+    const hasAction = (action: string) => allowedActions.some(a => a.action === action);
+
+    const handleApprovalAction = async (action: () => Promise<TaskDto>) => {
+        if (!token) return;
+        setApprovalSaving(true);
+        setApprovalError(null);
+        try {
+            const updated = await action();
+            setTask(updated);
+            const actions = await getAllowedActions(token, taskId).catch(() => []);
+            setAllowedActions(actions);
+            setApprovalComment('');
+        } catch (e) {
+            setApprovalError(e instanceof Error ? e.message : 'Ошибка');
+        } finally {
+            setApprovalSaving(false);
+        }
+    };
+
+    const handleSendForApproval = async () => {
+        if (!token) return;
+        setApprovalSaving(true);
+        setApprovalError(null);
+        try {
+            const updated = await sendTaskForApproval(token, taskId, sendApprovalApproverId || undefined, sendApprovalComment || undefined);
+            setTask(updated);
+            const actions = await getAllowedActions(token, taskId).catch(() => []);
+            setAllowedActions(actions);
+            setShowSendForApproval(false);
+            setSendApprovalApproverId('');
+            setSendApprovalComment('');
+        } catch (e) {
+            setApprovalError(e instanceof Error ? e.message : 'Ошибка');
+        } finally {
+            setApprovalSaving(false);
         }
     };
 
@@ -247,6 +300,37 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                 <div className="task-detail__header-actions">
                     <button className="task-detail__btn" onClick={() => { setShowReassign(true); loadEmployees(); }}>Переназначить</button>
                     <button className="task-detail__btn" onClick={handleCopy}>Копировать</button>
+                    {/* FR-TASK-01.3: кнопки согласования */}
+                    {hasAction('approve-pre') && (
+                        <button className="task-detail__btn task-detail__btn--success" disabled={approvalSaving}
+                            onClick={() => handleApprovalAction(() => approvePreTask(token!, taskId, approvalComment || undefined))}>
+                            ✓ Согласовать (предв.)
+                        </button>
+                    )}
+                    {hasAction('reject-pre') && (
+                        <button className="task-detail__btn task-detail__btn--danger" disabled={approvalSaving}
+                            onClick={() => handleApprovalAction(() => rejectPreTask(token!, taskId, approvalComment || undefined))}>
+                            ✗ Отказать (предв.)
+                        </button>
+                    )}
+                    {hasAction('approve') && (
+                        <button className="task-detail__btn task-detail__btn--success" disabled={approvalSaving}
+                            onClick={() => handleApprovalAction(() => approveTask(token!, taskId, approvalComment || undefined))}>
+                            ✓ Согласовать
+                        </button>
+                    )}
+                    {hasAction('reject') && (
+                        <button className="task-detail__btn task-detail__btn--danger" disabled={approvalSaving}
+                            onClick={() => handleApprovalAction(() => rejectTask(token!, taskId, approvalComment || undefined))}>
+                            ✗ Отказать
+                        </button>
+                    )}
+                    {hasAction('send-for-approval') && (
+                        <button className="task-detail__btn" disabled={approvalSaving}
+                            onClick={() => { setShowSendForApproval(true); loadEmployees(); }}>
+                            📤 На согласование
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -534,6 +618,45 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                             <button className="task-detail__btn" onClick={() => setShowCreateSubtask(false)}>Отмена</button>
                         </div>
                     </div>
+                </div>
+            )}
+            {/* FR-TASK-01.3: диалог отправки на согласование */}
+            {showSendForApproval && (
+                <div className="task-detail__overlay" onClick={() => setShowSendForApproval(false)}>
+                    <div className="task-detail__dialog" onClick={e => e.stopPropagation()}>
+                        <h3>Отправить на согласование</h3>
+                        <input className="task-detail__input" placeholder="Поиск согласующего..." value={sendApprovalApproverId}
+                            onChange={e => setSendApprovalApproverId(e.target.value)} />
+                        {employees.filter(e => e.displayName.toLowerCase().includes(sendApprovalApproverId.toLowerCase()) && sendApprovalApproverId).slice(0, 8).length > 0 && (
+                            <div className="task-detail__dropdown">
+                                {employees.filter(e => e.displayName.toLowerCase().includes(sendApprovalApproverId.toLowerCase())).slice(0, 8).map(e => (
+                                    <div key={e.userId} className="task-detail__dropdown-item"
+                                        onClick={() => setSendApprovalApproverId(e.userId)}>
+                                        {e.displayName}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        <textarea className="task-detail__input" placeholder="Комментарий (необязательно)"
+                            value={sendApprovalComment} onChange={e => setSendApprovalComment(e.target.value)} rows={3} />
+                        {approvalError && <p className="task-detail__error">{approvalError}</p>}
+                        <div className="task-detail__dialog-footer">
+                            <button className="task-detail__btn task-detail__btn--primary" onClick={handleSendForApproval} disabled={approvalSaving}>
+                                {approvalSaving ? 'Отправка...' : 'Отправить'}
+                            </button>
+                            <button className="task-detail__btn" onClick={() => { setShowSendForApproval(false); setApprovalError(null); }}>Отмена</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* FR-TASK-01.3: поле комментария к решению по согласованию */}
+            {(hasAction('approve-pre') || hasAction('reject-pre') || hasAction('approve') || hasAction('reject')) && (
+                <div style={{ padding: '8px 16px', background: '#fff8e1', borderTop: '1px solid #ffe082' }}>
+                    <input className="task-detail__input" style={{ maxWidth: 420 }}
+                        placeholder="Комментарий к решению (необязательно)"
+                        value={approvalComment} onChange={e => setApprovalComment(e.target.value)} />
+                    {approvalError && <p className="task-detail__error">{approvalError}</p>}
                 </div>
             )}
         </div>

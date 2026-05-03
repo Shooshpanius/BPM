@@ -340,3 +340,41 @@ export async function updateTaskTemplate(token: string, id: string, req: Record<
 export async function deleteTaskTemplate(token: string, id: string): Promise<void> {
     await apiFetch<void>(token, `/api/task-templates/${id}`, { method: 'DELETE' });
 }
+
+// ─── FR-TASK-01.3: Согласование ──────────────────────────────────────────────
+
+export interface TaskApprovalStateDto {
+    approverUserId?: string;
+    approverName?: string;
+    status: string;
+    lastDecisionComment?: string;
+    lastDecisionAt?: string;
+}
+
+export async function getAllowedActions(token: string, id: string): Promise<{ action: string; label: string }[]> {
+    return apiFetch<{ action: string; label: string }[]>(token, `/api/tasks/${id}/actions`);
+}
+
+export async function approvePreTask(token: string, id: string, comment?: string): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, `/api/tasks/${id}/actions/approve-pre`, { method: 'POST', body: JSON.stringify({ comment }) });
+}
+
+export async function rejectPreTask(token: string, id: string, comment?: string): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, `/api/tasks/${id}/actions/reject-pre`, { method: 'POST', body: JSON.stringify({ comment }) });
+}
+
+export async function sendTaskForApproval(token: string, id: string, approverId?: string, comment?: string): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, `/api/tasks/${id}/actions/send-for-approval`, { method: 'POST', body: JSON.stringify({ approverId, comment }) });
+}
+
+export async function approveTask(token: string, id: string, comment?: string): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, `/api/tasks/${id}/actions/approve`, { method: 'POST', body: JSON.stringify({ comment }) });
+}
+
+export async function rejectTask(token: string, id: string, comment?: string): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, `/api/tasks/${id}/actions/reject`, { method: 'POST', body: JSON.stringify({ comment }) });
+}
+
+export async function getTaskApprovalState(token: string, id: string): Promise<TaskApprovalStateDto> {
+    return apiFetch<TaskApprovalStateDto>(token, `/api/tasks/${id}/approval`);
+}
