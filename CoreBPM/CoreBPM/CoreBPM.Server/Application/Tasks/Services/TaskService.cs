@@ -28,6 +28,10 @@ public class TaskService : ITaskService
         TaskStatus.Closed,
     };
 
+    /// <summary>Регулярное выражение для поиска @упоминаний в тексте комментария.</summary>
+    private static readonly System.Text.RegularExpressions.Regex MentionRegex =
+        new(@"@([\w\.\-]+)", System.Text.RegularExpressions.RegexOptions.Compiled);
+
     public TaskService(AppDbContext db, IBpmNotificationService notifications, ITaskControlSettingsService controlSettings)
     {
         _db = db;
@@ -1464,7 +1468,7 @@ public class TaskService : ITaskService
     private async Task ProcessMentionsAsync(Guid taskId, string text, Guid authorId, DateTimeOffset now, CancellationToken ct)
     {
         // Извлекаем уникальные упоминания @слово
-        var matches = System.Text.RegularExpressions.Regex.Matches(text, @"@([\w\.\-]+)");
+        var matches = MentionRegex.Matches(text);
         if (matches.Count == 0) return;
 
         var mentionedNames = matches
@@ -1478,10 +1482,16 @@ public class TaskService : ITaskService
             .Select(u => new { u.Id, u.DisplayName, WorkEmail = u.WorkEmail })
             .ToListAsync(ct);
 
-        var mentionedUserIds = allUsers
-            .Where(u => mentionedNames.Any(m =>
-                u.DisplayName.Replace(" ", "").ToLowerInvariant().Contains(m)
-                || (!string.IsNullOrEmpty(u.WorkEmail) && u.WorkEmail.Split('@')[0].ToLowerInvariant() == m)))
+        // Нормализуем данные пользователей заранее для эффективного сравнения
+        var normalizedUsers = allUsers.Select(u => new
+        {
+            u.Id,
+            NormalizedName = u.DisplayName.Replace(" ", "").ToLowerInvariant(),
+            NormalizedEmail = string.IsNullOrEmpty(u.WorkEmail) ? string.Empty : u.WorkEmail.Split('@')[0].ToLowerInvariant(),
+        }).ToList();
+
+        var mentionedUserIds = normalizedUsers
+            .Where(u => mentionedNames.Any(m => u.NormalizedName.Contains(m) || u.NormalizedEmail == m))
             .Select(u => u.Id)
             .Where(id => id != authorId)
             .Distinct()
@@ -2052,8 +2062,8 @@ public class TaskService : ITaskService
         if (!isAuthor && !isController && !isAdmin)
             throw new ValidationException("Только автор, контролёр или администратор может перенести срок задачи.");
 
-        if (req.NewDueDate <= DateTimeOffset.UtcNow)
-            throw new ValidationException("Новый срок должен быть в будущем.");
+        if (req.NewDueDate <= task.DueDate && req.NewDueDate <= DateTimeOffset.UtcNow)
+            throw new ValidationException("Новый срок должен быть в будущем или позже текущего срока задачи.");
 
         var now = DateTimeOffset.UtcNow;
         var oldDueDate = task.DueDate;
