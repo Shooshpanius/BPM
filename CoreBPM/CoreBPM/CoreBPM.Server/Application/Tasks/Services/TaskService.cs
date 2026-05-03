@@ -47,7 +47,8 @@ public class TaskService : ITaskService
             Number = maxNum + 1,
             Subject = req.Subject.Trim(),
             Description = req.Description?.Trim(),
-            Status = TaskStatus.New,
+            // Если при создании указан согласующий — задача сразу уходит на предварительное согласование
+            Status = req.ApproverId.HasValue ? TaskStatus.PreApproval : TaskStatus.New,
             Priority = req.Priority,
             CategoryId = req.CategoryId?.Trim(),
             AuthorUserId = authorId,
@@ -84,6 +85,14 @@ public class TaskService : ITaskService
         _db.TaskHistoryEntries.Add(new TaskHistoryEntry { Id = Guid.NewGuid(), TaskId = task.Id, ActorUserId = authorId, Action = TaskHistoryAction.Created, CreatedAt = now });
 
         await _db.SaveChangesAsync(ct);
+
+        // Уведомление исполнителю о новой задаче
+        await _notifications.NotifyUserAsync(
+            task.AssigneeUserId,
+            "TaskAssigned",
+            new { taskId = task.Id, number = task.Number, subject = task.Subject, dueDate = task.DueDate },
+            ct);
+
         return await BuildDtoAsync(task.Id, ct);
     }
 
@@ -128,7 +137,19 @@ public class TaskService : ITaskService
         if (filter.IsOverdue.HasValue)
             query = query.Where(t => t.IsOverdue == filter.IsOverdue.Value);
         if (!string.IsNullOrEmpty(filter.Search))
-            query = query.Where(t => t.Subject.Contains(filter.Search));
+        {
+            // Поиск по номеру задачи: "T-5", "T5" или просто "5"
+            var search = filter.Search.Trim();
+            var numberStr = search.StartsWith("T-", StringComparison.OrdinalIgnoreCase)
+                ? search[2..]
+                : search.StartsWith("T", StringComparison.OrdinalIgnoreCase) && search.Length > 1
+                    ? search[1..]
+                    : search;
+            if (int.TryParse(numberStr, out var taskNumber))
+                query = query.Where(t => t.Number == taskNumber);
+            else
+                query = query.Where(t => t.Subject.Contains(filter.Search));
+        }
         if (filter.DateFrom.HasValue)
             query = query.Where(t => t.DueDate >= filter.DateFrom.Value);
         if (filter.DateTo.HasValue)
@@ -262,6 +283,14 @@ public class TaskService : ITaskService
         if (!string.IsNullOrWhiteSpace(req.Comment))
             _db.TaskComments.Add(new TaskComment { Id = Guid.NewGuid(), TaskId = taskId, AuthorUserId = actorId, Body = req.Comment.Trim(), CreatedAt = now });
         await _db.SaveChangesAsync(ct);
+
+        // Уведомление новому исполнителю о переназначении
+        await _notifications.NotifyUserAsync(
+            req.AssigneeUserId,
+            "TaskAssigned",
+            new { taskId = task.Id, number = task.Number, subject = task.Subject, dueDate = task.DueDate },
+            ct);
+
         return await BuildDtoAsync(taskId, ct);
     }
 
@@ -611,8 +640,16 @@ public class TaskService : ITaskService
         var isAuthor = task.AuthorUserId == actorId;
         var isController = task.ControllerUserId == actorId;
         var isAssigneeOrCo = IsAssigneeOrCoExecutor(task, actorId);
+        var isApprover = task.Participants.Any(p => p.UserId == actorId && p.Role == TaskParticipantRole.Approver);
 
         var actions = new List<TaskAllowedActionDto>();
+
+        // Предварительное согласование: согласующий или Admin могут согласовать / отказать
+        if (status == TaskStatus.PreApproval && (isApprover || isAdmin))
+        {
+            actions.Add(new TaskAllowedActionDto { Action = "approve-pre", Label = "Согласовать" });
+            actions.Add(new TaskAllowedActionDto { Action = "reject-pre", Label = "Отказать" });
+        }
 
         if ((status == TaskStatus.New || status == TaskStatus.Read) && (isAssigneeOrCo || isAdmin))
             actions.Add(new TaskAllowedActionDto { Action = "start", Label = "Начать работу" });
@@ -650,6 +687,26 @@ public class TaskService : ITaskService
 
         if (!IsAssigneeOrCoExecutor(task, actorId))
             throw new ValidationException("Только исполнитель или соисполнитель может начать работу по задаче.");
+
+        // Проверка зависимостей (DependsOn): нельзя начать, пока не завершены блокирующие задачи
+        var dependencyRelations = await _db.TaskRelations.AsNoTracking()
+            .Where(r => r.SourceTaskId == taskId && r.RelationType == TaskRelationType.DependsOn)
+            .ToListAsync(ct);
+
+        if (dependencyRelations.Count > 0)
+        {
+            var dependencyIds = dependencyRelations.Select(r => r.TargetTaskId).ToList();
+            var blockers = await _db.TaskItems.AsNoTracking()
+                .Where(t => dependencyIds.Contains(t.Id) && !FinalStatuses.Contains(t.Status))
+                .Select(t => new { t.Number, t.Subject })
+                .ToListAsync(ct);
+
+            if (blockers.Count > 0)
+            {
+                var list = string.Join(", ", blockers.Select(b => $"T-{b.Number} «{b.Subject}»"));
+                throw new ValidationException($"Нельзя начать работу: задача зависит от незавершённых задач: {list}.");
+            }
+        }
 
         var now = DateTimeOffset.UtcNow;
         var oldStatus = task.Status;

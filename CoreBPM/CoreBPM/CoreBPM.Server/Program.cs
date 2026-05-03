@@ -143,6 +143,7 @@ builder.Services.AddHostedService<BpmSchedulerWorker>();
 builder.Services.AddHostedService<BpmKpiAlertWorker>();
 builder.Services.AddHostedService<TaskOverdueWorker>();
 builder.Services.AddHostedService<TaskPostponeWorker>();
+builder.Services.AddHostedService<TaskReminderWorker>();
 
 var app = builder.Build();
 
