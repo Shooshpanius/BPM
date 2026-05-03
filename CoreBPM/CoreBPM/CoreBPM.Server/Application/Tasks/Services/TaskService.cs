@@ -1000,17 +1000,17 @@ public class TaskService : ITaskService
             var alreadyApprover = task.Participants.Any(p => p.UserId == req.ApproverId.Value && p.Role == TaskParticipantRole.Approver);
             if (!alreadyApprover)
             {
-                var now2 = DateTimeOffset.UtcNow;
+                var approverAddedAt = DateTimeOffset.UtcNow;
                 _db.TaskParticipants.Add(new TaskParticipant
                 {
                     Id = Guid.NewGuid(), TaskId = taskId, UserId = req.ApproverId.Value,
-                    Role = TaskParticipantRole.Approver, CreatedAt = now2
+                    Role = TaskParticipantRole.Approver, CreatedAt = approverAddedAt
                 });
                 _db.TaskHistoryEntries.Add(new TaskHistoryEntry
                 {
                     Id = Guid.NewGuid(), TaskId = taskId, ActorUserId = actorId,
                     Action = TaskHistoryAction.ParticipantAdded, NewValue = req.ApproverId.Value.ToString(),
-                    CreatedAt = now2
+                    CreatedAt = approverAddedAt
                 });
             }
         }
@@ -1172,15 +1172,15 @@ public class TaskService : ITaskService
 
         var now = DateTimeOffset.UtcNow;
 
-        if (req.ControlType != null && Enum.TryParse<TaskControlType>(req.ControlType, true, out var ct2) && ct2 != task.ControlType)
+        if (req.ControlType != null && Enum.TryParse<TaskControlType>(req.ControlType, true, out var parsedControlType) && parsedControlType != task.ControlType)
         {
             _db.TaskHistoryEntries.Add(new TaskHistoryEntry
             {
                 Id = Guid.NewGuid(), TaskId = taskId, ActorUserId = actorId,
                 Action = TaskHistoryAction.Updated, FieldName = "ControlType",
-                OldValue = task.ControlType.ToString(), NewValue = ct2.ToString(), CreatedAt = now,
+                OldValue = task.ControlType.ToString(), NewValue = parsedControlType.ToString(), CreatedAt = now,
             });
-            task.ControlType = ct2;
+            task.ControlType = parsedControlType;
         }
 
         // req.ControllerUserId: null = снять контролёра, значение = назначить
