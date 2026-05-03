@@ -477,5 +477,77 @@ public class TasksController : ControllerBase
         if (userId == null) return Unauthorized();
         return Ok(await _service.ReleaseControlAsync(id, userId.Value, User.IsInRole("Admin"), ct));
     }
+
+    // ─── FR-TASK-01.5: Типы задач ─────────────────────────────────────────────
+
+    /// <summary>Создать периодическую задачу.</summary>
+    [HttpPost("api/tasks/periodic")]
+    [ProducesResponseType(typeof(TaskDto), StatusCodes.Status201Created)]
+    public async Task<ActionResult<TaskDto>> CreatePeriodicTask([FromBody] CreatePeriodicTaskRequest req, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        var dto = await _service.CreatePeriodicTaskAsync(req, userId.Value, ct);
+        return CreatedAtAction(nameof(GetById), new { id = dto.Id }, dto);
+    }
+
+    /// <summary>Получить экземпляры серии периодических задач.</summary>
+    [HttpGet("api/tasks/{id:guid}/series")]
+    [ProducesResponseType(typeof(IReadOnlyList<PeriodicSeriesItemDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<PeriodicSeriesItemDto>>> GetSeriesItems(Guid id, [FromQuery] bool activeOnly = false, CancellationToken ct = default)
+        => Ok(await _service.GetSeriesItemsAsync(id, activeOnly, ct));
+
+    /// <summary>Обновить конфигурацию серии периодических задач.</summary>
+    [HttpPut("api/tasks/{id:guid}/series")]
+    [ProducesResponseType(typeof(TaskRecurrenceDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TaskRecurrenceDto>> UpdateSeries(Guid id, [FromBody] UpdateSeriesRequest req, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.UpdateSeriesAsync(id, req, userId.Value, User.IsInRole("Admin"), ct));
+    }
+
+    /// <summary>Остановить серию периодических задач.</summary>
+    [HttpDelete("api/tasks/{id:guid}/series")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> StopSeries(Guid id, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        await _service.StopSeriesAsync(id, userId.Value, User.IsInRole("Admin"), ct);
+        return NoContent();
+    }
+
+    /// <summary>Создать задачу по резолюции документа.</summary>
+    [HttpPost("api/tasks/resolution")]
+    [ProducesResponseType(typeof(TaskDto), StatusCodes.Status201Created)]
+    public async Task<ActionResult<TaskDto>> CreateResolutionTask([FromBody] CreateResolutionTaskRequest req, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        var dto = await _service.CreateResolutionTaskAsync(req, userId.Value, ct);
+        return CreatedAtAction(nameof(GetById), new { id = dto.Id }, dto);
+    }
+
+    /// <summary>Получить детали процесса для задачи по процессу.</summary>
+    [HttpGet("api/tasks/{id:guid}/process-info")]
+    [ProducesResponseType(typeof(ProcessTaskInfoDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ProcessTaskInfoDto>> GetProcessInfo(Guid id, CancellationToken ct)
+    {
+        var info = await _service.GetProcessTaskInfoAsync(id, ct);
+        if (info == null) return NotFound();
+        return Ok(info);
+    }
+
+    /// <summary>Скачать все вложения задачи архивом ZIP.</summary>
+    [HttpGet("api/tasks/{id:guid}/attachments/download")]
+    [ProducesResponseType(typeof(FileStreamResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> DownloadAttachments(Guid id, CancellationToken ct)
+    {
+        var (stream, fileName) = await _service.DownloadAttachmentsZipAsync(id, ct);
+        return File(stream, "application/zip", fileName);
+    }
 }
+
 

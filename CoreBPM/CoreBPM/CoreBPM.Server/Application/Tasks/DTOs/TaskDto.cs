@@ -30,6 +30,17 @@ public class TaskDto
     public DateTimeOffset? PostponedUntil { get; set; }
     public Guid? SourceInstanceId { get; set; }
     public string? SourceElementId { get; set; }
+    // ─── FR-TASK-01.5: Типы задач ─────────────────────────────────────────
+    /// <summary>Вид задачи (Regular/Periodic/ProcessTask/Resolution).</summary>
+    public string Kind { get; set; } = "Regular";
+    /// <summary>Ссылка на документ (для задачи по резолюции, FR-TASK-01.5.3).</summary>
+    public Guid? DocumentId { get; set; }
+    /// <summary>Ссылка на серию периодических задач (FR-TASK-01.5.1).</summary>
+    public Guid? SeriesId { get; set; }
+    /// <summary>Детали процесса (заполняется для задач вида ProcessTask, FR-TASK-01.5.2).</summary>
+    public ProcessTaskInfoDto? ProcessInfo { get; set; }
+    /// <summary>Детали серии (заполняется для задач вида Periodic, FR-TASK-01.5.1).</summary>
+    public TaskRecurrenceDto? Recurrence { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
     public List<TaskParticipantDto> Participants { get; set; } = new();
@@ -37,4 +48,43 @@ public class TaskDto
     public int SubtaskCount { get; set; }
     public int CommentCount { get; set; }
     public int AttachmentCount { get; set; }
+}
+
+/// <summary>Детали задачи по процессу (FR-TASK-01.5.2).</summary>
+public class ProcessTaskInfoDto
+{
+    public Guid InstanceId { get; set; }
+    public string InstanceTitle { get; set; } = string.Empty;
+    public string ProcessName { get; set; } = string.Empty;
+    public string ProcessVersionNumber { get; set; } = string.Empty;
+    public DateTimeOffset LaunchedAt { get; set; }
+    public Guid InitiatorUserId { get; set; }
+    public string InitiatorName { get; set; } = string.Empty;
+    public Guid? OwnerUserId { get; set; }
+    public string? OwnerName { get; set; }
+}
+
+/// <summary>Конфигурация серии периодических задач (FR-TASK-01.5.1).</summary>
+public class TaskRecurrenceDto
+{
+    public Guid Id { get; set; }
+    public Guid RootTaskId { get; set; }
+    public string Periodicity { get; set; } = string.Empty;
+    public string EndCondition { get; set; } = string.Empty;
+    public DateTimeOffset? EndDate { get; set; }
+    public int LookAheadCount { get; set; }
+    public int DurationMinutes { get; set; }
+    public bool IsActive { get; set; }
+}
+
+/// <summary>Задача в серии (для списка экземпляров периодической задачи).</summary>
+public class PeriodicSeriesItemDto
+{
+    public Guid Id { get; set; }
+    public int Number { get; set; }
+    public string Subject { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public DateTimeOffset StartDate { get; set; }
+    public DateTimeOffset DueDate { get; set; }
+    public bool IsOverdue { get; set; }
 }

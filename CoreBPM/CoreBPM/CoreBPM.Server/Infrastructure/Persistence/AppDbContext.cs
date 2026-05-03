@@ -67,6 +67,7 @@ public class AppDbContext : DbContext
     public DbSet<TaskActivityType> TaskActivityTypes => Set<TaskActivityType>();
     public DbSet<TaskTimeLog> TaskTimeLogs => Set<TaskTimeLog>();
     public DbSet<TaskControlSettings> TaskControlSettings => Set<TaskControlSettings>();
+    public DbSet<TaskRecurrence> TaskRecurrences => Set<TaskRecurrence>();
     public DbSet<DmnTable> DmnTables => Set<DmnTable>();
     public DbSet<DmnTableVersion> DmnTableVersions => Set<DmnTableVersion>();
     public DbSet<DmnColumn> DmnColumns => Set<DmnColumn>();
@@ -1028,12 +1029,24 @@ public class AppDbContext : DbContext
             e.HasIndex(t => t.AssigneeUserId);
             e.HasIndex(t => t.AuthorUserId);
             e.HasIndex(t => t.Status);
+            e.HasIndex(t => t.Kind);
+            e.HasIndex(t => t.SeriesId);
             e.HasOne(t => t.ParentTask).WithMany(t => t.Subtasks)
                 .HasForeignKey(t => t.ParentTaskId).OnDelete(DeleteBehavior.Restrict).IsRequired(false);
             e.Property(t => t.Subject).HasMaxLength(500);
             e.Property(t => t.Description).HasMaxLength(5000);
             e.Property(t => t.CategoryId).HasMaxLength(200);
             e.Property(t => t.SourceElementId).HasMaxLength(200);
+            e.Property(t => t.Kind).HasConversion<int>().HasDefaultValue(TaskKind.Regular);
+        });
+
+        modelBuilder.Entity<TaskRecurrence>(e =>
+        {
+            e.ToTable("task_recurrences");
+            e.HasKey(r => r.Id);
+            e.HasIndex(r => r.RootTaskId).IsUnique();
+            e.HasOne(r => r.RootTask).WithMany()
+                .HasForeignKey(r => r.RootTaskId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<TaskParticipant>(e =>

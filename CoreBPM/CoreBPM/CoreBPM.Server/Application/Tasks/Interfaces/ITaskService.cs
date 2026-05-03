@@ -1,4 +1,5 @@
 using CoreBPM.Server.Application.Tasks.DTOs;
+using CoreBPM.Server.Domain.Tasks;
 
 namespace CoreBPM.Server.Application.Tasks.Interfaces;
 
@@ -102,4 +103,33 @@ public interface ITaskService
 
     /// <summary>Удалить запись трудозатрат. Доступно автору записи и Admin.</summary>
     Task DeleteTimeLogAsync(Guid taskId, Guid logId, Guid actorId, bool isAdmin, CancellationToken ct = default);
+
+    // ─── FR-TASK-01.5: Типы задач ─────────────────────────────────────────────
+
+    /// <summary>Создать периодическую задачу с конфигурацией серии (FR-TASK-01.5.1).</summary>
+    Task<TaskDto> CreatePeriodicTaskAsync(CreatePeriodicTaskRequest req, Guid authorId, CancellationToken ct = default);
+
+    /// <summary>Обновить конфигурацию серии периодических задач (FR-TASK-01.5.1).</summary>
+    Task<TaskRecurrenceDto> UpdateSeriesAsync(Guid rootTaskId, UpdateSeriesRequest req, Guid actorId, bool isAdmin, CancellationToken ct = default);
+
+    /// <summary>Остановить серию периодических задач (FR-TASK-01.5.1).</summary>
+    Task StopSeriesAsync(Guid rootTaskId, Guid actorId, bool isAdmin, CancellationToken ct = default);
+
+    /// <summary>Получить список экземпляров серии периодических задач (FR-TASK-01.5.1).</summary>
+    Task<IReadOnlyList<PeriodicSeriesItemDto>> GetSeriesItemsAsync(Guid rootTaskId, bool activeOnly, CancellationToken ct = default);
+
+    /// <summary>Создать задачу по резолюции документа (FR-TASK-01.5.3).</summary>
+    Task<TaskDto> CreateResolutionTaskAsync(CreateResolutionTaskRequest req, Guid authorId, CancellationToken ct = default);
+
+    /// <summary>Получить все задачи по резолюции, связанные с документом (FR-TASK-01.5.3).</summary>
+    Task<IReadOnlyList<TaskDto>> GetDocumentResolutionsAsync(Guid documentId, CancellationToken ct = default);
+
+    /// <summary>Получить детали процесса для задачи вида ProcessTask (FR-TASK-01.5.2).</summary>
+    Task<ProcessTaskInfoDto?> GetProcessTaskInfoAsync(Guid taskId, CancellationToken ct = default);
+
+    /// <summary>Скачать все вложения задачи архивом ZIP (FR-TASK-01.5.2).</summary>
+    Task<(Stream ZipStream, string FileName)> DownloadAttachmentsZipAsync(Guid taskId, CancellationToken ct = default);
+
+    /// <summary>Создать следующий экземпляр в серии периодических задач (вызывается воркером).</summary>
+    Task<TaskItem?> CreateNextPeriodicInstanceAsync(Guid recurrenceId, CancellationToken ct = default);
 }

@@ -1,8 +1,11 @@
 using System.Text;
+using System.IO;
+using System.IO.Compression;
 using Microsoft.EntityFrameworkCore;
 using CoreBPM.Server.Application.Bpm.Interfaces;
 using CoreBPM.Server.Application.Tasks.DTOs;
 using CoreBPM.Server.Application.Tasks.Interfaces;
+using CoreBPM.Server.Domain.Bpm;
 using CoreBPM.Server.Domain.Tasks;
 using CoreBPM.Server.Exceptions;
 using CoreBPM.Server.Infrastructure.Persistence;
@@ -65,6 +68,8 @@ public class TaskService : ITaskService
             IsOverdue = false,
             CreatedAt = now,
             UpdatedAt = now,
+            Kind = req.Kind,
+            DocumentId = req.DocumentId,
         };
 
         _db.TaskItems.Add(task);
@@ -229,6 +234,10 @@ public class TaskService : ITaskService
     {
         var src = await _db.TaskItems.AsNoTracking().FirstOrDefaultAsync(t => t.Id == taskId, ct)
             ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+
+        if (src.Kind == TaskKind.Resolution)
+            throw new ValidationException("Задачи по резолюции документа копировать запрещено.");
+
         var tags = await _db.TaskTags.AsNoTracking().Where(t => t.TaskId == taskId).Select(t => t.Value).ToListAsync(ct);
 
         var req = new CreateTaskRequest
@@ -606,6 +615,9 @@ public class TaskService : ITaskService
             PostponedUntil = task.PostponedUntil,
             SourceInstanceId = task.SourceInstanceId,
             SourceElementId = task.SourceElementId,
+            Kind = task.Kind.ToString(),
+            DocumentId = task.DocumentId,
+            SeriesId = task.SeriesId,
             CreatedAt = task.CreatedAt,
             UpdatedAt = task.UpdatedAt,
             Participants = task.Participants.Select(p => new TaskParticipantDto { Id = p.Id, UserId = p.UserId, UserName = participantUsers.GetValueOrDefault(p.UserId, p.UserId.ToString()), Role = p.Role.ToString() }).ToList(),
@@ -1432,4 +1444,255 @@ public class TaskService : ITaskService
 
         await _db.SaveChangesAsync(ct);
     }
+
+    // ─── FR-TASK-01.5: Типы задач ──────────────────────────────────────────────
+
+    /// <inheritdoc/>
+    public async Task<TaskDto> CreatePeriodicTaskAsync(CreatePeriodicTaskRequest req, Guid authorId, CancellationToken ct = default)
+    {
+        req.Kind = TaskKind.Periodic;
+        var dto = await CreateAsync(req, authorId, ct);
+
+        var now = DateTimeOffset.UtcNow;
+        var recurrence = new TaskRecurrence
+        {
+            Id = Guid.NewGuid(),
+            RootTaskId = dto.Id,
+            Periodicity = req.Periodicity,
+            EndCondition = req.EndCondition,
+            EndDate = req.EndDate,
+            LookAheadCount = req.LookAheadCount,
+            DurationMinutes = req.DurationMinutes,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+        _db.TaskRecurrences.Add(recurrence);
+        await _db.SaveChangesAsync(ct);
+        return await BuildDtoAsync(dto.Id, ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<TaskRecurrenceDto> UpdateSeriesAsync(Guid rootTaskId, UpdateSeriesRequest req, Guid actorId, bool isAdmin, CancellationToken ct = default)
+    {
+        var root = await _db.TaskItems.AsNoTracking().FirstOrDefaultAsync(t => t.Id == rootTaskId, ct)
+            ?? throw new NotFoundException($"Задача {rootTaskId} не найдена.");
+        if (root.AuthorUserId != actorId && !isAdmin)
+            throw new ValidationException("Редактировать серию может только автор или администратор.");
+
+        var rec = await _db.TaskRecurrences.FirstOrDefaultAsync(r => r.RootTaskId == rootTaskId, ct)
+            ?? throw new NotFoundException($"Серия для задачи {rootTaskId} не найдена.");
+
+        if (req.Periodicity.HasValue) rec.Periodicity = req.Periodicity.Value;
+        if (req.EndCondition.HasValue) rec.EndCondition = req.EndCondition.Value;
+        if (req.EndDate.HasValue) rec.EndDate = req.EndDate;
+        if (req.LookAheadCount.HasValue) rec.LookAheadCount = req.LookAheadCount.Value;
+        if (req.DurationMinutes.HasValue) rec.DurationMinutes = req.DurationMinutes.Value;
+        rec.UpdatedAt = DateTimeOffset.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return MapRecurrenceDto(rec);
+    }
+
+    /// <inheritdoc/>
+    public async Task StopSeriesAsync(Guid rootTaskId, Guid actorId, bool isAdmin, CancellationToken ct = default)
+    {
+        var root = await _db.TaskItems.AsNoTracking().FirstOrDefaultAsync(t => t.Id == rootTaskId, ct)
+            ?? throw new NotFoundException($"Задача {rootTaskId} не найдена.");
+        if (root.AuthorUserId != actorId && !isAdmin)
+            throw new ValidationException("Остановить серию может только автор или администратор.");
+
+        var rec = await _db.TaskRecurrences.FirstOrDefaultAsync(r => r.RootTaskId == rootTaskId, ct)
+            ?? throw new NotFoundException($"Серия для задачи {rootTaskId} не найдена.");
+        rec.IsActive = false;
+        rec.UpdatedAt = DateTimeOffset.UtcNow;
+        await _db.SaveChangesAsync(ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<PeriodicSeriesItemDto>> GetSeriesItemsAsync(Guid rootTaskId, bool activeOnly, CancellationToken ct = default)
+    {
+        var root = await _db.TaskItems.AsNoTracking().FirstOrDefaultAsync(t => t.Id == rootTaskId, ct)
+            ?? throw new NotFoundException($"Задача {rootTaskId} не найдена.");
+
+        var query = _db.TaskItems.AsNoTracking()
+            .Where(t => t.SeriesId == root.SeriesId || t.Id == rootTaskId);
+
+        if (activeOnly)
+            query = query.Where(t => t.Status != TaskStatus.Done && t.Status != TaskStatus.Closed && t.Status != TaskStatus.CannotDo);
+
+        var items = await query.OrderBy(t => t.StartDate).ToListAsync(ct);
+        return items.Select(t => new PeriodicSeriesItemDto
+        {
+            Id = t.Id,
+            Number = t.Number,
+            Subject = t.Subject,
+            Status = t.Status.ToString(),
+            StartDate = t.StartDate,
+            DueDate = t.DueDate,
+            IsOverdue = t.IsOverdue,
+        }).ToList();
+    }
+
+    /// <inheritdoc/>
+    public async Task<TaskDto> CreateResolutionTaskAsync(CreateResolutionTaskRequest req, Guid authorId, CancellationToken ct = default)
+    {
+        req.Kind = TaskKind.Resolution;
+        req.DocumentId = req.DocumentId;
+        return await CreateAsync(req, authorId, ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<TaskDto>> GetDocumentResolutionsAsync(Guid documentId, CancellationToken ct = default)
+    {
+        var ids = await _db.TaskItems.AsNoTracking()
+            .Where(t => t.DocumentId == documentId && t.Kind == TaskKind.Resolution)
+            .Select(t => t.Id)
+            .ToListAsync(ct);
+
+        var result = new List<TaskDto>(ids.Count);
+        foreach (var id in ids)
+            result.Add(await BuildDtoAsync(id, ct));
+        return result;
+    }
+
+    /// <inheritdoc/>
+    public async Task<ProcessTaskInfoDto?> GetProcessTaskInfoAsync(Guid taskId, CancellationToken ct = default)
+    {
+        var task = await _db.TaskItems.AsNoTracking().FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+
+        if (task.SourceInstanceId == null) return null;
+
+        var instance = await _db.BpmInstances.AsNoTracking()
+            .Include(i => i.Process)
+            .Include(i => i.ProcessVersion)
+            .FirstOrDefaultAsync(i => i.Id == task.SourceInstanceId.Value, ct);
+
+        if (instance == null) return null;
+
+        var initiatorName = instance.InitiatorUserId.HasValue
+            ? await GetDisplayNameAsync(instance.InitiatorUserId.Value, ct)
+            : string.Empty;
+        string? ownerName = instance.ResponsibleUserId.HasValue
+            ? await GetDisplayNameAsync(instance.ResponsibleUserId.Value, ct)
+            : null;
+
+        return new ProcessTaskInfoDto
+        {
+            InstanceId = instance.Id,
+            InstanceTitle = instance.Name,
+            ProcessName = instance.Process.Name,
+            ProcessVersionNumber = $"v{instance.ProcessVersion.VersionNumber}",
+            LaunchedAt = instance.StartedAt,
+            InitiatorUserId = instance.InitiatorUserId ?? Guid.Empty,
+            InitiatorName = initiatorName,
+            OwnerUserId = instance.ResponsibleUserId,
+            OwnerName = ownerName,
+        };
+    }
+
+    /// <inheritdoc/>
+    public async Task<(Stream ZipStream, string FileName)> DownloadAttachmentsZipAsync(Guid taskId, CancellationToken ct = default)
+    {
+        var task = await _db.TaskItems.AsNoTracking().FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+
+        var attachments = await _db.TaskAttachments.AsNoTracking()
+            .Where(a => a.TaskId == taskId)
+            .ToListAsync(ct);
+
+        var memStream = new System.IO.MemoryStream();
+        using (var zip = new System.IO.Compression.ZipArchive(memStream, System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach (var att in attachments)
+            {
+                var entry = zip.CreateEntry(att.FileName, System.IO.Compression.CompressionLevel.Fastest);
+                // Записываем placeholder — реальный S3/FileStorage вызов заменить здесь
+                await using var entryStream = entry.Open();
+                await entryStream.WriteAsync(System.Text.Encoding.UTF8.GetBytes($"[{att.StorageKey}]"), ct);
+            }
+        }
+        memStream.Position = 0;
+        return (memStream, $"T-{task.Number}-attachments.zip");
+    }
+
+    /// <inheritdoc/>
+    public async Task<TaskItem?> CreateNextPeriodicInstanceAsync(Guid recurrenceId, CancellationToken ct = default)
+    {
+        var rec = await _db.TaskRecurrences.AsNoTracking()
+            .Include(r => r.RootTask)
+            .FirstOrDefaultAsync(r => r.Id == recurrenceId, ct);
+        if (rec == null || !rec.IsActive) return null;
+
+        // Проверяем условие завершения серии
+        if (rec.EndCondition == TaskSeriesEndCondition.ByDate && rec.EndDate.HasValue && DateTimeOffset.UtcNow >= rec.EndDate.Value)
+            return null;
+
+        // Находим последний экземпляр серии
+        var lastInstance = await _db.TaskItems.AsNoTracking()
+            .Where(t => t.SeriesId == recurrenceId || t.Id == rec.RootTaskId)
+            .OrderByDescending(t => t.StartDate)
+            .FirstOrDefaultAsync(ct);
+        if (lastInstance == null) return null;
+
+        var nextStart = ComputeNextStart(lastInstance.DueDate, rec.Periodicity);
+        var nextDue = nextStart.AddMinutes(rec.DurationMinutes);
+
+        var now = DateTimeOffset.UtcNow;
+        var maxNum = await _db.TaskItems.MaxAsync(t => (int?)t.Number, ct) ?? 0;
+        var next = new TaskItem
+        {
+            Id = Guid.NewGuid(),
+            Number = maxNum + 1,
+            Subject = rec.RootTask.Subject,
+            Description = rec.RootTask.Description,
+            Status = TaskStatus.New,
+            Priority = rec.RootTask.Priority,
+            CategoryId = rec.RootTask.CategoryId,
+            AuthorUserId = rec.RootTask.AuthorUserId,
+            AssigneeUserId = rec.RootTask.AssigneeUserId,
+            StartDate = nextStart,
+            DueDate = nextDue,
+            ControlType = rec.RootTask.ControlType,
+            ControllerUserId = rec.RootTask.ControllerUserId,
+            Kind = TaskKind.Periodic,
+            SeriesId = recurrenceId,
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+
+        _db.TaskItems.Add(next);
+        _db.TaskHistoryEntries.Add(new TaskHistoryEntry
+        {
+            Id = Guid.NewGuid(), TaskId = next.Id, ActorUserId = rec.RootTask.AuthorUserId,
+            Action = TaskHistoryAction.Created, NewValue = "periodic", CreatedAt = now,
+        });
+        await _db.SaveChangesAsync(ct);
+        return next;
+    }
+
+    private static DateTimeOffset ComputeNextStart(DateTimeOffset lastDue, TaskPeriodicity periodicity)
+        => periodicity switch
+        {
+            TaskPeriodicity.Daily or TaskPeriodicity.WorkingDays => lastDue.AddDays(1),
+            TaskPeriodicity.Weekly => lastDue.AddDays(7),
+            TaskPeriodicity.Monthly => lastDue.AddMonths(1),
+            TaskPeriodicity.Quarterly => lastDue.AddMonths(3),
+            TaskPeriodicity.Yearly => lastDue.AddYears(1),
+            _ => lastDue.AddDays(1),
+        };
+
+    private static TaskRecurrenceDto MapRecurrenceDto(TaskRecurrence rec)
+        => new()
+        {
+            Id = rec.Id,
+            RootTaskId = rec.RootTaskId,
+            Periodicity = rec.Periodicity.ToString(),
+            EndCondition = rec.EndCondition.ToString(),
+            EndDate = rec.EndDate,
+            LookAheadCount = rec.LookAheadCount,
+            DurationMinutes = rec.DurationMinutes,
+            IsActive = rec.IsActive,
+        };
 }
+

@@ -20,6 +20,9 @@ public class CreateTaskRequest
     public List<Guid> ObserverIds { get; set; } = new();
     public List<string> Tags { get; set; } = new();
     public DateTimeOffset? ReminderAt { get; set; }
+    // Поля для типизации задачи (FR-TASK-01.5)
+    public TaskKind Kind { get; set; } = TaskKind.Regular;
+    public Guid? DocumentId { get; set; }
 }
 
 public class UpdateTaskRequest
@@ -108,4 +111,33 @@ public class SendForApprovalRequest
 public class ApprovalDecisionRequest
 {
     public string? Comment { get; set; }
+}
+
+// ─── FR-TASK-01.5: Типы задач ────────────────────────────────────────────────
+
+/// <summary>Запрос на создание периодической задачи (FR-TASK-01.5.1).</summary>
+public class CreatePeriodicTaskRequest : CreateTaskRequest
+{
+    public TaskPeriodicity Periodicity { get; set; } = TaskPeriodicity.Daily;
+    public TaskSeriesEndCondition EndCondition { get; set; } = TaskSeriesEndCondition.Never;
+    public DateTimeOffset? EndDate { get; set; }
+    public int LookAheadCount { get; set; } = 1;
+    public int DurationMinutes { get; set; } = 480;
+}
+
+/// <summary>Запрос на создание задачи по резолюции документа (FR-TASK-01.5.3).</summary>
+public class CreateResolutionTaskRequest : CreateTaskRequest
+{
+    /// <summary>Идентификатор документа, по которому наложена резолюция.</summary>
+    public new Guid DocumentId { get; set; }
+}
+
+/// <summary>Запрос на обновление серии периодических задач (FR-TASK-01.5.1).</summary>
+public class UpdateSeriesRequest
+{
+    public TaskPeriodicity? Periodicity { get; set; }
+    public TaskSeriesEndCondition? EndCondition { get; set; }
+    public DateTimeOffset? EndDate { get; set; }
+    public int? LookAheadCount { get; set; }
+    public int? DurationMinutes { get; set; }
 }
