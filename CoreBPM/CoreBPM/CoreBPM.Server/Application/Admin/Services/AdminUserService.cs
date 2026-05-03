@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using CoreBPM.Server.Application.Admin.DTOs;
 using CoreBPM.Server.Application.Admin.Interfaces;
+using CoreBPM.Server.Application.Tasks.Interfaces;
 using CoreBPM.Server.Domain.Auth;
 using CoreBPM.Server.Domain.Org;
 using CoreBPM.Server.Exceptions;
@@ -12,11 +13,13 @@ namespace CoreBPM.Server.Application.Admin.Services;
 public class AdminUserService : IAdminUserService
 {
     private readonly AppDbContext _db;
+    private readonly ITaskService _taskService;
     private const int BcryptWorkFactor = 12;
 
-    public AdminUserService(AppDbContext db)
+    public AdminUserService(AppDbContext db, ITaskService taskService)
     {
         _db = db;
+        _taskService = taskService;
     }
 
     /// <inheritdoc />
@@ -162,6 +165,9 @@ public class AdminUserService : IAdminUserService
         user.UpdatedAt = DateTimeOffset.UtcNow;
 
         await _db.SaveChangesAsync(ct);
+
+        // FR-TASK-01.5.2: перенаправить открытые ProcessTask-задачи заблокированного пользователя
+        await _taskService.ReassignBlockedProcessTasksAsync(id, ct);
     }
 
     private static void ValidateCreateRequest(CreateUserRequest request)

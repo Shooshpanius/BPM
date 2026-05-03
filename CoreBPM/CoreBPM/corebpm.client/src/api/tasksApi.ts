@@ -72,14 +72,27 @@ export interface TaskDto {
     dueDate: string;
     dateCorrectionMode: string;
     plannedEffortMinutes?: number;
+    /** FR-TASK-01.4: фактические трудозатраты (сумма timelogs, в минутах) */
+    actualEffortMinutes: number;
+    /** FR-TASK-01.4: фактические трудозатраты по подзадачам (сумма timelogs подзадач, в минутах) */
+    subtaskActualEffortMinutes: number;
     controlType: string;
     controllerUserId?: string;
     controllerName?: string;
+    /** FR-TASK-01.3: согласующий */
+    approverUserId?: string;
+    approverName?: string;
     parentTaskId?: string;
     isOverdue: boolean;
     postponedUntil?: string;
     sourceInstanceId?: string;
     sourceElementId?: string;
+    /** FR-TASK-01.5: вид задачи */
+    kind: 'Regular' | 'Periodic' | 'ProcessTask' | 'Resolution';
+    documentId?: string;
+    seriesId?: string;
+    processInfo?: ProcessTaskInfoDto;
+    recurrence?: TaskRecurrenceDto;
     createdAt: string;
     updatedAt: string;
     participants: TaskParticipantDto[];
@@ -340,3 +353,329 @@ export async function updateTaskTemplate(token: string, id: string, req: Record<
 export async function deleteTaskTemplate(token: string, id: string): Promise<void> {
     await apiFetch<void>(token, `/api/task-templates/${id}`, { method: 'DELETE' });
 }
+
+// ─── FR-TASK-01.3: Согласование ──────────────────────────────────────────────
+
+export interface TaskApprovalStateDto {
+    approverUserId?: string;
+    approverName?: string;
+    status: string;
+    lastDecisionComment?: string;
+    lastDecisionAt?: string;
+}
+
+export async function getAllowedActions(token: string, id: string): Promise<{ action: string; label: string }[]> {
+    return apiFetch<{ action: string; label: string }[]>(token, `/api/tasks/${id}/actions`);
+}
+
+export async function approvePreTask(token: string, id: string, comment?: string): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, `/api/tasks/${id}/actions/approve-pre`, { method: 'POST', body: JSON.stringify({ comment }) });
+}
+
+export async function rejectPreTask(token: string, id: string, comment?: string): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, `/api/tasks/${id}/actions/reject-pre`, { method: 'POST', body: JSON.stringify({ comment }) });
+}
+
+export async function sendTaskForApproval(token: string, id: string, approverId?: string, comment?: string): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, `/api/tasks/${id}/actions/send-for-approval`, { method: 'POST', body: JSON.stringify({ approverId, comment }) });
+}
+
+export async function approveTask(token: string, id: string, comment?: string): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, `/api/tasks/${id}/actions/approve`, { method: 'POST', body: JSON.stringify({ comment }) });
+}
+
+export async function rejectTask(token: string, id: string, comment?: string): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, `/api/tasks/${id}/actions/reject`, { method: 'POST', body: JSON.stringify({ comment }) });
+}
+
+export async function getTaskApprovalState(token: string, id: string): Promise<TaskApprovalStateDto> {
+    return apiFetch<TaskApprovalStateDto>(token, `/api/tasks/${id}/approval`);
+}
+
+// ─── FR-TASK-01.4: Контроль и трудозатраты ───────────────────────────────────
+
+export interface TaskTimeLogDto {
+    id: string;
+    taskId: string;
+    userId: string;
+    userName: string;
+    activityTypeId?: string;
+    activityTypeName?: string;
+    durationMinutes: number;
+    startDate: string;
+    comment?: string;
+    createdAt: string;
+}
+
+export interface TaskActivityTypeDto {
+    id: string;
+    name: string;
+    isActive: boolean;
+    createdAt: string;
+}
+
+/** Изменить контролёра и/или тип контроля задачи. */
+export async function updateTaskControl(
+    token: string,
+    id: string,
+    req: { controllerUserId?: string | null; controlType?: string },
+): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, `/api/tasks/${id}/control`, { method: 'PUT', body: JSON.stringify(req) });
+}
+
+/** Добавить трудозатраты к задаче. */
+export async function addTaskTimeLog(
+    token: string,
+    id: string,
+    req: { durationMinutes: number; startDate: string; activityTypeId?: string; comment?: string },
+): Promise<TaskTimeLogDto> {
+    return apiFetch<TaskTimeLogDto>(token, `/api/tasks/${id}/timelogs`, { method: 'POST', body: JSON.stringify(req) });
+}
+
+/** Получить журнал трудозатрат задачи. */
+export async function getTaskTimeLogs(token: string, id: string): Promise<TaskTimeLogDto[]> {
+    return apiFetch<TaskTimeLogDto[]>(token, `/api/tasks/${id}/timelogs`);
+}
+
+/** Удалить запись трудозатрат задачи. */
+export async function deleteTaskTimeLog(token: string, taskId: string, logId: string): Promise<void> {
+    await apiFetch<void>(token, `/api/tasks/${taskId}/timelogs/${logId}`, { method: 'DELETE' });
+}
+
+/** Взять задачу на текущий контроль. */
+export async function takeControl(token: string, taskId: string): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, `/api/tasks/${taskId}/actions/take-control`, { method: 'POST' });
+}
+
+/** Снять задачу с контроля. */
+export async function releaseControl(token: string, taskId: string): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, `/api/tasks/${taskId}/actions/release-control`, { method: 'POST' });
+}
+
+/** Получить справочник видов деятельности (Admin). */
+export async function listActivityTypes(token: string): Promise<TaskActivityTypeDto[]> {
+    return apiFetch<TaskActivityTypeDto[]>(token, '/api/admin/activity-types');
+}
+
+/** Создать вид деятельности (Admin). */
+export async function createActivityType(token: string, name: string, isActive = true): Promise<TaskActivityTypeDto> {
+    return apiFetch<TaskActivityTypeDto>(token, '/api/admin/activity-types', { method: 'POST', body: JSON.stringify({ name, isActive }) });
+}
+
+/** Обновить вид деятельности (Admin). */
+export async function updateActivityType(token: string, id: string, name: string, isActive: boolean): Promise<TaskActivityTypeDto> {
+    return apiFetch<TaskActivityTypeDto>(token, `/api/admin/activity-types/${id}`, { method: 'PUT', body: JSON.stringify({ name, isActive }) });
+}
+
+/** Удалить вид деятельности (Admin). */
+export async function deleteActivityType(token: string, id: string): Promise<void> {
+    await apiFetch<void>(token, `/api/admin/activity-types/${id}`, { method: 'DELETE' });
+}
+
+// ─── TaskControlSettings API (Admin) ──────────────────────────────────────
+
+export interface TaskControlSettingsDto {
+    defaultControlType: string;
+    isEffortRequired: boolean;
+    isActivityTypeRequired: boolean;
+    updatedAt: string;
+}
+
+/** Получить системные настройки контроля и трудозатрат (Admin). */
+export async function getTaskControlSettings(token: string): Promise<TaskControlSettingsDto> {
+    return apiFetch<TaskControlSettingsDto>(token, '/api/admin/task-control-settings');
+}
+
+/** Обновить системные настройки контроля и трудозатрат (Admin). */
+export async function updateTaskControlSettings(
+    token: string,
+    req: { defaultControlType: string; isEffortRequired: boolean; isActivityTypeRequired: boolean },
+): Promise<TaskControlSettingsDto> {
+    return apiFetch<TaskControlSettingsDto>(token, '/api/admin/task-control-settings', {
+        method: 'PUT',
+        body: JSON.stringify(req),
+    });
+}
+
+// ─── FR-TASK-01.5: Типы задач ─────────────────────────────────────────────────
+
+export interface ProcessTaskInfoDto {
+    instanceId: string;
+    instanceTitle: string;
+    processName: string;
+    processVersionNumber: string;
+    launchedAt: string;
+    initiatorUserId: string;
+    initiatorName: string;
+    ownerUserId?: string;
+    ownerName?: string;
+}
+
+export interface TaskRecurrenceDto {
+    id: string;
+    rootTaskId: string;
+    periodicity: string;
+    endCondition: string;
+    endDate?: string;
+    lookAheadCount: number;
+    durationMinutes: number;
+    isActive: boolean;
+}
+
+export interface PeriodicSeriesItemDto {
+    id: string;
+    number: number;
+    subject: string;
+    status: string;
+    startDate: string;
+    dueDate: string;
+    isOverdue: boolean;
+}
+
+export interface CreatePeriodicTaskRequest {
+    subject: string;
+    description?: string;
+    priority?: string;
+    categoryId?: string;
+    assigneeUserId: string;
+    startDate: string;
+    dueDate: string;
+    plannedEffortMinutes?: number;
+    controlType?: string;
+    controllerUserId?: string;
+    tags?: string[];
+    periodicity: string;
+    endCondition: string;
+    endDate?: string;
+    lookAheadCount: number;
+    durationMinutes: number;
+}
+
+export interface CreateResolutionTaskRequest {
+    subject: string;
+    description?: string;
+    assigneeUserId: string;
+    startDate: string;
+    dueDate: string;
+    documentId: string;
+}
+
+/** Создать периодическую задачу (FR-TASK-01.5.1). */
+export async function createPeriodicTask(token: string, req: CreatePeriodicTaskRequest): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, '/api/tasks/periodic', { method: 'POST', body: JSON.stringify(req) });
+}
+
+/** Получить экземпляры серии периодической задачи (FR-TASK-01.5.1). */
+export async function getSeriesItems(token: string, rootTaskId: string, activeOnly = false): Promise<PeriodicSeriesItemDto[]> {
+    return apiFetch<PeriodicSeriesItemDto[]>(token, `/api/tasks/${rootTaskId}/series?activeOnly=${activeOnly}`);
+}
+
+/** Обновить конфигурацию серии (FR-TASK-01.5.1). */
+export async function updateSeries(token: string, rootTaskId: string, req: Partial<{
+    periodicity: string; endCondition: string; endDate?: string; lookAheadCount: number; durationMinutes: number;
+}>): Promise<TaskRecurrenceDto> {
+    return apiFetch<TaskRecurrenceDto>(token, `/api/tasks/${rootTaskId}/series`, { method: 'PUT', body: JSON.stringify(req) });
+}
+
+/** Остановить серию периодических задач (FR-TASK-01.5.1). */
+export async function stopSeries(token: string, rootTaskId: string, activeTaskAction?: string): Promise<void> {
+    const params = activeTaskAction ? `?action=${encodeURIComponent(activeTaskAction)}` : '';
+    await apiFetch<void>(token, `/api/tasks/${rootTaskId}/series${params}`, { method: 'DELETE' });
+}
+
+/** Создать задачу по резолюции документа (FR-TASK-01.5.3). */
+export async function createResolutionTask(token: string, req: CreateResolutionTaskRequest): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, '/api/tasks/resolution', { method: 'POST', body: JSON.stringify(req) });
+}
+
+/** Получить задачи-резолюции по документу (FR-TASK-01.5.3). */
+export async function getDocumentResolutions(token: string, documentId: string): Promise<TaskDto[]> {
+    return apiFetch<TaskDto[]>(token, `/api/documents/${documentId}/resolutions`);
+}
+
+/** Получить детали процесса для задачи по процессу (FR-TASK-01.5.2). */
+export async function getProcessTaskInfo(token: string, taskId: string): Promise<ProcessTaskInfoDto | null> {
+    try {
+        return await apiFetch<ProcessTaskInfoDto>(token, `/api/tasks/${taskId}/process-info`);
+    } catch {
+        return null;
+    }
+}
+
+/** Скачать все вложения задачи архивом ZIP (FR-TASK-01.5.2, FR-TASK-01.5.3). */
+export function getDownloadAttachmentsUrl(taskId: string): string {
+    return `/api/tasks/${taskId}/attachments/download`;
+}
+
+// ─── FR-TASK-01.4: Массовый контроль ─────────────────────────────────────────
+
+export interface BulkVerifyResultDto {
+    acceptedCount: number;
+}
+
+/** Массово подтвердить выполнение задач (принять контроль). FR-TASK-01.4. */
+export async function bulkVerifyTasks(token: string, taskIds: string[]): Promise<BulkVerifyResultDto> {
+    return apiFetch<BulkVerifyResultDto>(token, '/api/tasks/bulk-verify', {
+        method: 'POST',
+        body: JSON.stringify({ taskIds }),
+    });
+}
+
+// ─── FR-TASK-01.4: Отчёт по трудозатратам ────────────────────────────────────
+
+export interface TimelogReportItemDto {
+    id: string;
+    taskId: string;
+    taskNumber: number;
+    taskSubject: string;
+    userId: string;
+    userName: string;
+    activityTypeId?: string;
+    activityTypeName?: string;
+    durationMinutes: number;
+    startDate: string;
+    comment?: string;
+    createdAt: string;
+}
+
+export interface TimelogReportPageDto {
+    items: TimelogReportItemDto[];
+    totalCount: number;
+    totalMinutes: number;
+    page: number;
+    perPage: number;
+}
+
+export interface TimelogReportFilter {
+    userId?: string;
+    taskId?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    page?: number;
+    perPage?: number;
+}
+
+/** Получить отчёт по трудозатратам с фильтрацией. FR-TASK-01.4. */
+export async function getTimelogsReport(token: string, filter: TimelogReportFilter = {}): Promise<TimelogReportPageDto> {
+    const params = new URLSearchParams();
+    if (filter.userId) params.set('userId', filter.userId);
+    if (filter.taskId) params.set('taskId', filter.taskId);
+    if (filter.dateFrom) params.set('dateFrom', filter.dateFrom);
+    if (filter.dateTo) params.set('dateTo', filter.dateTo);
+    if (filter.page) params.set('page', String(filter.page));
+    if (filter.perPage) params.set('perPage', String(filter.perPage));
+    const qs = params.toString();
+    return apiFetch<TimelogReportPageDto>(token, `/api/reports/timelogs${qs ? `?${qs}` : ''}`);
+}
+
+/** URL для экспорта трудозатрат в CSV. FR-TASK-01.4. */
+export function getTimelogsReportExportUrl(filter: TimelogReportFilter = {}): string {
+    const params = new URLSearchParams();
+    if (filter.userId) params.set('userId', filter.userId);
+    if (filter.taskId) params.set('taskId', filter.taskId);
+    if (filter.dateFrom) params.set('dateFrom', filter.dateFrom);
+    if (filter.dateTo) params.set('dateTo', filter.dateTo);
+    const qs = params.toString();
+    return `/api/reports/timelogs/export${qs ? `?${qs}` : ''}`;
+}
+

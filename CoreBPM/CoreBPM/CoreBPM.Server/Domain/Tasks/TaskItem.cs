@@ -23,6 +23,17 @@ public class TaskItem
     public DateTimeOffset? PostponedUntil { get; set; }
     public Guid? SourceInstanceId { get; set; }
     public string? SourceElementId { get; set; }
+
+    // ─── FR-TASK-01.5: Типы задач ─────────────────────────────────────────
+    /// <summary>Вид задачи (обычная, периодическая, по процессу, по резолюции).</summary>
+    public TaskKind Kind { get; set; } = TaskKind.Regular;
+
+    /// <summary>Ссылка на документ (для задачи по резолюции, FR-TASK-01.5.3).</summary>
+    public Guid? DocumentId { get; set; }
+
+    /// <summary>Ссылка на серию периодических задач (FR-TASK-01.5.1).</summary>
+    public Guid? SeriesId { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
     public TaskItem? ParentTask { get; set; }
@@ -32,4 +43,5 @@ public class TaskItem
     public ICollection<TaskAttachment> Attachments { get; set; } = new List<TaskAttachment>();
     public ICollection<TaskTag> Tags { get; set; } = new List<TaskTag>();
     public ICollection<TaskReminder> Reminders { get; set; } = new List<TaskReminder>();
+    public ICollection<TaskTimeLog> TimeLogs { get; set; } = new List<TaskTimeLog>();
 }

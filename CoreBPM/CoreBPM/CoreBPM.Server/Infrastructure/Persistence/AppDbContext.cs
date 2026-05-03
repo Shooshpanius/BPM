@@ -63,6 +63,11 @@ public class AppDbContext : DbContext
     public DbSet<TaskTemplate> TaskTemplates => Set<TaskTemplate>();
     public DbSet<TaskHistoryEntry> TaskHistoryEntries => Set<TaskHistoryEntry>();
     public DbSet<TaskSavedFilter> TaskSavedFilters => Set<TaskSavedFilter>();
+    public DbSet<TaskSlaRule> TaskSlaRules => Set<TaskSlaRule>();
+    public DbSet<TaskActivityType> TaskActivityTypes => Set<TaskActivityType>();
+    public DbSet<TaskTimeLog> TaskTimeLogs => Set<TaskTimeLog>();
+    public DbSet<TaskControlSettings> TaskControlSettings => Set<TaskControlSettings>();
+    public DbSet<TaskRecurrence> TaskRecurrences => Set<TaskRecurrence>();
     public DbSet<DmnTable> DmnTables => Set<DmnTable>();
     public DbSet<DmnTableVersion> DmnTableVersions => Set<DmnTableVersion>();
     public DbSet<DmnColumn> DmnColumns => Set<DmnColumn>();
@@ -1024,12 +1029,24 @@ public class AppDbContext : DbContext
             e.HasIndex(t => t.AssigneeUserId);
             e.HasIndex(t => t.AuthorUserId);
             e.HasIndex(t => t.Status);
+            e.HasIndex(t => t.Kind);
+            e.HasIndex(t => t.SeriesId);
             e.HasOne(t => t.ParentTask).WithMany(t => t.Subtasks)
                 .HasForeignKey(t => t.ParentTaskId).OnDelete(DeleteBehavior.Restrict).IsRequired(false);
             e.Property(t => t.Subject).HasMaxLength(500);
             e.Property(t => t.Description).HasMaxLength(5000);
             e.Property(t => t.CategoryId).HasMaxLength(200);
             e.Property(t => t.SourceElementId).HasMaxLength(200);
+            e.Property(t => t.Kind).HasConversion<int>().HasDefaultValue(TaskKind.Regular);
+        });
+
+        modelBuilder.Entity<TaskRecurrence>(e =>
+        {
+            e.ToTable("task_recurrences");
+            e.HasKey(r => r.Id);
+            e.HasIndex(r => r.RootTaskId).IsUnique();
+            e.HasOne(r => r.RootTask).WithMany()
+                .HasForeignKey(r => r.RootTaskId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<TaskParticipant>(e =>
@@ -1119,6 +1136,31 @@ public class AppDbContext : DbContext
             e.HasIndex(f => f.UserId);
             e.Property(f => f.Name).HasMaxLength(200);
             e.Property(f => f.FilterJson).HasColumnType("jsonb");
+        });
+
+        modelBuilder.Entity<TaskActivityType>(e =>
+        {
+            e.ToTable("task_activity_types");
+            e.HasKey(a => a.Id);
+            e.Property(a => a.Name).IsRequired().HasMaxLength(200);
+        });
+
+        modelBuilder.Entity<TaskTimeLog>(e =>
+        {
+            e.ToTable("task_timelogs");
+            e.HasKey(l => l.Id);
+            e.HasIndex(l => l.TaskId);
+            e.HasIndex(l => l.UserId);
+            e.HasOne(l => l.Task).WithMany(t => t.TimeLogs)
+                .HasForeignKey(l => l.TaskId).OnDelete(DeleteBehavior.Cascade);
+            e.Property(l => l.Comment).HasMaxLength(1000);
+        });
+
+        modelBuilder.Entity<TaskControlSettings>(e =>
+        {
+            e.ToTable("task_control_settings");
+            e.HasKey(s => s.Id);
+            e.Property(s => s.DefaultControlType).IsRequired();
         });
     }
 }

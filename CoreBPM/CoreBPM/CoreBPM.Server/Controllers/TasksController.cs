@@ -6,7 +6,7 @@ using CoreBPM.Server.Application.Tasks.Interfaces;
 
 namespace CoreBPM.Server.Controllers;
 
-/// <summary>API управления задачами (FR-TASK-01.1).</summary>
+/// <summary>API управления задачами (FR-TASK-01.1, FR-TASK-01.2).</summary>
 [ApiController]
 [Authorize]
 public class TasksController : ControllerBase
@@ -269,4 +269,299 @@ public class TasksController : ControllerBase
         var sub = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
         return Guid.TryParse(sub, out var id) ? id : null;
     }
+
+    // ─── FR-TASK-01.2: Действия по статусам ────────────────────────────────────
+
+    /// <summary>Возвращает список допустимых действий для текущего пользователя над задачей.</summary>
+    [HttpGet("api/tasks/{id:guid}/actions")]
+    [ProducesResponseType(typeof(IReadOnlyList<TaskAllowedActionDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<TaskAllowedActionDto>>> GetAllowedActions(Guid id, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.GetAllowedActionsAsync(id, userId.Value, User.IsInRole("Admin"), ct));
+    }
+
+    /// <summary>Начать работу по задаче (New/Read → InProgress).</summary>
+    [HttpPost("api/tasks/{id:guid}/actions/start")]
+    [ProducesResponseType(typeof(TaskDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TaskDto>> StartWork(Guid id, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.StartWorkAsync(id, userId.Value, ct));
+    }
+
+    /// <summary>Отметить задачу как выполненную (InProgress → Done/DoneNeedsControl).</summary>
+    [HttpPost("api/tasks/{id:guid}/actions/done")]
+    [ProducesResponseType(typeof(TaskDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TaskDto>> MarkDone(Guid id, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.MarkDoneAsync(id, userId.Value, ct));
+    }
+
+    /// <summary>Отметить задачу как невозможную для выполнения (InProgress → CannotDo/CannotDoNeedsControl).</summary>
+    [HttpPost("api/tasks/{id:guid}/actions/cannot-do")]
+    [ProducesResponseType(typeof(TaskDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TaskDto>> CannotDo(Guid id, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.MarkCannotDoAsync(id, userId.Value, ct));
+    }
+
+    /// <summary>Закрыть (отменить) задачу (→ Closed). Только автор или Admin.</summary>
+    [HttpPost("api/tasks/{id:guid}/actions/close")]
+    [ProducesResponseType(typeof(TaskDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TaskDto>> CloseTask(Guid id, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.CloseAsync(id, userId.Value, User.IsInRole("Admin"), ct));
+    }
+
+    /// <summary>Отложить задачу до указанной даты (→ Postponed).</summary>
+    [HttpPost("api/tasks/{id:guid}/actions/postpone")]
+    [ProducesResponseType(typeof(TaskDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TaskDto>> Postpone(Guid id, [FromBody] PostponeTaskRequest req, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.PostponeAsync(id, req, userId.Value, User.IsInRole("Admin"), ct));
+    }
+
+    /// <summary>Принять контроль: DoneNeedsControl/CannotDoNeedsControl → *Controlled. Только контролёр или Admin.</summary>
+    [HttpPost("api/tasks/{id:guid}/actions/accept-control")]
+    [ProducesResponseType(typeof(TaskDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TaskDto>> AcceptControl(Guid id, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.AcceptControlAsync(id, userId.Value, User.IsInRole("Admin"), ct));
+    }
+
+    /// <summary>Вернуть задачу на доработку: DoneNeedsControl/CannotDoNeedsControl → New. Только контролёр или Admin.</summary>
+    [HttpPost("api/tasks/{id:guid}/actions/return")]
+    [ProducesResponseType(typeof(TaskDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TaskDto>> ReturnToWork(Guid id, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.ReturnToWorkAsync(id, userId.Value, User.IsInRole("Admin"), ct));
+    }
+
+    // ─── FR-TASK-01.3: Согласование ──────────────────────────────────────────
+
+    /// <summary>Согласовать предварительное согласование (PreApproval → New). Согласующий или Admin.</summary>
+    [HttpPost("api/tasks/{id:guid}/actions/approve-pre")]
+    [ProducesResponseType(typeof(TaskDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TaskDto>> ApprovePre(Guid id, [FromBody] ApprovalDecisionRequest req, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.ApprovePreAsync(id, req, userId.Value, User.IsInRole("Admin"), ct));
+    }
+
+    /// <summary>Отказать в предварительном согласовании (PreApproval → PreApprovalRejected). Согласующий или Admin.</summary>
+    [HttpPost("api/tasks/{id:guid}/actions/reject-pre")]
+    [ProducesResponseType(typeof(TaskDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TaskDto>> RejectPre(Guid id, [FromBody] ApprovalDecisionRequest req, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.RejectPreAsync(id, req, userId.Value, User.IsInRole("Admin"), ct));
+    }
+
+    /// <summary>Отправить задачу на согласование (New/Read/InProgress → OnApproval). Исполнитель или Admin.</summary>
+    [HttpPost("api/tasks/{id:guid}/actions/send-for-approval")]
+    [ProducesResponseType(typeof(TaskDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TaskDto>> SendForApproval(Guid id, [FromBody] SendForApprovalRequest req, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.SendForApprovalAsync(id, req, userId.Value, User.IsInRole("Admin"), ct));
+    }
+
+    /// <summary>Согласовать задачу (OnApproval → New). Согласующий или Admin.</summary>
+    [HttpPost("api/tasks/{id:guid}/actions/approve")]
+    [ProducesResponseType(typeof(TaskDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TaskDto>> Approve(Guid id, [FromBody] ApprovalDecisionRequest req, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.ApproveAsync(id, req, userId.Value, User.IsInRole("Admin"), ct));
+    }
+
+    /// <summary>Отказать в согласовании (OnApproval → ApprovalRejected). Согласующий или Admin.</summary>
+    [HttpPost("api/tasks/{id:guid}/actions/reject")]
+    [ProducesResponseType(typeof(TaskDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TaskDto>> Reject(Guid id, [FromBody] ApprovalDecisionRequest req, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.RejectAsync(id, req, userId.Value, User.IsInRole("Admin"), ct));
+    }
+
+    /// <summary>Получить текущее состояние согласования задачи.</summary>
+    [HttpGet("api/tasks/{id:guid}/approval")]
+    [ProducesResponseType(typeof(TaskApprovalStateDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TaskApprovalStateDto>> GetApprovalState(Guid id, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.GetApprovalStateAsync(id, ct));
+    }
+
+    // ─── FR-TASK-01.4: Контроль и трудозатраты ───────────────────────────────
+
+    /// <summary>Изменить контролёра и/или тип контроля задачи.</summary>
+    [HttpPut("api/tasks/{id:guid}/control")]
+    [ProducesResponseType(typeof(TaskDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TaskDto>> UpdateControl(Guid id, [FromBody] UpdateControlRequest req, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.UpdateControlAsync(id, req, userId.Value, User.IsInRole("Admin"), ct));
+    }
+
+    /// <summary>Добавить трудозатраты к задаче.</summary>
+    [HttpPost("api/tasks/{id:guid}/timelogs")]
+    [ProducesResponseType(typeof(TaskTimeLogDto), StatusCodes.Status201Created)]
+    public async Task<ActionResult<TaskTimeLogDto>> AddTimeLog(Guid id, [FromBody] AddTimeLogRequest req, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        var dto = await _service.AddTimeLogAsync(id, req, userId.Value, ct);
+        return Created($"/api/tasks/{id}/timelogs/{dto.Id}", dto);
+    }
+
+    /// <summary>Получить журнал трудозатрат по задаче.</summary>
+    [HttpGet("api/tasks/{id:guid}/timelogs")]
+    [ProducesResponseType(typeof(IReadOnlyList<TaskTimeLogDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<TaskTimeLogDto>>> GetTimeLogs(Guid id, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.GetTimeLogsAsync(id, ct));
+    }
+
+    /// <summary>Удалить запись трудозатрат.</summary>
+    [HttpDelete("api/tasks/{id:guid}/timelogs/{logId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> DeleteTimeLog(Guid id, Guid logId, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        await _service.DeleteTimeLogAsync(id, logId, userId.Value, User.IsInRole("Admin"), ct);
+        return NoContent();
+    }
+
+    /// <summary>Взять задачу на текущий контроль.</summary>
+    [HttpPost("api/tasks/{id:guid}/actions/take-control")]
+    [ProducesResponseType(typeof(TaskDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TaskDto>> TakeControl(Guid id, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.TakeControlAsync(id, userId.Value, ct));
+    }
+
+    /// <summary>Снять задачу с контроля.</summary>
+    [HttpPost("api/tasks/{id:guid}/actions/release-control")]
+    [ProducesResponseType(typeof(TaskDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TaskDto>> ReleaseControl(Guid id, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.ReleaseControlAsync(id, userId.Value, User.IsInRole("Admin"), ct));
+    }
+
+    /// <summary>Массово подтвердить выполнение задач (принять контроль). FR-TASK-01.4.</summary>
+    /// <remarks>Принимает список идентификаторов задач и подтверждает выполнение тех, что ожидают контроля.
+    /// Возвращает количество успешно обработанных задач.</remarks>
+    [HttpPost("api/tasks/bulk-verify")]
+    [ProducesResponseType(typeof(BulkVerifyResultDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<BulkVerifyResultDto>> BulkVerify([FromBody] BulkVerifyRequest req, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        var count = await _service.BulkVerifyAsync(req.TaskIds, userId.Value, User.IsInRole("Admin"), ct);
+        return Ok(new BulkVerifyResultDto { AcceptedCount = count });
+    }
+
+    // ─── FR-TASK-01.5: Типы задач ─────────────────────────────────────────────
+
+    /// <summary>Создать периодическую задачу.</summary>
+    [HttpPost("api/tasks/periodic")]
+    [ProducesResponseType(typeof(TaskDto), StatusCodes.Status201Created)]
+    public async Task<ActionResult<TaskDto>> CreatePeriodicTask([FromBody] CreatePeriodicTaskRequest req, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        var dto = await _service.CreatePeriodicTaskAsync(req, userId.Value, ct);
+        return CreatedAtAction(nameof(GetById), new { id = dto.Id }, dto);
+    }
+
+    /// <summary>Получить экземпляры серии периодических задач.</summary>
+    [HttpGet("api/tasks/{id:guid}/series")]
+    [ProducesResponseType(typeof(IReadOnlyList<PeriodicSeriesItemDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<PeriodicSeriesItemDto>>> GetSeriesItems(Guid id, [FromQuery] bool activeOnly = false, CancellationToken ct = default)
+        => Ok(await _service.GetSeriesItemsAsync(id, activeOnly, ct));
+
+    /// <summary>Обновить конфигурацию серии периодических задач.</summary>
+    [HttpPut("api/tasks/{id:guid}/series")]
+    [ProducesResponseType(typeof(TaskRecurrenceDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TaskRecurrenceDto>> UpdateSeries(Guid id, [FromBody] UpdateSeriesRequest req, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.UpdateSeriesAsync(id, req, userId.Value, User.IsInRole("Admin"), ct));
+    }
+
+    /// <summary>Остановить серию периодических задач.</summary>
+    /// <param name="action">Действие с активными экземплярами: пусто — оставить; ForceComplete — завершить; Delete — удалить.</param>
+    [HttpDelete("api/tasks/{id:guid}/series")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> StopSeries(Guid id, [FromQuery] string? action, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        await _service.StopSeriesAsync(id, userId.Value, User.IsInRole("Admin"), action, ct);
+        return NoContent();
+    }
+
+    /// <summary>Создать задачу по резолюции документа.</summary>
+    [HttpPost("api/tasks/resolution")]
+    [ProducesResponseType(typeof(TaskDto), StatusCodes.Status201Created)]
+    public async Task<ActionResult<TaskDto>> CreateResolutionTask([FromBody] CreateResolutionTaskRequest req, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        var dto = await _service.CreateResolutionTaskAsync(req, userId.Value, ct);
+        return CreatedAtAction(nameof(GetById), new { id = dto.Id }, dto);
+    }
+
+    /// <summary>Получить детали процесса для задачи по процессу.</summary>
+    [HttpGet("api/tasks/{id:guid}/process-info")]
+    [ProducesResponseType(typeof(ProcessTaskInfoDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ProcessTaskInfoDto>> GetProcessInfo(Guid id, CancellationToken ct)
+    {
+        var info = await _service.GetProcessTaskInfoAsync(id, ct);
+        if (info == null) return NotFound();
+        return Ok(info);
+    }
+
+    /// <summary>Скачать все вложения задачи архивом ZIP.</summary>
+    [HttpGet("api/tasks/{id:guid}/attachments/download")]
+    [ProducesResponseType(typeof(FileStreamResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> DownloadAttachments(Guid id, CancellationToken ct)
+    {
+        var (stream, fileName) = await _service.DownloadAttachmentsZipAsync(id, ct);
+        return File(stream, "application/zip", fileName);
+    }
 }
+
+

@@ -5,12 +5,14 @@ import {
     getTaskAttachments, getTaskParticipants, addTaskParticipant, removeTaskParticipant,
     getTaskRelations, addTaskRelation, removeTaskRelation,
     getTaskHistory, copyTask, reassignTask, createSubtask, listTasks,
+    getAllowedActions, approvePreTask, rejectPreTask, sendTaskForApproval, approveTask, rejectTask,
+    getTaskTimeLogs, addTaskTimeLog, deleteTaskTimeLog, takeControl, releaseControl,
     TASK_STATUS_LABELS, TASK_PRIORITY_LABELS,
 } from '../../api/tasksApi';
 import type {
     TaskDto, TaskCommentDto, TaskAttachmentDto,
     TaskRelationDto, TaskParticipantDto, TaskHistoryEntryDto,
-    TaskSummaryDto,
+    TaskSummaryDto, TaskTimeLogDto,
 } from '../../api/tasksApi';
 import { getDirectoryEmployees } from '../../api/orgDirectoryApi';
 import type { DirectoryEmployeeDto } from '../../api/orgDirectoryApi';
@@ -21,7 +23,7 @@ interface TaskDetailPageProps {
     onBack: () => void;
 }
 
-type TabId = 'description' | 'subtasks' | 'relations' | 'participants';
+type TabId = 'description' | 'subtasks' | 'relations' | 'participants' | 'timelogs' | 'process-info';
 
 const RELATION_LABELS: Record<string, string> = {
     DependsOn: 'Зависит от', Blocks: 'Блокирует', RelatedTo: 'Связана с',
@@ -46,6 +48,14 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
     const [participants, setParticipants] = useState<TaskParticipantDto[]>([]);
     const [relations, setRelations] = useState<TaskRelationDto[]>([]);
     const [subtasks, setSubtasks] = useState<TaskSummaryDto[]>([]);
+    const [timeLogs, setTimeLogs] = useState<TaskTimeLogDto[]>([]);
+
+    // ─── FR-TASK-01.4: Добавление трудозатрат ────────────────────────────────
+    const [showAddTimeLog, setShowAddTimeLog] = useState(false);
+    const [timeLogDuration, setTimeLogDuration] = useState('');
+    const [timeLogStartDate, setTimeLogStartDate] = useState('');
+    const [timeLogComment, setTimeLogComment] = useState('');
+    const [timeLogSaving, setTimeLogSaving] = useState(false);
 
     const [commentText, setCommentText] = useState('');
     const [commentSaving, setCommentSaving] = useState(false);
@@ -76,17 +86,31 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
 
     const [employees, setEmployees] = useState<DirectoryEmployeeDto[]>([]);
 
+    // FR-TASK-01.3: согласование
+    const [allowedActions, setAllowedActions] = useState<{ action: string; label: string }[]>([]);
+    const [approvalComment, setApprovalComment] = useState('');
+    const [showSendForApproval, setShowSendForApproval] = useState(false);
+    const [sendApprovalApproverQuery, setSendApprovalApproverQuery] = useState('');
+    const [sendApprovalApproverId, setSendApprovalApproverId] = useState('');
+    const [sendApprovalComment, setSendApprovalComment] = useState('');
+    const [approvalSaving, setApprovalSaving] = useState(false);
+    const [approvalError, setApprovalError] = useState<string | null>(null);
+
     const loadEmployees = useCallback(async () => {
         if (employees.length === 0 && token) {
-            try { setEmployees(await getDirectoryEmployees(token)); } catch { /* игнорируем */ }
+            try { setEmployees(await getDirectoryEmployees(token, {})); } catch { /* игнорируем */ }
         }
     }, [employees.length, token]);
 
     const loadTask = useCallback(async () => {
         if (!token) return;
         try {
-            const data = await getTask(token, taskId);
+            const [data, actions] = await Promise.all([
+                getTask(token, taskId),
+                getAllowedActions(token, taskId).catch(() => []),
+            ]);
             setTask(data);
+            setAllowedActions(actions);
             if (data.status === 'New') {
                 await markTaskRead(token, taskId);
             }
@@ -116,6 +140,8 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
             } else if (tab === 'subtasks') {
                 const all = await listTasks(token, {});
                 setSubtasks(all.filter((t: TaskSummaryDto) => t.id !== taskId));
+            } else if (tab === 'timelogs') {
+                setTimeLogs(await getTaskTimeLogs(token, taskId));
             }
         } catch { /* игнорируем */ }
     }, [token, taskId, tab]);
@@ -135,11 +161,118 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
         }
     };
 
+    // FR-TASK-01.3: обработчики согласования
+    const hasAction = (action: string) => allowedActions.some(a => a.action === action);
+
+    const handleApprovalAction = async (action: () => Promise<TaskDto>) => {
+        if (!token) return;
+        setApprovalSaving(true);
+        setApprovalError(null);
+        try {
+            const updated = await action();
+            setTask(updated);
+            const actions = await getAllowedActions(token, taskId).catch(() => []);
+            setAllowedActions(actions);
+            setApprovalComment('');
+        } catch (e) {
+            setApprovalError(e instanceof Error ? e.message : 'Ошибка');
+        } finally {
+            setApprovalSaving(false);
+        }
+    };
+
+    const handleSendForApproval = async () => {
+        if (!token) return;
+        setApprovalSaving(true);
+        setApprovalError(null);
+        try {
+            const updated = await sendTaskForApproval(token, taskId, sendApprovalApproverId || undefined, sendApprovalComment || undefined);
+            setTask(updated);
+            const actions = await getAllowedActions(token, taskId).catch(() => []);
+            setAllowedActions(actions);
+            setShowSendForApproval(false);
+            setSendApprovalApproverId('');
+            setSendApprovalApproverQuery('');
+            setSendApprovalComment('');
+        } catch (e) {
+            setApprovalError(e instanceof Error ? e.message : 'Ошибка');
+        } finally {
+            setApprovalSaving(false);
+        }
+    };
+
     const handleCopy = async () => {
         if (!token) return;
         try {
             await copyTask(token, taskId);
             alert('Задача скопирована');
+        } catch (e) {
+            alert(e instanceof Error ? e.message : 'Ошибка');
+        }
+    };
+
+    // FR-TASK-01.4: добавить трудозатраты
+    const handleAddTimeLog = async () => {
+        if (!token || !timeLogDuration) return;
+        const mins = parseInt(timeLogDuration, 10);
+        if (isNaN(mins) || mins <= 0) { alert('Введите корректную длительность в минутах.'); return; }
+        setTimeLogSaving(true);
+        try {
+            const log = await addTaskTimeLog(token, taskId, {
+                durationMinutes: mins,
+                startDate: timeLogStartDate || new Date().toISOString(),
+                comment: timeLogComment || undefined,
+            });
+            setTimeLogs(prev => [...prev, log]);
+            setShowAddTimeLog(false);
+            setTimeLogDuration('');
+            setTimeLogStartDate('');
+            setTimeLogComment('');
+            // Обновить задачу, чтобы обновить actualEffortMinutes
+            const updated = await getTask(token, taskId);
+            setTask(updated);
+        } catch (e) {
+            alert(e instanceof Error ? e.message : 'Ошибка');
+        } finally {
+            setTimeLogSaving(false);
+        }
+    };
+
+    // FR-TASK-01.4: удалить запись трудозатрат
+    const handleDeleteTimeLog = async (logId: string) => {
+        if (!token) return;
+        if (!window.confirm('Удалить запись трудозатрат?')) return;
+        try {
+            await deleteTaskTimeLog(token, taskId, logId);
+            setTimeLogs(prev => prev.filter(l => l.id !== logId));
+            const updated = await getTask(token, taskId);
+            setTask(updated);
+        } catch (e) {
+            alert(e instanceof Error ? e.message : 'Ошибка');
+        }
+    };
+
+    // FR-TASK-01.4: взять / снять задачу с контроля
+    const handleTakeControl = async () => {
+        if (!token) return;
+        try {
+            const updated = await takeControl(token, taskId);
+            setTask(updated);
+            const actions = await getAllowedActions(token, taskId).catch(() => []);
+            setAllowedActions(actions);
+        } catch (e) {
+            alert(e instanceof Error ? e.message : 'Ошибка');
+        }
+    };
+
+    const handleReleaseControl = async () => {
+        if (!token) return;
+        if (!window.confirm('Снять задачу с контроля?')) return;
+        try {
+            const updated = await releaseControl(token, taskId);
+            setTask(updated);
+            const actions = await getAllowedActions(token, taskId).catch(() => []);
+            setAllowedActions(actions);
         } catch (e) {
             alert(e instanceof Error ? e.message : 'Ошибка');
         }
@@ -247,6 +380,37 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                 <div className="task-detail__header-actions">
                     <button className="task-detail__btn" onClick={() => { setShowReassign(true); loadEmployees(); }}>Переназначить</button>
                     <button className="task-detail__btn" onClick={handleCopy}>Копировать</button>
+                    {/* FR-TASK-01.3: кнопки согласования */}
+                    {hasAction('approve-pre') && (
+                        <button className="task-detail__btn task-detail__btn--success" disabled={approvalSaving}
+                            onClick={() => handleApprovalAction(() => approvePreTask(token!, taskId, approvalComment || undefined))}>
+                            ✓ Согласовать (предв.)
+                        </button>
+                    )}
+                    {hasAction('reject-pre') && (
+                        <button className="task-detail__btn task-detail__btn--danger" disabled={approvalSaving}
+                            onClick={() => handleApprovalAction(() => rejectPreTask(token!, taskId, approvalComment || undefined))}>
+                            ✗ Отказать (предв.)
+                        </button>
+                    )}
+                    {hasAction('approve') && (
+                        <button className="task-detail__btn task-detail__btn--success" disabled={approvalSaving}
+                            onClick={() => handleApprovalAction(() => approveTask(token!, taskId, approvalComment || undefined))}>
+                            ✓ Согласовать
+                        </button>
+                    )}
+                    {hasAction('reject') && (
+                        <button className="task-detail__btn task-detail__btn--danger" disabled={approvalSaving}
+                            onClick={() => handleApprovalAction(() => rejectTask(token!, taskId, approvalComment || undefined))}>
+                            ✗ Отказать
+                        </button>
+                    )}
+                    {hasAction('send-for-approval') && (
+                        <button className="task-detail__btn" disabled={approvalSaving}
+                            onClick={() => { setShowSendForApproval(true); loadEmployees(); }}>
+                            📤 На согласование
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -259,8 +423,62 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                     <strong>Срок:</strong> {new Date(task.dueDate).toLocaleString('ru-RU')}
                     {task.isOverdue && <span className="task-detail__overdue-badge"> ⚠ Просрочена</span>}
                 </span>
+                {/* FR-TASK-01.3: согласующий */}
+                {task.approverName && (
+                    <span className="task-detail__meta-item">
+                        <strong>Согласующий:</strong>{' '}
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                            {task.approverName}
+                            {(task.status === 'PreApproval' || task.status === 'OnApproval') && (
+                                <span style={{ fontSize: 11, background: '#fef9c3', border: '1px solid #fde047', color: '#92400e', borderRadius: 4, padding: '1px 6px' }}>
+                                    ⏳ Ожидает решения
+                                </span>
+                            )}
+                            {(task.status === 'PreApprovalRejected' || task.status === 'ApprovalRejected') && (
+                                <span style={{ fontSize: 11, background: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', borderRadius: 4, padding: '1px 6px' }}>
+                                    ✗ Отказано
+                                </span>
+                            )}
+                            {task.status === 'New' && task.approverName && allowedActions.length === 0 && (
+                                <span style={{ fontSize: 11, background: '#dcfce7', border: '1px solid #86efac', color: '#166534', borderRadius: 4, padding: '1px 6px' }}>
+                                    ✓ Согласовано
+                                </span>
+                            )}
+                        </span>
+                    </span>
+                )}
                 {task.categoryId && <span className="task-detail__meta-item"><strong>Категория:</strong> {task.categoryId}</span>}
-                {task.plannedEffortMinutes && <span className="task-detail__meta-item"><strong>Трудозатраты:</strong> {task.plannedEffortMinutes} мин.</span>}
+                {/* FR-TASK-01.4: Контроль */}
+                {task.controlType && task.controlType !== 'None' && (
+                    <span className="task-detail__meta-item">
+                        <strong>Контроль:</strong>{' '}
+                        {{ ControlAfterExecution: 'Контроль выполнения', CurrentControl: 'Текущий контроль', NotifyOnCompletion: 'Оповещать при выполнении' }[task.controlType] ?? task.controlType}
+                        {task.controllerName && <> — {task.controllerName}</>}
+                    </span>
+                )}
+                {hasAction('take-control') && (
+                    <span className="task-detail__meta-item">
+                        <button className="task-detail__btn task-detail__btn--sm" onClick={handleTakeControl}>
+                            👁 Взять на контроль
+                        </button>
+                    </span>
+                )}
+                {hasAction('release-control') && (
+                    <span className="task-detail__meta-item">
+                        <button className="task-detail__btn task-detail__btn--sm task-detail__btn--danger" onClick={handleReleaseControl}>
+                            ✕ Снять с контроля
+                        </button>
+                    </span>
+                )}
+                {task.plannedEffortMinutes && (
+                    <span className="task-detail__meta-item">
+                        <strong>Трудозатраты:</strong>{' '}
+                        {task.actualEffortMinutes > 0
+                            ? <>{task.actualEffortMinutes} / {task.plannedEffortMinutes} мин.</>
+                            : <>{task.plannedEffortMinutes} мин. (план)</>
+                        }
+                    </span>
+                )}
                 {task.tags.length > 0 && (
                     <span className="task-detail__meta-item">
                         <strong>Теги:</strong> {task.tags.map(tag => <span key={tag} className="task-detail__tag">{tag}</span>)}
@@ -279,6 +497,43 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                         </span>
                     </span>
                 )}
+                {/* FR-TASK-01.5: вид задачи */}
+                {task.kind && task.kind !== 'Regular' && (
+                    <span className="task-detail__meta-item">
+                        <span style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 4,
+                            padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 600,
+                            background: task.kind === 'Periodic' ? '#e6f7ff' : task.kind === 'ProcessTask' ? '#eff6ff' : '#fff7e6',
+                            color: task.kind === 'Periodic' ? '#1890ff' : task.kind === 'ProcessTask' ? '#1d4ed8' : '#d46b08',
+                            border: `1px solid ${task.kind === 'Periodic' ? '#91d5ff' : task.kind === 'ProcessTask' ? '#bfdbfe' : '#ffd591'}`,
+                        }}>
+                            {task.kind === 'Periodic' && '🔄 Периодическая'}
+                            {task.kind === 'ProcessTask' && '⚙️ Задача по процессу'}
+                            {task.kind === 'Resolution' && '📄 Задача по резолюции'}
+                        </span>
+                    </span>
+                )}
+                {/* FR-TASK-01.5.3: ссылка на документ */}
+                {task.documentId && (
+                    <span className="task-detail__meta-item">
+                        <strong>Документ:</strong>{' '}
+                        <span style={{ color: '#1890ff', cursor: 'pointer' }}
+                            onClick={() => window.open(`/documents/${task.documentId}`, '_blank')}>
+                            🔗 Открыть документ
+                        </span>
+                    </span>
+                )}
+                {/* FR-TASK-01.5: скачать вложения архивом */}
+                {(task.kind === 'ProcessTask' || task.kind === 'Resolution') && task.attachmentCount > 0 && (
+                    <span className="task-detail__meta-item">
+                        <a
+                            href={`/api/tasks/${task.id}/attachments/download`}
+                            download
+                            style={{ color: '#1890ff', textDecoration: 'none', fontSize: 13 }}>
+                            📦 Скачать вложения ({task.attachmentCount})
+                        </a>
+                    </span>
+                )}
             </div>
 
             <div className="task-detail__tabs">
@@ -287,6 +542,10 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                     { id: 'subtasks', label: `Подзадачи (${task.subtaskCount})` },
                     { id: 'relations', label: 'Связи' },
                     { id: 'participants', label: 'Участники' },
+                    { id: 'timelogs', label: 'Трудозатраты' },
+                    ...(task.kind === 'ProcessTask' && task.processInfo
+                        ? [{ id: 'process-info' as TabId, label: '⚙️ Процесс' }]
+                        : []),
                 ] as { id: TabId; label: string }[]).map(t => (
                     <button key={t.id} className={`task-detail__tab${tab === t.id ? ' task-detail__tab--active' : ''}`} onClick={() => setTab(t.id)}>{t.label}</button>
                 ))}
@@ -427,6 +686,101 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                         }
                     </div>
                 )}
+
+                {/* ─── Трудозатраты ─── */}
+                {tab === 'timelogs' && (
+                    <div className="task-detail__tab-content">
+                        <div className="task-detail__section-header">
+                            <h4>Трудозатраты</h4>
+                            <button className="task-detail__btn" onClick={() => setShowAddTimeLog(true)}>+ Добавить</button>
+                        </div>
+                        {task.plannedEffortMinutes && (
+                            <div className="task-detail__effort-summary">
+                                <span>Плановые: <strong>{task.plannedEffortMinutes} мин.</strong></span>
+                                <span>Фактические: <strong>{task.actualEffortMinutes} мин.</strong></span>
+                                {task.subtaskActualEffortMinutes > 0 && (
+                                    <span>По подзадачам: <strong>{task.subtaskActualEffortMinutes} мин.</strong></span>
+                                )}
+                            </div>
+                        )}
+                        {timeLogs.length === 0
+                            ? <div className="task-detail__empty">Трудозатраты не добавлены</div>
+                            : (
+                                <table className="task-detail__table">
+                                    <thead>
+                                        <tr>
+                                            <th>Дата</th>
+                                            <th>Сотрудник</th>
+                                            <th>Длительность</th>
+                                            <th>Вид деятельности</th>
+                                            <th>Комментарий</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {timeLogs.map(l => (
+                                            <tr key={l.id}>
+                                                <td>{new Date(l.startDate).toLocaleDateString('ru-RU')}</td>
+                                                <td>{l.userName}</td>
+                                                <td>{l.durationMinutes} мин.</td>
+                                                <td>{l.activityTypeName ?? '—'}</td>
+                                                <td>{l.comment ?? '—'}</td>
+                                                <td>
+                                                    <button
+                                                        className="task-detail__btn task-detail__btn--sm task-detail__btn--danger"
+                                                        title="Удалить запись"
+                                                        onClick={() => handleDeleteTimeLog(l.id)}>
+                                                        ✕
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )
+                        }
+                    </div>
+                )}
+                {/* FR-TASK-01.5.2: Информация о процессе */}
+                {tab === 'process-info' && task.processInfo && (
+                    <div className="task-detail__tab-content">
+                        <h4 style={{ marginTop: 0 }}>Информация о процессе</h4>
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                            <tbody>
+                                <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
+                                    <td style={{ padding: '10px 8px', color: '#888', width: '40%' }}>Процесс</td>
+                                    <td style={{ padding: '10px 8px', fontWeight: 600 }}>
+                                        {task.processInfo.processName}{' '}
+                                        <span style={{ fontSize: 12, color: '#888' }}>({task.processInfo.processVersionNumber})</span>
+                                    </td>
+                                </tr>
+                                <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
+                                    <td style={{ padding: '10px 8px', color: '#888' }}>Экземпляр</td>
+                                    <td style={{ padding: '10px 8px' }}>
+                                        <span style={{ color: '#1890ff', cursor: 'pointer' }}
+                                            onClick={() => window.open(`/bpm/instances/${task.processInfo!.instanceId}`, '_blank')}>
+                                            🔗 {task.processInfo.instanceTitle || task.processInfo.instanceId}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
+                                    <td style={{ padding: '10px 8px', color: '#888' }}>Дата запуска</td>
+                                    <td style={{ padding: '10px 8px' }}>{new Date(task.processInfo.launchedAt).toLocaleString('ru-RU')}</td>
+                                </tr>
+                                <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
+                                    <td style={{ padding: '10px 8px', color: '#888' }}>Инициатор</td>
+                                    <td style={{ padding: '10px 8px' }}>{task.processInfo.initiatorName}</td>
+                                </tr>
+                                {task.processInfo.ownerName && (
+                                    <tr>
+                                        <td style={{ padding: '10px 8px', color: '#888' }}>Ответственный</td>
+                                        <td style={{ padding: '10px 8px' }}>{task.processInfo.ownerName}</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
             </div>
 
             {/* Диалог переназначения */}
@@ -532,6 +886,71 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                                 {subtaskSaving ? 'Создание...' : 'Создать'}
                             </button>
                             <button className="task-detail__btn" onClick={() => setShowCreateSubtask(false)}>Отмена</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* FR-TASK-01.3: диалог отправки на согласование */}
+            {showSendForApproval && (
+                <div className="task-detail__overlay" onClick={() => setShowSendForApproval(false)}>
+                    <div className="task-detail__dialog" onClick={e => e.stopPropagation()}>
+                        <h3>Отправить на согласование</h3>
+                        <input className="task-detail__input" placeholder="Поиск согласующего..." value={sendApprovalApproverQuery}
+                            onChange={e => { setSendApprovalApproverQuery(e.target.value); setSendApprovalApproverId(''); }} />
+                        {sendApprovalApproverQuery && employees.filter(e => e.displayName.toLowerCase().includes(sendApprovalApproverQuery.toLowerCase())).slice(0, 8).length > 0 && (
+                            <div className="task-detail__dropdown">
+                                {employees.filter(e => e.displayName.toLowerCase().includes(sendApprovalApproverQuery.toLowerCase())).slice(0, 8).map(e => (
+                                    <div key={e.userId} className={`task-detail__dropdown-item${sendApprovalApproverId === e.userId ? ' task-detail__dropdown-item--selected' : ''}`}
+                                        onClick={() => { setSendApprovalApproverId(e.userId); setSendApprovalApproverQuery(e.displayName); }}>
+                                        {e.displayName}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        <textarea className="task-detail__input" placeholder="Комментарий (необязательно)"
+                            value={sendApprovalComment} onChange={e => setSendApprovalComment(e.target.value)} rows={3} />
+                        {approvalError && <p className="task-detail__error">{approvalError}</p>}
+                        <div className="task-detail__dialog-footer">
+                            <button className="task-detail__btn task-detail__btn--primary" onClick={handleSendForApproval} disabled={approvalSaving}>
+                                {approvalSaving ? 'Отправка...' : 'Отправить'}
+                            </button>
+                            <button className="task-detail__btn" onClick={() => { setShowSendForApproval(false); setApprovalError(null); }}>Отмена</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* FR-TASK-01.3: поле комментария к решению по согласованию */}
+            {(hasAction('approve-pre') || hasAction('reject-pre') || hasAction('approve') || hasAction('reject')) && (
+                <div style={{ padding: '8px 16px', background: '#fff8e1', borderTop: '1px solid #ffe082' }}>
+                    <input className="task-detail__input" style={{ maxWidth: 420 }}
+                        placeholder="Комментарий к решению (необязательно)"
+                        value={approvalComment} onChange={e => setApprovalComment(e.target.value)} />
+                    {approvalError && <p className="task-detail__error">{approvalError}</p>}
+                </div>
+            )}
+
+            {/* FR-TASK-01.4: Диалог добавления трудозатрат */}
+            {showAddTimeLog && (
+                <div className="task-detail__overlay" onClick={() => setShowAddTimeLog(false)}>
+                    <div className="task-detail__dialog" onClick={e => e.stopPropagation()}>
+                        <h3>Добавить трудозатраты</h3>
+                        <label className="task-detail__field-label">Длительность (мин.) *</label>
+                        <input className="task-detail__input" type="number" min="1" placeholder="Например, 60"
+                            value={timeLogDuration} onChange={e => setTimeLogDuration(e.target.value)} />
+                        <label className="task-detail__field-label">Дата начала</label>
+                        <input className="task-detail__input" type="datetime-local"
+                            value={timeLogStartDate}
+                            onChange={e => setTimeLogStartDate(e.target.value ? new Date(e.target.value).toISOString() : '')} />
+                        <label className="task-detail__field-label">Комментарий</label>
+                        <textarea className="task-detail__input" placeholder="Необязательно"
+                            value={timeLogComment} onChange={e => setTimeLogComment(e.target.value)} rows={2} />
+                        <div className="task-detail__dialog-footer">
+                            <button className="task-detail__btn task-detail__btn--primary" onClick={handleAddTimeLog}
+                                disabled={timeLogSaving || !timeLogDuration}>
+                                {timeLogSaving ? 'Сохранение...' : 'Добавить'}
+                            </button>
+                            <button className="task-detail__btn" onClick={() => setShowAddTimeLog(false)}>Отмена</button>
                         </div>
                     </div>
                 </div>
