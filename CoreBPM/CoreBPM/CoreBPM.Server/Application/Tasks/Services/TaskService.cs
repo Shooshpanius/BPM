@@ -1551,7 +1551,7 @@ public class TaskService : ITaskService
     public async Task<TaskDto> CreateResolutionTaskAsync(CreateResolutionTaskRequest req, Guid authorId, CancellationToken ct = default)
     {
         req.Kind = TaskKind.Resolution;
-        req.DocumentId = req.DocumentId;
+        // DocumentId установлен непосредственно в CreateResolutionTaskRequest; передаётся в CreateAsync через базовый DocumentId
         return await CreateAsync(req, authorId, ct);
     }
 

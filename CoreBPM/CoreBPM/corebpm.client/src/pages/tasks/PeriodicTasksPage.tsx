@@ -208,7 +208,7 @@ function CreatePeriodicTaskDialog({ token, userId, onClose, onCreated }: CreateP
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        getDirectoryEmployees(token).then(setEmployees).catch(() => {});
+        getDirectoryEmployees(token, {}).then(setEmployees).catch(() => {});
     }, [token]);
 
     const handleSubmit = async () => {
