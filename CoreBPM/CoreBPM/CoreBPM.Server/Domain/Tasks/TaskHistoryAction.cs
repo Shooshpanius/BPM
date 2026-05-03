@@ -5,5 +5,8 @@ public enum TaskHistoryAction
     CommentAdded = 4, AttachmentAdded = 5, RelationAdded = 6, RelationRemoved = 7,
     TagAdded = 8, TagRemoved = 9, ParticipantAdded = 10, ParticipantRemoved = 11, Copied = 12,
     // FR-TASK-01.3: Согласование
-    SentForApproval = 13, ApprovalDecisionApproved = 14, ApprovalDecisionRejected = 15
+    SentForApproval = 13, ApprovalDecisionApproved = 14, ApprovalDecisionRejected = 15,
+    // FR-TASK-02.1: Дополнительные действия
+    Rescheduled = 16, Reopened = 17, Claimed = 18, WatcherAdded = 19, WatcherRemoved = 20,
+    QuestionAsked = 21, QuestionAnswered = 22, Mentioned = 23
 }

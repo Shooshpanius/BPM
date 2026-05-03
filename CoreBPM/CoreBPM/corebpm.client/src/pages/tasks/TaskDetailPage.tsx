@@ -7,12 +7,15 @@ import {
     getTaskHistory, copyTask, reassignTask, createSubtask, listTasks,
     getAllowedActions, approvePreTask, rejectPreTask, sendTaskForApproval, approveTask, rejectTask,
     getTaskTimeLogs, addTaskTimeLog, deleteTaskTimeLog, takeControl, releaseControl,
+    startTaskWork, markTaskDone, markTaskCannotDo, closeTask, rescheduleTask, reopenTask, claimTask,
+    getTaskWatchers, addTaskWatcher, removeTaskWatcher,
+    getTaskQuestions, askTaskQuestion, answerTaskQuestion,
     TASK_STATUS_LABELS, TASK_PRIORITY_LABELS,
 } from '../../api/tasksApi';
 import type {
     TaskDto, TaskCommentDto, TaskAttachmentDto,
     TaskRelationDto, TaskParticipantDto, TaskHistoryEntryDto,
-    TaskSummaryDto, TaskTimeLogDto,
+    TaskSummaryDto, TaskTimeLogDto, TaskQuestionDto,
 } from '../../api/tasksApi';
 import { getDirectoryEmployees } from '../../api/orgDirectoryApi';
 import type { DirectoryEmployeeDto } from '../../api/orgDirectoryApi';
@@ -23,7 +26,7 @@ interface TaskDetailPageProps {
     onBack: () => void;
 }
 
-type TabId = 'description' | 'subtasks' | 'relations' | 'participants' | 'timelogs' | 'process-info';
+type TabId = 'description' | 'subtasks' | 'relations' | 'participants' | 'timelogs' | 'process-info' | 'watchers' | 'questions';
 
 const RELATION_LABELS: Record<string, string> = {
     DependsOn: 'Зависит от', Blocks: 'Блокирует', RelatedTo: 'Связана с',
@@ -49,6 +52,54 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
     const [relations, setRelations] = useState<TaskRelationDto[]>([]);
     const [subtasks, setSubtasks] = useState<TaskSummaryDto[]>([]);
     const [timeLogs, setTimeLogs] = useState<TaskTimeLogDto[]>([]);
+    // FR-TASK-02.1: наблюдатели и вопросы
+    const [watchers, setWatchers] = useState<TaskParticipantDto[]>([]);
+    const [questions, setQuestions] = useState<TaskQuestionDto[]>([]);
+
+    // ─── FR-TASK-02.1: Диалоги расширенных действий ──────────────────────────
+    const [showDoneDialog, setShowDoneDialog] = useState(false);
+    const [doneComment, setDoneComment] = useState('');
+    const [doneEffortMinutes, setDoneEffortMinutes] = useState('');
+    const [doneCopyAttachments, setDoneCopyAttachments] = useState(false);
+    const [doneNotifyCoExec, setDoneNotifyCoExec] = useState(false);
+    const [doneSaving, setDoneSaving] = useState(false);
+
+    const [showCannotDoDialog, setShowCannotDoDialog] = useState(false);
+    const [cannotDoComment, setCannotDoComment] = useState('');
+    const [cannotDoNotifyCoExec, setCannotDoNotifyCoExec] = useState(false);
+    const [cannotDoSaving, setCannotDoSaving] = useState(false);
+
+    const [showStartDialog, setShowStartDialog] = useState(false);
+    const [startComment, setStartComment] = useState('');
+    const [startNotifyCoExec, setStartNotifyCoExec] = useState(false);
+    const [startSaving, setStartSaving] = useState(false);
+
+    const [showCloseDialog, setShowCloseDialog] = useState(false);
+    const [closeComment, setCloseComment] = useState('');
+    const [closeNotifyCoExec, setCloseNotifyCoExec] = useState(false);
+    const [closeSaving, setCloseSaving] = useState(false);
+
+    const [showRescheduleDialog, setShowRescheduleDialog] = useState(false);
+    const [rescheduleDate, setRescheduleDate] = useState('');
+    const [rescheduleComment, setRescheduleComment] = useState('');
+    const [rescheduleSaving, setRescheduleSaving] = useState(false);
+
+    // FR-TASK-02.1: наблюдатели
+    const [showAddWatcher, setShowAddWatcher] = useState(false);
+    const [watcherSearch, setWatcherSearch] = useState('');
+    const [watcherUserId, setWatcherUserId] = useState('');
+    const [watcherSaving, setWatcherSaving] = useState(false);
+
+    // FR-TASK-02.1: вопросы
+    const [showAskQuestion, setShowAskQuestion] = useState(false);
+    const [questionText, setQuestionText] = useState('');
+    const [questionRecipientId, setQuestionRecipientId] = useState('');
+    const [questionRecipientSearch, setQuestionRecipientSearch] = useState('');
+    const [questionSaving, setQuestionSaving] = useState(false);
+    const [showAnswerDialog, setShowAnswerDialog] = useState<string | null>(null);
+    const [answerText, setAnswerText] = useState('');
+    const [answerSaving, setAnswerSaving] = useState(false);
+    const [actionError, setActionError] = useState<string | null>(null);
 
     // ─── FR-TASK-01.4: Добавление трудозатрат ────────────────────────────────
     const [showAddTimeLog, setShowAddTimeLog] = useState(false);
@@ -142,6 +193,10 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                 setSubtasks(all.filter((t: TaskSummaryDto) => t.id !== taskId));
             } else if (tab === 'timelogs') {
                 setTimeLogs(await getTaskTimeLogs(token, taskId));
+            } else if (tab === 'watchers') {
+                setWatchers(await getTaskWatchers(token, taskId));
+            } else if (tab === 'questions') {
+                setQuestions(await getTaskQuestions(token, taskId));
             }
         } catch { /* игнорируем */ }
     }, [token, taskId, tab]);
@@ -278,6 +333,196 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
         }
     };
 
+    // FR-TASK-02.1: действия с расширенными диалогами
+    const refreshTask = async () => {
+        if (!token) return;
+        const [data, actions] = await Promise.all([
+            getTask(token, taskId),
+            getAllowedActions(token, taskId).catch(() => []),
+        ]);
+        setTask(data);
+        setAllowedActions(actions);
+    };
+
+    const handleStartWork = async () => {
+        if (!token) return;
+        setStartSaving(true);
+        setActionError(null);
+        try {
+            await startTaskWork(token, taskId, {
+                comment: startComment || undefined,
+                notifyCoExecutors: startNotifyCoExec,
+            });
+            setShowStartDialog(false);
+            setStartComment('');
+            setStartNotifyCoExec(false);
+            await refreshTask();
+        } catch (e) {
+            setActionError(e instanceof Error ? e.message : 'Ошибка');
+        } finally {
+            setStartSaving(false);
+        }
+    };
+
+    const handleMarkDone = async () => {
+        if (!token) return;
+        setDoneSaving(true);
+        setActionError(null);
+        try {
+            await markTaskDone(token, taskId, {
+                comment: doneComment || undefined,
+                effortMinutes: doneEffortMinutes ? parseInt(doneEffortMinutes, 10) : undefined,
+                copyAttachmentsFromSubtasks: doneCopyAttachments,
+                notifyCoExecutors: doneNotifyCoExec,
+            });
+            setShowDoneDialog(false);
+            setDoneComment('');
+            setDoneEffortMinutes('');
+            setDoneCopyAttachments(false);
+            setDoneNotifyCoExec(false);
+            await refreshTask();
+        } catch (e) {
+            setActionError(e instanceof Error ? e.message : 'Ошибка');
+        } finally {
+            setDoneSaving(false);
+        }
+    };
+
+    const handleMarkCannotDo = async () => {
+        if (!token) return;
+        setCannotDoSaving(true);
+        setActionError(null);
+        try {
+            await markTaskCannotDo(token, taskId, {
+                comment: cannotDoComment || undefined,
+                notifyCoExecutors: cannotDoNotifyCoExec,
+            });
+            setShowCannotDoDialog(false);
+            setCannotDoComment('');
+            setCannotDoNotifyCoExec(false);
+            await refreshTask();
+        } catch (e) {
+            setActionError(e instanceof Error ? e.message : 'Ошибка');
+        } finally {
+            setCannotDoSaving(false);
+        }
+    };
+
+    const handleCloseTask = async () => {
+        if (!token) return;
+        setCloseSaving(true);
+        setActionError(null);
+        try {
+            await closeTask(token, taskId, {
+                comment: closeComment || undefined,
+                notifyCoExecutors: closeNotifyCoExec,
+            });
+            setShowCloseDialog(false);
+            setCloseComment('');
+            setCloseNotifyCoExec(false);
+            await refreshTask();
+        } catch (e) {
+            setActionError(e instanceof Error ? e.message : 'Ошибка');
+        } finally {
+            setCloseSaving(false);
+        }
+    };
+
+    const handleReschedule = async () => {
+        if (!token || !rescheduleDate) return;
+        setRescheduleSaving(true);
+        setActionError(null);
+        try {
+            await rescheduleTask(token, taskId, new Date(rescheduleDate).toISOString(), rescheduleComment || undefined);
+            setShowRescheduleDialog(false);
+            setRescheduleDate('');
+            setRescheduleComment('');
+            await refreshTask();
+        } catch (e) {
+            setActionError(e instanceof Error ? e.message : 'Ошибка');
+        } finally {
+            setRescheduleSaving(false);
+        }
+    };
+
+    const handleReopen = async () => {
+        if (!token) return;
+        if (!window.confirm('Открыть задачу заново?')) return;
+        try {
+            await reopenTask(token, taskId);
+            await refreshTask();
+        } catch (e) {
+            alert(e instanceof Error ? e.message : 'Ошибка');
+        }
+    };
+
+    const handleClaim = async () => {
+        if (!token) return;
+        if (!window.confirm('Взять задачу на себя?')) return;
+        try {
+            await claimTask(token, taskId);
+            await refreshTask();
+        } catch (e) {
+            alert(e instanceof Error ? e.message : 'Ошибка');
+        }
+    };
+
+    // FR-TASK-02.1: наблюдатели
+    const handleAddWatcher = async () => {
+        if (!token || !watcherUserId) return;
+        setWatcherSaving(true);
+        try {
+            const w = await addTaskWatcher(token, taskId, watcherUserId);
+            setWatchers(prev => [...prev.filter(p => p.id !== w.id), w]);
+            setShowAddWatcher(false);
+            setWatcherUserId('');
+            setWatcherSearch('');
+        } catch (e) {
+            alert(e instanceof Error ? e.message : 'Ошибка');
+        } finally {
+            setWatcherSaving(false);
+        }
+    };
+
+    const handleRemoveWatcher = async (uid: string) => {
+        if (!token) return;
+        await removeTaskWatcher(token, taskId, uid);
+        setWatchers(prev => prev.filter(p => p.userId !== uid));
+    };
+
+    // FR-TASK-02.1: вопросы
+    const handleAskQuestion = async () => {
+        if (!token || !questionText.trim() || !questionRecipientId) return;
+        setQuestionSaving(true);
+        try {
+            const q = await askTaskQuestion(token, taskId, questionText.trim(), questionRecipientId);
+            setQuestions(prev => [...prev, q]);
+            setShowAskQuestion(false);
+            setQuestionText('');
+            setQuestionRecipientId('');
+            setQuestionRecipientSearch('');
+        } catch (e) {
+            alert(e instanceof Error ? e.message : 'Ошибка');
+        } finally {
+            setQuestionSaving(false);
+        }
+    };
+
+    const handleAnswerQuestion = async (questionId: string) => {
+        if (!token || !answerText.trim()) return;
+        setAnswerSaving(true);
+        try {
+            const q = await answerTaskQuestion(token, taskId, questionId, answerText.trim());
+            setQuestions(prev => prev.map(x => x.id === q.id ? q : x));
+            setShowAnswerDialog(null);
+            setAnswerText('');
+        } catch (e) {
+            alert(e instanceof Error ? e.message : 'Ошибка');
+        } finally {
+            setAnswerSaving(false);
+        }
+    };
+
     const handleReassign = async () => {
         if (!token || !reassignUserId) return;
         setReassignSaving(true);
@@ -380,6 +625,49 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                 <div className="task-detail__header-actions">
                     <button className="task-detail__btn" onClick={() => { setShowReassign(true); loadEmployees(); }}>Переназначить</button>
                     <button className="task-detail__btn" onClick={handleCopy}>Копировать</button>
+                    {/* FR-TASK-02.1: основные действия с расширенными диалогами */}
+                    {hasAction('start') && (
+                        <button className="task-detail__btn task-detail__btn--primary"
+                            onClick={() => setShowStartDialog(true)}>
+                            ▶ Начать работу
+                        </button>
+                    )}
+                    {hasAction('done') && (
+                        <button className="task-detail__btn task-detail__btn--success"
+                            onClick={() => setShowDoneDialog(true)}>
+                            ✓ Сделано
+                        </button>
+                    )}
+                    {hasAction('cannot-do') && (
+                        <button className="task-detail__btn task-detail__btn--danger"
+                            onClick={() => setShowCannotDoDialog(true)}>
+                            ✗ Невозможно
+                        </button>
+                    )}
+                    {hasAction('close') && (
+                        <button className="task-detail__btn task-detail__btn--danger"
+                            onClick={() => setShowCloseDialog(true)}>
+                            🚫 Закрыть
+                        </button>
+                    )}
+                    {hasAction('reschedule') && (
+                        <button className="task-detail__btn"
+                            onClick={() => setShowRescheduleDialog(true)}>
+                            📅 Перенести срок
+                        </button>
+                    )}
+                    {hasAction('reopen') && (
+                        <button className="task-detail__btn"
+                            onClick={handleReopen}>
+                            🔄 Открыть заново
+                        </button>
+                    )}
+                    {hasAction('claim') && (
+                        <button className="task-detail__btn task-detail__btn--primary"
+                            onClick={handleClaim}>
+                            👋 Взять задачу
+                        </button>
+                    )}
                     {/* FR-TASK-01.3: кнопки согласования */}
                     {hasAction('approve-pre') && (
                         <button className="task-detail__btn task-detail__btn--success" disabled={approvalSaving}
@@ -543,6 +831,8 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                     { id: 'relations', label: 'Связи' },
                     { id: 'participants', label: 'Участники' },
                     { id: 'timelogs', label: 'Трудозатраты' },
+                    { id: 'watchers', label: `👁 Наблюдатели (${watchers.length})` },
+                    { id: 'questions', label: `❓ Вопросы (${questions.length})` },
                     ...(task.kind === 'ProcessTask' && task.processInfo
                         ? [{ id: 'process-info' as TabId, label: '⚙️ Процесс' }]
                         : []),
@@ -781,6 +1071,72 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                         </table>
                     </div>
                 )}
+
+                {/* ─── FR-TASK-02.1: Наблюдатели ─── */}
+                {tab === 'watchers' && (
+                    <div className="task-detail__tab-content">
+                        <div className="task-detail__section-header">
+                            <h4>Наблюдатели</h4>
+                            <button className="task-detail__btn" onClick={() => { setShowAddWatcher(true); loadEmployees(); }}>+ Добавить</button>
+                        </div>
+                        {watchers.length === 0
+                            ? <div className="task-detail__empty">Наблюдателей нет</div>
+                            : (
+                                <ul className="task-detail__participants">
+                                    {watchers.map(w => (
+                                        <li key={w.id} className="task-detail__participant">
+                                            👁 <strong>{w.userName}</strong>
+                                            <button className="task-detail__remove-btn" onClick={() => handleRemoveWatcher(w.userId)} title="Удалить наблюдателя">✕</button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )
+                        }
+                    </div>
+                )}
+
+                {/* ─── FR-TASK-02.1: Вопросы ─── */}
+                {tab === 'questions' && (
+                    <div className="task-detail__tab-content">
+                        <div className="task-detail__section-header">
+                            <h4>Вопросы</h4>
+                            <button className="task-detail__btn" onClick={() => { setShowAskQuestion(true); loadEmployees(); }}>+ Задать вопрос</button>
+                        </div>
+                        {questions.length === 0
+                            ? <div className="task-detail__empty">Вопросов нет</div>
+                            : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                    {questions.map(q => (
+                                        <div key={q.id} style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 12, background: '#f9fafb' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                                                <span style={{ fontWeight: 600 }}>❓ {q.authorName}</span>
+                                                <span style={{ fontSize: 12, color: '#888' }}>{new Date(q.createdAt).toLocaleString('ru-RU')}</span>
+                                            </div>
+                                            <p style={{ margin: '0 0 8px', color: '#374151' }}>{q.questionText}</p>
+                                            <p style={{ margin: 0, fontSize: 12, color: '#6b7280' }}>→ {q.recipientName}</p>
+                                            {q.answerText
+                                                ? (
+                                                    <div style={{ marginTop: 8, padding: '8px 12px', background: '#dcfce7', borderRadius: 6, borderLeft: '3px solid #86efac' }}>
+                                                        <strong style={{ fontSize: 12, color: '#166534' }}>✓ Ответ:</strong>
+                                                        <p style={{ margin: '4px 0 0', color: '#166534', fontSize: 13 }}>{q.answerText}</p>
+                                                        {q.answeredAt && <p style={{ margin: '2px 0 0', fontSize: 11, color: '#888' }}>{new Date(q.answeredAt).toLocaleString('ru-RU')}</p>}
+                                                    </div>
+                                                )
+                                                : (
+                                                    <button className="task-detail__btn task-detail__btn--sm"
+                                                        style={{ marginTop: 8 }}
+                                                        onClick={() => { setShowAnswerDialog(q.id); setAnswerText(''); }}>
+                                                        Ответить
+                                                    </button>
+                                                )
+                                            }
+                                        </div>
+                                    ))}
+                                </div>
+                            )
+                        }
+                    </div>
+                )}
             </div>
 
             {/* Диалог переназначения */}
@@ -951,6 +1307,199 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                                 {timeLogSaving ? 'Сохранение...' : 'Добавить'}
                             </button>
                             <button className="task-detail__btn" onClick={() => setShowAddTimeLog(false)}>Отмена</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ─── FR-TASK-02.1: Диалоги новых действий ─── */}
+
+            {/* Диалог: Начать работу */}
+            {showStartDialog && (
+                <div className="task-detail__overlay" onClick={() => setShowStartDialog(false)}>
+                    <div className="task-detail__dialog" onClick={e => e.stopPropagation()}>
+                        <h3>▶ Начать работу</h3>
+                        <label className="task-detail__field-label">Комментарий</label>
+                        <textarea className="task-detail__input" placeholder="Необязательно" value={startComment} onChange={e => setStartComment(e.target.value)} rows={2} />
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                            <input type="checkbox" checked={startNotifyCoExec} onChange={e => setStartNotifyCoExec(e.target.checked)} />
+                            Уведомить соисполнителей
+                        </label>
+                        {actionError && <p className="task-detail__error">{actionError}</p>}
+                        <div className="task-detail__dialog-footer">
+                            <button className="task-detail__btn task-detail__btn--primary" onClick={handleStartWork} disabled={startSaving}>
+                                {startSaving ? 'Обновление...' : 'Начать работу'}
+                            </button>
+                            <button className="task-detail__btn" onClick={() => { setShowStartDialog(false); setActionError(null); }}>Отмена</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Диалог: Сделано */}
+            {showDoneDialog && (
+                <div className="task-detail__overlay" onClick={() => setShowDoneDialog(false)}>
+                    <div className="task-detail__dialog" onClick={e => e.stopPropagation()}>
+                        <h3>✓ Отметить выполненной</h3>
+                        <label className="task-detail__field-label">Комментарий</label>
+                        <textarea className="task-detail__input" placeholder="Необязательно" value={doneComment} onChange={e => setDoneComment(e.target.value)} rows={2} />
+                        <label className="task-detail__field-label">Затраченное время (мин.)</label>
+                        <input className="task-detail__input" type="number" min="1" placeholder="Например, 60" value={doneEffortMinutes} onChange={e => setDoneEffortMinutes(e.target.value)} />
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                            <input type="checkbox" checked={doneCopyAttachments} onChange={e => setDoneCopyAttachments(e.target.checked)} />
+                            Скопировать вложения из подзадач
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                            <input type="checkbox" checked={doneNotifyCoExec} onChange={e => setDoneNotifyCoExec(e.target.checked)} />
+                            Уведомить соисполнителей
+                        </label>
+                        {actionError && <p className="task-detail__error">{actionError}</p>}
+                        <div className="task-detail__dialog-footer">
+                            <button className="task-detail__btn task-detail__btn--success" onClick={handleMarkDone} disabled={doneSaving}>
+                                {doneSaving ? 'Обновление...' : 'Подтвердить'}
+                            </button>
+                            <button className="task-detail__btn" onClick={() => { setShowDoneDialog(false); setActionError(null); }}>Отмена</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Диалог: Невозможно выполнить */}
+            {showCannotDoDialog && (
+                <div className="task-detail__overlay" onClick={() => setShowCannotDoDialog(false)}>
+                    <div className="task-detail__dialog" onClick={e => e.stopPropagation()}>
+                        <h3>✗ Невозможно выполнить</h3>
+                        <label className="task-detail__field-label">Комментарий (причина)</label>
+                        <textarea className="task-detail__input" placeholder="Необязательно" value={cannotDoComment} onChange={e => setCannotDoComment(e.target.value)} rows={3} />
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                            <input type="checkbox" checked={cannotDoNotifyCoExec} onChange={e => setCannotDoNotifyCoExec(e.target.checked)} />
+                            Уведомить соисполнителей
+                        </label>
+                        {actionError && <p className="task-detail__error">{actionError}</p>}
+                        <div className="task-detail__dialog-footer">
+                            <button className="task-detail__btn task-detail__btn--danger" onClick={handleMarkCannotDo} disabled={cannotDoSaving}>
+                                {cannotDoSaving ? 'Обновление...' : 'Подтвердить'}
+                            </button>
+                            <button className="task-detail__btn" onClick={() => { setShowCannotDoDialog(false); setActionError(null); }}>Отмена</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Диалог: Закрыть задачу */}
+            {showCloseDialog && (
+                <div className="task-detail__overlay" onClick={() => setShowCloseDialog(false)}>
+                    <div className="task-detail__dialog" onClick={e => e.stopPropagation()}>
+                        <h3>🚫 Закрыть задачу</h3>
+                        <label className="task-detail__field-label">Комментарий (причина)</label>
+                        <textarea className="task-detail__input" placeholder="Необязательно" value={closeComment} onChange={e => setCloseComment(e.target.value)} rows={2} />
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                            <input type="checkbox" checked={closeNotifyCoExec} onChange={e => setCloseNotifyCoExec(e.target.checked)} />
+                            Уведомить соисполнителей
+                        </label>
+                        {actionError && <p className="task-detail__error">{actionError}</p>}
+                        <div className="task-detail__dialog-footer">
+                            <button className="task-detail__btn task-detail__btn--danger" onClick={handleCloseTask} disabled={closeSaving}>
+                                {closeSaving ? 'Обновление...' : 'Закрыть'}
+                            </button>
+                            <button className="task-detail__btn" onClick={() => { setShowCloseDialog(false); setActionError(null); }}>Отмена</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Диалог: Перенести срок */}
+            {showRescheduleDialog && (
+                <div className="task-detail__overlay" onClick={() => setShowRescheduleDialog(false)}>
+                    <div className="task-detail__dialog" onClick={e => e.stopPropagation()}>
+                        <h3>📅 Перенести срок</h3>
+                        <label className="task-detail__field-label">Новый срок *</label>
+                        <input className="task-detail__input" type="datetime-local"
+                            value={rescheduleDate}
+                            onChange={e => setRescheduleDate(e.target.value)} />
+                        <label className="task-detail__field-label">Комментарий</label>
+                        <textarea className="task-detail__input" placeholder="Необязательно" value={rescheduleComment} onChange={e => setRescheduleComment(e.target.value)} rows={2} />
+                        {actionError && <p className="task-detail__error">{actionError}</p>}
+                        <div className="task-detail__dialog-footer">
+                            <button className="task-detail__btn task-detail__btn--primary" onClick={handleReschedule}
+                                disabled={rescheduleSaving || !rescheduleDate}>
+                                {rescheduleSaving ? 'Сохранение...' : 'Перенести'}
+                            </button>
+                            <button className="task-detail__btn" onClick={() => { setShowRescheduleDialog(false); setActionError(null); }}>Отмена</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Диалог: Добавить наблюдателя */}
+            {showAddWatcher && (
+                <div className="task-detail__overlay" onClick={() => setShowAddWatcher(false)}>
+                    <div className="task-detail__dialog" onClick={e => e.stopPropagation()}>
+                        <h3>👁 Добавить наблюдателя</h3>
+                        <input className="task-detail__input" placeholder="Поиск сотрудника..." value={watcherSearch} onChange={e => { setWatcherSearch(e.target.value); setWatcherUserId(''); }} />
+                        {watcherSearch && employees.filter(e => e.displayName.toLowerCase().includes(watcherSearch.toLowerCase())).slice(0, 8).length > 0 && (
+                            <div className="task-detail__dropdown">
+                                {employees.filter(e => e.displayName.toLowerCase().includes(watcherSearch.toLowerCase())).slice(0, 8).map(e => (
+                                    <div key={e.userId} className={`task-detail__dropdown-item${watcherUserId === e.userId ? ' task-detail__dropdown-item--selected' : ''}`}
+                                        onClick={() => { setWatcherUserId(e.userId); setWatcherSearch(e.displayName); }}>
+                                        {e.displayName}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        <div className="task-detail__dialog-footer">
+                            <button className="task-detail__btn task-detail__btn--primary" onClick={handleAddWatcher} disabled={watcherSaving || !watcherUserId}>
+                                {watcherSaving ? 'Добавление...' : 'Добавить'}
+                            </button>
+                            <button className="task-detail__btn" onClick={() => setShowAddWatcher(false)}>Отмена</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Диалог: Задать вопрос */}
+            {showAskQuestion && (
+                <div className="task-detail__overlay" onClick={() => setShowAskQuestion(false)}>
+                    <div className="task-detail__dialog" onClick={e => e.stopPropagation()}>
+                        <h3>❓ Задать вопрос</h3>
+                        <label className="task-detail__field-label">Получатель *</label>
+                        <input className="task-detail__input" placeholder="Поиск сотрудника..." value={questionRecipientSearch}
+                            onChange={e => { setQuestionRecipientSearch(e.target.value); setQuestionRecipientId(''); }} />
+                        {questionRecipientSearch && employees.filter(e => e.displayName.toLowerCase().includes(questionRecipientSearch.toLowerCase())).slice(0, 8).length > 0 && (
+                            <div className="task-detail__dropdown">
+                                {employees.filter(e => e.displayName.toLowerCase().includes(questionRecipientSearch.toLowerCase())).slice(0, 8).map(e => (
+                                    <div key={e.userId} className={`task-detail__dropdown-item${questionRecipientId === e.userId ? ' task-detail__dropdown-item--selected' : ''}`}
+                                        onClick={() => { setQuestionRecipientId(e.userId); setQuestionRecipientSearch(e.displayName); }}>
+                                        {e.displayName}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        <label className="task-detail__field-label">Текст вопроса *</label>
+                        <textarea className="task-detail__input" placeholder="Введите вопрос..." value={questionText} onChange={e => setQuestionText(e.target.value)} rows={3} />
+                        <div className="task-detail__dialog-footer">
+                            <button className="task-detail__btn task-detail__btn--primary" onClick={handleAskQuestion}
+                                disabled={questionSaving || !questionText.trim() || !questionRecipientId}>
+                                {questionSaving ? 'Отправка...' : 'Задать вопрос'}
+                            </button>
+                            <button className="task-detail__btn" onClick={() => setShowAskQuestion(false)}>Отмена</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Диалог: Ответить на вопрос */}
+            {showAnswerDialog && (
+                <div className="task-detail__overlay" onClick={() => setShowAnswerDialog(null)}>
+                    <div className="task-detail__dialog" onClick={e => e.stopPropagation()}>
+                        <h3>✏️ Ответить на вопрос</h3>
+                        <textarea className="task-detail__input" placeholder="Введите ответ..." value={answerText} onChange={e => setAnswerText(e.target.value)} rows={4} />
+                        <div className="task-detail__dialog-footer">
+                            <button className="task-detail__btn task-detail__btn--primary" onClick={() => handleAnswerQuestion(showAnswerDialog)}
+                                disabled={answerSaving || !answerText.trim()}>
+                                {answerSaving ? 'Отправка...' : 'Ответить'}
+                            </button>
+                            <button className="task-detail__btn" onClick={() => setShowAnswerDialog(null)}>Отмена</button>
                         </div>
                     </div>
                 </div>

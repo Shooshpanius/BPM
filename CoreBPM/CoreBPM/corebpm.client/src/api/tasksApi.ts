@@ -679,3 +679,122 @@ export function getTimelogsReportExportUrl(filter: TimelogReportFilter = {}): st
     return `/api/reports/timelogs/export${qs ? `?${qs}` : ''}`;
 }
 
+// ─── FR-TASK-02.1: Расширенные диалоги действий ────────────────────────────
+
+export interface MarkDoneRequest {
+    comment?: string;
+    effortMinutes?: number;
+    workStartDate?: string;
+    copyAttachmentsFromSubtasks?: boolean;
+    notifyCoExecutors?: boolean;
+}
+
+export interface MarkCannotDoRequest {
+    comment?: string;
+    notifyCoExecutors?: boolean;
+}
+
+export interface StartWorkRequest {
+    comment?: string;
+    notifyCoExecutors?: boolean;
+}
+
+export interface CloseTaskRequest {
+    comment?: string;
+    notifyCoExecutors?: boolean;
+}
+
+/** Начать работу над задачей с дополнительными данными (FR-TASK-02.1). */
+export async function startTaskWork(token: string, id: string, req?: StartWorkRequest): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, `/api/tasks/${id}/actions/start`, { method: 'POST', body: JSON.stringify(req ?? {}) });
+}
+
+/** Отметить задачу как выполненную с дополнительными данными (FR-TASK-02.1). */
+export async function markTaskDone(token: string, id: string, req?: MarkDoneRequest): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, `/api/tasks/${id}/actions/done`, { method: 'POST', body: JSON.stringify(req ?? {}) });
+}
+
+/** Отметить «Невозможно выполнить» с дополнительными данными (FR-TASK-02.1). */
+export async function markTaskCannotDo(token: string, id: string, req?: MarkCannotDoRequest): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, `/api/tasks/${id}/actions/cannot-do`, { method: 'POST', body: JSON.stringify(req ?? {}) });
+}
+
+/** Закрыть (отменить) задачу с комментарием (FR-TASK-02.1). */
+export async function closeTask(token: string, id: string, req?: CloseTaskRequest): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, `/api/tasks/${id}/actions/close`, { method: 'POST', body: JSON.stringify(req ?? {}) });
+}
+
+/** Перенести срок задачи без смены статуса (FR-TASK-02.1). */
+export async function rescheduleTask(token: string, id: string, newDueDate: string, comment?: string): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, `/api/tasks/${id}/actions/reschedule`, {
+        method: 'POST',
+        body: JSON.stringify({ newDueDate, comment }),
+    });
+}
+
+/** Открыть задачу заново из финального статуса (FR-TASK-02.1). */
+export async function reopenTask(token: string, id: string): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, `/api/tasks/${id}/actions/reopen`, { method: 'POST' });
+}
+
+/** Взять задачу из очереди на себя (FR-TASK-02.1). */
+export async function claimTask(token: string, id: string): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, `/api/tasks/${id}/claim`, { method: 'POST' });
+}
+
+// ─── FR-TASK-02.1: Наблюдатели ────────────────────────────────────────────
+
+/** Получить список наблюдателей задачи (FR-TASK-02.1). */
+export async function getTaskWatchers(token: string, taskId: string): Promise<TaskParticipantDto[]> {
+    return apiFetch<TaskParticipantDto[]>(token, `/api/tasks/${taskId}/watchers`);
+}
+
+/** Добавить наблюдателя к задаче (FR-TASK-02.1). */
+export async function addTaskWatcher(token: string, taskId: string, userId: string): Promise<TaskParticipantDto> {
+    return apiFetch<TaskParticipantDto>(token, `/api/tasks/${taskId}/watchers`, {
+        method: 'POST',
+        body: JSON.stringify({ userId }),
+    });
+}
+
+/** Удалить наблюдателя из задачи (FR-TASK-02.1). */
+export async function removeTaskWatcher(token: string, taskId: string, watcherUserId: string): Promise<void> {
+    await apiFetch<void>(token, `/api/tasks/${taskId}/watchers/${watcherUserId}`, { method: 'DELETE' });
+}
+
+// ─── FR-TASK-02.1: Вопросы ────────────────────────────────────────────────
+
+export interface TaskQuestionDto {
+    id: string;
+    taskId: string;
+    authorUserId: string;
+    authorName: string;
+    recipientId: string;
+    recipientName: string;
+    questionText: string;
+    answerText?: string;
+    answeredAt?: string;
+    createdAt: string;
+}
+
+/** Получить список вопросов по задаче (FR-TASK-02.1). */
+export async function getTaskQuestions(token: string, taskId: string): Promise<TaskQuestionDto[]> {
+    return apiFetch<TaskQuestionDto[]>(token, `/api/tasks/${taskId}/questions`);
+}
+
+/** Задать вопрос по задаче (FR-TASK-02.1). */
+export async function askTaskQuestion(token: string, taskId: string, questionText: string, recipientId: string): Promise<TaskQuestionDto> {
+    return apiFetch<TaskQuestionDto>(token, `/api/tasks/${taskId}/questions`, {
+        method: 'POST',
+        body: JSON.stringify({ questionText, recipientId }),
+    });
+}
+
+/** Ответить на вопрос по задаче (FR-TASK-02.1). */
+export async function answerTaskQuestion(token: string, taskId: string, questionId: string, answerText: string): Promise<TaskQuestionDto> {
+    return apiFetch<TaskQuestionDto>(token, `/api/tasks/${taskId}/questions/${questionId}/answer`, {
+        method: 'PUT',
+        body: JSON.stringify({ answerText }),
+    });
+}
+

@@ -141,3 +141,72 @@ public class UpdateSeriesRequest
     public int? LookAheadCount { get; set; }
     public int? DurationMinutes { get; set; }
 }
+
+// ─── FR-TASK-02.1: Действия с задачей ────────────────────────────────────────
+
+/// <summary>Запрос на выполнение задачи (FR-TASK-02.1).</summary>
+public class MarkDoneRequest
+{
+    /// <summary>Комментарий к выполнению.</summary>
+    public string? Comment { get; set; }
+    /// <summary>Затраченное время (минуты). При наличии сохраняется как запись трудозатрат.</summary>
+    public int? EffortMinutes { get; set; }
+    /// <summary>Дата начала работ для записи трудозатрат.</summary>
+    public DateTimeOffset? WorkStartDate { get; set; }
+    /// <summary>Скопировать вложения из подзадач в текущую задачу.</summary>
+    public bool CopyAttachmentsFromSubtasks { get; set; }
+    /// <summary>Отправить уведомление соисполнителям о выполнении.</summary>
+    public bool NotifyCoExecutors { get; set; }
+}
+
+/// <summary>Запрос на отметку «Невозможно выполнить» (FR-TASK-02.1).</summary>
+public class MarkCannotDoRequest
+{
+    public string? Comment { get; set; }
+    public bool NotifyCoExecutors { get; set; }
+}
+
+/// <summary>Запрос на начало работы над задачей (FR-TASK-02.1).</summary>
+public class StartWorkRequest
+{
+    public string? Comment { get; set; }
+    public bool NotifyCoExecutors { get; set; }
+}
+
+/// <summary>Запрос на закрытие/отмену задачи (FR-TASK-02.1).</summary>
+public class CloseTaskRequest
+{
+    public string? Comment { get; set; }
+    public bool NotifyCoExecutors { get; set; }
+}
+
+/// <summary>Запрос на перенос срока задачи без смены статуса (FR-TASK-02.1).</summary>
+public class RescheduleTaskRequest
+{
+    /// <summary>Новый срок выполнения задачи.</summary>
+    public DateTimeOffset NewDueDate { get; set; }
+    public string? Comment { get; set; }
+}
+
+/// <summary>Запрос на добавление наблюдателя (FR-TASK-02.1).</summary>
+public class AddWatcherRequest
+{
+    /// <summary>Идентификатор пользователя-наблюдателя.</summary>
+    public Guid UserId { get; set; }
+}
+
+/// <summary>Запрос на вопрос по задаче (FR-TASK-02.1).</summary>
+public class AskTaskQuestionRequest
+{
+    /// <summary>Текст вопроса.</summary>
+    public string QuestionText { get; set; } = string.Empty;
+    /// <summary>Идентификатор получателя вопроса.</summary>
+    public Guid RecipientId { get; set; }
+}
+
+/// <summary>Запрос на ответ по вопросу к задаче (FR-TASK-02.1).</summary>
+public class AnswerTaskQuestionRequest
+{
+    /// <summary>Текст ответа.</summary>
+    public string AnswerText { get; set; } = string.Empty;
+}

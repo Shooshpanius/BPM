@@ -44,16 +44,16 @@ public interface ITaskService
     Task<IReadOnlyList<TaskAllowedActionDto>> GetAllowedActionsAsync(Guid taskId, Guid actorId, bool isAdmin, CancellationToken ct = default);
 
     /// <summary>Начать работу: New/Read → InProgress. Доступно исполнителю, соисполнителю, Admin.</summary>
-    Task<TaskDto> StartWorkAsync(Guid taskId, Guid actorId, CancellationToken ct = default);
+    Task<TaskDto> StartWorkAsync(Guid taskId, StartWorkRequest? req, Guid actorId, CancellationToken ct = default);
 
     /// <summary>Сделано: InProgress → Done / DoneNeedsControl. Доступно исполнителю, соисполнителю, Admin.</summary>
-    Task<TaskDto> MarkDoneAsync(Guid taskId, Guid actorId, CancellationToken ct = default);
+    Task<TaskDto> MarkDoneAsync(Guid taskId, MarkDoneRequest? req, Guid actorId, CancellationToken ct = default);
 
     /// <summary>Невозможно выполнить: InProgress → CannotDo / CannotDoNeedsControl. Доступно исполнителю, соисполнителю, Admin.</summary>
-    Task<TaskDto> MarkCannotDoAsync(Guid taskId, Guid actorId, CancellationToken ct = default);
+    Task<TaskDto> MarkCannotDoAsync(Guid taskId, MarkCannotDoRequest? req, Guid actorId, CancellationToken ct = default);
 
     /// <summary>Закрыть (отменить): не-финальный → Closed. Доступно автору и Admin.</summary>
-    Task<TaskDto> CloseAsync(Guid taskId, Guid actorId, bool isAdmin, CancellationToken ct = default);
+    Task<TaskDto> CloseAsync(Guid taskId, CloseTaskRequest? req, Guid actorId, bool isAdmin, CancellationToken ct = default);
 
     /// <summary>Отложить: не-финальный → Postponed + PostponedUntil. Доступно исполнителю и Admin.</summary>
     Task<TaskDto> PostponeAsync(Guid taskId, PostponeTaskRequest req, Guid actorId, bool isAdmin, CancellationToken ct = default);
@@ -63,6 +63,39 @@ public interface ITaskService
 
     /// <summary>Вернуть на доработку: DoneNeedsControl/CannotDoNeedsControl → New. Доступно контролёру и Admin.</summary>
     Task<TaskDto> ReturnToWorkAsync(Guid taskId, Guid actorId, bool isAdmin, CancellationToken ct = default);
+
+    // ─── FR-TASK-02.1: Дополнительные действия ───────────────────────────────
+
+    /// <summary>Перенести срок задачи без смены статуса. Доступно автору, контролёру и Admin.</summary>
+    Task<TaskDto> RescheduleAsync(Guid taskId, RescheduleTaskRequest req, Guid actorId, bool isAdmin, CancellationToken ct = default);
+
+    /// <summary>Открыть заново: финальные/контролируемые статусы → New. Доступно контролёру, автору и Admin.</summary>
+    Task<TaskDto> ReopenAsync(Guid taskId, Guid actorId, bool isAdmin, CancellationToken ct = default);
+
+    /// <summary>Взять задачу из очереди роли на себя. Доступно любому участнику, кроме текущего исполнителя.</summary>
+    Task<TaskDto> ClaimAsync(Guid taskId, Guid actorId, CancellationToken ct = default);
+
+    // ─── FR-TASK-02.1: Наблюдатели ───────────────────────────────────────────
+
+    /// <summary>Получить список наблюдателей задачи.</summary>
+    Task<IReadOnlyList<TaskParticipantDto>> GetWatchersAsync(Guid taskId, CancellationToken ct = default);
+
+    /// <summary>Добавить наблюдателя к задаче.</summary>
+    Task<TaskParticipantDto> AddWatcherAsync(Guid taskId, Guid watcherUserId, Guid actorId, CancellationToken ct = default);
+
+    /// <summary>Удалить наблюдателя из задачи.</summary>
+    Task RemoveWatcherAsync(Guid taskId, Guid watcherUserId, Guid actorId, bool isAdmin, CancellationToken ct = default);
+
+    // ─── FR-TASK-02.1: Вопросы ───────────────────────────────────────────────
+
+    /// <summary>Получить список вопросов по задаче.</summary>
+    Task<IReadOnlyList<TaskQuestionDto>> GetQuestionsAsync(Guid taskId, CancellationToken ct = default);
+
+    /// <summary>Задать вопрос по задаче. Получатель получает уведомление.</summary>
+    Task<TaskQuestionDto> AskQuestionAsync(Guid taskId, AskTaskQuestionRequest req, Guid authorId, CancellationToken ct = default);
+
+    /// <summary>Ответить на вопрос по задаче.</summary>
+    Task<TaskQuestionDto> AnswerQuestionAsync(Guid taskId, Guid questionId, AnswerTaskQuestionRequest req, Guid actorId, CancellationToken ct = default);
 
     // ─── FR-TASK-01.3: Согласование ──────────────────────────────────────────
 

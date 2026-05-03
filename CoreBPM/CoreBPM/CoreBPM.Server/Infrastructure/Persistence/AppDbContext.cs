@@ -68,6 +68,7 @@ public class AppDbContext : DbContext
     public DbSet<TaskTimeLog> TaskTimeLogs => Set<TaskTimeLog>();
     public DbSet<TaskControlSettings> TaskControlSettings => Set<TaskControlSettings>();
     public DbSet<TaskRecurrence> TaskRecurrences => Set<TaskRecurrence>();
+    public DbSet<TaskQuestion> TaskQuestions => Set<TaskQuestion>();
     public DbSet<DmnTable> DmnTables => Set<DmnTable>();
     public DbSet<DmnTableVersion> DmnTableVersions => Set<DmnTableVersion>();
     public DbSet<DmnColumn> DmnColumns => Set<DmnColumn>();
@@ -1161,6 +1162,17 @@ public class AppDbContext : DbContext
             e.ToTable("task_control_settings");
             e.HasKey(s => s.Id);
             e.Property(s => s.DefaultControlType).IsRequired();
+        });
+
+        modelBuilder.Entity<TaskQuestion>(e =>
+        {
+            e.ToTable("task_questions");
+            e.HasKey(q => q.Id);
+            e.HasIndex(q => q.TaskId);
+            e.HasOne(q => q.Task).WithMany()
+                .HasForeignKey(q => q.TaskId).OnDelete(DeleteBehavior.Cascade);
+            e.Property(q => q.QuestionText).HasMaxLength(2000);
+            e.Property(q => q.AnswerText).HasMaxLength(2000);
         });
     }
 }
