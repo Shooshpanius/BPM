@@ -110,6 +110,16 @@
     background: #1558b0;
 }
 
+.tasks-page__btn--success {
+    background: #52c41a;
+    color: white;
+    border-color: #52c41a;
+}
+
+.tasks-page__btn--success:hover {
+    background: #389e0d;
+}
+
 .tasks-page__loading,
 .tasks-page__empty {
     padding: 40px;

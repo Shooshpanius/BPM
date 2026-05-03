@@ -587,6 +587,14 @@ public class TaskService : ITaskService
             .Where(l => l.TaskId == taskId)
             .SumAsync(l => (int?)l.DurationMinutes, ct) ?? 0;
 
+        // Суммирование трудозатрат по подзадачам (FR-TASK-01.4)
+        var subtaskIds = task.Subtasks.Select(s => s.Id).ToList();
+        var subtaskEffort = subtaskIds.Any()
+            ? await _db.TaskTimeLogs.AsNoTracking()
+                .Where(l => subtaskIds.Contains(l.TaskId))
+                .SumAsync(l => (int?)l.DurationMinutes, ct) ?? 0
+            : 0;
+
         var dto = new TaskDto
         {
             Id = task.Id,
@@ -605,6 +613,7 @@ public class TaskService : ITaskService
             DateCorrectionMode = task.DateCorrectionMode.ToString(),
             PlannedEffortMinutes = task.PlannedEffortMinutes,
             ActualEffortMinutes = actualEffort,
+            SubtaskActualEffortMinutes = subtaskEffort,
             ControlType = task.ControlType.ToString(),
             ControllerUserId = task.ControllerUserId,
             ControllerName = controllerName,
@@ -1757,5 +1766,114 @@ public class TaskService : ITaskService
             DurationMinutes = rec.DurationMinutes,
             IsActive = rec.IsActive,
         };
+
+    // ─── FR-TASK-01.4: Массовый контроль задач ────────────────────────────────
+
+    /// <inheritdoc/>
+    public async Task<int> BulkVerifyAsync(IReadOnlyList<Guid> taskIds, Guid actorId, bool isAdmin, CancellationToken ct = default)
+    {
+        if (taskIds == null || taskIds.Count == 0)
+            throw new ValidationException("Список задач не может быть пустым.");
+
+        int accepted = 0;
+        var now = DateTimeOffset.UtcNow;
+
+        foreach (var taskId in taskIds)
+        {
+            var task = await _db.TaskItems.FirstOrDefaultAsync(t => t.Id == taskId, ct);
+            if (task == null) continue;
+
+            // Принять контроль можно только когда задача ожидает подтверждения
+            if (task.Status != TaskStatus.DoneNeedsControl && task.Status != TaskStatus.CannotDoNeedsControl)
+                continue;
+
+            if (task.ControllerUserId != actorId && !isAdmin)
+                continue;
+
+            var oldStatus = task.Status;
+            var newStatus = task.Status == TaskStatus.DoneNeedsControl
+                ? TaskStatus.DoneControlled
+                : TaskStatus.CannotDoControlled;
+
+            task.Status = newStatus;
+            task.UpdatedAt = now;
+            AddStatusHistory(task.Id, actorId, oldStatus, newStatus, now);
+            accepted++;
+        }
+
+        if (accepted > 0)
+            await _db.SaveChangesAsync(ct);
+
+        return accepted;
+    }
+
+    // ─── FR-TASK-01.5.2: Перенаправление ProcessTask при блокировке ──────────
+
+    /// <inheritdoc/>
+    public async Task ReassignBlockedProcessTasksAsync(Guid blockedUserId, CancellationToken ct = default)
+    {
+        // Находим все открытые ProcessTask-задачи, где исполнитель заблокирован
+        var openStatuses = new[]
+        {
+            TaskStatus.New,
+            TaskStatus.Read,
+            TaskStatus.InProgress,
+            TaskStatus.DoneNeedsControl,
+            TaskStatus.CannotDoNeedsControl,
+            TaskStatus.PreApproval,
+            TaskStatus.OnApproval,
+            TaskStatus.PreApprovalRejected,
+            TaskStatus.ApprovalRejected,
+            TaskStatus.Postponed,
+        };
+
+        var tasks = await _db.TaskItems
+            .Where(t => t.Kind == TaskKind.ProcessTask
+                     && t.AssigneeUserId == blockedUserId
+                     && openStatuses.Contains(t.Status)
+                     && t.SourceInstanceId != null)
+            .ToListAsync(ct);
+
+        if (tasks.Count == 0) return;
+
+        // Загружаем связанные экземпляры процессов для получения инициатора
+        var instanceIds = tasks.Select(t => t.SourceInstanceId!.Value).Distinct().ToList();
+        var instances = await _db.BpmInstances.AsNoTracking()
+            .Where(i => instanceIds.Contains(i.Id))
+            .ToDictionaryAsync(i => i.Id, ct);
+
+        var now = DateTimeOffset.UtcNow;
+        var maxNum = await _db.TaskItems.MaxAsync(t => (int?)t.Number, ct) ?? 0;
+
+        foreach (var task in tasks)
+        {
+            if (!instances.TryGetValue(task.SourceInstanceId!.Value, out var instance)) continue;
+
+            // Новый исполнитель — инициатор экземпляра процесса (или ответственный, если инициатора нет)
+            var newAssigneeId = instance.InitiatorUserId ?? instance.ResponsibleUserId;
+            if (newAssigneeId == null || newAssigneeId == blockedUserId) continue;
+
+            var oldAssigneeId = task.AssigneeUserId;
+            task.AssigneeUserId = newAssigneeId.Value;
+            task.UpdatedAt = now;
+
+            _db.TaskHistoryEntries.Add(new TaskHistoryEntry
+            {
+                Id = Guid.NewGuid(),
+                TaskId = task.Id,
+                ActorUserId = Guid.Empty, // системное действие
+                Action = TaskHistoryAction.Reassigned,
+                OldValue = oldAssigneeId.ToString(),
+                NewValue = newAssigneeId.Value.ToString(),
+                CreatedAt = now,
+            });
+
+            // Уведомить нового исполнителя
+            await _notifications.NotifyUserAsync(newAssigneeId.Value, "TaskAssigned",
+                new { taskId = task.Id, taskNumber = task.Number, reason = "AssigneeBlocked" });
+        }
+
+        await _db.SaveChangesAsync(ct);
+    }
 }
 

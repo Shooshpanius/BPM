@@ -19,6 +19,8 @@ public class TaskDto
     public int? PlannedEffortMinutes { get; set; }
     /// <summary>Фактические трудозатраты — сумма всех записей (FR-TASK-01.4).</summary>
     public int ActualEffortMinutes { get; set; }
+    /// <summary>Фактические трудозатраты по подзадачам (сумма, FR-TASK-01.4).</summary>
+    public int SubtaskActualEffortMinutes { get; set; }
     public string ControlType { get; set; } = string.Empty;
     public Guid? ControllerUserId { get; set; }
     public string? ControllerName { get; set; }

@@ -74,6 +74,8 @@ export interface TaskDto {
     plannedEffortMinutes?: number;
     /** FR-TASK-01.4: фактические трудозатраты (сумма timelogs, в минутах) */
     actualEffortMinutes: number;
+    /** FR-TASK-01.4: фактические трудозатраты по подзадачам (сумма timelogs подзадач, в минутах) */
+    subtaskActualEffortMinutes: number;
     controlType: string;
     controllerUserId?: string;
     controllerName?: string;
@@ -604,3 +606,76 @@ export async function getProcessTaskInfo(token: string, taskId: string): Promise
 export function getDownloadAttachmentsUrl(taskId: string): string {
     return `/api/tasks/${taskId}/attachments/download`;
 }
+
+// ─── FR-TASK-01.4: Массовый контроль ─────────────────────────────────────────
+
+export interface BulkVerifyResultDto {
+    acceptedCount: number;
+}
+
+/** Массово подтвердить выполнение задач (принять контроль). FR-TASK-01.4. */
+export async function bulkVerifyTasks(token: string, taskIds: string[]): Promise<BulkVerifyResultDto> {
+    return apiFetch<BulkVerifyResultDto>(token, '/api/tasks/bulk-verify', {
+        method: 'POST',
+        body: JSON.stringify({ taskIds }),
+    });
+}
+
+// ─── FR-TASK-01.4: Отчёт по трудозатратам ────────────────────────────────────
+
+export interface TimelogReportItemDto {
+    id: string;
+    taskId: string;
+    taskNumber: number;
+    taskSubject: string;
+    userId: string;
+    userName: string;
+    activityTypeId?: string;
+    activityTypeName?: string;
+    durationMinutes: number;
+    startDate: string;
+    comment?: string;
+    createdAt: string;
+}
+
+export interface TimelogReportPageDto {
+    items: TimelogReportItemDto[];
+    totalCount: number;
+    totalMinutes: number;
+    page: number;
+    perPage: number;
+}
+
+export interface TimelogReportFilter {
+    userId?: string;
+    taskId?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    page?: number;
+    perPage?: number;
+}
+
+/** Получить отчёт по трудозатратам с фильтрацией. FR-TASK-01.4. */
+export async function getTimelogsReport(token: string, filter: TimelogReportFilter = {}): Promise<TimelogReportPageDto> {
+    const params = new URLSearchParams();
+    if (filter.userId) params.set('userId', filter.userId);
+    if (filter.taskId) params.set('taskId', filter.taskId);
+    if (filter.dateFrom) params.set('dateFrom', filter.dateFrom);
+    if (filter.dateTo) params.set('dateTo', filter.dateTo);
+    if (filter.page) params.set('page', String(filter.page));
+    if (filter.perPage) params.set('perPage', String(filter.perPage));
+    const qs = params.toString();
+    return apiFetch<TimelogReportPageDto>(token, `/api/reports/timelogs${qs ? `?${qs}` : ''}`);
+}
+
+/** URL для экспорта трудозатрат в CSV. FR-TASK-01.4. */
+export function getTimelogsReportExportUrl(filter: TimelogReportFilter = {}): string {
+    const params = new URLSearchParams();
+    if (filter.userId) params.set('userId', filter.userId);
+    if (filter.taskId) params.set('taskId', filter.taskId);
+    if (filter.dateFrom) params.set('dateFrom', filter.dateFrom);
+    if (filter.dateTo) params.set('dateTo', filter.dateTo);
+    const qs = params.toString();
+    return `/api/reports/timelogs/export${qs ? `?${qs}` : ''}`;
+}
+

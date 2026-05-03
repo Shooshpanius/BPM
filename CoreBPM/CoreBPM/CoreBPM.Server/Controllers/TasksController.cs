@@ -478,6 +478,19 @@ public class TasksController : ControllerBase
         return Ok(await _service.ReleaseControlAsync(id, userId.Value, User.IsInRole("Admin"), ct));
     }
 
+    /// <summary>Массово подтвердить выполнение задач (принять контроль). FR-TASK-01.4.</summary>
+    /// <remarks>Принимает список идентификаторов задач и подтверждает выполнение тех, что ожидают контроля.
+    /// Возвращает количество успешно обработанных задач.</remarks>
+    [HttpPost("api/tasks/bulk-verify")]
+    [ProducesResponseType(typeof(BulkVerifyResultDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<BulkVerifyResultDto>> BulkVerify([FromBody] BulkVerifyRequest req, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        var count = await _service.BulkVerifyAsync(req.TaskIds, userId.Value, User.IsInRole("Admin"), ct);
+        return Ok(new BulkVerifyResultDto { AcceptedCount = count });
+    }
+
     // ─── FR-TASK-01.5: Типы задач ─────────────────────────────────────────────
 
     /// <summary>Создать периодическую задачу.</summary>

@@ -68,3 +68,17 @@ public class UpdateTaskControlSettingsRequest
     public bool IsEffortRequired { get; set; }
     public bool IsActivityTypeRequired { get; set; }
 }
+
+/// <summary>Запрос на массовое подтверждение выполнения задач (FR-TASK-01.4).</summary>
+public class BulkVerifyRequest
+{
+    /// <summary>Идентификаторы задач, которые нужно подтвердить.</summary>
+    public IReadOnlyList<Guid> TaskIds { get; set; } = Array.Empty<Guid>();
+}
+
+/// <summary>Результат массового подтверждения выполнения задач (FR-TASK-01.4).</summary>
+public class BulkVerifyResultDto
+{
+    /// <summary>Количество задач, по которым контроль успешно принят.</summary>
+    public int AcceptedCount { get; set; }
+}

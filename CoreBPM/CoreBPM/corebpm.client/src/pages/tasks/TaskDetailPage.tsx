@@ -698,6 +698,9 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                             <div className="task-detail__effort-summary">
                                 <span>Плановые: <strong>{task.plannedEffortMinutes} мин.</strong></span>
                                 <span>Фактические: <strong>{task.actualEffortMinutes} мин.</strong></span>
+                                {task.subtaskActualEffortMinutes > 0 && (
+                                    <span>По подзадачам: <strong>{task.subtaskActualEffortMinutes} мин.</strong></span>
+                                )}
                             </div>
                         )}
                         {timeLogs.length === 0

@@ -24,6 +24,7 @@ import { ImprovementsPage } from './bpm/ImprovementsPage';
 import { AnalyticsSummaryPage } from './bpm/AnalyticsSummaryPage';
 import { ProcessAnalyticsPage } from './bpm/ProcessAnalyticsPage';
 import TaskControlSettingsPage from './admin/TaskControlSettingsPage';
+import TimelogsReportPage from './admin/TimelogsReportPage';
 import { MyColleaguesWidget } from '../components/org/MyColleaguesWidget';
 import { TasksPage } from './tasks/TasksPage';
 import { TaskDetailPage } from './tasks/TaskDetailPage';
@@ -219,6 +220,7 @@ export function HomePage({ onAdmin }: HomePageProps) {
                             : <MigrationPackagesPage onOpenDetail={setMigrationPackageId} />
                     )}
                     {section === 'task-control-settings' && <TaskControlSettingsPage />}
+                    {section === 'timelogs-report' && <TimelogsReportPage />}
                 </main>
             </div>
             {isMobile && <MobileNav active={section} onSelect={handleSelect} />}

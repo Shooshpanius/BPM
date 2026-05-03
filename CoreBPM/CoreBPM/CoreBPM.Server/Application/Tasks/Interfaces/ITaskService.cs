@@ -104,6 +104,12 @@ public interface ITaskService
     /// <summary>Удалить запись трудозатрат. Доступно автору записи и Admin.</summary>
     Task DeleteTimeLogAsync(Guid taskId, Guid logId, Guid actorId, bool isAdmin, CancellationToken ct = default);
 
+    /// <summary>Массово подтвердить выполнение задач (принять контроль по нескольким задачам, FR-TASK-01.4).</summary>
+    Task<int> BulkVerifyAsync(IReadOnlyList<Guid> taskIds, Guid actorId, bool isAdmin, CancellationToken ct = default);
+
+    /// <summary>Переназначить открытые ProcessTask-задачи при блокировке исполнителя (FR-TASK-01.5.2).</summary>
+    Task ReassignBlockedProcessTasksAsync(Guid blockedUserId, CancellationToken ct = default);
+
     // ─── FR-TASK-01.5: Типы задач ─────────────────────────────────────────────
 
     /// <summary>Создать периодическую задачу с конфигурацией серии (FR-TASK-01.5.1).</summary>

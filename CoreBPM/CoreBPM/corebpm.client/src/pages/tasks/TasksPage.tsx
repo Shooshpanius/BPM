@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import {
-    listTasks, createTask, exportTasksCsv,
+    listTasks, createTask, exportTasksCsv, bulkVerifyTasks,
     TASK_STATUS_LABELS, TASK_PRIORITY_LABELS,
 } from '../../api/tasksApi';
 import type { TaskSummaryDto, TaskStatus, TaskPriority } from '../../api/tasksApi';
@@ -28,6 +28,9 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
     const [filterPriority, setFilterPriority] = useState('');
     const [filterSearch, setFilterSearch] = useState('');
     const [filterOverdue, setFilterOverdue] = useState(false);
+
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [bulkVerifyMsg, setBulkVerifyMsg] = useState<string | null>(null);
 
     const [showCreate, setShowCreate] = useState(false);
     const [employees, setEmployees] = useState<DirectoryEmployeeDto[]>([]);
@@ -131,6 +134,30 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
         } catch { /* игнорируем */ }
     };
 
+    const handleBulkVerify = async () => {
+        if (!token || selectedIds.size === 0) return;
+        setBulkVerifyMsg(null);
+        try {
+            const result = await bulkVerifyTasks(token, Array.from(selectedIds));
+            setBulkVerifyMsg(`Контроль принят по ${result.acceptedCount} задач(ам)`);
+            setSelectedIds(new Set());
+            load();
+        } catch (e) {
+            setBulkVerifyMsg(e instanceof Error ? e.message : 'Ошибка');
+        }
+    };
+
+    const toggleSelect = (id: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            next.has(id) ? next.delete(id) : next.add(id);
+            return next;
+        });
+    };
+        } catch { /* игнорируем */ }
+    };
+
     const getStatusClass = (status: TaskStatus, isOverdue: boolean) => {
         if (isOverdue) return 'task-badge task-badge--overdue';
         if (status === 'Done' || status === 'DoneControlled') return 'task-badge task-badge--done';
@@ -151,8 +178,22 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
                 <div className="tasks-page__actions">
                     <button className="tasks-page__btn tasks-page__btn--primary" onClick={handleOpenCreate}>+ Создать задачу</button>
                     <button className="tasks-page__btn" onClick={handleExport}>Экспорт CSV</button>
+                    {selectedIds.size > 0 && (
+                        <button
+                            className="tasks-page__btn tasks-page__btn--success"
+                            onClick={handleBulkVerify}
+                            title="Принять контроль по выбранным задачам"
+                        >
+                            ✓ Подтвердить выбранные ({selectedIds.size})
+                        </button>
+                    )}
                 </div>
             </div>
+            {bulkVerifyMsg && (
+                <div style={{ padding: '8px 16px', background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 4, marginBottom: 12, fontSize: 13 }}>
+                    {bulkVerifyMsg}
+                </div>
+            )}
 
             <div className="tasks-page__tabs">
                 {(['all', 'my'] as TabId[]).map(t => (
@@ -190,6 +231,7 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
                 <table className="tasks-page__table">
                     <thead>
                         <tr>
+                            <th style={{ width: 32 }}></th>
                             <th>№</th>
                             <th>Тема</th>
                             <th>Статус</th>
@@ -202,6 +244,14 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
                     <tbody>
                         {tasks.map(task => (
                             <tr key={task.id} className={`tasks-page__row${task.isOverdue ? ' tasks-page__row--overdue' : ''}`} onClick={() => onOpenTask(task.id)}>
+                                <td onClick={e => toggleSelect(task.id, e)} style={{ textAlign: 'center', cursor: 'pointer' }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedIds.has(task.id)}
+                                        onChange={() => {/* handled by td onClick */}}
+                                        onClick={e => { e.stopPropagation(); }}
+                                    />
+                                </td>
                                 <td className="tasks-page__num">T-{task.number}</td>
                                 <td className="tasks-page__subject">{task.subject}</td>
                                 <td><span className={getStatusClass(task.status, task.isOverdue)}>{TASK_STATUS_LABELS[task.status]}</span></td>
