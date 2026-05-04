@@ -117,6 +117,9 @@ public class AppDbContext : DbContext
     public DbSet<NotifyDndSettings> NotifyDndSettings => Set<NotifyDndSettings>();
     public DbSet<NotifyDeliveryLog> NotifyDeliveryLogs => Set<NotifyDeliveryLog>();
     public DbSet<AdminNotificationTemplate> AdminNotificationTemplates => Set<AdminNotificationTemplate>();
+    public DbSet<NotifyThrottleSetting> NotifyThrottleSettings => Set<NotifyThrottleSetting>();
+    public DbSet<NotifyThrottleLog> NotifyThrottleLogs => Set<NotifyThrottleLog>();
+    public DbSet<AdminNotificationLogSettings> AdminNotificationLogSettings => Set<AdminNotificationLogSettings>();
 
     // ─── Настройки SMTP / Email-шаблоны / SMS / VAPID (FR-ADM-02.1, FR-MSG-02.1) ──
     public DbSet<AdminSmtpSettings> AdminSmtpSettings => Set<AdminSmtpSettings>();
@@ -1604,6 +1607,30 @@ public class AppDbContext : DbContext
             e.Property(x => x.EventLabel).HasMaxLength(200);
             e.Property(x => x.EmailSubjectTemplate).HasMaxLength(500);
             e.Property(x => x.ShortTemplate).HasMaxLength(500);
+        });
+
+        // ─── Ограничение частоты уведомлений (FR-MSG-02.2 throttle) ─────────
+        modelBuilder.Entity<NotifyThrottleSetting>(e =>
+        {
+            e.ToTable("notify_throttle_settings");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.UserId, x.EventType, x.Channel }).IsUnique();
+            e.Property(x => x.EventType).IsRequired().HasMaxLength(100);
+        });
+
+        modelBuilder.Entity<NotifyThrottleLog>(e =>
+        {
+            e.ToTable("notify_throttle_log");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.UserId, x.EventType, x.Channel }).IsUnique();
+            e.Property(x => x.EventType).IsRequired().HasMaxLength(100);
+        });
+
+        // ─── Настройки хранения журнала (FR-MSG-02.2 retention) ─────────────
+        modelBuilder.Entity<AdminNotificationLogSettings>(e =>
+        {
+            e.ToTable("admin_notification_log_settings");
+            e.HasKey(x => x.Id);
         });
     }
 }

@@ -189,19 +189,28 @@ public class BpmNotificationService : IBpmNotificationService
         // 4. Rich email
         if (sendEmail && !string.IsNullOrWhiteSpace(orgUser.WorkEmail))
         {
-            try
-            {
-                var actions = BuildActionButtons(eventType, payload);
-                var (emailSubject, htmlBody) = await _emailTemplates.RenderAsync(
-                    eventType, title, body, link, actions, ct);
-
-                await _email.SendAsync(orgUser.WorkEmail, displayName, emailSubject, htmlBody, ct);
-                await _notifSettings.LogDeliveryAsync(userId, eventType, DeliveryChannel.Email, NotifyDeliveryStatus.Sent, ct: ct);
-            }
-            catch (Exception ex)
+            // Проверяем throttle для email
+            if (await _notifSettings.IsThrottledAsync(userId, eventType, DeliveryChannel.Email, ct))
             {
                 await _notifSettings.LogDeliveryAsync(userId, eventType, DeliveryChannel.Email,
-                    NotifyDeliveryStatus.Failed, ex.Message, ct);
+                    NotifyDeliveryStatus.SkippedThrottle, ct: ct);
+            }
+            else
+            {
+                try
+                {
+                    var actions = BuildActionButtons(eventType, payload);
+                    var (emailSubject, htmlBody) = await _emailTemplates.RenderAsync(
+                        eventType, title, body, link, actions, ct);
+
+                    await _email.SendAsync(orgUser.WorkEmail, displayName, emailSubject, htmlBody, ct);
+                    await _notifSettings.LogDeliveryAsync(userId, eventType, DeliveryChannel.Email, NotifyDeliveryStatus.Sent, ct: ct);
+                }
+                catch (Exception ex)
+                {
+                    await _notifSettings.LogDeliveryAsync(userId, eventType, DeliveryChannel.Email,
+                        NotifyDeliveryStatus.Failed, ex.Message, ct);
+                }
             }
         }
         else if (!sendEmail)
@@ -219,6 +228,11 @@ public class BpmNotificationService : IBpmNotificationService
             {
                 await _notifSettings.LogDeliveryAsync(userId, eventType, DeliveryChannel.Sms,
                     NotifyDeliveryStatus.SkippedDnd, ct: ct);
+            }
+            else if (await _notifSettings.IsThrottledAsync(userId, eventType, DeliveryChannel.Sms, ct))
+            {
+                await _notifSettings.LogDeliveryAsync(userId, eventType, DeliveryChannel.Sms,
+                    NotifyDeliveryStatus.SkippedThrottle, ct: ct);
             }
             else
             {
@@ -251,6 +265,11 @@ public class BpmNotificationService : IBpmNotificationService
             {
                 await _notifSettings.LogDeliveryAsync(userId, eventType, DeliveryChannel.Push,
                     NotifyDeliveryStatus.SkippedDnd, ct: ct);
+            }
+            else if (await _notifSettings.IsThrottledAsync(userId, eventType, DeliveryChannel.Push, ct))
+            {
+                await _notifSettings.LogDeliveryAsync(userId, eventType, DeliveryChannel.Push,
+                    NotifyDeliveryStatus.SkippedThrottle, ct: ct);
             }
             else
             {

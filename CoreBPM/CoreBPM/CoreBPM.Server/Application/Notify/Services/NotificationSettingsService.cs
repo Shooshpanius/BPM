@@ -1,12 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 using CoreBPM.Server.Application.Notify.DTOs;
 using CoreBPM.Server.Application.Notify.Interfaces;
+using CoreBPM.Server.Domain.Admin;
 using CoreBPM.Server.Domain.Notify;
 using CoreBPM.Server.Infrastructure.Persistence;
 
 namespace CoreBPM.Server.Application.Notify.Services;
 
-/// <summary>Сервис настроек DND и журнала доставки (FR-MSG-02.2).</summary>
+/// <summary>Сервис настроек DND, throttle, журнала доставки и статистики (FR-MSG-02.2).</summary>
 public class NotificationSettingsService : INotificationSettingsService
 {
     private readonly AppDbContext _db;
@@ -25,7 +26,7 @@ public class NotificationSettingsService : INotificationSettingsService
         if (entry is null)
             return new DndSettingsDto { StartHour = 22, EndHour = 8, ApplyToPush = true, ApplyToSms = true };
 
-        return Map(entry);
+        return MapDnd(entry);
     }
 
     /// <inheritdoc />
@@ -50,7 +51,7 @@ public class NotificationSettingsService : INotificationSettingsService
         entry.UpdatedAt = DateTimeOffset.UtcNow;
 
         await _db.SaveChangesAsync(ct);
-        return Map(entry);
+        return MapDnd(entry);
     }
 
     /// <inheritdoc />
@@ -93,6 +94,92 @@ public class NotificationSettingsService : INotificationSettingsService
             // Переночной диапазон: 22–8 (через полночь)
             return hour >= entry.StartHour || hour < entry.EndHour;
         }
+    }
+
+    // ── Throttle (ограничение частоты) ────────────────────────────────────
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<ThrottleSettingDto>> GetThrottleSettingsAsync(
+        Guid userId, CancellationToken ct = default)
+    {
+        var items = await _db.NotifyThrottleSettings
+            .AsNoTracking()
+            .Where(s => s.UserId == userId)
+            .ToListAsync(ct);
+
+        return items.Select(MapThrottle).ToList();
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<ThrottleSettingDto>> UpdateThrottleSettingsAsync(
+        Guid userId, UpdateThrottleSettingsRequest request, CancellationToken ct = default)
+    {
+        foreach (var dto in request.Settings)
+        {
+            if (!Enum.TryParse<DeliveryChannel>(dto.Channel, true, out var channel)) continue;
+
+            var existing = await _db.NotifyThrottleSettings
+                .FirstOrDefaultAsync(s => s.UserId == userId
+                    && s.EventType == dto.EventType
+                    && s.Channel == channel, ct);
+
+            if (existing is null)
+            {
+                existing = new NotifyThrottleSetting { UserId = userId, EventType = dto.EventType, Channel = channel };
+                _db.NotifyThrottleSettings.Add(existing);
+            }
+
+            existing.MinIntervalMinutes = Math.Max(0, dto.MinIntervalMinutes);
+            existing.UpdatedAt = DateTimeOffset.UtcNow;
+        }
+
+        await _db.SaveChangesAsync(ct);
+        return await GetThrottleSettingsAsync(userId, ct);
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> IsThrottledAsync(
+        Guid userId, string eventType, DeliveryChannel channel, CancellationToken ct = default)
+    {
+        // Получаем настройку ограничения
+        var setting = await _db.NotifyThrottleSettings
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.UserId == userId && s.EventType == eventType && s.Channel == channel, ct);
+
+        if (setting is null || setting.MinIntervalMinutes <= 0)
+            return false; // ограничение не задано
+
+        // Проверяем время последней отправки
+        var lastLog = await _db.NotifyThrottleLogs
+            .FirstOrDefaultAsync(l => l.UserId == userId && l.EventType == eventType && l.Channel == channel, ct);
+
+        var now = DateTimeOffset.UtcNow;
+
+        if (lastLog is not null
+            && (now - lastLog.LastSentAt).TotalMinutes < setting.MinIntervalMinutes)
+        {
+            // Throttle активен — не обновляем время
+            return true;
+        }
+
+        // Обновляем/создаём запись в throttle-журнале
+        if (lastLog is null)
+        {
+            _db.NotifyThrottleLogs.Add(new NotifyThrottleLog
+            {
+                UserId = userId,
+                EventType = eventType,
+                Channel = channel,
+                LastSentAt = now,
+            });
+        }
+        else
+        {
+            lastLog.LastSentAt = now;
+        }
+
+        await _db.SaveChangesAsync(ct);
+        return false;
     }
 
     // ── Журнал доставки ───────────────────────────────────────────────────────
@@ -178,9 +265,109 @@ public class NotificationSettingsService : INotificationSettingsService
         return (items, total);
     }
 
+    // ── Retention (хранение журнала) ─────────────────────────────────────────
+
+    /// <inheritdoc />
+    public async Task<NotificationLogRetentionDto> GetRetentionSettingsAsync(CancellationToken ct = default)
+    {
+        var settings = await _db.AdminNotificationLogSettings
+            .AsNoTracking()
+            .FirstOrDefaultAsync(ct);
+
+        return new NotificationLogRetentionDto
+        {
+            RetentionDays = settings?.RetentionDays ?? 90,
+        };
+    }
+
+    /// <inheritdoc />
+    public async Task<NotificationLogRetentionDto> UpdateRetentionSettingsAsync(
+        NotificationLogRetentionDto dto, CancellationToken ct = default)
+    {
+        var settings = await _db.AdminNotificationLogSettings.FirstOrDefaultAsync(ct);
+
+        if (settings is null)
+        {
+            settings = new AdminNotificationLogSettings();
+            _db.AdminNotificationLogSettings.Add(settings);
+        }
+
+        settings.RetentionDays = Math.Max(0, dto.RetentionDays);
+        settings.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await _db.SaveChangesAsync(ct);
+        return new NotificationLogRetentionDto { RetentionDays = settings.RetentionDays };
+    }
+
+    /// <inheritdoc />
+    public async Task<int> PurgeOldLogsAsync(int olderThanDays, CancellationToken ct = default)
+    {
+        if (olderThanDays <= 0) return 0;
+
+        var cutoff = DateTimeOffset.UtcNow.AddDays(-olderThanDays);
+        var deleted = await _db.NotifyDeliveryLogs
+            .Where(l => l.CreatedAt < cutoff)
+            .ExecuteDeleteAsync(ct);
+
+        return deleted;
+    }
+
+    // ── Статистика доставки ──────────────────────────────────────────────────
+
+    /// <inheritdoc />
+    public async Task<DeliveryStatsDto> GetDeliveryStatsAsync(
+        DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default)
+    {
+        var query = _db.NotifyDeliveryLogs.AsNoTracking();
+
+        if (from.HasValue) query = query.Where(l => l.CreatedAt >= from.Value);
+        if (to.HasValue) query = query.Where(l => l.CreatedAt <= to.Value);
+
+        var logs = await query
+            .Select(l => new { l.Channel, l.Status, l.EventType })
+            .ToListAsync(ct);
+
+        var channels = Enum.GetValues<DeliveryChannel>();
+        var byChannel = channels.Select(ch =>
+        {
+            var chLogs = logs.Where(l => l.Channel == ch).ToList();
+            return new DeliveryStatDto
+            {
+                Channel = ch.ToString(),
+                Sent = chLogs.Count(l => l.Status == NotifyDeliveryStatus.Sent),
+                Failed = chLogs.Count(l => l.Status == NotifyDeliveryStatus.Failed),
+                SkippedUserSettings = chLogs.Count(l => l.Status == NotifyDeliveryStatus.SkippedUserSettings),
+                SkippedDnd = chLogs.Count(l => l.Status == NotifyDeliveryStatus.SkippedDnd),
+                SkippedThrottle = chLogs.Count(l => l.Status == NotifyDeliveryStatus.SkippedThrottle),
+                Total = chLogs.Count,
+            };
+        }).ToList();
+
+        var topEventTypes = logs
+            .GroupBy(l => l.EventType)
+            .Select(g => new EventTypeStatDto
+            {
+                EventType = g.Key,
+                Total = g.Count(),
+                Sent = g.Count(l => l.Status == NotifyDeliveryStatus.Sent),
+                Failed = g.Count(l => l.Status == NotifyDeliveryStatus.Failed),
+            })
+            .OrderByDescending(e => e.Total)
+            .Take(10)
+            .ToList();
+
+        return new DeliveryStatsDto
+        {
+            From = from,
+            To = to,
+            ByChannel = byChannel,
+            TopEventTypes = topEventTypes,
+        };
+    }
+
     // ─── маппинг ─────────────────────────────────────────────────────────────
 
-    private static DndSettingsDto Map(NotifyDndSettings e)
+    private static DndSettingsDto MapDnd(NotifyDndSettings e)
     {
         var days = string.IsNullOrWhiteSpace(e.DisabledDays)
             ? []
@@ -201,4 +388,12 @@ public class NotificationSettingsService : INotificationSettingsService
             ApplyToSms = e.ApplyToSms,
         };
     }
+
+    private static ThrottleSettingDto MapThrottle(NotifyThrottleSetting s) => new()
+    {
+        EventType = s.EventType,
+        Channel = s.Channel.ToString(),
+        MinIntervalMinutes = s.MinIntervalMinutes,
+    };
 }
+

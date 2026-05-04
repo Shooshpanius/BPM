@@ -6,7 +6,7 @@ import { useBpmNotifications } from '../context/BpmNotificationsContext';
 import { APP_VERSION, LAST_PR_DATE } from '../version';
 import './Sidebar.css';
 
-export type SidebarSection = 'portal' | 'notifications' | 'tasks' | 'tasks-periodic' | 'tasks-dashboard' | 'contacts' | 'org-structure' | 'company' | 'user-profile' | 'user-preferences' | 'bpm-processes' | 'bpm-my-processes' | 'bpm-monitor' | 'bpm-queue' | 'bpm-documentation' | 'bpm-rules' | 'bpm-forms' | 'bpm-scripts' | 'bpm-migration' | 'bpm-improvements' | 'bpm-analytics' | 'task-control-settings' | 'timelogs-report' | 'notification-settings' | 'smtp-settings' | 'email-templates' | 'sms-settings' | 'push-settings' | 'notification-templates' | 'notification-logs' | 'messages' | 'channels';
+export type SidebarSection = 'portal' | 'notifications' | 'tasks' | 'tasks-periodic' | 'tasks-dashboard' | 'contacts' | 'org-structure' | 'company' | 'user-profile' | 'user-preferences' | 'bpm-processes' | 'bpm-my-processes' | 'bpm-monitor' | 'bpm-queue' | 'bpm-documentation' | 'bpm-rules' | 'bpm-forms' | 'bpm-scripts' | 'bpm-migration' | 'bpm-improvements' | 'bpm-analytics' | 'task-control-settings' | 'timelogs-report' | 'notification-settings' | 'smtp-settings' | 'email-templates' | 'sms-settings' | 'push-settings' | 'notification-templates' | 'notification-logs' | 'notification-stats' | 'messages' | 'channels';
 
 interface SidebarProps {
     active: SidebarSection;
@@ -484,6 +484,22 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
                             <polyline points="14 2 14 8 20 8"/>
                             <line x1="9" y1="13" x2="15" y2="13"/>
                             <line x1="9" y1="17" x2="12" y2="17"/>
+                        </svg>
+                    }
+                />
+            )}
+            {/* FR-MSG-02.2: Статистика доставки — только Admin */}
+            {hasRole('Admin') && (
+                <SidebarItem
+                    id="notification-stats"
+                    label="Статистика уведомлений"
+                    active={active === 'notification-stats'}
+                    onClick={() => onSelect('notification-stats')}
+                    icon={
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <line x1="18" y1="20" x2="18" y2="10"/>
+                            <line x1="12" y1="20" x2="12" y2="4"/>
+                            <line x1="6" y1="20" x2="6" y2="14"/>
                         </svg>
                     }
                 />

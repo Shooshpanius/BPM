@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { getDeliveryLogs } from '../../api/tasksApi';
+import {
+    getDeliveryLogs, getDeliveryLogsExportUrl,
+    getNotificationLogRetention, updateNotificationLogRetention,
+} from '../../api/tasksApi';
 import type { DeliveryLogEntryDto } from '../../api/tasksApi';
 
 const CHANNEL_LABELS: Record<string, string> = {
@@ -12,6 +15,7 @@ const STATUS_LABELS: Record<string, string> = {
     Failed: 'Ошибка',
     SkippedUserSettings: 'Пропущено (настройки)',
     SkippedDnd: 'Пропущено (DND)',
+    SkippedThrottle: 'Пропущено (throttle)',
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -19,9 +23,10 @@ const STATUS_COLORS: Record<string, string> = {
     Failed: '#d9534f',
     SkippedUserSettings: '#888',
     SkippedDnd: '#f0ad4e',
+    SkippedThrottle: '#9b59b6',
 };
 
-/** Журнал доставки уведомлений (администратор). FR-MSG-02.2. */
+/** Журнал доставки уведомлений с экспортом и настройками retention (администратор). FR-MSG-02.2. */
 export function NotificationLogsPage() {
     const { accessToken: token } = useAuth();
     const [items, setItems] = useState<DeliveryLogEntryDto[]>([]);
@@ -37,6 +42,11 @@ export function NotificationLogsPage() {
     const [filterTo, setFilterTo] = useState('');
     const [page, setPage] = useState(1);
     const pageSize = 50;
+
+    // Retention settings
+    const [retentionDays, setRetentionDays] = useState(90);
+    const [savingRetention, setSavingRetention] = useState(false);
+    const [savedRetention, setSavedRetention] = useState(false);
 
     const load = useCallback(() => {
         if (!token) return;
@@ -58,6 +68,39 @@ export function NotificationLogsPage() {
 
     useEffect(() => { load(); }, [load]);
 
+    useEffect(() => {
+        if (!token) return;
+        getNotificationLogRetention(token)
+            .then(r => setRetentionDays(r.retentionDays))
+            .catch(() => {/* не критично */});
+    }, [token]);
+
+    const handleSaveRetention = async () => {
+        if (!token) return;
+        setSavingRetention(true);
+        try {
+            const updated = await updateNotificationLogRetention(token, { retentionDays });
+            setRetentionDays(updated.retentionDays);
+            setSavedRetention(true);
+        } catch (e: unknown) {
+            setError((e as Error).message ?? 'Ошибка сохранения');
+        } finally {
+            setSavingRetention(false);
+        }
+    };
+
+    const handleExport = () => {
+        const url = getDeliveryLogsExportUrl({
+            userId: filterUserId || undefined,
+            type: filterType || undefined,
+            channel: filterChannel || undefined,
+            status: filterStatus || undefined,
+            from: filterFrom || undefined,
+            to: filterTo || undefined,
+        });
+        window.open(url, '_blank');
+    };
+
     const inputStyle: React.CSSProperties = {
         padding: '5px 8px', border: '1px solid #ced4da', borderRadius: 4, fontSize: 13,
     };
@@ -66,6 +109,34 @@ export function NotificationLogsPage() {
         <div style={{ padding: 24, maxWidth: 1100 }}>
             <h2 style={{ marginBottom: 12 }}>Журнал доставки уведомлений</h2>
             {error && <div style={{ color: '#d9534f', marginBottom: 12 }}>{error}</div>}
+
+            {/* Настройки хранения журнала */}
+            <div style={{
+                background: '#f8f9fa', border: '1px solid #dee2e6', borderRadius: 6,
+                padding: '12px 16px', marginBottom: 20, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap',
+            }}>
+                <span style={{ fontWeight: 600, fontSize: 14 }}>Хранение журнала:</span>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14 }}>
+                    Срок хранения:&nbsp;
+                    <input
+                        type="number" min={0} step={30} value={retentionDays}
+                        onChange={e => { setRetentionDays(Number(e.target.value)); setSavedRetention(false); }}
+                        style={{ ...inputStyle, width: 80 }}
+                    />
+                    &nbsp;дней (0 = бессрочно)
+                </label>
+                <button
+                    onClick={handleSaveRetention}
+                    disabled={savingRetention}
+                    style={{
+                        padding: '5px 14px', background: '#6c757d', color: '#fff',
+                        border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13,
+                    }}
+                >
+                    {savingRetention ? 'Сохранение…' : 'Сохранить'}
+                </button>
+                {savedRetention && <span style={{ color: '#5cb85c', fontSize: 13 }}>✓ Сохранено</span>}
+            </div>
 
             {/* Фильтры */}
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
@@ -86,6 +157,7 @@ export function NotificationLogsPage() {
                     <option value="Failed">Ошибка</option>
                     <option value="SkippedUserSettings">Пропущено (настройки)</option>
                     <option value="SkippedDnd">Пропущено (DND)</option>
+                    <option value="SkippedThrottle">Пропущено (throttle)</option>
                 </select>
                 <input type="date" style={inputStyle}
                     value={filterFrom} onChange={e => { setFilterFrom(e.target.value); setPage(1); }} />
@@ -94,6 +166,11 @@ export function NotificationLogsPage() {
                 <button onClick={load}
                     style={{ padding: '5px 14px', background: '#4a90d9', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}>
                     Обновить
+                </button>
+                <button onClick={handleExport}
+                    style={{ padding: '5px 14px', background: '#28a745', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}
+                    title="Экспортировать все найденные записи в CSV">
+                    ⬇ CSV
                 </button>
             </div>
 

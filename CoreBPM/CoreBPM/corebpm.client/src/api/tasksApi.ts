@@ -1011,6 +1011,95 @@ export async function getDeliveryLogs(token: string, params: {
     return apiFetch<DeliveryLogsResponse>(token, `/api/admin/notification-logs?${q}`);
 }
 
+/** Экспорт журнала доставки уведомлений в CSV. FR-MSG-02.2. */
+export function getDeliveryLogsExportUrl(params: {
+    userId?: string; type?: string; channel?: string; status?: string;
+    from?: string; to?: string;
+}): string {
+    const q = new URLSearchParams();
+    if (params.userId) q.set('userId', params.userId);
+    if (params.type) q.set('type', params.type);
+    if (params.channel) q.set('channel', params.channel);
+    if (params.status) q.set('status', params.status);
+    if (params.from) q.set('from', params.from);
+    if (params.to) q.set('to', params.to);
+    return `/api/admin/notification-logs/export?${q}`;
+}
+
+// ─── FR-MSG-02.2: Throttle (ограничение частоты) ─────────────────────────────
+
+export interface ThrottleSettingDto {
+    eventType: string;
+    channel: string;
+    minIntervalMinutes: number;
+}
+
+/** Получить throttle-настройки текущего пользователя. FR-MSG-02.2. */
+export async function getThrottleSettings(token: string): Promise<ThrottleSettingDto[]> {
+    return apiFetch<ThrottleSettingDto[]>(token, '/api/users/me/notification-settings/throttle');
+}
+
+/** Обновить throttle-настройки текущего пользователя. FR-MSG-02.2. */
+export async function updateThrottleSettings(token: string, settings: ThrottleSettingDto[]): Promise<ThrottleSettingDto[]> {
+    return apiFetch<ThrottleSettingDto[]>(token, '/api/users/me/notification-settings/throttle', {
+        method: 'PUT',
+        body: JSON.stringify({ settings }),
+    });
+}
+
+// ─── FR-MSG-02.2: Retention (хранение журнала) ───────────────────────────────
+
+export interface NotificationLogRetentionDto {
+    retentionDays: number;
+}
+
+/** Получить настройки срока хранения журнала доставки. FR-MSG-02.2. */
+export async function getNotificationLogRetention(token: string): Promise<NotificationLogRetentionDto> {
+    return apiFetch<NotificationLogRetentionDto>(token, '/api/admin/notification-settings/retention');
+}
+
+/** Обновить настройки срока хранения журнала доставки. FR-MSG-02.2. */
+export async function updateNotificationLogRetention(token: string, dto: NotificationLogRetentionDto): Promise<NotificationLogRetentionDto> {
+    return apiFetch<NotificationLogRetentionDto>(token, '/api/admin/notification-settings/retention', {
+        method: 'PUT',
+        body: JSON.stringify(dto),
+    });
+}
+
+// ─── FR-MSG-02.2: Статистика доставки ────────────────────────────────────────
+
+export interface DeliveryStatDto {
+    channel: string;
+    sent: number;
+    failed: number;
+    skippedUserSettings: number;
+    skippedDnd: number;
+    skippedThrottle: number;
+    total: number;
+}
+
+export interface EventTypeStatDto {
+    eventType: string;
+    total: number;
+    sent: number;
+    failed: number;
+}
+
+export interface DeliveryStatsDto {
+    from?: string;
+    to?: string;
+    byChannel: DeliveryStatDto[];
+    topEventTypes: EventTypeStatDto[];
+}
+
+/** Получить сводную статистику доставки уведомлений. FR-MSG-02.2. */
+export async function getDeliveryStats(token: string, params: { from?: string; to?: string } = {}): Promise<DeliveryStatsDto> {
+    const q = new URLSearchParams();
+    if (params.from) q.set('from', params.from);
+    if (params.to) q.set('to', params.to);
+    return apiFetch<DeliveryStatsDto>(token, `/api/admin/notification-stats?${q}`);
+}
+
 // ─── FR-TASK-02.3: Глобальный поиск задач ────────────────────────────────────
 
 export interface TaskSearchHitDto {

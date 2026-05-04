@@ -108,3 +108,74 @@ public class DeliveryLogFilterRequest
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 50;
 }
+
+// ─── FR-MSG-02.2: Ограничение частоты (Throttle) ──────────────────────────
+
+/// <summary>DTO одной настройки ограничения частоты уведомлений.</summary>
+public class ThrottleSettingDto
+{
+    /// <summary>Тип события.</summary>
+    public string EventType { get; set; } = string.Empty;
+    /// <summary>Канал: InApp, Email, Sms, Push.</summary>
+    public string Channel { get; set; } = string.Empty;
+    /// <summary>Минимальный интервал в минутах (0 = без ограничения).</summary>
+    public int MinIntervalMinutes { get; set; } = 0;
+}
+
+/// <summary>Запрос обновления throttle-настроек пользователя.</summary>
+public class UpdateThrottleSettingsRequest
+{
+    public List<ThrottleSettingDto> Settings { get; set; } = [];
+}
+
+// ─── FR-MSG-02.2: Настройки хранения журнала (Retention) ──────────────────
+
+/// <summary>DTO настроек хранения журнала доставки уведомлений.</summary>
+public class NotificationLogRetentionDto
+{
+    /// <summary>Количество дней хранения (0 = бессрочно).</summary>
+    public int RetentionDays { get; set; } = 90;
+}
+
+// ─── FR-MSG-02.2: Статистика доставки ─────────────────────────────────────
+
+/// <summary>Статистика доставки уведомлений по каналу.</summary>
+public class DeliveryStatDto
+{
+    /// <summary>Канал доставки.</summary>
+    public string Channel { get; set; } = string.Empty;
+    /// <summary>Количество успешных отправок.</summary>
+    public int Sent { get; set; }
+    /// <summary>Количество ошибок.</summary>
+    public int Failed { get; set; }
+    /// <summary>Пропущено по настройкам пользователя.</summary>
+    public int SkippedUserSettings { get; set; }
+    /// <summary>Пропущено по DND.</summary>
+    public int SkippedDnd { get; set; }
+    /// <summary>Пропущено по throttle.</summary>
+    public int SkippedThrottle { get; set; }
+    /// <summary>Итого попыток.</summary>
+    public int Total { get; set; }
+}
+
+/// <summary>Сводная статистика доставки уведомлений (администратор).</summary>
+public class DeliveryStatsDto
+{
+    /// <summary>Начало периода.</summary>
+    public DateTimeOffset? From { get; set; }
+    /// <summary>Конец периода.</summary>
+    public DateTimeOffset? To { get; set; }
+    /// <summary>Статистика по каналам.</summary>
+    public List<DeliveryStatDto> ByChannel { get; set; } = [];
+    /// <summary>Топ-10 типов событий по количеству отправок.</summary>
+    public List<EventTypeStatDto> TopEventTypes { get; set; } = [];
+}
+
+/// <summary>Статистика по типу события.</summary>
+public class EventTypeStatDto
+{
+    public string EventType { get; set; } = string.Empty;
+    public int Total { get; set; }
+    public int Sent { get; set; }
+    public int Failed { get; set; }
+}

@@ -169,6 +169,7 @@ builder.Services.AddHostedService<TaskOverdueWorker>();
 builder.Services.AddHostedService<TaskPostponeWorker>();
 builder.Services.AddHostedService<TaskReminderWorker>();
 builder.Services.AddHostedService<TaskPeriodicWorker>();
+builder.Services.AddHostedService<NotificationLogCleanupWorker>();
 
 var app = builder.Build();
 

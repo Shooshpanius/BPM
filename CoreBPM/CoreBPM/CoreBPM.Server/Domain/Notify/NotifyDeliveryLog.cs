@@ -19,7 +19,9 @@ public enum NotifyDeliveryStatus
     /// <summary>Пропущено: пользователь отключил данный канал для данного типа события.</summary>
     SkippedUserSettings = 2,
     /// <summary>Пропущено: режим «Не беспокоить» активен.</summary>
-    SkippedDnd = 3
+    SkippedDnd = 3,
+    /// <summary>Пропущено: превышено ограничение частоты отправки (throttle).</summary>
+    SkippedThrottle = 4
 }
 
 /// <summary>
