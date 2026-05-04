@@ -151,4 +151,9 @@ public interface IMessagingService
 
     /// <summary>Возвращает суммарное количество непрочитанных сообщений.</summary>
     Task<UnreadCountDto> GetUnreadCountAsync(Guid userId, CancellationToken ct = default);
+
+    // ─── Вспомогательные ─────────────────────────────────────────────────────
+
+    /// <summary>Проверяет, является ли пользователь участником чата. Используется для контроля доступа.</summary>
+    Task<bool> IsChatMemberAsync(Guid chatId, Guid userId, CancellationToken ct = default);
 }

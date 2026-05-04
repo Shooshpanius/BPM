@@ -330,6 +330,9 @@ public class MessagingService : IMessagingService
         if (string.IsNullOrWhiteSpace(req.Text))
             throw new ValidationException("Текст сообщения не может быть пустым.");
 
+        if (req.Text.Length > 10_000)
+            throw new ValidationException("Текст сообщения не может превышать 10 000 символов.");
+
         var now = DateTimeOffset.UtcNow;
         var msg = new NotifyMessage
         {
@@ -413,6 +416,9 @@ public class MessagingService : IMessagingService
         if (string.IsNullOrWhiteSpace(req.Text))
             throw new ValidationException("Текст сообщения не может быть пустым.");
 
+        if (req.Text.Length > 10_000)
+            throw new ValidationException("Текст сообщения не может превышать 10 000 символов.");
+
         msg.Text = req.Text.Trim();
         msg.IsEdited = true;
         msg.EditedAt = DateTimeOffset.UtcNow;
@@ -448,6 +454,10 @@ public class MessagingService : IMessagingService
         var original = await _db.NotifyMessages
             .FirstOrDefaultAsync(m => m.Id == messageId && !m.IsDeleted, ct)
             ?? throw new NotFoundException("Исходное сообщение не найдено.");
+
+        // Проверяем доступ к исходному чату (защита от IDOR)
+        if (original.ChatId.HasValue)
+            await EnsureMemberAsync(original.ChatId.Value, userId, ct);
 
         // Проверяем доступ к целевому чату
         await EnsureMemberAsync(req.TargetChatId, userId, ct);
@@ -499,6 +509,10 @@ public class MessagingService : IMessagingService
         var msg = await _db.NotifyMessages.FindAsync(new object[] { messageId }, ct)
             ?? throw new NotFoundException("Сообщение не найдено.");
 
+        // Проверяем членство в чате (защита от IDOR)
+        if (msg.ChatId.HasValue)
+            await EnsureMemberAsync(msg.ChatId.Value, userId, ct);
+
         var already = await _db.NotifyMessageReads
             .AnyAsync(r => r.MessageId == messageId && r.UserId == userId, ct);
         if (!already)
@@ -545,6 +559,18 @@ public class MessagingService : IMessagingService
     {
         if (string.IsNullOrWhiteSpace(emoji))
             throw new ValidationException("Emoji не может быть пустым.");
+
+        if (emoji.Length > 16)
+            throw new ValidationException("Emoji слишком длинный.");
+
+        var msg = await _db.NotifyMessages
+            .AsNoTracking()
+            .FirstOrDefaultAsync(m => m.Id == messageId && !m.IsDeleted, ct)
+            ?? throw new NotFoundException("Сообщение не найдено.");
+
+        // Проверяем членство в чате (защита от IDOR)
+        if (msg.ChatId.HasValue)
+            await EnsureMemberAsync(msg.ChatId.Value, userId, ct);
 
         var existing = await _db.NotifyMessageReactions
             .FirstOrDefaultAsync(r => r.MessageId == messageId && r.UserId == userId && r.Emoji == emoji, ct);
@@ -1317,4 +1343,8 @@ public class MessagingService : IMessagingService
 
         return new UnreadCountDto(count);
     }
+
+    /// <inheritdoc/>
+    public async Task<bool> IsChatMemberAsync(Guid chatId, Guid userId, CancellationToken ct = default)
+        => await _db.NotifyChatMembers.AnyAsync(m => m.ChatId == chatId && m.UserId == userId, ct);
 }

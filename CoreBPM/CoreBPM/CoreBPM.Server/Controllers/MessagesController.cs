@@ -281,10 +281,15 @@ public class MessagesController : ControllerBase
     /// <summary>Отправить индикатор «пользователь печатает» всем участникам чата.</summary>
     [HttpPost("api/messages/chats/{chatId:guid}/typing")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> Typing(Guid chatId, CancellationToken ct)
     {
         var userId = GetCurrentUserId();
         if (userId == null) return Unauthorized();
+
+        // Проверяем, что пользователь является участником чата
+        if (!await _svc.IsChatMemberAsync(chatId, userId.Value, ct))
+            return Forbid();
 
         var displayName = User.FindFirstValue("name") ?? User.FindFirstValue(ClaimTypes.Email) ?? userId.ToString();
         await _hub.Clients.Group($"chat:{chatId}")

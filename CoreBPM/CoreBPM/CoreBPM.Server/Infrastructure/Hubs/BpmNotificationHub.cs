@@ -1,5 +1,8 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
+using CoreBPM.Server.Infrastructure.Persistence;
 
 namespace CoreBPM.Server.Infrastructure.Hubs;
 
@@ -10,8 +13,12 @@ namespace CoreBPM.Server.Infrastructure.Hubs;
 [Authorize]
 public class BpmNotificationHub : Hub
 {
+    private readonly AppDbContext _db;
+
     /// <summary>Имя группы, в которую добавляются все администраторы.</summary>
     public const string AdminGroup = "admin";
+
+    public BpmNotificationHub(AppDbContext db) => _db = db;
 
     /// <inheritdoc />
     public override async Task OnConnectedAsync()
@@ -25,9 +32,19 @@ public class BpmNotificationHub : Hub
 
     /// <summary>
     /// Клиент вызывает этот метод, чтобы подписаться на real-time события чата (FR-MSG-01.1).
+    /// Подписка разрешена только участникам чата (защита от IDOR).
     /// </summary>
     public async Task JoinChat(string chatId)
     {
+        if (!Guid.TryParse(chatId, out var id)) return;
+
+        var userIdStr = Context.User?.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userIdStr, out var userId)) return;
+
+        var isMember = await _db.NotifyChatMembers
+            .AnyAsync(m => m.ChatId == id && m.UserId == userId);
+        if (!isMember) return;
+
         await Groups.AddToGroupAsync(Context.ConnectionId, $"chat:{chatId}");
     }
 

@@ -148,11 +148,11 @@ public class NotificationConditionsController : ControllerBase
         {
             sb.AppendLine(string.Join(",",
                 item.Id,
-                $"\"{item.UserFullName}\"",
-                item.EventType,
-                item.Channel,
-                item.Status,
-                $"\"{item.Error?.Replace("\"", "'")}\"",
+                CsvEscape(item.UserFullName),
+                CsvEscape(item.EventType),
+                CsvEscape(item.Channel),
+                CsvEscape(item.Status),
+                CsvEscape(item.Error?.Replace("\"", "'")),
                 item.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss")
             ));
         }
@@ -160,6 +160,21 @@ public class NotificationConditionsController : ControllerBase
         var bytes = Encoding.UTF8.GetBytes(sb.ToString());
         var fileName = $"notification-logs-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}.csv";
         return File(bytes, "text/csv; charset=utf-8", fileName);
+    }
+
+    // ── Вспомогательные методы ────────────────────────────────────────────────
+
+    /// <summary>
+    /// Экранирует значение для CSV: оборачивает в кавычки и предотвращает Formula Injection.
+    /// Значения, начинающиеся с =, +, -, @, \t, \r — потенциальные формулы в электронных таблицах.
+    /// </summary>
+    private static string CsvEscape(string? value)
+    {
+        if (string.IsNullOrEmpty(value)) return "\"\"";
+        // Нейтрализуем CSV/Formula Injection: символы =, +, -, @, TAB, CR в начале строки
+        if (value[0] is '=' or '+' or '-' or '@' or '\t' or '\r')
+            value = "'" + value;
+        return "\"" + value.Replace("\"", "\"\"") + "\"";
     }
 
     // ── Retention (хранение журнала, только администратор) ────────────────────
