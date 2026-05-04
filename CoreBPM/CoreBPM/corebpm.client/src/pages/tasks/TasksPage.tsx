@@ -2,9 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import {
     listTasks, createTask, exportTasksCsv, bulkVerifyTasks,
+    getTaskSavedFilters, createTaskSavedFilter, deleteTaskSavedFilter,
     TASK_STATUS_LABELS, TASK_PRIORITY_LABELS,
 } from '../../api/tasksApi';
-import type { TaskSummaryDto, TaskStatus, TaskPriority } from '../../api/tasksApi';
+import type { TaskSummaryDto, TaskStatus, TaskPriority, TaskSavedFilterDto } from '../../api/tasksApi';
 import { getDirectoryEmployees } from '../../api/orgDirectoryApi';
 import type { DirectoryEmployeeDto } from '../../api/orgDirectoryApi';
 import './TasksPage.css';
@@ -15,7 +16,7 @@ interface TasksPageProps {
 
 type TabId = 'all' | 'my';
 
-/** Страница списка задач (FR-TASK-01.1). */
+/** Страница списка задач (FR-TASK-01.1, FR-TASK-02.3). */
 export function TasksPage({ onOpenTask }: TasksPageProps) {
     const { accessToken: token, userId } = useAuth();
 
@@ -24,14 +25,34 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // ─── Базовые фильтры
     const [filterStatus, setFilterStatus] = useState('');
     const [filterPriority, setFilterPriority] = useState('');
     const [filterSearch, setFilterSearch] = useState('');
     const [filterOverdue, setFilterOverdue] = useState(false);
 
+    // ─── Расширенный поиск (FR-TASK-02.3)
+    const [showAdvanced, setShowAdvanced] = useState(false);
+    const [filterAuthorId, setFilterAuthorId] = useState('');
+    const [filterAuthorName, setFilterAuthorName] = useState('');
+    const [filterAuthorSearch, setFilterAuthorSearch] = useState('');
+    const [filterTagValue, setFilterTagValue] = useState('');
+    const [filterDateFrom, setFilterDateFrom] = useState('');
+    const [filterDateTo, setFilterDateTo] = useState('');
+    const [filterSortBy, setFilterSortBy] = useState('created_at');
+    const [filterSortDir, setFilterSortDir] = useState('desc');
+
+    // ─── Сохранённые фильтры (FR-TASK-02.3)
+    const [savedFilters, setSavedFilters] = useState<TaskSavedFilterDto[]>([]);
+    const [showSaveFilter, setShowSaveFilter] = useState(false);
+    const [newFilterName, setNewFilterName] = useState('');
+    const [savingFilter, setSavingFilter] = useState(false);
+
+    // ─── Выбор для массовых операций
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [bulkVerifyMsg, setBulkVerifyMsg] = useState<string | null>(null);
 
+    // ─── Форма создания задачи
     const [showCreate, setShowCreate] = useState(false);
     const [employees, setEmployees] = useState<DirectoryEmployeeDto[]>([]);
     const [empSearch, setEmpSearch] = useState('');
@@ -52,6 +73,9 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
     const filteredEmployees = employees.filter(e =>
         e.displayName.toLowerCase().includes(empSearch.toLowerCase())
     );
+    const filteredAuthorEmployees = employees.filter(e =>
+        e.displayName.toLowerCase().includes(filterAuthorSearch.toLowerCase())
+    );
 
     const load = useCallback(async () => {
         if (!token) return;
@@ -64,6 +88,12 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
                 search: filterSearch || undefined,
                 isOverdue: filterOverdue || undefined,
                 assigneeId: tab === 'my' && userId ? userId : undefined,
+                authorId: filterAuthorId || undefined,
+                tagValue: filterTagValue || undefined,
+                dateFrom: filterDateFrom || undefined,
+                dateTo: filterDateTo || undefined,
+                sortBy: filterSortBy,
+                sortDir: filterSortDir,
             });
             setTasks(data);
         } catch (e) {
@@ -71,9 +101,24 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
         } finally {
             setLoading(false);
         }
-    }, [token, tab, filterStatus, filterPriority, filterSearch, filterOverdue, userId]);
+    }, [token, tab, filterStatus, filterPriority, filterSearch, filterOverdue, userId,
+        filterAuthorId, filterTagValue, filterDateFrom, filterDateTo, filterSortBy, filterSortDir]);
 
     useEffect(() => { load(); }, [load]);
+
+    // Загрузка сохранённых фильтров
+    useEffect(() => {
+        if (!token) return;
+        getTaskSavedFilters(token).then(setSavedFilters).catch(() => { /* игнорируем */ });
+    }, [token]);
+
+    // Загрузка списка сотрудников для фильтра «Автор»
+    useEffect(() => {
+        if (!token || employees.length > 0) return;
+        if (showAdvanced) {
+            getDirectoryEmployees(token, {}).then(setEmployees).catch(() => { /* игнорируем */ });
+        }
+    }, [token, showAdvanced, employees.length]);
 
     const handleOpenCreate = async () => {
         setShowCreate(true);
@@ -124,6 +169,10 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
                 priority: filterPriority || undefined,
                 search: filterSearch || undefined,
                 assigneeId: tab === 'my' && userId ? userId : undefined,
+                authorId: filterAuthorId || undefined,
+                tagValue: filterTagValue || undefined,
+                dateFrom: filterDateFrom || undefined,
+                dateTo: filterDateTo || undefined,
             });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -147,6 +196,58 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
         }
     };
 
+    // ─── Сохранение фильтра
+    const handleSaveFilter = async () => {
+        if (!token || !newFilterName.trim()) return;
+        setSavingFilter(true);
+        try {
+            const filterParams = {
+                status: filterStatus || undefined,
+                priority: filterPriority || undefined,
+                search: filterSearch || undefined,
+                isOverdue: filterOverdue || undefined,
+                authorId: filterAuthorId || undefined,
+                tagValue: filterTagValue || undefined,
+                dateFrom: filterDateFrom || undefined,
+                dateTo: filterDateTo || undefined,
+                sortBy: filterSortBy,
+                sortDir: filterSortDir,
+            };
+            const newFilter = await createTaskSavedFilter(token, newFilterName.trim(), JSON.stringify(filterParams));
+            setSavedFilters(prev => [...prev, newFilter]);
+            setShowSaveFilter(false);
+            setNewFilterName('');
+        } catch { /* игнорируем */ } finally {
+            setSavingFilter(false);
+        }
+    };
+
+    // Применить сохранённый фильтр
+    const handleApplySavedFilter = (f: TaskSavedFilterDto) => {
+        try {
+            const params = JSON.parse(f.filterJson);
+            setFilterStatus(params.status ?? '');
+            setFilterPriority(params.priority ?? '');
+            setFilterSearch(params.search ?? '');
+            setFilterOverdue(params.isOverdue ?? false);
+            setFilterAuthorId(params.authorId ?? '');
+            setFilterTagValue(params.tagValue ?? '');
+            setFilterDateFrom(params.dateFrom ?? '');
+            setFilterDateTo(params.dateTo ?? '');
+            setFilterSortBy(params.sortBy ?? 'created_at');
+            setFilterSortDir(params.sortDir ?? 'desc');
+            setShowAdvanced(true);
+        } catch { /* игнорируем */ }
+    };
+
+    const handleDeleteSavedFilter = async (id: string) => {
+        if (!token) return;
+        try {
+            await deleteTaskSavedFilter(token, id);
+            setSavedFilters(prev => prev.filter(f => f.id !== id));
+        } catch { /* игнорируем */ }
+    };
+
     const toggleSelect = (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
         setSelectedIds(prev => {
@@ -168,6 +269,8 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
         const map: Record<TaskPriority, string> = { Critical: 'task-priority--critical', High: 'task-priority--high', Medium: 'task-priority--medium', Low: 'task-priority--low' };
         return `task-priority ${map[priority]}`;
     };
+
+    const hasAdvancedFilters = !!(filterAuthorId || filterTagValue || filterDateFrom || filterDateTo);
 
     return (
         <div className="tasks-page">
@@ -201,6 +304,7 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
                 ))}
             </div>
 
+            {/* ── Основные фильтры + переключатель расширенного поиска */}
             <div className="tasks-page__filters">
                 <input className="tasks-page__search" type="text" placeholder="Поиск по теме..." value={filterSearch} onChange={e => setFilterSearch(e.target.value)} />
                 <select className="tasks-page__select" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
@@ -218,8 +322,134 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
                 <label className="tasks-page__overdue-label">
                     <input type="checkbox" checked={filterOverdue} onChange={e => setFilterOverdue(e.target.checked)} /> Только просроченные
                 </label>
+                <button
+                    className={`tasks-page__btn${hasAdvancedFilters ? ' tasks-page__btn--accent' : ''}`}
+                    onClick={() => setShowAdvanced(v => !v)}
+                    title="Расширенный поиск"
+                >
+                    🔎 {showAdvanced ? 'Скрыть фильтры' : 'Расширенный поиск'}
+                    {hasAdvancedFilters && ' •'}
+                </button>
                 <button className="tasks-page__btn" onClick={load}>Применить</button>
             </div>
+
+            {/* ── Расширенный поиск (FR-TASK-02.3) ──────────────────────────── */}
+            {showAdvanced && (
+                <div className="tasks-page__advanced-filters">
+                    <div className="tasks-page__advanced-body">
+                        {/* Автор */}
+                        <div className="tasks-page__adv-field">
+                            <label className="tasks-page__adv-label">Автор</label>
+                            <div style={{ position: 'relative' }}>
+                                <input
+                                    className="tasks-page__input"
+                                    placeholder="Начните вводить имя..."
+                                    value={filterAuthorSearch || filterAuthorName}
+                                    onChange={e => { setFilterAuthorSearch(e.target.value); if (!e.target.value) { setFilterAuthorId(''); setFilterAuthorName(''); } }}
+                                />
+                                {filterAuthorSearch && filteredAuthorEmployees.length > 0 && (
+                                    <div className="tasks-page__dropdown">
+                                        {filteredAuthorEmployees.slice(0, 6).map(e => (
+                                            <div key={e.userId}
+                                                className="tasks-page__dropdown-item"
+                                                onClick={() => { setFilterAuthorId(e.userId); setFilterAuthorName(e.displayName); setFilterAuthorSearch(''); }}
+                                            >{e.displayName}</div>
+                                        ))}
+                                    </div>
+                                )}
+                                {filterAuthorId && (
+                                    <div style={{ fontSize: 12, color: '#555', marginTop: 2 }}>✓ {filterAuthorName}</div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Тег */}
+                        <div className="tasks-page__adv-field">
+                            <label className="tasks-page__adv-label">Тег</label>
+                            <input
+                                className="tasks-page__input"
+                                placeholder="Значение тега"
+                                value={filterTagValue}
+                                onChange={e => setFilterTagValue(e.target.value)}
+                            />
+                        </div>
+
+                        {/* Срок от/до */}
+                        <div className="tasks-page__adv-field">
+                            <label className="tasks-page__adv-label">Срок с</label>
+                            <input
+                                className="tasks-page__input"
+                                type="date"
+                                value={filterDateFrom}
+                                onChange={e => setFilterDateFrom(e.target.value)}
+                            />
+                        </div>
+                        <div className="tasks-page__adv-field">
+                            <label className="tasks-page__adv-label">Срок по</label>
+                            <input
+                                className="tasks-page__input"
+                                type="date"
+                                value={filterDateTo}
+                                onChange={e => setFilterDateTo(e.target.value)}
+                            />
+                        </div>
+
+                        {/* Сортировка */}
+                        <div className="tasks-page__adv-field">
+                            <label className="tasks-page__adv-label">Сортировка</label>
+                            <select className="tasks-page__input" value={filterSortBy} onChange={e => setFilterSortBy(e.target.value)}>
+                                <option value="created_at">Дата создания</option>
+                                <option value="due_date">Срок завершения</option>
+                                <option value="priority">Приоритет</option>
+                                <option value="status">Статус</option>
+                            </select>
+                        </div>
+                        <div className="tasks-page__adv-field">
+                            <label className="tasks-page__adv-label">Направление</label>
+                            <select className="tasks-page__input" value={filterSortDir} onChange={e => setFilterSortDir(e.target.value)}>
+                                <option value="desc">По убыванию</option>
+                                <option value="asc">По возрастанию</option>
+                            </select>
+                        </div>
+
+                        {/* Кнопки */}
+                        <div className="tasks-page__adv-actions">
+                            <button className="tasks-page__btn tasks-page__btn--primary" onClick={load}>Найти</button>
+                            <button className="tasks-page__btn" onClick={() => {
+                                setFilterAuthorId(''); setFilterAuthorName(''); setFilterAuthorSearch('');
+                                setFilterTagValue(''); setFilterDateFrom(''); setFilterDateTo('');
+                                setFilterSortBy('created_at'); setFilterSortDir('desc');
+                            }}>Сбросить</button>
+                            <button className="tasks-page__btn" onClick={() => setShowSaveFilter(true)} title="Сохранить текущий набор фильтров">
+                                💾 Сохранить как фильтр
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* ── Дерево сохранённых фильтров справа */}
+                    {savedFilters.length > 0 && (
+                        <div className="tasks-page__saved-filters">
+                            <div className="tasks-page__saved-filters-title">Сохранённые фильтры</div>
+                            {savedFilters.map(f => (
+                                <div key={f.id} className="tasks-page__saved-filter-item">
+                                    <button
+                                        className="tasks-page__saved-filter-name"
+                                        onClick={() => handleApplySavedFilter(f)}
+                                        title="Применить фильтр"
+                                    >
+                                        📂 {f.name}
+                                    </button>
+                                    <button
+                                        className="tasks-page__saved-filter-del"
+                                        onClick={() => handleDeleteSavedFilter(f.id)}
+                                        title="Удалить фильтр"
+                                    >×</button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
 
             {loading && <div className="tasks-page__loading">Загрузка...</div>}
             {error && <div className="tasks-page__error">{error}</div>}
@@ -263,6 +493,36 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
                 </table>
             )}
 
+            {/* ── Диалог сохранения фильтра */}
+            {showSaveFilter && (
+                <div className="tasks-page__overlay" onClick={() => setShowSaveFilter(false)}>
+                    <div className="tasks-page__dialog" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+                        <h3 className="tasks-page__dialog-title">Сохранить фильтр</h3>
+                        <label className="tasks-page__label">
+                            Название фильтра
+                            <input
+                                className="tasks-page__input"
+                                placeholder="Например: Мои высокоприоритетные"
+                                value={newFilterName}
+                                onChange={e => setNewFilterName(e.target.value)}
+                                autoFocus
+                            />
+                        </label>
+                        <div className="tasks-page__dialog-footer">
+                            <button
+                                className="tasks-page__btn tasks-page__btn--primary"
+                                onClick={handleSaveFilter}
+                                disabled={savingFilter || !newFilterName.trim()}
+                            >
+                                {savingFilter ? 'Сохранение...' : 'Сохранить'}
+                            </button>
+                            <button className="tasks-page__btn" onClick={() => setShowSaveFilter(false)}>Отмена</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Диалог создания задачи */}
             {showCreate && (
                 <div className="tasks-page__overlay" onClick={() => { setShowCreate(false); resetForm(); }}>
                     <div className="tasks-page__dialog" onClick={e => e.stopPropagation()}>

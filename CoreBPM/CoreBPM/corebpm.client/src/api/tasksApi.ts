@@ -894,3 +894,27 @@ export async function updateNotificationSettings(token: string, settings: Array<
         body: JSON.stringify(settings),
     });
 }
+
+// ─── FR-TASK-02.3: Глобальный поиск задач ────────────────────────────────────
+
+export interface TaskSearchHitDto {
+    id: string;
+    number: number;
+    subject: string;
+    status: string;
+    priority: string;
+    assigneeUserId: string;
+    isOverdue: boolean;
+    dueDate: string;
+}
+
+export interface SearchResultsDto {
+    tasks: TaskSearchHitDto[];
+    total: number;
+}
+
+/** Глобальный поиск задач по теме и описанию. FR-TASK-02.3. */
+export async function searchTasks(token: string, q: string, limit = 20): Promise<SearchResultsDto> {
+    const params = new URLSearchParams({ q, type: 'task', limit: String(limit) });
+    return apiFetch<SearchResultsDto>(token, `/api/search?${params}`);
+}
