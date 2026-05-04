@@ -2,8 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useBpmNotifications } from '../../context/BpmNotificationsContext';
 import {
-    getMyChats, getOrCreateDirectChat, createGroupChat,
-    getMessages, sendMessage, editMessage, deleteMessage,
+    getMyChats, getOrCreateDirectChat, createGroupChat, updateChat, leaveChat,
+    getMessages, sendMessage, editMessage, deleteMessage, forwardMessage,
     markAllRead, toggleReaction, searchMessages,
     type ChatSummaryDto, type MessageDto, type MessageSearchResultDto,
 } from '../../api/messagesApi';
@@ -34,6 +34,12 @@ export function MessagesPage({ openChatWithUserId }: MessagesPageProps) {
     const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
     const [sendingMsg, setSendingMsg] = useState(false);
+    // Переименование группового чата
+    const [showRenameDialog, setShowRenameDialog] = useState(false);
+    const [renameChatName, setRenameChatName] = useState('');
+    // Пересылка сообщения
+    const [forwardingMsg, setForwardingMsg] = useState<MessageDto | null>(null);
+    const [forwardTargetChatId, setForwardTargetChatId] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const selectedChat = chats.find(c => c.id === selectedChatId);
@@ -135,6 +141,39 @@ export function MessagesPage({ openChatWithUserId }: MessagesPageProps) {
         if (!accessToken) return;
         await deleteMessage(accessToken, msgId);
         setMessages(prev => prev.map(m => m.id === msgId ? { ...m, isDeleted: true, text: 'Сообщение удалено' } : m));
+    };
+
+    const handleRenameChat = async () => {
+        if (!renameChatName.trim() || !selectedChatId || !accessToken) return;
+        try {
+            const updated = await updateChat(accessToken, selectedChatId, renameChatName.trim());
+            setChats(prev => prev.map(c => c.id === selectedChatId ? { ...c, name: updated.name } : c));
+            setShowRenameDialog(false);
+        } catch { /* ошибка */ }
+    };
+
+    const handleLeaveChat = async () => {
+        if (!selectedChatId || !accessToken) return;
+        if (!window.confirm('Вы уверены, что хотите покинуть этот чат?')) return;
+        try {
+            await leaveChat(accessToken, selectedChatId);
+            setChats(prev => prev.filter(c => c.id !== selectedChatId));
+            setSelectedChatId(null);
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : 'Ошибка';
+            alert(msg);
+        }
+    };
+
+    const handleForwardMessage = async () => {
+        if (!forwardingMsg || !forwardTargetChatId || !accessToken) return;
+        try {
+            await forwardMessage(accessToken, forwardingMsg.id, forwardTargetChatId);
+            setForwardingMsg(null);
+            setForwardTargetChatId('');
+            // Переключаемся на целевой чат
+            setSelectedChatId(forwardTargetChatId);
+        } catch { /* ошибка */ }
     };
 
     const handleReact = async (msgId: string, emoji: string) => {
@@ -273,13 +312,27 @@ export function MessagesPage({ openChatWithUserId }: MessagesPageProps) {
                         padding: '10px 16px', borderBottom: '1px solid #e5e7eb', background: '#fff',
                         display: 'flex', alignItems: 'center', gap: 10
                     }}>
-                        <div style={{ fontWeight: 600, fontSize: 15, color: '#111827' }}>
+                        <div style={{ fontWeight: 600, fontSize: 15, color: '#111827', flex: 1 }}>
                             {selectedChat.kind === 'Group' ? '👥 ' : ''}{selectedChat.name ?? 'Диалог'}
                         </div>
                         {selectedChat.kind === 'Group' && (
-                            <span style={{ fontSize: 12, color: '#6b7280' }}>
+                            <span style={{ fontSize: 12, color: '#6b7280', marginRight: 4 }}>
                                 {selectedChat.members.length} участн.
                             </span>
+                        )}
+                        {selectedChat.kind === 'Group' && (
+                            <>
+                                <button
+                                    onClick={() => { setRenameChatName(selectedChat.name ?? ''); setShowRenameDialog(true); }}
+                                    title="Переименовать чат"
+                                    style={{ background: 'none', border: '1px solid #e5e7eb', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', fontSize: 13, color: '#374151' }}
+                                >✏️ Переименовать</button>
+                                <button
+                                    onClick={handleLeaveChat}
+                                    title="Покинуть чат"
+                                    style={{ background: 'none', border: '1px solid #fca5a5', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', fontSize: 13, color: '#dc2626' }}
+                                >🚪 Покинуть</button>
+                            </>
                         )}
                     </div>
 
@@ -393,6 +446,7 @@ export function MessagesPage({ openChatWithUserId }: MessagesPageProps) {
                                                     <>
                                                         <button onClick={() => handleReact(msg.id, '👍')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#9ca3af' }} title="Реакция">👍</button>
                                                         <button onClick={() => setReplyTo(msg)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#9ca3af' }} title="Ответить">↩</button>
+                                                        <button onClick={() => { setForwardingMsg(msg); setForwardTargetChatId(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#9ca3af' }} title="Переслать">↪</button>
                                                         {isOwn && (
                                                             <>
                                                                 <button onClick={() => { setEditingMsg(msg); setMsgInput(msg.text); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#9ca3af' }} title="Редактировать">✏️</button>
@@ -483,6 +537,68 @@ export function MessagesPage({ openChatWithUserId }: MessagesPageProps) {
                         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                             <button onClick={() => setShowNewGroupDialog(false)} style={{ padding: '8px 16px', border: '1px solid #d1d5db', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 14 }}>Отмена</button>
                             <button onClick={handleCreateGroup} disabled={!newGroupName.trim()} style={{ padding: '8px 16px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Создать</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ─── Диалог переименования группового чата ─── */}
+            {showRenameDialog && (
+                <div style={{
+                    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>
+                    <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 360, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Переименовать чат</h3>
+                        <input
+                            value={renameChatName}
+                            onChange={e => setRenameChatName(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') handleRenameChat(); }}
+                            placeholder="Новое название чата"
+                            autoFocus
+                            style={{ padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14 }}
+                        />
+                        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                            <button onClick={() => setShowRenameDialog(false)} style={{ padding: '8px 16px', border: '1px solid #d1d5db', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 14 }}>Отмена</button>
+                            <button onClick={handleRenameChat} disabled={!renameChatName.trim()} style={{ padding: '8px 16px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Сохранить</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ─── Диалог пересылки сообщения ─── */}
+            {forwardingMsg && (
+                <div style={{
+                    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>
+                    <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 400, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Переслать сообщение</h3>
+                        <div style={{ padding: '8px 12px', background: '#f3f4f6', borderRadius: 8, fontSize: 13, color: '#374151', maxHeight: 80, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {forwardingMsg.text.slice(0, 120)}{forwardingMsg.text.length > 120 ? '…' : ''}
+                        </div>
+                        <div style={{ fontSize: 13, color: '#374151', fontWeight: 500 }}>Выберите чат для пересылки:</div>
+                        <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, maxHeight: 200, overflowY: 'auto' }}>
+                            {chats.filter(c => c.id !== selectedChatId).map(c => (
+                                <button
+                                    key={c.id}
+                                    onClick={() => setForwardTargetChatId(c.id)}
+                                    style={{
+                                        display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px',
+                                        background: forwardTargetChatId === c.id ? '#eff6ff' : 'none',
+                                        border: 'none', borderBottom: '1px solid #f3f4f6', cursor: 'pointer',
+                                        fontSize: 13, fontWeight: forwardTargetChatId === c.id ? 600 : 400,
+                                        color: forwardTargetChatId === c.id ? '#1d4ed8' : '#111827',
+                                    }}
+                                >
+                                    {c.kind === 'Group' ? '👥 ' : '💬 '}{c.name ?? 'Диалог'}
+                                </button>
+                            ))}
+                            {chats.length <= 1 && <div style={{ padding: 12, color: '#9ca3af', fontSize: 13 }}>Нет других чатов</div>}
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                            <button onClick={() => { setForwardingMsg(null); setForwardTargetChatId(''); }} style={{ padding: '8px 16px', border: '1px solid #d1d5db', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 14 }}>Отмена</button>
+                            <button onClick={handleForwardMessage} disabled={!forwardTargetChatId} style={{ padding: '8px 16px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600, opacity: !forwardTargetChatId ? 0.5 : 1 }}>Переслать</button>
                         </div>
                     </div>
                 </div>

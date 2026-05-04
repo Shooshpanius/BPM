@@ -108,6 +108,27 @@ public class MessagesController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>Переименовать групповой чат (только администратор).</summary>
+    [HttpPut("api/messages/chats/{chatId:guid}")]
+    [ProducesResponseType(typeof(ChatSummaryDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ChatSummaryDto>> UpdateChat(Guid chatId, [FromBody] UpdateChatRequest req, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _svc.UpdateChatAsync(chatId, userId.Value, req, ct));
+    }
+
+    /// <summary>Покинуть групповой чат.</summary>
+    [HttpPost("api/messages/chats/{chatId:guid}/leave")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> LeaveChat(Guid chatId, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        await _svc.LeaveChatAsync(chatId, userId.Value, ct);
+        return NoContent();
+    }
+
     // ─── Сообщения ────────────────────────────────────────────────────────────
 
     /// <summary>Список сообщений чата.</summary>
@@ -159,6 +180,22 @@ public class MessagesController : ControllerBase
         if (userId == null) return Unauthorized();
         await _svc.DeleteMessageAsync(messageId, userId.Value, ct);
         return NoContent();
+    }
+
+    /// <summary>Переслать сообщение в другой чат.</summary>
+    [HttpPost("api/messages/{messageId:guid}/forward")]
+    [ProducesResponseType(typeof(MessageDto), StatusCodes.Status201Created)]
+    public async Task<ActionResult<MessageDto>> ForwardMessage(Guid messageId, [FromBody] ForwardMessageRequest req, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        var dto = await _svc.ForwardMessageAsync(messageId, userId.Value, req, ct);
+
+        // SignalR: транслируем пересланное сообщение в целевую комнату
+        await _hub.Clients.Group($"chat:{req.TargetChatId}")
+            .SendAsync("bpm:notification", new { type = "ChatMessage", data = dto }, ct);
+
+        return CreatedAtAction(nameof(GetMessages), new { chatId = req.TargetChatId }, dto);
     }
 
     /// <summary>Пометить сообщение прочитанным.</summary>

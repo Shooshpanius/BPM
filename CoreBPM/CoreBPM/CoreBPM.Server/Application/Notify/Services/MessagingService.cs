@@ -225,6 +225,70 @@ public class MessagingService : IMessagingService
     }
 
     /// <inheritdoc/>
+    public async Task<ChatSummaryDto> UpdateChatAsync(Guid chatId, Guid userId, UpdateChatRequest req, CancellationToken ct = default)
+    {
+        var chat = await _db.NotifyChats
+            .Include(c => c.Members)
+            .FirstOrDefaultAsync(c => c.Id == chatId, ct)
+            ?? throw new NotFoundException("Чат не найден.");
+
+        if (chat.Kind != NotifyChatKind.Group)
+            throw new ValidationException("Переименование доступно только для групповых чатов.");
+
+        _ = await _db.NotifyChatMembers
+            .FirstOrDefaultAsync(m => m.ChatId == chatId && m.UserId == userId && m.IsAdmin, ct)
+            ?? throw new ForbiddenException("Только администратор чата может изменять его название.");
+
+        if (string.IsNullOrWhiteSpace(req.Name))
+            throw new ValidationException("Название чата не может быть пустым.");
+
+        chat.Name = req.Name.Trim();
+        await _db.SaveChangesAsync(ct);
+
+        var users = await GetUserBriefsAsync(chat.Members.Select(m => m.UserId), ct);
+        return new ChatSummaryDto(
+            Id: chat.Id, Name: chat.Name, Kind: "Group",
+            UnreadCount: 0, LastMessage: null,
+            Members: chat.Members.Select(m =>
+            {
+                users.TryGetValue(m.UserId, out var u);
+                return new UserBriefDto(m.UserId, u?.DisplayName ?? "Пользователь", u?.AvatarUrl);
+            }).ToList(),
+            LastMessageAt: chat.LastMessageAt, CreatedAt: chat.CreatedAt);
+    }
+
+    /// <inheritdoc/>
+    public async Task LeaveChatAsync(Guid chatId, Guid userId, CancellationToken ct = default)
+    {
+        var chat = await _db.NotifyChats.FindAsync(new object[] { chatId }, ct)
+            ?? throw new NotFoundException("Чат не найден.");
+
+        if (chat.Kind != NotifyChatKind.Group)
+            throw new ValidationException("Покинуть можно только групповой чат.");
+
+        var member = await _db.NotifyChatMembers
+            .FirstOrDefaultAsync(m => m.ChatId == chatId && m.UserId == userId, ct)
+            ?? throw new NotFoundException("Вы не являетесь участником этого чата.");
+
+        // Если пользователь — единственный администратор, запрещаем покидать
+        if (member.IsAdmin)
+        {
+            var otherAdmin = await _db.NotifyChatMembers
+                .AnyAsync(m => m.ChatId == chatId && m.UserId != userId && m.IsAdmin, ct);
+            if (!otherAdmin)
+            {
+                var otherMember = await _db.NotifyChatMembers
+                    .AnyAsync(m => m.ChatId == chatId && m.UserId != userId, ct);
+                if (otherMember)
+                    throw new ValidationException("Вы единственный администратор чата. Назначьте другого администратора перед выходом.");
+            }
+        }
+
+        _db.NotifyChatMembers.Remove(member);
+        await _db.SaveChangesAsync(ct);
+    }
+
+    /// <inheritdoc/>
     public async Task AddChatMemberAsync(Guid chatId, Guid adminUserId, Guid newMemberId, CancellationToken ct = default)
     {
         var admin = await _db.NotifyChatMembers
@@ -376,6 +440,57 @@ public class MessagingService : IMessagingService
 
         msg.IsDeleted = true;
         await _db.SaveChangesAsync(ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<MessageDto> ForwardMessageAsync(Guid messageId, Guid userId, ForwardMessageRequest req, CancellationToken ct = default)
+    {
+        var original = await _db.NotifyMessages
+            .FirstOrDefaultAsync(m => m.Id == messageId && !m.IsDeleted, ct)
+            ?? throw new NotFoundException("Исходное сообщение не найдено.");
+
+        // Проверяем доступ к целевому чату
+        await EnsureMemberAsync(req.TargetChatId, userId, ct);
+
+        var now = DateTimeOffset.UtcNow;
+        // Помечаем текст как пересланный (добавляем заголовок)
+        var forwardedText = $"[Пересланное сообщение]\n{original.Text}";
+
+        var msg = new NotifyMessage
+        {
+            Id = Guid.NewGuid(),
+            ChatId = req.TargetChatId,
+            AuthorUserId = userId,
+            Text = forwardedText,
+            CreatedAt = now,
+        };
+        _db.NotifyMessages.Add(msg);
+
+        var targetChat = await _db.NotifyChats.FindAsync(new object[] { req.TargetChatId }, ct);
+        if (targetChat != null) targetChat.LastMessageAt = now;
+
+        await _db.SaveChangesAsync(ct);
+
+        // Уведомляем участников целевого чата
+        var memberIds = await _db.NotifyChatMembers
+            .Where(m => m.ChatId == req.TargetChatId && m.UserId != userId && !m.IsMuted)
+            .Select(m => m.UserId)
+            .ToListAsync(ct);
+
+        var author = await GetUserBriefAsync(userId, ct);
+        foreach (var memberId in memberIds)
+        {
+            await _notifications.NotifyUserAsync(memberId, "NewMessage", new
+            {
+                chatId = req.TargetChatId,
+                messageId = msg.Id,
+                authorName = author.DisplayName,
+                textPreview = forwardedText.Length > 100 ? forwardedText[..100] + "…" : forwardedText,
+            }, ct);
+        }
+
+        var users = await GetUserBriefsAsync(new[] { userId }, ct);
+        return MapMessage(msg, userId, users);
     }
 
     /// <inheritdoc/>
@@ -627,6 +742,50 @@ public class MessagingService : IMessagingService
             Id: channel.Id, Name: channel.Name, Description: channel.Description,
             IconEmoji: channel.IconEmoji, Kind: channel.Kind.ToString(),
             SubscriberCount: 1, CreatedAt: now, IsSubscribed: true, IsAdmin: true);
+    }
+
+    /// <inheritdoc/>
+    public async Task<ChannelSummaryDto> UpdateChannelAsync(Guid channelId, Guid userId, UpdateChannelRequest req, CancellationToken ct = default)
+    {
+        var channel = await _db.NotifyChannels
+            .Include(c => c.Subscribers)
+            .FirstOrDefaultAsync(c => c.Id == channelId, ct)
+            ?? throw new NotFoundException("Канал не найден.");
+
+        var sub = await _db.NotifyChannelSubscribers
+            .FirstOrDefaultAsync(s => s.ChannelId == channelId && s.UserId == userId && s.IsAdmin, ct)
+            ?? throw new ForbiddenException("Только администратор канала может редактировать его.");
+
+        if (string.IsNullOrWhiteSpace(req.Name))
+            throw new ValidationException("Название канала не может быть пустым.");
+
+        channel.Name = req.Name.Trim();
+        channel.Description = req.Description?.Trim();
+        channel.IconEmoji = req.IconEmoji;
+        await _db.SaveChangesAsync(ct);
+
+        return new ChannelSummaryDto(
+            Id: channel.Id, Name: channel.Name, Description: channel.Description,
+            IconEmoji: channel.IconEmoji, Kind: channel.Kind.ToString(),
+            SubscriberCount: channel.Subscribers.Count,
+            CreatedAt: channel.CreatedAt, IsSubscribed: true, IsAdmin: true);
+    }
+
+    /// <inheritdoc/>
+    public async Task DeleteChannelAsync(Guid channelId, Guid userId, CancellationToken ct = default)
+    {
+        var channel = await _db.NotifyChannels.FindAsync(new object[] { channelId }, ct)
+            ?? throw new NotFoundException("Канал не найден.");
+
+        // Только создатель или администратор канала может удалить
+        var isAdmin = await _db.NotifyChannelSubscribers
+            .AnyAsync(s => s.ChannelId == channelId && s.UserId == userId && s.IsAdmin, ct);
+        if (!isAdmin && channel.CreatedByUserId != userId)
+            throw new ForbiddenException("Удалить канал может только его создатель или администратор.");
+
+        // Каскадное удаление: посты и подписчики удалятся через FK
+        _db.NotifyChannels.Remove(channel);
+        await _db.SaveChangesAsync(ct);
     }
 
     /// <inheritdoc/>

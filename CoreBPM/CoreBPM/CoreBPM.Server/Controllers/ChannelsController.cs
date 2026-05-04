@@ -42,6 +42,27 @@ public class ChannelsController : ControllerBase
         return CreatedAtAction(nameof(GetChannels), dto);
     }
 
+    /// <summary>Редактировать информационный канал (только администратор).</summary>
+    [HttpPut("api/messages/channels/{channelId:guid}")]
+    [ProducesResponseType(typeof(ChannelSummaryDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ChannelSummaryDto>> UpdateChannel(Guid channelId, [FromBody] UpdateChannelRequest req, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _svc.UpdateChannelAsync(channelId, userId.Value, req, ct));
+    }
+
+    /// <summary>Удалить информационный канал (только администратор/создатель).</summary>
+    [HttpDelete("api/messages/channels/{channelId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> DeleteChannel(Guid channelId, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        await _svc.DeleteChannelAsync(channelId, userId.Value, ct);
+        return NoContent();
+    }
+
     /// <summary>Подписаться на канал.</summary>
     [HttpPost("api/messages/channels/{channelId:guid}/subscribe")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

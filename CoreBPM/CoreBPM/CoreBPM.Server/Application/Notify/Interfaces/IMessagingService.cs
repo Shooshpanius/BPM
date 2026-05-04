@@ -19,6 +19,12 @@ public interface IMessagingService
     /// <summary>Возвращает список участников чата.</summary>
     Task<IReadOnlyList<ChatMemberDto>> GetChatMembersAsync(Guid chatId, Guid userId, CancellationToken ct = default);
 
+    /// <summary>Обновляет название группового чата (только администратор чата).</summary>
+    Task<ChatSummaryDto> UpdateChatAsync(Guid chatId, Guid userId, UpdateChatRequest req, CancellationToken ct = default);
+
+    /// <summary>Покинуть групповой чат (пользователь выходит самостоятельно).</summary>
+    Task LeaveChatAsync(Guid chatId, Guid userId, CancellationToken ct = default);
+
     /// <summary>Добавляет участника в групповой чат (только администратор чата).</summary>
     Task AddChatMemberAsync(Guid chatId, Guid adminUserId, Guid newMemberId, CancellationToken ct = default);
 
@@ -48,6 +54,9 @@ public interface IMessagingService
     /// <summary>Добавляет или снимает реакцию на сообщение (toggle).</summary>
     Task<IReadOnlyList<MessageReactionDto>> ToggleReactionAsync(Guid messageId, Guid userId, string emoji, CancellationToken ct = default);
 
+    /// <summary>Пересылает сообщение в другой чат (создаёт копию сообщения).</summary>
+    Task<MessageDto> ForwardMessageAsync(Guid messageId, Guid userId, ForwardMessageRequest req, CancellationToken ct = default);
+
     /// <summary>Полнотекстовый поиск по сообщениям (в конкретном чате или глобально).</summary>
     Task<IReadOnlyList<MessageSearchResultDto>> SearchMessagesAsync(Guid userId, string query, Guid? chatId = null, CancellationToken ct = default);
 
@@ -75,6 +84,12 @@ public interface IMessagingService
 
     /// <summary>Отписывает пользователя от канала.</summary>
     Task UnsubscribeAsync(Guid channelId, Guid userId, CancellationToken ct = default);
+
+    /// <summary>Редактирует информационный канал (только администратор канала).</summary>
+    Task<ChannelSummaryDto> UpdateChannelAsync(Guid channelId, Guid userId, UpdateChannelRequest req, CancellationToken ct = default);
+
+    /// <summary>Удаляет информационный канал (только создатель или администратор канала).</summary>
+    Task DeleteChannelAsync(Guid channelId, Guid userId, CancellationToken ct = default);
 
     /// <summary>Создаёт публикацию в канале (только администратор/модератор).</summary>
     Task<ChannelPostDto> CreatePostAsync(Guid channelId, Guid userId, CreateChannelPostRequest req, CancellationToken ct = default);

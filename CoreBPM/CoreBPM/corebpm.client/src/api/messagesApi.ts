@@ -156,6 +156,34 @@ export async function removeChatMember(token: string, chatId: string, memberId: 
     });
 }
 
+export async function updateChat(token: string, chatId: string, name: string): Promise<ChatSummaryDto> {
+    const r = await fetch(`/api/messages/chats/${chatId}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+    });
+    if (!r.ok) throw new Error('Ошибка обновления чата');
+    return r.json();
+}
+
+export async function leaveChat(token: string, chatId: string): Promise<void> {
+    const r = await fetch(`/api/messages/chats/${chatId}/leave`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!r.ok) throw new Error('Ошибка выхода из чата');
+}
+
+export async function forwardMessage(token: string, messageId: string, targetChatId: string): Promise<MessageDto> {
+    const r = await fetch(`/api/messages/${messageId}/forward`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetChatId }),
+    });
+    if (!r.ok) throw new Error('Ошибка пересылки сообщения');
+    return r.json();
+}
+
 // ─── Сообщения ────────────────────────────────────────────────────────────────
 
 export async function getMessages(token: string, chatId: string, limit = 50, before?: string): Promise<MessageDto[]> {
@@ -289,6 +317,30 @@ export async function createChannel(
     });
     if (!r.ok) throw new Error('Ошибка создания канала');
     return r.json();
+}
+
+export async function updateChannel(
+    token: string,
+    channelId: string,
+    name: string,
+    description: string | null,
+    iconEmoji: string | null,
+): Promise<ChannelSummaryDto> {
+    const r = await fetch(`/api/messages/channels/${channelId}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, description, iconEmoji }),
+    });
+    if (!r.ok) throw new Error('Ошибка обновления канала');
+    return r.json();
+}
+
+export async function deleteChannel(token: string, channelId: string): Promise<void> {
+    const r = await fetch(`/api/messages/channels/${channelId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!r.ok) throw new Error('Ошибка удаления канала');
 }
 
 export async function subscribeChannel(token: string, channelId: string): Promise<void> {

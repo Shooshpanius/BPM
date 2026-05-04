@@ -32,6 +32,15 @@ public record UpdateMessagingPrefsRequest(
     IReadOnlyList<string> PinnedChatIds,
     IReadOnlyList<string> HiddenChatIds);
 
+/// <summary>Обновление группового чата (название).</summary>
+public record UpdateChatRequest(string Name);
+
+/// <summary>Пересылка сообщения в другой чат.</summary>
+public record ForwardMessageRequest(Guid TargetChatId);
+
+/// <summary>Обновление информационного канала.</summary>
+public record UpdateChannelRequest(string Name, string? Description, string? IconEmoji);
+
 // ─── DTO ──────────────────────────────────────────────────────────────────────
 
 /// <summary>Краткая информация о пользователе (автор/участник).</summary>

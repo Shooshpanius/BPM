@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import {
-    getChannels, createChannel, subscribeChannel, unsubscribeChannel,
+    getChannels, createChannel, updateChannel, deleteChannel,
+    subscribeChannel, unsubscribeChannel,
     getChannelPosts, createChannelPost, editChannelPost, deleteChannelPost,
     type ChannelSummaryDto, type ChannelPostDto,
 } from '../../api/messagesApi';
@@ -23,6 +24,11 @@ export function ChannelsPage() {
     const [newPostBody, setNewPostBody] = useState('');
     const [editingPost, setEditingPost] = useState<ChannelPostDto | null>(null);
     const [loading, setLoading] = useState(false);
+    // Редактирование канала
+    const [editingChannel, setEditingChannel] = useState<ChannelSummaryDto | null>(null);
+    const [editChannelName, setEditChannelName] = useState('');
+    const [editChannelDesc, setEditChannelDesc] = useState('');
+    const [editChannelIcon, setEditChannelIcon] = useState('');
 
     const selectedChannel = channels.find(c => c.id === selectedChannelId);
 
@@ -62,6 +68,34 @@ export function ChannelsPage() {
             setNewChannelName('');
             setNewChannelDesc('');
         } catch { /* ошибка */ }
+    };
+
+    const handleUpdateChannel = async () => {
+        if (!editingChannel || !editChannelName.trim() || !accessToken) return;
+        try {
+            const updated = await updateChannel(
+                accessToken,
+                editingChannel.id,
+                editChannelName.trim(),
+                editChannelDesc.trim() || null,
+                editChannelIcon || null,
+            );
+            setChannels(prev => prev.map(c => c.id === updated.id ? { ...c, ...updated } : c));
+            setEditingChannel(null);
+        } catch { /* ошибка */ }
+    };
+
+    const handleDeleteChannel = async (channelId: string) => {
+        if (!accessToken) return;
+        if (!window.confirm('Удалить канал? Это действие необратимо.')) return;
+        try {
+            await deleteChannel(accessToken, channelId);
+            setChannels(prev => prev.filter(c => c.id !== channelId));
+            if (selectedChannelId === channelId) setSelectedChannelId(null);
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : 'Ошибка';
+            alert(msg);
+        }
     };
 
     const handleCreatePost = async () => {
@@ -145,6 +179,20 @@ export function ChannelsPage() {
                                 >
                                     {ch.isSubscribed ? 'Отписаться' : 'Подписаться'}
                                 </button>
+                                {ch.isAdmin && (
+                                    <>
+                                        <button
+                                            onClick={e => { e.stopPropagation(); setEditingChannel(ch); setEditChannelName(ch.name); setEditChannelDesc(ch.description ?? ''); setEditChannelIcon(ch.iconEmoji ?? '📢'); }}
+                                            title="Редактировать канал"
+                                            style={{ fontSize: 11, padding: '3px 6px', borderRadius: 6, cursor: 'pointer', border: '1px solid #e5e7eb', background: '#fff', color: '#374151' }}
+                                        >✏️</button>
+                                        <button
+                                            onClick={e => { e.stopPropagation(); handleDeleteChannel(ch.id); }}
+                                            title="Удалить канал"
+                                            style={{ fontSize: 11, padding: '3px 6px', borderRadius: 6, cursor: 'pointer', border: '1px solid #fca5a5', background: '#fff', color: '#dc2626' }}
+                                        >🗑️</button>
+                                    </>
+                                )}
                             </div>
                         </div>
                     ))}
@@ -298,6 +346,39 @@ export function ChannelsPage() {
                             <button onClick={handleCreatePost} disabled={!newPostBody.trim()} style={{ padding: '8px 16px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
                                 {editingPost ? 'Сохранить' : 'Опубликовать'}
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ─── Диалог редактирования канала ─── */}
+            {editingChannel && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 420, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Редактировать канал</h3>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                            <input
+                                value={editChannelIcon}
+                                onChange={e => setEditChannelIcon(e.target.value)}
+                                style={{ width: 48, padding: '8px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 22, textAlign: 'center' }}
+                            />
+                            <input
+                                value={editChannelName}
+                                onChange={e => setEditChannelName(e.target.value)}
+                                placeholder="Название канала *"
+                                style={{ flex: 1, padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14 }}
+                            />
+                        </div>
+                        <textarea
+                            value={editChannelDesc}
+                            onChange={e => setEditChannelDesc(e.target.value)}
+                            placeholder="Описание (необязательно)"
+                            rows={2}
+                            style={{ padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, resize: 'none', fontFamily: 'inherit' }}
+                        />
+                        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                            <button onClick={() => setEditingChannel(null)} style={{ padding: '8px 16px', border: '1px solid #d1d5db', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 14 }}>Отмена</button>
+                            <button onClick={handleUpdateChannel} disabled={!editChannelName.trim()} style={{ padding: '8px 16px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Сохранить</button>
                         </div>
                     </div>
                 </div>
