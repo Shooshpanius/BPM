@@ -6,7 +6,7 @@ import { useBpmNotifications } from '../context/BpmNotificationsContext';
 import { APP_VERSION, LAST_PR_DATE } from '../version';
 import './Sidebar.css';
 
-export type SidebarSection = 'portal' | 'tasks' | 'tasks-periodic' | 'tasks-dashboard' | 'contacts' | 'org-structure' | 'company' | 'user-profile' | 'user-preferences' | 'bpm-processes' | 'bpm-my-processes' | 'bpm-monitor' | 'bpm-queue' | 'bpm-documentation' | 'bpm-rules' | 'bpm-forms' | 'bpm-scripts' | 'bpm-migration' | 'bpm-improvements' | 'bpm-analytics' | 'task-control-settings' | 'timelogs-report' | 'notification-settings' | 'messages' | 'channels';
+export type SidebarSection = 'portal' | 'notifications' | 'tasks' | 'tasks-periodic' | 'tasks-dashboard' | 'contacts' | 'org-structure' | 'company' | 'user-profile' | 'user-preferences' | 'bpm-processes' | 'bpm-my-processes' | 'bpm-monitor' | 'bpm-queue' | 'bpm-documentation' | 'bpm-rules' | 'bpm-forms' | 'bpm-scripts' | 'bpm-migration' | 'bpm-improvements' | 'bpm-analytics' | 'task-control-settings' | 'timelogs-report' | 'notification-settings' | 'smtp-settings' | 'messages' | 'channels';
 
 interface SidebarProps {
     active: SidebarSection;
@@ -19,7 +19,7 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
     const canManageOrg = hasRole('Admin') || hasRole('HR');
     const [counters, setCounters] = useState<TaskCountersDto | null>(null);
     const [unreadMessages, setUnreadMessages] = useState(0);
-    const { notifications } = useBpmNotifications();
+    const { notifications, unreadCount: inboxUnread } = useBpmNotifications();
 
     const loadCounters = useCallback(() => {
         if (!accessToken) return;
@@ -194,6 +194,20 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
                 icon={
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13.5a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2.69h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 10a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+                    </svg>
+                }
+            />
+            {/* FR-MSG-02.1: In-app уведомления */}
+            <SidebarItem
+                id="notifications"
+                label="Уведомления"
+                active={active === 'notifications'}
+                onClick={() => onSelect('notifications')}
+                badge={inboxUnread > 0 ? inboxUnread : undefined}
+                icon={
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                        <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
                     </svg>
                 }
             />
@@ -394,6 +408,21 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
                     </svg>
                 }
             />
+            {/* FR-ADM-02.1: Настройки SMTP — только Admin */}
+            {hasRole('Admin') && (
+                <SidebarItem
+                    id="smtp-settings"
+                    label="Настройки SMTP"
+                    active={active === 'smtp-settings'}
+                    onClick={() => onSelect('smtp-settings')}
+                    icon={
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                            <polyline points="22,6 12,13 2,6"/>
+                        </svg>
+                    }
+                />
+            )}
             {canManageOrg && (
                 <>
                     <div className="sidebar-divider" role="separator" />

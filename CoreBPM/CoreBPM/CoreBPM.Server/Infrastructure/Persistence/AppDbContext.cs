@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using CoreBPM.Server.Domain.Admin;
 using CoreBPM.Server.Domain.Auth;
 using CoreBPM.Server.Domain.Bpm;
 using CoreBPM.Server.Domain.Notify;
@@ -105,6 +106,12 @@ public class AppDbContext : DbContext
     public DbSet<NotifyPostComment> NotifyPostComments => Set<NotifyPostComment>();
     public DbSet<NotifyChannelPinnedPost> NotifyChannelPinnedPosts => Set<NotifyChannelPinnedPost>();
     public DbSet<NotifyUserMessagingPrefs> NotifyUserMessagingPrefs => Set<NotifyUserMessagingPrefs>();
+
+    // ─── In-app уведомления (FR-MSG-02.1) ────────────────────────────────────
+    public DbSet<NotifyInboxEntry> NotifyInboxEntries => Set<NotifyInboxEntry>();
+
+    // ─── Настройки SMTP (FR-ADM-02.1) ────────────────────────────────────────
+    public DbSet<AdminSmtpSettings> AdminSmtpSettings => Set<AdminSmtpSettings>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -1458,6 +1465,31 @@ public class AppDbContext : DbContext
             e.Property(p => p.SortOrder).IsRequired().HasMaxLength(30);
             e.Property(p => p.PinnedChatIds).IsRequired();
             e.Property(p => p.HiddenChatIds).IsRequired();
+        });
+
+        // ─── In-app уведомления ─────────────────────────────────────────────────
+        modelBuilder.Entity<NotifyInboxEntry>(e =>
+        {
+            e.ToTable("notify_inbox");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.UserId, x.IsRead });
+            e.HasIndex(x => x.CreatedAt);
+            e.Property(x => x.Type).IsRequired().HasMaxLength(100);
+            e.Property(x => x.Title).IsRequired().HasMaxLength(500);
+            e.Property(x => x.Body).IsRequired().HasMaxLength(2000);
+            e.Property(x => x.Link).HasMaxLength(2000);
+        });
+
+        // ─── SMTP настройки ─────────────────────────────────────────────────────
+        modelBuilder.Entity<AdminSmtpSettings>(e =>
+        {
+            e.ToTable("admin_smtp_settings");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Host).IsRequired().HasMaxLength(255);
+            e.Property(x => x.FromAddress).IsRequired().HasMaxLength(255);
+            e.Property(x => x.FromName).IsRequired().HasMaxLength(200);
+            e.Property(x => x.Username).HasMaxLength(255);
+            e.Property(x => x.Password).HasMaxLength(500);
         });
     }
 }

@@ -26,6 +26,8 @@ import { ProcessAnalyticsPage } from './bpm/ProcessAnalyticsPage';
 import TaskControlSettingsPage from './admin/TaskControlSettingsPage';
 import TimelogsReportPage from './admin/TimelogsReportPage';
 import { NotificationSettingsPage } from './admin/NotificationSettingsPage';
+import NotificationsPage from './NotificationsPage';
+import SmtpSettingsPage from './admin/SmtpSettingsPage';
 import { MyColleaguesWidget } from '../components/org/MyColleaguesWidget';
 import { TasksPage } from './tasks/TasksPage';
 import { TaskDetailPage } from './tasks/TaskDetailPage';
@@ -247,6 +249,10 @@ export function HomePage({ onAdmin }: HomePageProps) {
                     {section === 'timelogs-report' && <TimelogsReportPage />}
                     {/* FR-TASK-02.3: Настройки уведомлений */}
                     {section === 'notification-settings' && <NotificationSettingsPage />}
+                    {/* FR-MSG-02.1: In-app уведомления */}
+                    {section === 'notifications' && <NotificationsPage />}
+                    {/* FR-ADM-02.1: Настройки SMTP */}
+                    {section === 'smtp-settings' && <SmtpSettingsPage />}
                     {/* FR-MSG-01.1: Корпоративный чат */}
                     {section === 'messages' && <MessagesPage />}
                     {/* FR-MSG-01.2: Информационные каналы */}

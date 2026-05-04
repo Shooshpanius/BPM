@@ -104,8 +104,10 @@ builder.Services.AddScoped<IUserProfileService, UserProfileService>();
 builder.Services.AddScoped<IUserPreferencesService, UserPreferencesService>();
 builder.Services.AddScoped<ICompanyService, CompanyService>();
 
-// Регистрация сервисов Messaging (FR-MSG-01: чаты, каналы, сообщения)
+// Регистрация сервисов Messaging (FR-MSG-01: чаты, каналы, сообщения; FR-MSG-02.1: уведомления, SMTP)
 builder.Services.AddScoped<IMessagingService, MessagingService>();
+builder.Services.AddScoped<IInAppNotificationService, InAppNotificationService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
 
 // Регистрация сервисов Portal (FR-PORTAL-01)
 builder.Services.AddScoped<IPortalDashboardService, PortalDashboardService>();

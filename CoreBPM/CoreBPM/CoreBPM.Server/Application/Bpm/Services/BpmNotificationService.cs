@@ -1,17 +1,32 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using CoreBPM.Server.Application.Bpm.Interfaces;
+using CoreBPM.Server.Application.Notify.DTOs;
+using CoreBPM.Server.Application.Notify.Interfaces;
 using CoreBPM.Server.Infrastructure.Hubs;
+using CoreBPM.Server.Infrastructure.Persistence;
 
 namespace CoreBPM.Server.Application.Bpm.Services;
 
-/// <summary>Реализация сервиса уведомлений через SignalR.</summary>
+/// <summary>Реализация сервиса уведомлений через SignalR + in-app inbox + email (FR-MSG-02.1).</summary>
 public class BpmNotificationService : IBpmNotificationService
 {
     private readonly IHubContext<BpmNotificationHub> _hub;
+    private readonly IInAppNotificationService _inbox;
+    private readonly IEmailService _email;
+    private readonly AppDbContext _db;
 
-    public BpmNotificationService(IHubContext<BpmNotificationHub> hub)
+    public BpmNotificationService(
+        IHubContext<BpmNotificationHub> hub,
+        IInAppNotificationService inbox,
+        IEmailService email,
+        AppDbContext db)
     {
         _hub = hub;
+        _inbox = inbox;
+        _email = email;
+        _db = db;
     }
 
     /// <inheritdoc />
@@ -110,9 +125,36 @@ public class BpmNotificationService : IBpmNotificationService
         object payload,
         CancellationToken ct = default)
     {
+        // 1. SignalR push
         await _hub.Clients
             .Group($"user:{userId}")
             .SendAsync("bpm:notification", new { type = eventType, data = payload }, ct);
+
+        // 2. Сохранение в persistent inbox
+        var title = BuildTitle(eventType, payload);
+        var body = BuildBody(eventType, payload);
+        var link = BuildLink(eventType, payload);
+        var payloadJson = JsonSerializer.Serialize(payload);
+
+        await _inbox.SaveAsync(new SaveInboxEntryRequest(
+            userId, eventType, title, body, link, payloadJson), ct);
+
+        // 3. Email-уведомление (если пользователь имеет email)
+        var orgUser = await _db.OrgUsers.AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == userId, ct);
+
+        if (orgUser is not null && !string.IsNullOrWhiteSpace(orgUser.WorkEmail))
+        {
+            var displayName = $"{orgUser.FirstName} {orgUser.LastName}".Trim();
+            if (string.IsNullOrWhiteSpace(displayName)) displayName = orgUser.WorkEmail;
+
+            await _email.SendAsync(
+                orgUser.WorkEmail,
+                displayName,
+                title,
+                BuildEmailHtml(title, body, link),
+                ct);
+        }
     }
 
     /// <inheritdoc />
@@ -152,5 +194,84 @@ public class BpmNotificationService : IBpmNotificationService
         await _hub.Clients
             .Group($"user:{userId}")
             .SendAsync("bpm:notification", payload, ct);
+    }
+
+    // ─── Вспомогательные методы для построения текстов уведомлений ──────────────
+
+    private static string BuildTitle(string eventType, object payload) => eventType switch
+    {
+        "TaskAssigned" => "Вам назначена задача",
+        "TaskDone" => "Задача выполнена",
+        "TaskReminder" => "Напоминание по задаче",
+        "ResolutionTaskDone" => "Резолюция выполнена",
+        "ChannelInvite" => "Приглашение в канал",
+        "NewChannelPost" => "Новая публикация в канале",
+        "ImprovementStatusChanged" => "Статус предложения изменён",
+        "MigrationPackageCompleted" => "Пакет миграции завершён",
+        "JobFailed" => "Ошибка задания процесса",
+        _ => $"Уведомление: {eventType}",
+    };
+
+    private static string BuildBody(string eventType, object payload)
+    {
+        try
+        {
+            var json = JsonSerializer.Serialize(payload);
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            return eventType switch
+            {
+                "TaskAssigned" when root.TryGetProperty("taskTitle", out var t) => $"Задача «{t.GetString()}»",
+                "ChannelInvite" when root.TryGetProperty("channelName", out var c) => $"Канал «{c.GetString()}»",
+                "NewChannelPost" when root.TryGetProperty("title", out var t) => t.GetString() ?? "",
+                "ImprovementStatusChanged" when root.TryGetProperty("subject", out var s) => s.GetString() ?? "",
+                _ => "",
+            };
+        }
+        catch { return ""; }
+    }
+
+    private static string? BuildLink(string eventType, object payload)
+    {
+        try
+        {
+            var json = JsonSerializer.Serialize(payload);
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            return eventType switch
+            {
+                "TaskAssigned" when root.TryGetProperty("taskId", out var id) => $"/tasks/{id.GetGuid()}",
+                "TaskDone" when root.TryGetProperty("taskId", out var id) => $"/tasks/{id.GetGuid()}",
+                "TaskReminder" when root.TryGetProperty("taskId", out var id) => $"/tasks/{id.GetGuid()}",
+                "ChannelInvite" when root.TryGetProperty("channelId", out var id) => $"/channels",
+                "NewChannelPost" when root.TryGetProperty("channelId", out var id) => $"/channels",
+                _ => null,
+            };
+        }
+        catch { return null; }
+    }
+
+    private static string BuildEmailHtml(string title, string body, string? link)
+    {
+        var linkHtml = !string.IsNullOrWhiteSpace(link)
+            ? $"<p><a href=\"{link}\" style=\"color:#3b82f6\">Перейти →</a></p>"
+            : "";
+        var bodyHtml = !string.IsNullOrWhiteSpace(body)
+            ? $"<p style=\"color:#374151\">{body}</p>"
+            : "";
+
+        return $"""
+            <!DOCTYPE html>
+            <html>
+            <head><meta charset="utf-8"/></head>
+            <body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px">
+              <h2 style="color:#111827;margin-bottom:8px">{title}</h2>
+              {bodyHtml}
+              {linkHtml}
+              <hr style="border:none;border-top:1px solid #e5e7eb;margin-top:24px"/>
+              <p style="color:#9ca3af;font-size:12px">Core BPM — автоматическое уведомление</p>
+            </body>
+            </html>
+            """;
     }
 }
