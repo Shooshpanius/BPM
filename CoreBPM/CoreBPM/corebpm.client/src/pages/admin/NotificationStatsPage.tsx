@@ -30,7 +30,15 @@ export function NotificationStatsPage() {
             .finally(() => setLoading(false));
     };
 
-    useEffect(() => { loadStats(); }, [token]);  // eslint-disable-line react-hooks/exhaustive-deps
+    useEffect(() => {
+        if (!token) return;
+        setLoading(true);
+        setError('');
+        getDeliveryStats(token, {})
+            .then(s => setStats(s))
+            .catch(e => setError(e.message ?? 'Ошибка загрузки статистики'))
+            .finally(() => setLoading(false));
+    }, [token]);
 
     const inputStyle: React.CSSProperties = {
         padding: '5px 8px', border: '1px solid #ced4da', borderRadius: 4, fontSize: 13,
