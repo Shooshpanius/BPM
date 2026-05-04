@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getTaskCounters, type TaskCountersDto } from '../api/tasksApi';
+import { getUnreadCount } from '../api/messagesApi';
 import { useBpmNotifications } from '../context/BpmNotificationsContext';
 import { APP_VERSION, LAST_PR_DATE } from '../version';
 import './Sidebar.css';
 
-export type SidebarSection = 'portal' | 'tasks' | 'tasks-periodic' | 'tasks-dashboard' | 'contacts' | 'org-structure' | 'company' | 'user-profile' | 'user-preferences' | 'bpm-processes' | 'bpm-my-processes' | 'bpm-monitor' | 'bpm-queue' | 'bpm-documentation' | 'bpm-rules' | 'bpm-forms' | 'bpm-scripts' | 'bpm-migration' | 'bpm-improvements' | 'bpm-analytics' | 'task-control-settings' | 'timelogs-report' | 'notification-settings';
+export type SidebarSection = 'portal' | 'tasks' | 'tasks-periodic' | 'tasks-dashboard' | 'contacts' | 'org-structure' | 'company' | 'user-profile' | 'user-preferences' | 'bpm-processes' | 'bpm-my-processes' | 'bpm-monitor' | 'bpm-queue' | 'bpm-documentation' | 'bpm-rules' | 'bpm-forms' | 'bpm-scripts' | 'bpm-migration' | 'bpm-improvements' | 'bpm-analytics' | 'task-control-settings' | 'timelogs-report' | 'notification-settings' | 'messages' | 'channels';
 
 interface SidebarProps {
     active: SidebarSection;
@@ -17,11 +18,17 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
     const { hasRole, accessToken } = useAuth();
     const canManageOrg = hasRole('Admin') || hasRole('HR');
     const [counters, setCounters] = useState<TaskCountersDto | null>(null);
+    const [unreadMessages, setUnreadMessages] = useState(0);
     const { notifications } = useBpmNotifications();
 
     const loadCounters = useCallback(() => {
         if (!accessToken) return;
         getTaskCounters(accessToken).then(c => setCounters(c)).catch(() => {});
+    }, [accessToken]);
+
+    const loadUnreadMessages = useCallback(() => {
+        if (!accessToken) return;
+        getUnreadCount(accessToken).then(r => setUnreadMessages(r.totalUnread)).catch(() => {});
     }, [accessToken]);
 
     // FR-TASK-02.2: Периодическое обновление счётчиков задач (fallback каждые 5 минут)
@@ -32,13 +39,25 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
         return () => clearInterval(id);
     }, [accessToken, loadCounters]);
 
+    // FR-MSG-01: Периодическое обновление счётчика непрочитанных сообщений (каждые 60 секунд)
+    useEffect(() => {
+        if (!accessToken) return;
+        loadUnreadMessages();
+        const id = setInterval(loadUnreadMessages, 60_000);
+        return () => clearInterval(id);
+    }, [accessToken, loadUnreadMessages]);
+
     // FR-TASK-02.2: Push-обновление счётчиков при получении SignalR-события TaskCountersUpdated
     useEffect(() => {
         const last = notifications[0];
         if (last?.type === 'TaskCountersUpdated') {
             loadCounters();
         }
-    }, [notifications, loadCounters]);
+        // FR-MSG-01: Push-обновление счётчика непрочитанных при получении нового сообщения
+        if (last?.type === 'NewMessage') {
+            loadUnreadMessages();
+        }
+    }, [notifications, loadCounters, loadUnreadMessages]);
 
     return (
         <nav className="sidebar" aria-label="Разделы системы">
@@ -149,6 +168,32 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         <circle cx="12" cy="12" r="3"/>
                         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                    </svg>
+                }
+            />
+            <div className="sidebar-divider" role="separator" />
+            {/* FR-MSG-01.1: Чаты и сообщения */}
+            <SidebarItem
+                id="messages"
+                label="Сообщения"
+                active={active === 'messages'}
+                onClick={() => onSelect('messages')}
+                badge={unreadMessages > 0 ? unreadMessages : undefined}
+                icon={
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                    </svg>
+                }
+            />
+            {/* FR-MSG-01.2: Информационные каналы */}
+            <SidebarItem
+                id="channels"
+                label="Каналы"
+                active={active === 'channels'}
+                onClick={() => onSelect('channels')}
+                icon={
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13.5a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2.69h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 10a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
                     </svg>
                 }
             />

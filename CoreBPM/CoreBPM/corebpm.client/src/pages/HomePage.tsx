@@ -35,6 +35,8 @@ import { CompanyPage } from './company/CompanyPage';
 import { UserProfilePage } from './profile/UserProfilePage';
 import { UserPreferencesPage } from './profile/UserPreferencesPage';
 import { PortalDashboardPage } from './portal/PortalDashboardPage';
+import { MessagesPage } from './messages/MessagesPage';
+import { ChannelsPage } from './messages/ChannelsPage';
 import './HomePage.css';
 
 interface HomePageProps {
@@ -245,6 +247,10 @@ export function HomePage({ onAdmin }: HomePageProps) {
                     {section === 'timelogs-report' && <TimelogsReportPage />}
                     {/* FR-TASK-02.3: Настройки уведомлений */}
                     {section === 'notification-settings' && <NotificationSettingsPage />}
+                    {/* FR-MSG-01.1: Корпоративный чат */}
+                    {section === 'messages' && <MessagesPage />}
+                    {/* FR-MSG-01.2: Информационные каналы */}
+                    {section === 'channels' && <ChannelsPage />}
                 </main>
             </div>
             {isMobile && <MobileNav active={section} onSelect={handleSelect} />}

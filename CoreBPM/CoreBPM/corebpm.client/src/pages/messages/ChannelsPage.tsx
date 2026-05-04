@@ -1,0 +1,307 @@
+import { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import {
+    getChannels, createChannel, subscribeChannel, unsubscribeChannel,
+    getChannelPosts, createChannelPost, editChannelPost, deleteChannelPost,
+    type ChannelSummaryDto, type ChannelPostDto,
+} from '../../api/messagesApi';
+
+/** Страница информационных каналов (FR-MSG-01.2). */
+export function ChannelsPage() {
+    const { accessToken } = useAuth();
+
+    const [channels, setChannels] = useState<ChannelSummaryDto[]>([]);
+    const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
+    const [posts, setPosts] = useState<ChannelPostDto[]>([]);
+    const [showNewChannel, setShowNewChannel] = useState(false);
+    const [showNewPost, setShowNewPost] = useState(false);
+    const [newChannelName, setNewChannelName] = useState('');
+    const [newChannelDesc, setNewChannelDesc] = useState('');
+    const [newChannelKind, setNewChannelKind] = useState<'Public' | 'Private'>('Public');
+    const [newChannelIcon, setNewChannelIcon] = useState('📢');
+    const [newPostTitle, setNewPostTitle] = useState('');
+    const [newPostBody, setNewPostBody] = useState('');
+    const [editingPost, setEditingPost] = useState<ChannelPostDto | null>(null);
+    const [loading, setLoading] = useState(false);
+
+    const selectedChannel = channels.find(c => c.id === selectedChannelId);
+
+    const loadChannels = useCallback(async () => {
+        if (!accessToken) return;
+        try {
+            const data = await getChannels(accessToken);
+            setChannels(data);
+        } catch { /* игнорируем */ }
+    }, [accessToken]);
+
+    useEffect(() => { loadChannels(); }, [loadChannels]);
+
+    useEffect(() => {
+        if (!selectedChannelId || !accessToken) return;
+        setLoading(true);
+        getChannelPosts(accessToken, selectedChannelId)
+            .then(data => { setPosts(data); setLoading(false); })
+            .catch(() => setLoading(false));
+    }, [selectedChannelId, accessToken]);
+
+    const handleSubscribeToggle = async (channelId: string, isSubscribed: boolean) => {
+        if (!accessToken) return;
+        try {
+            if (isSubscribed) await unsubscribeChannel(accessToken, channelId);
+            else await subscribeChannel(accessToken, channelId);
+            await loadChannels();
+        } catch { /* ошибка */ }
+    };
+
+    const handleCreateChannel = async () => {
+        if (!newChannelName.trim() || !accessToken) return;
+        try {
+            await createChannel(accessToken, newChannelName.trim(), newChannelDesc.trim() || null, newChannelIcon, newChannelKind);
+            await loadChannels();
+            setShowNewChannel(false);
+            setNewChannelName('');
+            setNewChannelDesc('');
+        } catch { /* ошибка */ }
+    };
+
+    const handleCreatePost = async () => {
+        if (!newPostBody.trim() || !selectedChannelId || !accessToken) return;
+        try {
+            if (editingPost) {
+                const updated = await editChannelPost(accessToken, selectedChannelId, editingPost.id, newPostTitle.trim() || null, newPostBody.trim());
+                setPosts(prev => prev.map(p => p.id === updated.id ? updated : p));
+                setEditingPost(null);
+            } else {
+                const post = await createChannelPost(accessToken, selectedChannelId, newPostTitle.trim() || null, newPostBody.trim());
+                setPosts(prev => [...prev, post]);
+            }
+            setNewPostTitle('');
+            setNewPostBody('');
+            setShowNewPost(false);
+        } catch { /* ошибка */ }
+    };
+
+    const handleDeletePost = async (postId: string) => {
+        if (!selectedChannelId || !accessToken) return;
+        if (!confirm('Удалить публикацию?')) return;
+        try {
+            await deleteChannelPost(accessToken, selectedChannelId, postId);
+            setPosts(prev => prev.filter(p => p.id !== postId));
+        } catch { /* ошибка */ }
+    };
+
+    const formatDate = (iso: string) => {
+        const d = new Date(iso);
+        return d.toLocaleDateString('ru', { day: 'numeric', month: 'long', year: 'numeric' });
+    };
+
+    return (
+        <div style={{ display: 'flex', height: '100%', minHeight: 0, overflow: 'hidden' }}>
+            {/* ─── Список каналов ─── */}
+            <aside style={{
+                width: 260, minWidth: 220, borderRight: '1px solid #e5e7eb',
+                display: 'flex', flexDirection: 'column', background: '#fff'
+            }}>
+                <div style={{ padding: '12px 14px', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontWeight: 700, fontSize: 14, color: '#111827' }}>Каналы</span>
+                    <button
+                        onClick={() => setShowNewChannel(true)}
+                        title="Создать канал"
+                        style={{ background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 14 }}
+                    >+ Канал</button>
+                </div>
+                <div style={{ flex: 1, overflowY: 'auto' }}>
+                    {channels.length === 0 && (
+                        <div style={{ padding: 16, color: '#9ca3af', fontSize: 13, textAlign: 'center' }}>
+                            Нет доступных каналов.
+                        </div>
+                    )}
+                    {channels.map(ch => (
+                        <div
+                            key={ch.id}
+                            style={{
+                                padding: '10px 14px', borderBottom: '1px solid #f3f4f6',
+                                background: selectedChannelId === ch.id ? '#eff6ff' : 'none',
+                                cursor: 'pointer',
+                            }}
+                            onClick={() => setSelectedChannelId(ch.id)}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <span style={{ fontSize: 20 }}>{ch.iconEmoji ?? '📢'}</span>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                        {ch.name}
+                                    </div>
+                                    <div style={{ fontSize: 11, color: '#6b7280' }}>
+                                        {ch.subscriberCount} подписч. · {ch.kind === 'Public' ? 'Публичный' : 'Приватный'}
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={e => { e.stopPropagation(); handleSubscribeToggle(ch.id, ch.isSubscribed); }}
+                                    style={{
+                                        fontSize: 11, padding: '3px 8px', borderRadius: 6, cursor: 'pointer', border: 'none',
+                                        background: ch.isSubscribed ? '#fee2e2' : '#d1fae5', color: ch.isSubscribed ? '#b91c1c' : '#065f46'
+                                    }}
+                                >
+                                    {ch.isSubscribed ? 'Отписаться' : 'Подписаться'}
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </aside>
+
+            {/* ─── Содержимое канала ─── */}
+            {selectedChannelId && selectedChannel ? (
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                    {/* Шапка */}
+                    <div style={{
+                        padding: '12px 20px', borderBottom: '1px solid #e5e7eb', background: '#fff',
+                        display: 'flex', alignItems: 'center', gap: 12
+                    }}>
+                        <span style={{ fontSize: 22 }}>{selectedChannel.iconEmoji ?? '📢'}</span>
+                        <div>
+                            <div style={{ fontWeight: 700, fontSize: 16, color: '#111827' }}>{selectedChannel.name}</div>
+                            {selectedChannel.description && (
+                                <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{selectedChannel.description}</div>
+                            )}
+                        </div>
+                        {selectedChannel.isAdmin && (
+                            <button
+                                onClick={() => { setShowNewPost(true); setEditingPost(null); setNewPostTitle(''); setNewPostBody(''); }}
+                                style={{ marginLeft: 'auto', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
+                            >+ Публикация</button>
+                        )}
+                    </div>
+
+                    {/* Публикации */}
+                    <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: 16, background: '#f9fafb' }}>
+                        {loading && <div style={{ textAlign: 'center', color: '#9ca3af' }}>Загрузка...</div>}
+                        {posts.length === 0 && !loading && (
+                            <div style={{ textAlign: 'center', color: '#9ca3af', fontSize: 14, marginTop: 40 }}>
+                                Публикаций пока нет.
+                            </div>
+                        )}
+                        {posts.map(post => (
+                            <div key={post.id} style={{
+                                background: '#fff', borderRadius: 10, padding: '16px 20px',
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.08)', border: '1px solid #e5e7eb'
+                            }}>
+                                {post.title && (
+                                    <h3 style={{ margin: '0 0 10px', fontSize: 17, fontWeight: 700, color: '#111827' }}>
+                                        {post.title}
+                                    </h3>
+                                )}
+                                <div style={{ fontSize: 14, lineHeight: 1.6, color: '#374151', whiteSpace: 'pre-wrap' }}>
+                                    {post.body}
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12, paddingTop: 10, borderTop: '1px solid #f3f4f6' }}>
+                                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#e0e7ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, color: '#3730a3' }}>
+                                        {post.authorName?.[0]?.toUpperCase() ?? '?'}
+                                    </div>
+                                    <div>
+                                        <div style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>{post.authorName}</div>
+                                        <div style={{ fontSize: 11, color: '#9ca3af' }}>
+                                            {formatDate(post.createdAt)}
+                                            {post.isEdited && ' (изменено)'}
+                                        </div>
+                                    </div>
+                                    {selectedChannel.isAdmin && (
+                                        <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+                                            <button
+                                                onClick={() => { setEditingPost(post); setNewPostTitle(post.title ?? ''); setNewPostBody(post.body); setShowNewPost(true); }}
+                                                style={{ background: 'none', border: '1px solid #d1d5db', borderRadius: 6, padding: '3px 10px', cursor: 'pointer', fontSize: 12, color: '#374151' }}
+                                            >✏️ Изменить</button>
+                                            <button
+                                                onClick={() => handleDeletePost(post.id)}
+                                                style={{ background: 'none', border: '1px solid #fca5a5', borderRadius: 6, padding: '3px 10px', cursor: 'pointer', fontSize: 12, color: '#dc2626' }}
+                                            >🗑️ Удалить</button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            ) : (
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af', fontSize: 15 }}>
+                    Выберите канал
+                </div>
+            )}
+
+            {/* ─── Диалог создания канала ─── */}
+            {showNewChannel && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 380, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Новый канал</h3>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                            <input
+                                value={newChannelIcon}
+                                onChange={e => setNewChannelIcon(e.target.value)}
+                                style={{ width: 48, padding: '8px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 18, textAlign: 'center' }}
+                                placeholder="📢"
+                            />
+                            <input
+                                value={newChannelName}
+                                onChange={e => setNewChannelName(e.target.value)}
+                                placeholder="Название канала *"
+                                style={{ flex: 1, padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14 }}
+                            />
+                        </div>
+                        <textarea
+                            value={newChannelDesc}
+                            onChange={e => setNewChannelDesc(e.target.value)}
+                            placeholder="Описание (необязательно)"
+                            rows={2}
+                            style={{ padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, resize: 'none', fontFamily: 'inherit' }}
+                        />
+                        <div style={{ display: 'flex', gap: 12 }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 14 }}>
+                                <input type="radio" name="kind" checked={newChannelKind === 'Public'} onChange={() => setNewChannelKind('Public')} />
+                                🌐 Публичный
+                            </label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 14 }}>
+                                <input type="radio" name="kind" checked={newChannelKind === 'Private'} onChange={() => setNewChannelKind('Private')} />
+                                🔒 Приватный
+                            </label>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                            <button onClick={() => setShowNewChannel(false)} style={{ padding: '8px 16px', border: '1px solid #d1d5db', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 14 }}>Отмена</button>
+                            <button onClick={handleCreateChannel} disabled={!newChannelName.trim()} style={{ padding: '8px 16px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Создать</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ─── Диалог создания/редактирования публикации ─── */}
+            {showNewPost && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 500, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>
+                            {editingPost ? 'Редактировать публикацию' : 'Новая публикация'}
+                        </h3>
+                        <input
+                            value={newPostTitle}
+                            onChange={e => setNewPostTitle(e.target.value)}
+                            placeholder="Заголовок (необязательно)"
+                            style={{ padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 15, fontWeight: 600 }}
+                        />
+                        <textarea
+                            value={newPostBody}
+                            onChange={e => setNewPostBody(e.target.value)}
+                            placeholder="Текст публикации *"
+                            rows={6}
+                            style={{ padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, resize: 'vertical', fontFamily: 'inherit' }}
+                        />
+                        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                            <button onClick={() => setShowNewPost(false)} style={{ padding: '8px 16px', border: '1px solid #d1d5db', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 14 }}>Отмена</button>
+                            <button onClick={handleCreatePost} disabled={!newPostBody.trim()} style={{ padding: '8px 16px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
+                                {editingPost ? 'Сохранить' : 'Опубликовать'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}

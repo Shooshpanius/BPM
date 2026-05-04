@@ -187,6 +187,15 @@ function buildNotification(data: Record<string, unknown>): BpmNotification {
             // Служебное событие — без сообщения (не показывается как тост)
             message = '';
             break;
+        case 'NewMessage': {
+            // Служебное событие — без тоста; бейдж обновляется в Sidebar
+            message = '';
+            break;
+        }
+        case 'NewChannelPost': {
+            message = `Новая публикация в канале «${data.channelName ?? ''}»${data.title ? `: ${data.title}` : ''}`;
+            break;
+        }
         default:
             message = typeof data.message === 'string' ? data.message : `Уведомление: ${type}`;
     }
@@ -206,6 +215,7 @@ function toastColor(type: string): string {
         case 'JobFailed': return '#ef4444';
         case 'MigrationPackageCompleted': return '#10b981';
         case 'ImprovementStatusChanged': return '#f59e0b';
+        case 'NewChannelPost': return '#10b981';
         default: return '#3b82f6';
     }
 }
