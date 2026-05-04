@@ -34,6 +34,7 @@ import { TaskDashboardPage } from './tasks/TaskDashboardPage';
 import { CompanyPage } from './company/CompanyPage';
 import { UserProfilePage } from './profile/UserProfilePage';
 import { UserPreferencesPage } from './profile/UserPreferencesPage';
+import { PortalDashboardPage } from './portal/PortalDashboardPage';
 import './HomePage.css';
 
 interface HomePageProps {
@@ -45,7 +46,7 @@ export function HomePage({ onAdmin }: HomePageProps) {
     const { logout, hasRole, userId } = useAuth();
     const canManageOrg = hasRole('Admin') || hasRole('HR');
     const isMobile = useMobile();
-    const [section, setSection] = useState<SidebarSection>('tasks');
+    const [section, setSection] = useState<SidebarSection>('portal');
     const [designerProcessId, setDesignerProcessId] = useState<string | null>(null);
     const [monitorProcess, setMonitorProcess] = useState<{ id: string; name: string } | null>(null);
     const [openInstanceId, setOpenInstanceId] = useState<string | null>(null);
@@ -117,6 +118,14 @@ export function HomePage({ onAdmin }: HomePageProps) {
             <div className="hp-body">
                 {!isMobile && <Sidebar active={section} onSelect={handleSelect} />}
                 <main className="hp-content">
+                    {/* FR-PORTAL-01: Главная страница */}
+                    {section === 'portal' && (
+                        <PortalDashboardPage
+                            onOpenTask={setOpenTaskId}
+                            onOpenSection={(s) => handleSelect(s as SidebarSection)}
+                            onOpenInstance={handleOpenInstance}
+                        />
+                    )}
                     {section === 'tasks' && (
                         openTaskId
                             ? <TaskDetailPage taskId={openTaskId} onBack={() => setOpenTaskId(null)} />

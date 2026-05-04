@@ -1,0 +1,236 @@
+/* FR-PORTAL-01: Дашборд портала */
+.portal-dashboard {
+    padding: 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.portal-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    color: var(--color-text-secondary, #6b7280);
+}
+
+.portal-dashboard__toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.portal-dashboard__title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--color-text, #1a1a2e);
+    margin: 0;
+}
+
+.portal-dashboard__actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.portal-btn {
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: background 0.15s, border-color 0.15s;
+}
+.portal-btn--primary {
+    background: #4361ee;
+    color: #fff;
+    border-color: #4361ee;
+}
+.portal-btn--primary:hover { background: #3451d1; }
+.portal-btn--secondary {
+    background: #fff;
+    color: #4361ee;
+    border-color: #4361ee;
+}
+.portal-btn--secondary:hover { background: #eef0ff; }
+.portal-btn--ghost {
+    background: transparent;
+    color: #6b7280;
+    border-color: #d1d5db;
+}
+.portal-btn--ghost:hover { background: #f3f4f6; }
+
+/* Панель добавления виджетов */
+.portal-add-panel {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+.portal-add-panel__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+.portal-add-search {
+    padding: 5px 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.875rem;
+}
+.portal-add-panel__list {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.portal-add-item {
+    padding: 6px 14px;
+    background: #f0f4ff;
+    border: 1px solid #c7d2fe;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    color: #4361ee;
+    transition: background 0.15s;
+}
+.portal-add-item:hover { background: #e0e7ff; }
+.portal-add-empty { color: #9ca3af; font-size: 0.875rem; }
+
+/* Сетка виджетов */
+.portal-widget-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    align-items: start;
+}
+
+@media (max-width: 1024px) {
+    .portal-widget-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 640px) {
+    .portal-widget-grid { grid-template-columns: 1fr; }
+    .portal-dashboard { padding: 16px; }
+}
+
+/* Карточка виджета */
+.portal-widget {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    transition: box-shadow 0.15s;
+    min-height: 60px;
+}
+.portal-widget:hover { box-shadow: 0 3px 10px rgba(0,0,0,0.10); }
+
+.portal-widget--collapsed .portal-widget__content { display: none; }
+
+.portal-widget__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e5e7eb;
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: #374151;
+    gap: 8px;
+}
+.portal-widget--collapsed .portal-widget__header { border-bottom: none; }
+
+.portal-widget__label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.portal-widget__controls { display: flex; gap: 4px; }
+.portal-widget__ctrl-btn {
+    width: 22px; height: 22px;
+    border: none; background: transparent;
+    cursor: pointer; font-size: 0.75rem;
+    color: #9ca3af; border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.1s, color 0.1s;
+}
+.portal-widget__ctrl-btn:hover { background: #e5e7eb; color: #374151; }
+.portal-widget__ctrl-btn--delete:hover { background: #fee2e2; color: #ef4444; }
+
+.portal-widget__content { padding: 12px 14px; }
+
+/* Содержимое виджетов */
+.widget-loading { padding: 20px; text-align: center; color: #9ca3af; font-size: 0.875rem; }
+.widget-empty { color: #9ca3af; font-size: 0.875rem; text-align: center; padding: 16px 0; margin: 0; }
+
+/* Список задач */
+.widget-task-list, .widget-process-list, .widget-news-list, .widget-notification-list {
+    list-style: none; margin: 0; padding: 0;
+}
+.widget-task-item, .widget-process-item, .widget-news-item, .widget-notification-item {
+    border-bottom: 1px solid #f3f4f6;
+}
+.widget-task-item:last-child, .widget-process-item:last-child,
+.widget-news-item:last-child, .widget-notification-item:last-child { border-bottom: none; }
+
+.widget-task-link {
+    display: flex; align-items: center; justify-content: space-between;
+    width: 100%; padding: 7px 0;
+    background: none; border: none; cursor: pointer; text-align: left; gap: 8px;
+}
+.widget-task-link:hover .widget-task-title { color: #4361ee; }
+
+.widget-task-title {
+    flex: 1; font-size: 0.8rem; color: #374151;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    transition: color 0.1s;
+}
+.widget-task-priority, .widget-task-status {
+    font-size: 0.7rem; padding: 2px 6px; border-radius: 10px;
+    background: #f3f4f6; color: #6b7280; white-space: nowrap;
+}
+.priority-high { background: #fee2e2; color: #ef4444; }
+.priority-critical { background: #fce7f3; color: #db2777; }
+.priority-low { background: #ecfdf5; color: #10b981; }
+
+/* Awaiting action */
+.widget-awaiting-total {
+    font-size: 2.5rem; font-weight: 700; color: #4361ee; text-align: center; margin-bottom: 4px;
+}
+.widget-awaiting-label { text-align: center; font-size: 0.8rem; color: #6b7280; margin: 0 0 12px; }
+.widget-awaiting-details { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.widget-awaiting-chip {
+    font-size: 0.75rem; padding: 3px 10px; border-radius: 12px;
+    background: #f0f4ff; color: #4361ee; border: 1px solid #c7d2fe;
+}
+.widget-awaiting-chip--overdue { background: #fee2e2; color: #ef4444; border-color: #fca5a5; }
+
+/* Quick actions */
+.widget-quick-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.widget-quick-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 7px 12px; background: #f8f9fa; border: 1px solid #e5e7eb;
+    border-radius: 8px; cursor: pointer; font-size: 0.8rem; color: #374151;
+    transition: background 0.15s, border-color 0.15s;
+}
+.widget-quick-btn:hover { background: #eef0ff; border-color: #c7d2fe; color: #4361ee; }
+.widget-quick-icon { font-size: 1rem; }
+
+/* News */
+.widget-news-item { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 7px 0; }
+.widget-news-title { font-size: 0.8rem; color: #374151; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.widget-news-date { font-size: 0.7rem; color: #9ca3af; white-space: nowrap; }
+
+/* Notifications */
+.widget-notification-item { padding: 6px 0; display: flex; align-items: baseline; gap: 6px; }
+.widget-notif-type { font-size: 0.7rem; padding: 2px 6px; background: #ede9fe; color: #7c3aed; border-radius: 10px; white-space: nowrap; }
+.widget-notif-msg { font-size: 0.8rem; color: #6b7280; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Empty state */
+.portal-empty { text-align: center; padding: 60px 20px; color: #9ca3af; }

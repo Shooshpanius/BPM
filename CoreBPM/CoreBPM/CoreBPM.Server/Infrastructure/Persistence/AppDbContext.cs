@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using CoreBPM.Server.Domain.Auth;
 using CoreBPM.Server.Domain.Bpm;
 using CoreBPM.Server.Domain.Org;
+using CoreBPM.Server.Domain.Portal;
 using CoreBPM.Server.Domain.Rules;
 using CoreBPM.Server.Domain.Tasks;
 
@@ -83,6 +84,9 @@ public class AppDbContext : DbContext
     public DbSet<OrgCompanyInfo> OrgCompanyInfos => Set<OrgCompanyInfo>();
     public DbSet<OrgCompanyNews> OrgCompanyNews => Set<OrgCompanyNews>();
     public DbSet<OrgCompanyLink> OrgCompanyLinks => Set<OrgCompanyLink>();
+    public DbSet<PortalDashboardWidget> PortalDashboardWidgets => Set<PortalDashboardWidget>();
+    public DbSet<PortalBranding> PortalBrandings => Set<PortalBranding>();
+    public DbSet<PortalMenuItem> PortalMenuItems => Set<PortalMenuItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -1243,6 +1247,34 @@ public class AppDbContext : DbContext
             e.Property(l => l.Title).IsRequired().HasMaxLength(200);
             e.Property(l => l.Url).IsRequired().HasMaxLength(1000);
             e.HasIndex(l => l.SortOrder);
+        });
+
+        // FR-PORTAL-01: Виджеты дашборда пользователя
+        modelBuilder.Entity<PortalDashboardWidget>(e =>
+        {
+            e.ToTable("portal_dashboard_widgets");
+            e.HasKey(w => w.Id);
+            e.HasIndex(w => w.UserId);
+            e.Property(w => w.WidgetType).IsRequired().HasMaxLength(100);
+            e.Property(w => w.Title).HasMaxLength(200);
+        });
+
+        // FR-PORTAL-01: Брендинг портала
+        modelBuilder.Entity<PortalBranding>(e =>
+        {
+            e.ToTable("portal_branding");
+            e.HasKey(b => b.Id);
+            e.Property(b => b.SystemName).IsRequired().HasMaxLength(200);
+            e.Property(b => b.GlobalTheme).IsRequired().HasMaxLength(20);
+        });
+
+        // FR-PORTAL-01: Пункты меню навигации
+        modelBuilder.Entity<PortalMenuItem>(e =>
+        {
+            e.ToTable("portal_menu_items");
+            e.HasKey(m => m.Id);
+            e.Property(m => m.Label).IsRequired().HasMaxLength(200);
+            e.HasIndex(m => m.SortOrder);
         });
     }
 }
