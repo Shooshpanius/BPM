@@ -340,9 +340,12 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
         if (!groupBy) return [{ key: '', tasks }];
         const map = new Map<string, TaskSummaryDto[]>();
         tasks.forEach(t => {
-            const key = (t as Record<string, unknown>)[groupBy] as string ?? '(не задано)';
-            if (!map.has(key)) map.set(key, []);
-            map.get(key)!.push(t);
+            const fieldValue: string = groupBy === 'priority' ? t.priority
+                : groupBy === 'status' ? t.status
+                : groupBy === 'categoryId' ? (t.categoryId ?? '(не задано)')
+                : '(не задано)';
+            if (!map.has(fieldValue)) map.set(fieldValue, []);
+            map.get(fieldValue)!.push(t);
         });
         return Array.from(map.entries()).map(([key, t]) => ({ key, tasks: t }));
     })();

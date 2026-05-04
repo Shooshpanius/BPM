@@ -13,21 +13,21 @@ interface SidebarProps {
 
 /** Вертикальный сайдбар навигации (~60px) с иконками разделов. */
 export function Sidebar({ active, onSelect }: SidebarProps) {
-    const { hasRole, token } = useAuth();
+    const { hasRole, accessToken } = useAuth();
     const canManageOrg = hasRole('Admin') || hasRole('HR');
     const [counters, setCounters] = useState<TaskCountersDto | null>(null);
 
     // FR-TASK-02.2: Периодическое обновление счётчиков задач (каждые 60 с)
     useEffect(() => {
-        if (!token) return;
+        if (!accessToken) return;
         let cancelled = false;
         const load = () => {
-            getTaskCounters(token).then(c => { if (!cancelled) setCounters(c); }).catch(() => {});
+            getTaskCounters(accessToken).then(c => { if (!cancelled) setCounters(c); }).catch(() => {});
         };
         load();
         const id = setInterval(load, 60_000);
         return () => { cancelled = true; clearInterval(id); };
-    }, [token]);
+    }, [accessToken]);
 
     return (
         <nav className="sidebar" aria-label="Разделы системы">
