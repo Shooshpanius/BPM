@@ -3482,6 +3482,16 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("in_app");
 
+                    b.Property<bool>("Sms")
+                        .HasColumnType("boolean")
+                        .HasColumnName("sms")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("Push")
+                        .HasColumnType("boolean")
+                        .HasColumnName("push")
+                        .HasDefaultValue(false);
+
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid")
                         .HasColumnName("user_id");
@@ -3494,6 +3504,195 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_user_task_notification_settings_user_id_event_type");
 
                     b.ToTable("user_task_notification_settings", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyDndSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_enabled");
+
+                    b.Property<int>("StartHour")
+                        .HasColumnType("integer")
+                        .HasDefaultValue(22)
+                        .HasColumnName("start_hour");
+
+                    b.Property<int>("EndHour")
+                        .HasColumnType("integer")
+                        .HasDefaultValue(8)
+                        .HasColumnName("end_hour");
+
+                    b.Property<string>("DisabledDays")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("")
+                        .HasColumnName("disabled_days");
+
+                    b.Property<string>("TimeZone")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasDefaultValue("UTC")
+                        .HasColumnName("time_zone");
+
+                    b.Property<bool>("ApplyToPush")
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("apply_to_push");
+
+                    b.Property<bool>("ApplyToSms")
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("apply_to_sms");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notify_dnd_settings");
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_notify_dnd_settings_user_id");
+
+                    b.ToTable("notify_dnd_settings", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyDeliveryLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("event_type");
+
+                    b.Property<int>("Channel")
+                        .HasColumnType("integer")
+                        .HasColumnName("channel");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("error");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notify_delivery_log");
+
+                    b.HasIndex("UserId", "CreatedAt")
+                        .HasDatabaseName("ix_notify_delivery_log_user_id_created_at");
+
+                    b.HasIndex("EventType", "Channel", "Status")
+                        .HasDatabaseName("ix_notify_delivery_log_event_type_channel_status");
+
+                    b.ToTable("notify_delivery_log", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Admin.AdminNotificationTemplate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("event_type");
+
+                    b.Property<string>("EventLabel")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("event_label");
+
+                    b.Property<string>("EmailSubjectTemplate")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("email_subject_template");
+
+                    b.Property<string>("EmailBodyTemplate")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("email_body_template");
+
+                    b.Property<string>("ShortTemplate")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("short_template");
+
+                    b.Property<bool>("IsMandatoryInApp")
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_mandatory_in_app");
+
+                    b.Property<bool>("IsMandatoryEmail")
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_mandatory_email");
+
+                    b.Property<bool>("IsMandatorySms")
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_mandatory_sms");
+
+                    b.Property<bool>("IsMandatoryPush")
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_mandatory_push");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_admin_notification_templates");
+
+                    b.HasIndex("EventType")
+                        .IsUnique()
+                        .HasDatabaseName("ix_admin_notification_templates_event_type");
+
+                    b.ToTable("admin_notification_templates", (string)null);
                 });
 
             modelBuilder.Entity("CoreBPM.Server.Domain.Auth.AuthAccount", b =>

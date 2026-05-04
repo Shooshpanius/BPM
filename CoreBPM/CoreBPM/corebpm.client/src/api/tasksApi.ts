@@ -902,19 +902,113 @@ export interface NotificationSettingDto {
     eventType: string;
     inApp: boolean;
     email: boolean;
+    sms: boolean;
+    push: boolean;
+    hasMandatory: boolean;
 }
 
-/** Получить настройки уведомлений. FR-TASK-02.3. */
+/** Получить настройки уведомлений. FR-MSG-02.2. */
 export async function getNotificationSettings(token: string): Promise<NotificationSettingDto[]> {
     return apiFetch<NotificationSettingDto[]>(token, '/api/users/me/notification-settings');
 }
 
-/** Обновить настройки уведомлений. FR-TASK-02.3. */
-export async function updateNotificationSettings(token: string, settings: Array<{ eventType: string; inApp: boolean; email: boolean }>): Promise<NotificationSettingDto[]> {
+/** Обновить настройки уведомлений. FR-MSG-02.2. */
+export async function updateNotificationSettings(token: string, settings: Array<{ eventType: string; inApp: boolean; email: boolean; sms: boolean; push: boolean }>): Promise<NotificationSettingDto[]> {
     return apiFetch<NotificationSettingDto[]>(token, '/api/users/me/notification-settings', {
         method: 'PUT',
         body: JSON.stringify(settings),
     });
+}
+
+// ─── FR-MSG-02.2: DND ────────────────────────────────────────────────────────
+
+export interface DndSettingsDto {
+    isEnabled: boolean;
+    startHour: number;
+    endHour: number;
+    disabledDays: number[];
+    timeZone: string;
+    applyToPush: boolean;
+    applyToSms: boolean;
+}
+
+export async function getDndSettings(token: string): Promise<DndSettingsDto> {
+    return apiFetch<DndSettingsDto>(token, '/api/users/me/notification-settings/dnd');
+}
+
+export async function updateDndSettings(token: string, dto: DndSettingsDto): Promise<DndSettingsDto> {
+    return apiFetch<DndSettingsDto>(token, '/api/users/me/notification-settings/dnd', {
+        method: 'PUT',
+        body: JSON.stringify(dto),
+    });
+}
+
+// ─── FR-MSG-02.2: Шаблоны уведомлений ────────────────────────────────────────
+
+export interface NotificationTemplateDto {
+    id: string;
+    eventType: string;
+    eventLabel: string;
+    emailSubjectTemplate: string;
+    emailBodyTemplate: string;
+    shortTemplate: string;
+    isMandatoryInApp: boolean;
+    isMandatoryEmail: boolean;
+    isMandatorySms: boolean;
+    isMandatoryPush: boolean;
+    isActive: boolean;
+    updatedAt: string;
+}
+
+export async function getNotificationTemplates(token: string): Promise<NotificationTemplateDto[]> {
+    return apiFetch<NotificationTemplateDto[]>(token, '/api/admin/notification-templates');
+}
+
+export async function upsertNotificationTemplate(token: string, eventType: string, data: Partial<NotificationTemplateDto>): Promise<NotificationTemplateDto> {
+    return apiFetch<NotificationTemplateDto>(token, `/api/admin/notification-templates/${eventType}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+    });
+}
+
+export async function deleteNotificationTemplate(token: string, id: string): Promise<void> {
+    return apiFetch<void>(token, `/api/admin/notification-templates/${id}`, { method: 'DELETE' });
+}
+
+// ─── FR-MSG-02.2: Журнал доставки ────────────────────────────────────────────
+
+export interface DeliveryLogEntryDto {
+    id: string;
+    userId: string;
+    userFullName: string;
+    eventType: string;
+    channel: string;
+    status: string;
+    error?: string;
+    createdAt: string;
+}
+
+export interface DeliveryLogsResponse {
+    items: DeliveryLogEntryDto[];
+    total: number;
+    page: number;
+    pageSize: number;
+}
+
+export async function getDeliveryLogs(token: string, params: {
+    userId?: string; type?: string; channel?: string; status?: string;
+    from?: string; to?: string; page?: number; pageSize?: number;
+}): Promise<DeliveryLogsResponse> {
+    const q = new URLSearchParams();
+    if (params.userId) q.set('userId', params.userId);
+    if (params.type) q.set('type', params.type);
+    if (params.channel) q.set('channel', params.channel);
+    if (params.status) q.set('status', params.status);
+    if (params.from) q.set('from', params.from);
+    if (params.to) q.set('to', params.to);
+    if (params.page) q.set('page', String(params.page));
+    if (params.pageSize) q.set('pageSize', String(params.pageSize));
+    return apiFetch<DeliveryLogsResponse>(token, `/api/admin/notification-logs?${q}`);
 }
 
 // ─── FR-TASK-02.3: Глобальный поиск задач ────────────────────────────────────

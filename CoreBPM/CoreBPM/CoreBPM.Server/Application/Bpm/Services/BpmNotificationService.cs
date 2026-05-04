@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using CoreBPM.Server.Application.Bpm.Interfaces;
 using CoreBPM.Server.Application.Notify.DTOs;
 using CoreBPM.Server.Application.Notify.Interfaces;
+using CoreBPM.Server.Domain.Notify;
 using CoreBPM.Server.Infrastructure.Hubs;
 using CoreBPM.Server.Infrastructure.Persistence;
 
@@ -20,6 +21,8 @@ public class BpmNotificationService : IBpmNotificationService
     private readonly IPushNotificationService _push;
     private readonly AppDbContext _db;
 
+    private readonly INotificationSettingsService _notifSettings;
+
     public BpmNotificationService(
         IHubContext<BpmNotificationHub> hub,
         IInAppNotificationService inbox,
@@ -27,6 +30,7 @@ public class BpmNotificationService : IBpmNotificationService
         IEmailTemplateService emailTemplates,
         ISmsService sms,
         IPushNotificationService push,
+        INotificationSettingsService notifSettings,
         AppDbContext db)
     {
         _hub = hub;
@@ -35,6 +39,7 @@ public class BpmNotificationService : IBpmNotificationService
         _emailTemplates = emailTemplates;
         _sms = sms;
         _push = push;
+        _notifSettings = notifSettings;
         _db = db;
     }
 
@@ -134,7 +139,7 @@ public class BpmNotificationService : IBpmNotificationService
         object payload,
         CancellationToken ct = default)
     {
-        // 1. SignalR push
+        // 1. SignalR push (in-app real-time — всегда доставляется)
         await _hub.Clients
             .Group($"user:{userId}")
             .SendAsync("bpm:notification", new { type = eventType, data = payload }, ct);
@@ -148,7 +153,10 @@ public class BpmNotificationService : IBpmNotificationService
         await _inbox.SaveAsync(new SaveInboxEntryRequest(
             userId, eventType, title, body, link, payloadJson), ct);
 
-        // 3. Получаем данные пользователя
+        // Журнал доставки: in-app
+        await _notifSettings.LogDeliveryAsync(userId, eventType, DeliveryChannel.InApp, NotifyDeliveryStatus.Sent, ct: ct);
+
+        // 3. Получаем данные пользователя и его настройки уведомлений
         var orgUser = await _db.OrgUsers.AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == userId, ct);
         if (orgUser is null) return;
@@ -156,25 +164,114 @@ public class BpmNotificationService : IBpmNotificationService
         var displayName = $"{orgUser.FirstName} {orgUser.LastName}".Trim();
         if (string.IsNullOrWhiteSpace(displayName)) displayName = orgUser.WorkEmail ?? userId.ToString();
 
-        // 4. Rich email (с шаблонами и кнопками действий)
-        if (!string.IsNullOrWhiteSpace(orgUser.WorkEmail))
-        {
-            var actions = BuildActionButtons(eventType, payload);
-            var (emailSubject, htmlBody) = await _emailTemplates.RenderAsync(
-                eventType, title, body, link, actions, ct);
+        // Настройки каналов пользователя
+        var userPref = await _db.UserTaskNotificationSettings.AsNoTracking()
+            .FirstOrDefaultAsync(s => s.UserId == userId && s.EventType == eventType, ct);
 
-            await _email.SendAsync(orgUser.WorkEmail, displayName, emailSubject, htmlBody, ct);
+        var sendEmail = userPref?.Email ?? true;
+        var sendSms = userPref?.Sms ?? false;
+        var sendPush = userPref?.Push ?? false;
+
+        // Проверяем обязательные каналы (принудительные флаги из шаблонов)
+        var tmpl = await _db.AdminNotificationTemplates.AsNoTracking()
+            .FirstOrDefaultAsync(t => t.EventType == eventType, ct);
+
+        if (tmpl is not null)
+        {
+            if (tmpl.IsMandatoryEmail) sendEmail = true;
+            if (tmpl.IsMandatorySms) sendSms = true;
+            if (tmpl.IsMandatoryPush) sendPush = true;
         }
 
-        // 5. SMS (если у пользователя есть номер телефона)
-        if (!string.IsNullOrWhiteSpace(orgUser.MobilePhone))
+        // Проверяем DND (только для push и SMS)
+        var inDnd = await _notifSettings.IsInDndAsync(userId, ct);
+
+        // 4. Rich email
+        if (sendEmail && !string.IsNullOrWhiteSpace(orgUser.WorkEmail))
         {
-            var smsText = BuildSmsText(eventType, title, body);
-            await _sms.SendAsync(orgUser.MobilePhone, smsText, eventType, userId, ct);
+            try
+            {
+                var actions = BuildActionButtons(eventType, payload);
+                var (emailSubject, htmlBody) = await _emailTemplates.RenderAsync(
+                    eventType, title, body, link, actions, ct);
+
+                await _email.SendAsync(orgUser.WorkEmail, displayName, emailSubject, htmlBody, ct);
+                await _notifSettings.LogDeliveryAsync(userId, eventType, DeliveryChannel.Email, NotifyDeliveryStatus.Sent, ct: ct);
+            }
+            catch (Exception ex)
+            {
+                await _notifSettings.LogDeliveryAsync(userId, eventType, DeliveryChannel.Email,
+                    NotifyDeliveryStatus.Failed, ex.Message, ct);
+            }
+        }
+        else if (!sendEmail)
+        {
+            await _notifSettings.LogDeliveryAsync(userId, eventType, DeliveryChannel.Email,
+                NotifyDeliveryStatus.SkippedUserSettings, ct: ct);
+        }
+
+        // 5. SMS
+        if (sendSms && !string.IsNullOrWhiteSpace(orgUser.MobilePhone))
+        {
+            var dndSettings = await _db.NotifyDndSettings.AsNoTracking()
+                .FirstOrDefaultAsync(d => d.UserId == userId, ct);
+            if (inDnd && (dndSettings?.ApplyToSms ?? true))
+            {
+                await _notifSettings.LogDeliveryAsync(userId, eventType, DeliveryChannel.Sms,
+                    NotifyDeliveryStatus.SkippedDnd, ct: ct);
+            }
+            else
+            {
+                try
+                {
+                    var smsText = BuildSmsText(eventType, title, body);
+                    await _sms.SendAsync(orgUser.MobilePhone, smsText, eventType, userId, ct);
+                    await _notifSettings.LogDeliveryAsync(userId, eventType, DeliveryChannel.Sms,
+                        NotifyDeliveryStatus.Sent, ct: ct);
+                }
+                catch (Exception ex)
+                {
+                    await _notifSettings.LogDeliveryAsync(userId, eventType, DeliveryChannel.Sms,
+                        NotifyDeliveryStatus.Failed, ex.Message, ct);
+                }
+            }
+        }
+        else if (!sendSms)
+        {
+            await _notifSettings.LogDeliveryAsync(userId, eventType, DeliveryChannel.Sms,
+                NotifyDeliveryStatus.SkippedUserSettings, ct: ct);
         }
 
         // 6. Web Push
-        await _push.SendAsync(userId, title, body, link, ct);
+        if (sendPush)
+        {
+            var dndSettings = await _db.NotifyDndSettings.AsNoTracking()
+                .FirstOrDefaultAsync(d => d.UserId == userId, ct);
+            if (inDnd && (dndSettings?.ApplyToPush ?? true))
+            {
+                await _notifSettings.LogDeliveryAsync(userId, eventType, DeliveryChannel.Push,
+                    NotifyDeliveryStatus.SkippedDnd, ct: ct);
+            }
+            else
+            {
+                try
+                {
+                    await _push.SendAsync(userId, title, body, link, ct);
+                    await _notifSettings.LogDeliveryAsync(userId, eventType, DeliveryChannel.Push,
+                        NotifyDeliveryStatus.Sent, ct: ct);
+                }
+                catch (Exception ex)
+                {
+                    await _notifSettings.LogDeliveryAsync(userId, eventType, DeliveryChannel.Push,
+                        NotifyDeliveryStatus.Failed, ex.Message, ct);
+                }
+            }
+        }
+        else
+        {
+            await _notifSettings.LogDeliveryAsync(userId, eventType, DeliveryChannel.Push,
+                NotifyDeliveryStatus.SkippedUserSettings, ct: ct);
+        }
     }
 
     /// <inheritdoc />

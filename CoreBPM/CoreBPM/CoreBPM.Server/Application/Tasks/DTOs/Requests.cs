@@ -258,4 +258,8 @@ public class UpdateNotificationSettingRequest
     public bool InApp { get; set; }
     /// <summary>Email уведомление.</summary>
     public bool Email { get; set; }
+    /// <summary>SMS уведомление.</summary>
+    public bool Sms { get; set; }
+    /// <summary>Web Push уведомление.</summary>
+    public bool Push { get; set; }
 }

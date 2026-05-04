@@ -111,6 +111,8 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
 builder.Services.AddScoped<ISmsService, SmsService>();
 builder.Services.AddScoped<IPushNotificationService, PushNotificationService>();
+builder.Services.AddScoped<INotificationSettingsService, NotificationSettingsService>();
+builder.Services.AddScoped<INotificationTemplateService, NotificationTemplateService>();
 builder.Services.AddHttpClient("sms");
 
 // Регистрация сервисов Portal (FR-PORTAL-01)

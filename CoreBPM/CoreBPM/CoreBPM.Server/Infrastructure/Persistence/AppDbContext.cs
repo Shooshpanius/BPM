@@ -113,6 +113,11 @@ public class AppDbContext : DbContext
     public DbSet<NotifyPushSubscription> NotifyPushSubscriptions => Set<NotifyPushSubscription>();
     public DbSet<NotifySmsLog> NotifySmsLogs => Set<NotifySmsLog>();
 
+    // ─── Настройки условий отправки (FR-MSG-02.2) ──────────────────────────
+    public DbSet<NotifyDndSettings> NotifyDndSettings => Set<NotifyDndSettings>();
+    public DbSet<NotifyDeliveryLog> NotifyDeliveryLogs => Set<NotifyDeliveryLog>();
+    public DbSet<AdminNotificationTemplate> AdminNotificationTemplates => Set<AdminNotificationTemplate>();
+
     // ─── Настройки SMTP / Email-шаблоны / SMS / VAPID (FR-ADM-02.1, FR-MSG-02.1) ──
     public DbSet<AdminSmtpSettings> AdminSmtpSettings => Set<AdminSmtpSettings>();
     public DbSet<AdminEmailTemplate> AdminEmailTemplates => Set<AdminEmailTemplate>();
@@ -1566,6 +1571,39 @@ public class AppDbContext : DbContext
             e.Property(x => x.PublicKey).HasMaxLength(200);
             e.Property(x => x.PrivateKey).HasMaxLength(200);
             e.Property(x => x.Subject).IsRequired().HasMaxLength(200);
+        });
+
+        // ─── DND настройки (FR-MSG-02.2) ──────────────────────────────────────
+        modelBuilder.Entity<NotifyDndSettings>(e =>
+        {
+            e.ToTable("notify_dnd_settings");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.UserId).IsUnique();
+            e.Property(x => x.DisabledDays).HasMaxLength(20).HasDefaultValue("");
+            e.Property(x => x.TimeZone).HasMaxLength(100).HasDefaultValue("UTC");
+        });
+
+        // ─── Журнал доставки (FR-MSG-02.2) ────────────────────────────────────
+        modelBuilder.Entity<NotifyDeliveryLog>(e =>
+        {
+            e.ToTable("notify_delivery_log");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.UserId, x.CreatedAt });
+            e.HasIndex(x => new { x.EventType, x.Channel, x.Status });
+            e.Property(x => x.EventType).HasMaxLength(100);
+            e.Property(x => x.Error).HasMaxLength(2000);
+        });
+
+        // ─── Глобальные шаблоны уведомлений (FR-MSG-02.2) ────────────────────
+        modelBuilder.Entity<AdminNotificationTemplate>(e =>
+        {
+            e.ToTable("admin_notification_templates");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.EventType).IsUnique();
+            e.Property(x => x.EventType).IsRequired().HasMaxLength(100);
+            e.Property(x => x.EventLabel).HasMaxLength(200);
+            e.Property(x => x.EmailSubjectTemplate).HasMaxLength(500);
+            e.Property(x => x.ShortTemplate).HasMaxLength(500);
         });
     }
 }

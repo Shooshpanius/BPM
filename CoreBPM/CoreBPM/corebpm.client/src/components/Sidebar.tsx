@@ -6,7 +6,7 @@ import { useBpmNotifications } from '../context/BpmNotificationsContext';
 import { APP_VERSION, LAST_PR_DATE } from '../version';
 import './Sidebar.css';
 
-export type SidebarSection = 'portal' | 'notifications' | 'tasks' | 'tasks-periodic' | 'tasks-dashboard' | 'contacts' | 'org-structure' | 'company' | 'user-profile' | 'user-preferences' | 'bpm-processes' | 'bpm-my-processes' | 'bpm-monitor' | 'bpm-queue' | 'bpm-documentation' | 'bpm-rules' | 'bpm-forms' | 'bpm-scripts' | 'bpm-migration' | 'bpm-improvements' | 'bpm-analytics' | 'task-control-settings' | 'timelogs-report' | 'notification-settings' | 'smtp-settings' | 'email-templates' | 'sms-settings' | 'push-settings' | 'messages' | 'channels';
+export type SidebarSection = 'portal' | 'notifications' | 'tasks' | 'tasks-periodic' | 'tasks-dashboard' | 'contacts' | 'org-structure' | 'company' | 'user-profile' | 'user-preferences' | 'bpm-processes' | 'bpm-my-processes' | 'bpm-monitor' | 'bpm-queue' | 'bpm-documentation' | 'bpm-rules' | 'bpm-forms' | 'bpm-scripts' | 'bpm-migration' | 'bpm-improvements' | 'bpm-analytics' | 'task-control-settings' | 'timelogs-report' | 'notification-settings' | 'smtp-settings' | 'email-templates' | 'sms-settings' | 'push-settings' | 'notification-templates' | 'notification-logs' | 'messages' | 'channels';
 
 interface SidebarProps {
     active: SidebarSection;
@@ -450,6 +450,40 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
                     icon={
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                        </svg>
+                    }
+                />
+            )}
+            {/* FR-MSG-02.2: Шаблоны уведомлений — только Admin */}
+            {hasRole('Admin') && (
+                <SidebarItem
+                    id="notification-templates"
+                    label="Шаблоны уведомлений"
+                    active={active === 'notification-templates'}
+                    onClick={() => onSelect('notification-templates')}
+                    icon={
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/>
+                            <line x1="7" y1="8" x2="17" y2="8"/>
+                            <line x1="7" y1="12" x2="14" y2="12"/>
+                            <line x1="7" y1="16" x2="11" y2="16"/>
+                        </svg>
+                    }
+                />
+            )}
+            {/* FR-MSG-02.2: Журнал доставки — только Admin */}
+            {hasRole('Admin') && (
+                <SidebarItem
+                    id="notification-logs"
+                    label="Журнал доставки"
+                    active={active === 'notification-logs'}
+                    onClick={() => onSelect('notification-logs')}
+                    icon={
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="9" y1="13" x2="15" y2="13"/>
+                            <line x1="9" y1="17" x2="12" y2="17"/>
                         </svg>
                     }
                 />

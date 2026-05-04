@@ -135,6 +135,10 @@ public class UserTaskNotificationSettingsDto
     public string EventType { get; set; } = string.Empty;
     public bool InApp { get; set; }
     public bool Email { get; set; }
+    public bool Sms { get; set; }
+    public bool Push { get; set; }
+    /// <summary>Пользователь не может отключить хотя бы один канал (принудительный).</summary>
+    public bool HasMandatory { get; set; }
 }
 
 /// <summary>Счётчики задач для бейджей в Sidebar (FR-TASK-02.2).</summary>

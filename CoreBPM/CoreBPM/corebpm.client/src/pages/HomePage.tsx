@@ -30,6 +30,8 @@ import NotificationsPage from './NotificationsPage';
 import SmtpSettingsPage from './admin/SmtpSettingsPage';
 import EmailTemplatesPage from './admin/EmailTemplatesPage';
 import SmsSettingsPage from './admin/SmsSettingsPage';
+import { NotificationTemplatesPage } from './admin/NotificationTemplatesPage';
+import { NotificationLogsPage } from './admin/NotificationLogsPage';
 import { MyColleaguesWidget } from '../components/org/MyColleaguesWidget';
 import { TasksPage } from './tasks/TasksPage';
 import { TaskDetailPage } from './tasks/TaskDetailPage';
@@ -259,6 +261,10 @@ export function HomePage({ onAdmin }: HomePageProps) {
                     {section === 'email-templates' && <EmailTemplatesPage />}
                     {/* FR-MSG-02.1: Настройки SMS */}
                     {section === 'sms-settings' && <SmsSettingsPage />}
+                    {/* FR-MSG-02.2: Шаблоны уведомлений */}
+                    {section === 'notification-templates' && <NotificationTemplatesPage />}
+                    {/* FR-MSG-02.2: Журнал доставки */}
+                    {section === 'notification-logs' && <NotificationLogsPage />}
                     {/* FR-MSG-01.1: Корпоративный чат */}
                     {section === 'messages' && <MessagesPage />}
                     {/* FR-MSG-01.2: Информационные каналы */}
