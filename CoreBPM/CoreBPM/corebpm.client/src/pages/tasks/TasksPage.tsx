@@ -60,16 +60,6 @@ function getDueDateBucket(dueDate?: string): string {
     return '⚪ Позже';
 }
 
-/** Возвращает CSS-класс строки для цветового кодирования (FR-TASK-02.2). */
-function getRowClass(task: TaskSummaryDto): string {
-    if (task.isOverdue) return 'tasks-row--overdue';
-    if (task.status === 'InProgress') return 'tasks-row--inprogress';
-    if (task.status === 'CannotDo' || task.status === 'CannotDoNeedsControl') return 'tasks-row--cannotdo';
-    if (task.status === 'Done' || task.status === 'DoneControlled' || task.status === 'Closed') return 'tasks-row--done';
-    if (task.status === 'New' || task.status === 'Read') return 'tasks-row--new';
-    return '';
-}
-
 /** Иконки видов задач (FR-TASK-02.2). */
 function TaskKindIcon({ kind, scheduledAt, openQuestionCount }: { kind: string; scheduledAt?: string; openQuestionCount: number }) {
     if (openQuestionCount > 0) return <span title={`Вопросов: ${openQuestionCount}`}>❓</span>;
