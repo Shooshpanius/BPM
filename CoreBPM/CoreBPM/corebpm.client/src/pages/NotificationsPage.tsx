@@ -7,6 +7,7 @@ import {
     type InboxEntryDto,
 } from '../api/notificationsApi';
 import { useBpmNotifications } from '../context/BpmNotificationsContext';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 
 // ─── Типы фильтра ──────────────────────────────────────────────────────────────
 
@@ -29,6 +30,7 @@ const PAGE_SIZE = 20;
 
 export default function NotificationsPage() {
     const { markAllRead: ctxMarkAllRead } = useBpmNotifications();
+    const { permission, subscribed, loading: pushLoading, isSupported, subscribe, unsubscribe } = usePushNotifications();
 
     const [tab, setTab] = useState<FilterTab>('all');
     const [typeFilter, setTypeFilter] = useState('');
@@ -95,6 +97,43 @@ export default function NotificationsPage() {
                     Прочитать все
                 </button>
             </div>
+
+            {/* Web Push подписка (FR-MSG-02.1) */}
+            {isSupported && (
+                <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '12px 16px', borderRadius: 8, marginBottom: 16,
+                    background: subscribed ? '#f0fdf4' : '#eff6ff',
+                    border: `1px solid ${subscribed ? '#bbf7d0' : '#bfdbfe'}`,
+                }}>
+                    <div>
+                        <div style={{ fontWeight: 600, fontSize: 14, color: subscribed ? '#166534' : '#1d4ed8' }}>
+                            {subscribed ? '🔔 Push-уведомления включены' : '🔕 Push-уведомления отключены'}
+                        </div>
+                        <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
+                            {subscribed
+                                ? 'Вы будете получать уведомления даже при закрытой вкладке'
+                                : 'Включите, чтобы получать уведомления когда вкладка закрыта'}
+                        </div>
+                    </div>
+                    {permission === 'denied' ? (
+                        <span style={{ fontSize: 12, color: '#dc2626' }}>Браузер заблокировал уведомления</span>
+                    ) : (
+                        <button
+                            onClick={subscribed ? unsubscribe : subscribe}
+                            disabled={pushLoading}
+                            style={{
+                                padding: '7px 14px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                                fontSize: 13, fontWeight: 500,
+                                background: subscribed ? '#fee2e2' : '#3b82f6',
+                                color: subscribed ? '#dc2626' : '#fff',
+                            }}
+                        >
+                            {pushLoading ? '...' : subscribed ? 'Отписаться' : 'Подписаться'}
+                        </button>
+                    )}
+                </div>
+            )}
 
             {/* Фильтры */}
             <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>

@@ -9,23 +9,32 @@ using CoreBPM.Server.Infrastructure.Persistence;
 
 namespace CoreBPM.Server.Application.Bpm.Services;
 
-/// <summary>Реализация сервиса уведомлений через SignalR + in-app inbox + email (FR-MSG-02.1).</summary>
+/// <summary>Реализация сервиса уведомлений через SignalR + in-app inbox + email + SMS + push (FR-MSG-02.1).</summary>
 public class BpmNotificationService : IBpmNotificationService
 {
     private readonly IHubContext<BpmNotificationHub> _hub;
     private readonly IInAppNotificationService _inbox;
     private readonly IEmailService _email;
+    private readonly IEmailTemplateService _emailTemplates;
+    private readonly ISmsService _sms;
+    private readonly IPushNotificationService _push;
     private readonly AppDbContext _db;
 
     public BpmNotificationService(
         IHubContext<BpmNotificationHub> hub,
         IInAppNotificationService inbox,
         IEmailService email,
+        IEmailTemplateService emailTemplates,
+        ISmsService sms,
+        IPushNotificationService push,
         AppDbContext db)
     {
         _hub = hub;
         _inbox = inbox;
         _email = email;
+        _emailTemplates = emailTemplates;
+        _sms = sms;
+        _push = push;
         _db = db;
     }
 
@@ -139,22 +148,33 @@ public class BpmNotificationService : IBpmNotificationService
         await _inbox.SaveAsync(new SaveInboxEntryRequest(
             userId, eventType, title, body, link, payloadJson), ct);
 
-        // 3. Email-уведомление (если пользователь имеет email)
+        // 3. Получаем данные пользователя
         var orgUser = await _db.OrgUsers.AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == userId, ct);
+        if (orgUser is null) return;
 
-        if (orgUser is not null && !string.IsNullOrWhiteSpace(orgUser.WorkEmail))
+        var displayName = $"{orgUser.FirstName} {orgUser.LastName}".Trim();
+        if (string.IsNullOrWhiteSpace(displayName)) displayName = orgUser.WorkEmail ?? userId.ToString();
+
+        // 4. Rich email (с шаблонами и кнопками действий)
+        if (!string.IsNullOrWhiteSpace(orgUser.WorkEmail))
         {
-            var displayName = $"{orgUser.FirstName} {orgUser.LastName}".Trim();
-            if (string.IsNullOrWhiteSpace(displayName)) displayName = orgUser.WorkEmail;
+            var actions = BuildActionButtons(eventType, payload);
+            var (emailSubject, htmlBody) = await _emailTemplates.RenderAsync(
+                eventType, title, body, link, actions, ct);
 
-            await _email.SendAsync(
-                orgUser.WorkEmail,
-                displayName,
-                title,
-                BuildEmailHtml(title, body, link),
-                ct);
+            await _email.SendAsync(orgUser.WorkEmail, displayName, emailSubject, htmlBody, ct);
         }
+
+        // 5. SMS (если у пользователя есть номер телефона)
+        if (!string.IsNullOrWhiteSpace(orgUser.MobilePhone))
+        {
+            var smsText = BuildSmsText(eventType, title, body);
+            await _sms.SendAsync(orgUser.MobilePhone, smsText, eventType, userId, ct);
+        }
+
+        // 6. Web Push
+        await _push.SendAsync(userId, title, body, link, ct);
     }
 
     /// <inheritdoc />
@@ -273,5 +293,36 @@ public class BpmNotificationService : IBpmNotificationService
             </body>
             </html>
             """;
+    }
+
+    /// <summary>Формирует кнопки действий для actionable email.</summary>
+    private static IReadOnlyList<EmailActionButton>? BuildActionButtons(string eventType, object payload)
+    {
+        try
+        {
+            var json = JsonSerializer.Serialize(payload);
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            return eventType switch
+            {
+                "TaskAssigned" when root.TryGetProperty("approveToken", out var at)
+                                 && root.TryGetProperty("rejectToken", out var rt) =>
+                [
+                    new("/action/approve?token=" + at.GetString(), "Согласовать", "#16a34a"),
+                    new("/action/reject?token=" + rt.GetString(), "Отклонить", "#dc2626"),
+                ],
+                _ => null,
+            };
+        }
+        catch { return null; }
+    }
+
+    /// <summary>Формирует краткий текст SMS-уведомления.</summary>
+    private static string BuildSmsText(string eventType, string title, string body)
+    {
+        var text = string.IsNullOrWhiteSpace(body) ? title : $"{title}: {body}";
+        // SMS ограничен 160 символами для однопакетного сообщения
+        return text.Length > 160 ? text[..157] + "..." : text;
     }
 }

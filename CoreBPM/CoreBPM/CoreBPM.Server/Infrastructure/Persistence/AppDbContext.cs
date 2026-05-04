@@ -109,9 +109,15 @@ public class AppDbContext : DbContext
 
     // ─── In-app уведомления (FR-MSG-02.1) ────────────────────────────────────
     public DbSet<NotifyInboxEntry> NotifyInboxEntries => Set<NotifyInboxEntry>();
+    public DbSet<NotifyActionToken> NotifyActionTokens => Set<NotifyActionToken>();
+    public DbSet<NotifyPushSubscription> NotifyPushSubscriptions => Set<NotifyPushSubscription>();
+    public DbSet<NotifySmsLog> NotifySmsLogs => Set<NotifySmsLog>();
 
-    // ─── Настройки SMTP (FR-ADM-02.1) ────────────────────────────────────────
+    // ─── Настройки SMTP / Email-шаблоны / SMS / VAPID (FR-ADM-02.1, FR-MSG-02.1) ──
     public DbSet<AdminSmtpSettings> AdminSmtpSettings => Set<AdminSmtpSettings>();
+    public DbSet<AdminEmailTemplate> AdminEmailTemplates => Set<AdminEmailTemplate>();
+    public DbSet<AdminSmsSettings> AdminSmsSettings => Set<AdminSmsSettings>();
+    public DbSet<AdminVapidSettings> AdminVapidSettings => Set<AdminVapidSettings>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -1490,6 +1496,76 @@ public class AppDbContext : DbContext
             e.Property(x => x.FromName).IsRequired().HasMaxLength(200);
             e.Property(x => x.Username).HasMaxLength(255);
             e.Property(x => x.Password).HasMaxLength(500);
+        });
+
+        // ─── Rich email шаблоны (FR-MSG-02.1) ────────────────────────────────
+        modelBuilder.Entity<AdminEmailTemplate>(e =>
+        {
+            e.ToTable("admin_email_templates");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.EventType).IsUnique();
+            e.Property(x => x.EventType).IsRequired().HasMaxLength(100);
+            e.Property(x => x.Subject).IsRequired().HasMaxLength(500);
+            e.Property(x => x.HtmlTemplate).IsRequired();
+            e.Property(x => x.IsActive).HasDefaultValue(true);
+        });
+
+        // ─── Токены действий для actionable email (FR-MSG-02.1) ──────────────
+        modelBuilder.Entity<NotifyActionToken>(e =>
+        {
+            e.ToTable("notify_action_tokens");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.Token).IsUnique();
+            e.Property(x => x.EventType).IsRequired().HasMaxLength(100);
+            e.Property(x => x.ActionType).IsRequired().HasMaxLength(50);
+        });
+
+        // ─── SMS настройки (FR-MSG-02.1) ─────────────────────────────────────
+        modelBuilder.Entity<AdminSmsSettings>(e =>
+        {
+            e.ToTable("admin_sms_settings");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.ProviderUrl).HasMaxLength(500);
+            e.Property(x => x.ApiKey).HasMaxLength(500);
+            e.Property(x => x.FromNumber).HasMaxLength(50);
+            e.Property(x => x.PhoneParamName).IsRequired().HasMaxLength(50).HasDefaultValue("to");
+            e.Property(x => x.MessageParamName).IsRequired().HasMaxLength(50).HasDefaultValue("msg");
+            e.Property(x => x.ApiKeyParamName).IsRequired().HasMaxLength(50).HasDefaultValue("api_id");
+        });
+
+        // ─── Лог SMS (FR-MSG-02.1) ────────────────────────────────────────────
+        modelBuilder.Entity<NotifySmsLog>(e =>
+        {
+            e.ToTable("notify_sms_log");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.PhoneNumber).IsRequired().HasMaxLength(50);
+            e.Property(x => x.EventType).IsRequired().HasMaxLength(100);
+            e.Property(x => x.Message).IsRequired().HasMaxLength(1000);
+            e.Property(x => x.Status).IsRequired().HasMaxLength(20);
+            e.Property(x => x.ErrorMessage).HasMaxLength(1000);
+            e.Property(x => x.ProviderResponse).HasMaxLength(1000);
+        });
+
+        // ─── Web Push подписки (FR-MSG-02.1) ─────────────────────────────────
+        modelBuilder.Entity<NotifyPushSubscription>(e =>
+        {
+            e.ToTable("notify_push_subscriptions");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.UserId, x.Endpoint }).IsUnique();
+            e.Property(x => x.Endpoint).IsRequired().HasMaxLength(2000);
+            e.Property(x => x.P256dh).IsRequired().HasMaxLength(500);
+            e.Property(x => x.Auth).IsRequired().HasMaxLength(200);
+            e.Property(x => x.UserAgent).HasMaxLength(500);
+        });
+
+        // ─── VAPID ключи (FR-MSG-02.1) ────────────────────────────────────────
+        modelBuilder.Entity<AdminVapidSettings>(e =>
+        {
+            e.ToTable("admin_vapid_settings");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.PublicKey).HasMaxLength(200);
+            e.Property(x => x.PrivateKey).HasMaxLength(200);
+            e.Property(x => x.Subject).IsRequired().HasMaxLength(200);
         });
     }
 }

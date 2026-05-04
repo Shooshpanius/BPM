@@ -6,7 +6,7 @@ import { useBpmNotifications } from '../context/BpmNotificationsContext';
 import { APP_VERSION, LAST_PR_DATE } from '../version';
 import './Sidebar.css';
 
-export type SidebarSection = 'portal' | 'notifications' | 'tasks' | 'tasks-periodic' | 'tasks-dashboard' | 'contacts' | 'org-structure' | 'company' | 'user-profile' | 'user-preferences' | 'bpm-processes' | 'bpm-my-processes' | 'bpm-monitor' | 'bpm-queue' | 'bpm-documentation' | 'bpm-rules' | 'bpm-forms' | 'bpm-scripts' | 'bpm-migration' | 'bpm-improvements' | 'bpm-analytics' | 'task-control-settings' | 'timelogs-report' | 'notification-settings' | 'smtp-settings' | 'messages' | 'channels';
+export type SidebarSection = 'portal' | 'notifications' | 'tasks' | 'tasks-periodic' | 'tasks-dashboard' | 'contacts' | 'org-structure' | 'company' | 'user-profile' | 'user-preferences' | 'bpm-processes' | 'bpm-my-processes' | 'bpm-monitor' | 'bpm-queue' | 'bpm-documentation' | 'bpm-rules' | 'bpm-forms' | 'bpm-scripts' | 'bpm-migration' | 'bpm-improvements' | 'bpm-analytics' | 'task-control-settings' | 'timelogs-report' | 'notification-settings' | 'smtp-settings' | 'email-templates' | 'sms-settings' | 'push-settings' | 'messages' | 'channels';
 
 interface SidebarProps {
     active: SidebarSection;
@@ -419,6 +419,37 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                             <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
                             <polyline points="22,6 12,13 2,6"/>
+                        </svg>
+                    }
+                />
+            )}
+            {/* FR-MSG-02.1: Шаблоны email — только Admin */}
+            {hasRole('Admin') && (
+                <SidebarItem
+                    id="email-templates"
+                    label="Шаблоны email"
+                    active={active === 'email-templates'}
+                    onClick={() => onSelect('email-templates')}
+                    icon={
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                            <polyline points="22,6 12,13 2,6"/>
+                            <line x1="12" y1="12" x2="12" y2="18"/>
+                            <line x1="9" y1="15" x2="15" y2="15"/>
+                        </svg>
+                    }
+                />
+            )}
+            {/* FR-MSG-02.1: Настройки SMS — только Admin */}
+            {hasRole('Admin') && (
+                <SidebarItem
+                    id="sms-settings"
+                    label="Настройки SMS"
+                    active={active === 'sms-settings'}
+                    onClick={() => onSelect('sms-settings')}
+                    icon={
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                         </svg>
                     }
                 />
