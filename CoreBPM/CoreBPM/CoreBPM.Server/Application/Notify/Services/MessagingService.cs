@@ -1185,7 +1185,7 @@ public class MessagingService : IMessagingService
 
         // Уведомить приглашённого
         await _notifications.NotifyUserAsync(inviteeUserId, "ChannelInvite",
-            $"Вас пригласили в канал «{channel.Name}».", ct: ct);
+            new { channelId, channelName = channel.Name }, ct: ct);
     }
 
     // ─── Закреплённые публикации канала ───────────────────────────────────────
