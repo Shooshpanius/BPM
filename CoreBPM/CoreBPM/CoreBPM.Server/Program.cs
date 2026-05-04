@@ -3,6 +3,8 @@ using CoreBPM.Server.Application.Admin.Services;
 using CoreBPM.Server.Application.Bpm.Interfaces;
 using CoreBPM.Server.Application.Bpm.Scripting;
 using CoreBPM.Server.Application.Bpm.Services;
+using CoreBPM.Server.Application.Notify.Interfaces;
+using CoreBPM.Server.Application.Notify.Services;
 using CoreBPM.Server.Application.Org.Interfaces;
 using CoreBPM.Server.Application.Org.Services;
 using CoreBPM.Server.Application.Rules.Interfaces;
@@ -101,6 +103,9 @@ builder.Services.AddScoped<IOrgChartService, OrgChartService>();
 builder.Services.AddScoped<IUserProfileService, UserProfileService>();
 builder.Services.AddScoped<IUserPreferencesService, UserPreferencesService>();
 builder.Services.AddScoped<ICompanyService, CompanyService>();
+
+// Регистрация сервисов Messaging (FR-MSG-01: чаты, каналы, сообщения)
+builder.Services.AddScoped<IMessagingService, MessagingService>();
 
 // Регистрация сервисов Portal (FR-PORTAL-01)
 builder.Services.AddScoped<IPortalDashboardService, PortalDashboardService>();

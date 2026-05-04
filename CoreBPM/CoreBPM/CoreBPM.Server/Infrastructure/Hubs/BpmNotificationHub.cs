@@ -22,4 +22,18 @@ public class BpmNotificationHub : Hub
 
         await base.OnConnectedAsync();
     }
+
+    /// <summary>
+    /// Клиент вызывает этот метод, чтобы подписаться на real-time события чата (FR-MSG-01.1).
+    /// </summary>
+    public async Task JoinChat(string chatId)
+    {
+        await Groups.AddToGroupAsync(Context.ConnectionId, $"chat:{chatId}");
+    }
+
+    /// <summary>Клиент отписывается от real-time событий чата.</summary>
+    public async Task LeaveChat(string chatId)
+    {
+        await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"chat:{chatId}");
+    }
 }

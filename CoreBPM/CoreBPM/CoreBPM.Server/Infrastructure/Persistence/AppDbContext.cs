@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using CoreBPM.Server.Domain.Auth;
 using CoreBPM.Server.Domain.Bpm;
+using CoreBPM.Server.Domain.Notify;
 using CoreBPM.Server.Domain.Org;
 using CoreBPM.Server.Domain.Portal;
 using CoreBPM.Server.Domain.Rules;
@@ -87,6 +88,20 @@ public class AppDbContext : DbContext
     public DbSet<PortalDashboardWidget> PortalDashboardWidgets => Set<PortalDashboardWidget>();
     public DbSet<PortalBranding> PortalBrandings => Set<PortalBranding>();
     public DbSet<PortalMenuItem> PortalMenuItems => Set<PortalMenuItem>();
+
+    // FR-MSG-01: Чаты и сообщения
+    public DbSet<NotifyChat> NotifyChats => Set<NotifyChat>();
+    public DbSet<NotifyChatMember> NotifyChatMembers => Set<NotifyChatMember>();
+    public DbSet<NotifyMessage> NotifyMessages => Set<NotifyMessage>();
+    public DbSet<NotifyMessageRead> NotifyMessageReads => Set<NotifyMessageRead>();
+    public DbSet<NotifyMessageReaction> NotifyMessageReactions => Set<NotifyMessageReaction>();
+    public DbSet<NotifyPinnedMessage> NotifyPinnedMessages => Set<NotifyPinnedMessage>();
+
+    // FR-MSG-01.2: Каналы
+    public DbSet<NotifyChannel> NotifyChannels => Set<NotifyChannel>();
+    public DbSet<NotifyChannelSubscriber> NotifyChannelSubscribers => Set<NotifyChannelSubscriber>();
+    public DbSet<NotifyChannelPost> NotifyChannelPosts => Set<NotifyChannelPost>();
+    public DbSet<NotifyUserMessagingPrefs> NotifyUserMessagingPrefs => Set<NotifyUserMessagingPrefs>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -1275,6 +1290,130 @@ public class AppDbContext : DbContext
             e.HasKey(m => m.Id);
             e.Property(m => m.Label).IsRequired().HasMaxLength(200);
             e.HasIndex(m => m.SortOrder);
+        });
+
+        // ─── FR-MSG-01: Чаты и сообщения ──────────────────────────────────────────
+
+        modelBuilder.Entity<NotifyChat>(e =>
+        {
+            e.ToTable("notify_chats");
+            e.HasKey(c => c.Id);
+            e.Property(c => c.Name).HasMaxLength(200);
+            e.Property(c => c.Kind).HasConversion<string>().HasMaxLength(20);
+            e.HasIndex(c => c.LastMessageAt);
+        });
+
+        modelBuilder.Entity<NotifyChatMember>(e =>
+        {
+            e.ToTable("notify_chat_members");
+            e.HasKey(m => m.Id);
+            e.HasIndex(m => new { m.ChatId, m.UserId }).IsUnique();
+            e.HasOne(m => m.Chat)
+             .WithMany(c => c.Members)
+             .HasForeignKey(m => m.ChatId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<NotifyMessage>(e =>
+        {
+            e.ToTable("notify_messages");
+            e.HasKey(msg => msg.Id);
+            e.Property(msg => msg.Text).IsRequired();
+            e.HasIndex(msg => msg.ChatId);
+            e.HasIndex(msg => msg.CreatedAt);
+            e.HasOne(msg => msg.Chat)
+             .WithMany(c => c.Messages)
+             .HasForeignKey(msg => msg.ChatId)
+             .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(msg => msg.ReplyToMessage)
+             .WithMany()
+             .HasForeignKey(msg => msg.ReplyToMessageId)
+             .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<NotifyMessageRead>(e =>
+        {
+            e.ToTable("notify_message_reads");
+            e.HasKey(r => r.Id);
+            e.HasIndex(r => new { r.MessageId, r.UserId }).IsUnique();
+            e.HasOne(r => r.Message)
+             .WithMany(m => m.Reads)
+             .HasForeignKey(r => r.MessageId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<NotifyMessageReaction>(e =>
+        {
+            e.ToTable("notify_message_reactions");
+            e.HasKey(r => r.Id);
+            e.HasIndex(r => new { r.MessageId, r.UserId, r.Emoji }).IsUnique();
+            e.Property(r => r.Emoji).IsRequired().HasMaxLength(50);
+            e.HasOne(r => r.Message)
+             .WithMany(m => m.Reactions)
+             .HasForeignKey(r => r.MessageId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<NotifyPinnedMessage>(e =>
+        {
+            e.ToTable("notify_pinned_messages");
+            e.HasKey(p => p.Id);
+            e.HasIndex(p => p.ChatId);
+            e.HasOne(p => p.Chat)
+             .WithMany(c => c.PinnedMessages)
+             .HasForeignKey(p => p.ChatId)
+             .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(p => p.Message)
+             .WithMany()
+             .HasForeignKey(p => p.MessageId)
+             .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ─── FR-MSG-01.2: Каналы ──────────────────────────────────────────────────
+
+        modelBuilder.Entity<NotifyChannel>(e =>
+        {
+            e.ToTable("notify_channels");
+            e.HasKey(c => c.Id);
+            e.Property(c => c.Name).IsRequired().HasMaxLength(200);
+            e.Property(c => c.Description).HasMaxLength(1000);
+            e.Property(c => c.IconEmoji).HasMaxLength(50);
+            e.Property(c => c.Kind).HasConversion<string>().HasMaxLength(20);
+        });
+
+        modelBuilder.Entity<NotifyChannelSubscriber>(e =>
+        {
+            e.ToTable("notify_channel_subscribers");
+            e.HasKey(s => s.Id);
+            e.HasIndex(s => new { s.ChannelId, s.UserId }).IsUnique();
+            e.HasOne(s => s.Channel)
+             .WithMany(c => c.Subscribers)
+             .HasForeignKey(s => s.ChannelId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<NotifyChannelPost>(e =>
+        {
+            e.ToTable("notify_channel_posts");
+            e.HasKey(p => p.Id);
+            e.Property(p => p.Title).HasMaxLength(500);
+            e.Property(p => p.Body).IsRequired();
+            e.HasIndex(p => p.ChannelId);
+            e.HasIndex(p => p.CreatedAt);
+            e.HasOne(p => p.Channel)
+             .WithMany(c => c.Posts)
+             .HasForeignKey(p => p.ChannelId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<NotifyUserMessagingPrefs>(e =>
+        {
+            e.ToTable("notify_user_messaging_prefs");
+            e.HasKey(p => p.Id);
+            e.HasIndex(p => p.UserId).IsUnique();
+            e.Property(p => p.SortOrder).IsRequired().HasMaxLength(30);
+            e.Property(p => p.PinnedChatIds).IsRequired();
+            e.Property(p => p.HiddenChatIds).IsRequired();
         });
     }
 }
