@@ -44,6 +44,12 @@ public record ForwardMessageRequest(Guid TargetChatId);
 /// <summary>Обновление информационного канала.</summary>
 public record UpdateChannelRequest(string Name, string? Description, string? IconEmoji);
 
+/// <summary>Назначение или снятие роли администратора у подписчика.</summary>
+public record SetSubscriberRoleRequest(bool IsAdmin);
+
+/// <summary>Приглашение пользователя в приватный канал.</summary>
+public record InviteToChannelRequest(Guid UserId);
+
 // ─── DTO ──────────────────────────────────────────────────────────────────────
 
 /// <summary>Краткая информация о пользователе (автор/участник).</summary>
@@ -147,6 +153,16 @@ public record ChannelSubscriberDto(
     string? AvatarUrl,
     bool IsAdmin,
     DateTimeOffset SubscribedAt);
+
+/// <summary>Закреплённая публикация канала.</summary>
+public record ChannelPinnedPostDto(
+    Guid PinId,
+    Guid PostId,
+    string? PostTitle,
+    string PostBodySnippet,
+    Guid PinnedByUserId,
+    string PinnedByName,
+    DateTimeOffset PinnedAt);
 
 /// <summary>Настройки ленты сообщений пользователя.</summary>
 public record MessagingPrefsDto(

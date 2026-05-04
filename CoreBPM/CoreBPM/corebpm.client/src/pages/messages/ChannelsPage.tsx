@@ -1,17 +1,22 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useBpmNotifications } from '../../context/BpmNotificationsContext';
 import {
     getChannels, createChannel, updateChannel, deleteChannel,
     subscribeChannel, unsubscribeChannel,
     getChannelPosts, createChannelPost, editChannelPost, deleteChannelPost,
     togglePostReaction, getPostComments, addPostComment, deletePostComment,
-    getChannelSubscribers,
-    type ChannelSummaryDto, type ChannelPostDto, type PostCommentDto, type ChannelSubscriberDto,
+    getChannelSubscribers, setSubscriberRole, inviteToChannel,
+    getPinnedPosts, pinPost, unpinPost,
+    type ChannelSummaryDto, type ChannelPostDto, type PostCommentDto,
+    type ChannelSubscriberDto, type ChannelPinnedPostDto,
 } from '../../api/messagesApi';
+import { getDirectoryEmployees, type DirectoryEmployeeDto } from '../../api/orgDirectoryApi';
 
 /** Страница информационных каналов (FR-MSG-01.2). */
 export function ChannelsPage() {
     const { accessToken } = useAuth();
+    const { notifications } = useBpmNotifications();
 
     const [channels, setChannels] = useState<ChannelSummaryDto[]>([]);
     const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
@@ -43,6 +48,16 @@ export function ChannelsPage() {
     const [showSubscribers, setShowSubscribers] = useState(false);
     const [subscribers, setSubscribers] = useState<ChannelSubscriberDto[]>([]);
 
+    // Закреплённые публикации
+    const [pinnedPosts, setPinnedPosts] = useState<ChannelPinnedPostDto[]>([]);
+    const [showPinnedPosts, setShowPinnedPosts] = useState(false);
+
+    // Приглашение в приватный канал
+    const [showInvite, setShowInvite] = useState(false);
+    const [inviteEmployees, setInviteEmployees] = useState<DirectoryEmployeeDto[]>([]);
+    const [inviteSearch, setInviteSearch] = useState('');
+    const [inviteLoading, setInviteLoading] = useState(false);
+
     const selectedChannel = channels.find(c => c.id === selectedChannelId);
 
     const loadChannels = useCallback(async () => {
@@ -62,6 +77,19 @@ export function ChannelsPage() {
             .then(data => { setPosts(data); setLoading(false); })
             .catch(() => setLoading(false));
     }, [selectedChannelId, accessToken, searchQuery]);
+
+    // SignalR: обновление списка постов при получении нового поста/комментария
+    useEffect(() => {
+        if (!notifications.length || !selectedChannelId) return;
+        const last = notifications[0];
+        if (last?.type === 'NewChannelPost' && (last?.payload as { channelId?: string })?.channelId === selectedChannelId) {
+            // Перезагружаем посты, чтобы получить новый
+            if (accessToken) {
+                getChannelPosts(accessToken, selectedChannelId, 30, undefined, searchQuery || undefined)
+                    .then(data => setPosts(data)).catch(() => {});
+            }
+        }
+    }, [notifications, selectedChannelId, accessToken, searchQuery]);
 
     const handleSubscribeToggle = async (channelId: string, isSubscribed: boolean) => {
         if (!accessToken) return;
@@ -192,6 +220,62 @@ export function ChannelsPage() {
         } catch { /* ошибка */ }
     };
 
+    const handleToggleSubscriberRole = async (targetUserId: string, currentIsAdmin: boolean) => {
+        if (!selectedChannelId || !accessToken) return;
+        try {
+            await setSubscriberRole(accessToken, selectedChannelId, targetUserId, !currentIsAdmin);
+            setSubscribers(prev => prev.map(s =>
+                s.userId === targetUserId ? { ...s, isAdmin: !currentIsAdmin } : s
+            ));
+        } catch { /* ошибка */ }
+    };
+
+    const handleShowInvite = async () => {
+        if (!accessToken) return;
+        setInviteLoading(true);
+        try {
+            const result = await getDirectoryEmployees(accessToken, { page: 1, pageSize: 100 });
+            setInviteEmployees(result.items);
+        } catch { /* ошибка */ } finally {
+            setInviteLoading(false);
+        }
+        setShowInvite(true);
+    };
+
+    const handleInvite = async (userId: string) => {
+        if (!selectedChannelId || !accessToken) return;
+        try {
+            await inviteToChannel(accessToken, selectedChannelId, userId);
+        } catch { /* ошибка */ }
+        setShowInvite(false);
+    };
+
+    const handleShowPinnedPosts = async () => {
+        if (!selectedChannelId || !accessToken) return;
+        try {
+            const pins = await getPinnedPosts(accessToken, selectedChannelId);
+            setPinnedPosts(pins);
+            setShowPinnedPosts(true);
+        } catch { /* ошибка */ }
+    };
+
+    const handlePinPost = async (postId: string) => {
+        if (!selectedChannelId || !accessToken) return;
+        try {
+            await pinPost(accessToken, selectedChannelId, postId);
+            const pins = await getPinnedPosts(accessToken, selectedChannelId);
+            setPinnedPosts(pins);
+        } catch { /* ошибка */ }
+    };
+
+    const handleUnpinPost = async (postId: string) => {
+        if (!selectedChannelId || !accessToken) return;
+        try {
+            await unpinPost(accessToken, selectedChannelId, postId);
+            setPinnedPosts(prev => prev.filter(p => p.postId !== postId));
+        } catch { /* ошибка */ }
+    };
+
     const formatDate = (iso: string) => {
         const d = new Date(iso);
         return d.toLocaleDateString('ru', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -295,6 +379,20 @@ export function ChannelsPage() {
                             title="Подписчики"
                             style={{ background: 'none', border: '1px solid #e5e7eb', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 13, color: '#374151' }}
                         >👥 {selectedChannel.subscriberCount}</button>
+                        {/* Кнопка закреплённых постов */}
+                        <button
+                            onClick={handleShowPinnedPosts}
+                            title="Закреплённые публикации"
+                            style={{ background: 'none', border: '1px solid #e5e7eb', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 13, color: '#374151' }}
+                        >📌 Закреплённые</button>
+                        {/* Кнопка приглашения (только для приватных каналов + администраторов) */}
+                        {selectedChannel.isAdmin && selectedChannel.kind === 'Private' && (
+                            <button
+                                onClick={handleShowInvite}
+                                title="Пригласить в канал"
+                                style={{ background: 'none', border: '1px solid #e5e7eb', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 13, color: '#374151' }}
+                            >✉️ Пригласить</button>
+                        )}
                         {selectedChannel.isAdmin && (
                             <button
                                 onClick={() => { setShowNewPost(true); setEditingPost(null); setNewPostTitle(''); setNewPostBody(''); }}
@@ -343,6 +441,17 @@ export function ChannelsPage() {
                                                 onClick={() => { setEditingPost(post); setNewPostTitle(post.title ?? ''); setNewPostBody(post.body); setShowNewPost(true); }}
                                                 style={{ background: 'none', border: '1px solid #d1d5db', borderRadius: 6, padding: '3px 10px', cursor: 'pointer', fontSize: 12, color: '#374151' }}
                                             >✏️ Изменить</button>
+                                            {pinnedPosts.some(p => p.postId === post.id) ? (
+                                                <button
+                                                    onClick={() => handleUnpinPost(post.id)}
+                                                    style={{ background: 'none', border: '1px solid #fbbf24', borderRadius: 6, padding: '3px 10px', cursor: 'pointer', fontSize: 12, color: '#d97706' }}
+                                                >📌 Открепить</button>
+                                            ) : (
+                                                <button
+                                                    onClick={() => handlePinPost(post.id)}
+                                                    style={{ background: 'none', border: '1px solid #d1d5db', borderRadius: 6, padding: '3px 10px', cursor: 'pointer', fontSize: 12, color: '#374151' }}
+                                                >📌 Закрепить</button>
+                                            )}
                                             <button
                                                 onClick={() => handleDeletePost(post.id)}
                                                 style={{ background: 'none', border: '1px solid #fca5a5', borderRadius: 6, padding: '3px 10px', cursor: 'pointer', fontSize: 12, color: '#dc2626' }}
@@ -567,11 +676,98 @@ export function ChannelsPage() {
                                         <div style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{s.displayName}</div>
                                         <div style={{ fontSize: 11, color: '#9ca3af' }}>с {new Date(s.subscribedAt).toLocaleDateString('ru')}</div>
                                     </div>
-                                    {s.isAdmin && (
+                                    {s.isAdmin ? (
                                         <span style={{ fontSize: 11, background: '#dbeafe', color: '#1d4ed8', borderRadius: 6, padding: '2px 8px', fontWeight: 600 }}>Администратор</span>
+                                    ) : null}
+                                    {selectedChannel?.isAdmin && (
+                                        <button
+                                            onClick={() => handleToggleSubscriberRole(s.userId, s.isAdmin)}
+                                            title={s.isAdmin ? 'Снять роль администратора' : 'Назначить администратором'}
+                                            style={{ background: 'none', border: '1px solid #e5e7eb', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', fontSize: 11, color: '#6b7280' }}
+                                        >{s.isAdmin ? '⬇️' : '⬆️'}</button>
                                     )}
                                 </div>
                             ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ─── Диалог закреплённых публикаций ─── */}
+            {showPinnedPosts && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 460, maxHeight: '70vh', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>📌 Закреплённые публикации</h3>
+                            <button onClick={() => setShowPinnedPosts(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#6b7280' }}>×</button>
+                        </div>
+                        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                            {pinnedPosts.length === 0 && (
+                                <div style={{ textAlign: 'center', color: '#9ca3af', fontSize: 14, padding: 16 }}>Нет закреплённых публикаций</div>
+                            )}
+                            {pinnedPosts.map(pin => (
+                                <div key={pin.pinId} style={{ padding: '10px 14px', borderRadius: 8, background: '#fffbeb', border: '1px solid #fde68a', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                                    <div style={{ flex: 1 }}>
+                                        {pin.postTitle && <div style={{ fontWeight: 700, fontSize: 14, color: '#111827', marginBottom: 4 }}>{pin.postTitle}</div>}
+                                        <div style={{ fontSize: 13, color: '#4b5563' }}>{pin.postBodySnippet}</div>
+                                        <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 6 }}>
+                                            Закрепил: {pin.pinnedByName} · {new Date(pin.pinnedAt).toLocaleDateString('ru')}
+                                        </div>
+                                    </div>
+                                    {selectedChannel?.isAdmin && (
+                                        <button
+                                            onClick={() => handleUnpinPost(pin.postId)}
+                                            style={{ background: 'none', border: '1px solid #fca5a5', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', fontSize: 11, color: '#dc2626', whiteSpace: 'nowrap' }}
+                                        >Открепить</button>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ─── Диалог приглашения в канал ─── */}
+            {showInvite && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 420, maxHeight: '70vh', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Пригласить в канал</h3>
+                            <button onClick={() => setShowInvite(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#6b7280' }}>×</button>
+                        </div>
+                        <input
+                            value={inviteSearch}
+                            onChange={e => setInviteSearch(e.target.value)}
+                            placeholder="Поиск сотрудника..."
+                            style={{ padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14 }}
+                        />
+                        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {inviteLoading && <div style={{ textAlign: 'center', color: '#9ca3af', fontSize: 14 }}>Загрузка...</div>}
+                            {inviteEmployees
+                                .filter(e => !inviteSearch || e.displayName.toLowerCase().includes(inviteSearch.toLowerCase()))
+                                .map(emp => {
+                                    const alreadySub = subscribers.some(s => s.userId === emp.id);
+                                    return (
+                                        <div key={emp.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 4px', borderBottom: '1px solid #f3f4f6' }}>
+                                            <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#e0e7ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: '#3730a3' }}>
+                                                {emp.displayName?.[0]?.toUpperCase() ?? '?'}
+                                            </div>
+                                            <div style={{ flex: 1 }}>
+                                                <div style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{emp.displayName}</div>
+                                                {emp.position && <div style={{ fontSize: 11, color: '#9ca3af' }}>{emp.position}</div>}
+                                            </div>
+                                            {alreadySub ? (
+                                                <span style={{ fontSize: 11, color: '#9ca3af' }}>уже подписан</span>
+                                            ) : (
+                                                <button
+                                                    onClick={() => handleInvite(emp.id)}
+                                                    style={{ background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 6, padding: '4px 12px', cursor: 'pointer', fontSize: 12 }}
+                                                >Пригласить</button>
+                                            )}
+                                        </div>
+                                    );
+                                })
+                            }
                         </div>
                     </div>
                 </div>

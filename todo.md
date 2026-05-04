@@ -1373,6 +1373,10 @@
 - [x] **Комментарии к публикациям**: подписчики публичных и приватных каналов могут оставлять комментарии к постам; `GET/POST /api/messages/channels/{channelId}/posts/{postId}/comments`; `DELETE /api/messages/channels/{channelId}/posts/{postId}/comments/{commentId}`; таблица `notify_post_comments`; секция комментариев разворачивается по клику в ChannelsPage
 - [x] **Поиск по публикациям**: фильтрация постов по тексту заголовка и тела; `GET /api/messages/channels/{channelId}/posts?q=...`; поле поиска в шапке канала
 - [x] **Список подписчиков**: просмотр всех подписчиков канала с отметкой администраторов; `GET /api/messages/channels/{channelId}/subscribers`; диалог «Подписчики» открывается из шапки
+- [x] **Управление ролями подписчиков**: администратор канала может повышать/понижать подписчика до администратора (защита от снятия последнего администратора); `PUT /api/messages/channels/{channelId}/subscribers/{userId}/role`; кнопки ⬆️/⬇️ в диалоге подписчиков
+- [x] **Приглашение в приватный канал**: администратор приватного канала приглашает пользователей через PeoplePicker; `POST /api/messages/channels/{channelId}/invite`; приглашённый получает уведомление `ChannelInvite`; кнопка «✉️ Пригласить» в шапке приватного канала
+- [x] **Закреплённые публикации канала**: администратор закрепляет/откепляет публикации внутри канала; `POST/DELETE /api/messages/channels/{channelId}/posts/{postId}/pin`; `GET /api/messages/channels/{channelId}/pinned-posts`; таблица `notify_channel_pinned_posts`; диалог «📌 Закреплённые» в шапке; кнопки Закрепить/Открепить в меню поста
+- [x] **SignalR push для новых постов**: при создании публикации все подписчики канала получают событие `NewChannelPost` через SignalR (hub `bpm:notification`); ChannelsPage автоматически перезагружает посты при получении события для открытого канала
 
 ### FR-MSG-02: Уведомления
 

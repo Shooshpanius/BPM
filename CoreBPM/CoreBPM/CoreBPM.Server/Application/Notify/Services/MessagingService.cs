@@ -1136,6 +1136,139 @@ public class MessagingService : IMessagingService
     // ─── Настройки ленты ──────────────────────────────────────────────────────
 
     /// <inheritdoc/>
+    public async Task SetSubscriberRoleAsync(Guid channelId, Guid actorId, Guid targetUserId, bool isAdmin, CancellationToken ct = default)
+    {
+        // Только администратор может менять роли
+        var actorIsAdmin = await _db.NotifyChannelSubscribers
+            .AnyAsync(s => s.ChannelId == channelId && s.UserId == actorId && s.IsAdmin, ct);
+        if (!actorIsAdmin)
+            throw new ForbiddenException("Только администратор канала может управлять ролями подписчиков.");
+
+        var sub = await _db.NotifyChannelSubscribers
+            .FirstOrDefaultAsync(s => s.ChannelId == channelId && s.UserId == targetUserId, ct)
+            ?? throw new NotFoundException("Подписчик не найден.");
+
+        // Нельзя снять роль последнего администратора
+        if (sub.IsAdmin && !isAdmin)
+        {
+            var otherAdmin = await _db.NotifyChannelSubscribers
+                .AnyAsync(s => s.ChannelId == channelId && s.UserId != targetUserId && s.IsAdmin, ct);
+            if (!otherAdmin)
+                throw new ValidationException("Невозможно снять роль: это единственный администратор канала.");
+        }
+
+        sub.IsAdmin = isAdmin;
+        await _db.SaveChangesAsync(ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task InviteToChannelAsync(Guid channelId, Guid actorId, Guid inviteeUserId, CancellationToken ct = default)
+    {
+        var channel = await _db.NotifyChannels.FindAsync(new object[] { channelId }, ct)
+            ?? throw new NotFoundException("Канал не найден.");
+
+        var actorIsAdmin = await _db.NotifyChannelSubscribers
+            .AnyAsync(s => s.ChannelId == channelId && s.UserId == actorId && s.IsAdmin, ct);
+        if (!actorIsAdmin)
+            throw new ForbiddenException("Только администратор канала может приглашать пользователей.");
+
+        var already = await _db.NotifyChannelSubscribers
+            .AnyAsync(s => s.ChannelId == channelId && s.UserId == inviteeUserId, ct);
+        if (already) return;
+
+        _db.NotifyChannelSubscribers.Add(new NotifyChannelSubscriber
+        {
+            Id = Guid.NewGuid(), ChannelId = channelId, UserId = inviteeUserId,
+            IsAdmin = false, SubscribedAt = DateTimeOffset.UtcNow
+        });
+        await _db.SaveChangesAsync(ct);
+
+        // Уведомить приглашённого
+        await _notifications.NotifyUserAsync(inviteeUserId, "ChannelInvite",
+            $"Вас пригласили в канал «{channel.Name}».", ct: ct);
+    }
+
+    // ─── Закреплённые публикации канала ───────────────────────────────────────
+
+    /// <inheritdoc/>
+    public async Task<ChannelPinnedPostDto> PinPostAsync(Guid channelId, Guid postId, Guid userId, CancellationToken ct = default)
+    {
+        var isAdmin = await _db.NotifyChannelSubscribers
+            .AnyAsync(s => s.ChannelId == channelId && s.UserId == userId && s.IsAdmin, ct);
+        if (!isAdmin)
+            throw new ForbiddenException("Только администратор канала может закреплять публикации.");
+
+        var post = await _db.NotifyChannelPosts.FindAsync(new object[] { postId }, ct)
+            ?? throw new NotFoundException("Публикация не найдена.");
+        if (post.ChannelId != channelId)
+            throw new ValidationException("Публикация не принадлежит данному каналу.");
+
+        var existing = await _db.NotifyChannelPinnedPosts
+            .AnyAsync(p => p.ChannelId == channelId && p.PostId == postId, ct);
+        if (existing)
+            throw new ValidationException("Публикация уже закреплена.");
+
+        var pinner = await GetUserBriefAsync(userId, ct);
+        var pin = new NotifyChannelPinnedPost
+        {
+            Id = Guid.NewGuid(), ChannelId = channelId, PostId = postId,
+            PinnedByUserId = userId, PinnedAt = DateTimeOffset.UtcNow
+        };
+        _db.NotifyChannelPinnedPosts.Add(pin);
+        await _db.SaveChangesAsync(ct);
+
+        var snippet = post.Body.Length > 100 ? post.Body[..100] + "…" : post.Body;
+        return new ChannelPinnedPostDto(pin.Id, post.Id, post.Title, snippet, userId, pinner.DisplayName, pin.PinnedAt);
+    }
+
+    /// <inheritdoc/>
+    public async Task UnpinPostAsync(Guid channelId, Guid postId, Guid userId, CancellationToken ct = default)
+    {
+        var isAdmin = await _db.NotifyChannelSubscribers
+            .AnyAsync(s => s.ChannelId == channelId && s.UserId == userId && s.IsAdmin, ct);
+        if (!isAdmin)
+            throw new ForbiddenException("Только администратор канала может откреплять публикации.");
+
+        var pin = await _db.NotifyChannelPinnedPosts
+            .FirstOrDefaultAsync(p => p.ChannelId == channelId && p.PostId == postId, ct)
+            ?? throw new NotFoundException("Закреплённая публикация не найдена.");
+
+        _db.NotifyChannelPinnedPosts.Remove(pin);
+        await _db.SaveChangesAsync(ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<ChannelPinnedPostDto>> GetPinnedPostsAsync(Guid channelId, Guid userId, CancellationToken ct = default)
+    {
+        var channel = await _db.NotifyChannels.FindAsync(new object[] { channelId }, ct)
+            ?? throw new NotFoundException("Канал не найден.");
+
+        if (channel.Kind == NotifyChannelKind.Private)
+        {
+            var isSub = await _db.NotifyChannelSubscribers
+                .AnyAsync(s => s.ChannelId == channelId && s.UserId == userId, ct);
+            if (!isSub) throw new ForbiddenException("Нет доступа к каналу.");
+        }
+
+        var pins = await _db.NotifyChannelPinnedPosts
+            .Where(p => p.ChannelId == channelId)
+            .Include(p => p.Post)
+            .OrderByDescending(p => p.PinnedAt)
+            .ToListAsync(ct);
+
+        var pinnerIds = pins.Select(p => p.PinnedByUserId).Distinct();
+        var users = await GetUserBriefsAsync(pinnerIds, ct);
+
+        return pins.Select(p =>
+        {
+            users.TryGetValue(p.PinnedByUserId, out var u);
+            var snippet = p.Post?.Body is { } b ? (b.Length > 100 ? b[..100] + "…" : b) : "";
+            return new ChannelPinnedPostDto(p.Id, p.PostId, p.Post?.Title, snippet,
+                p.PinnedByUserId, u?.DisplayName ?? "Пользователь", p.PinnedAt);
+        }).ToList();
+    }
+
+    /// <inheritdoc/>
     public async Task<MessagingPrefsDto> GetMessagingPrefsAsync(Guid userId, CancellationToken ct = default)
     {
         var prefs = await _db.NotifyUserMessagingPrefs

@@ -124,6 +124,23 @@ public interface IMessagingService
     /// <summary>Возвращает список подписчиков канала (только администратор или подписчик).</summary>
     Task<IReadOnlyList<ChannelSubscriberDto>> GetSubscribersAsync(Guid channelId, Guid userId, CancellationToken ct = default);
 
+    /// <summary>Назначает или снимает роль администратора у подписчика (только администратор канала).</summary>
+    Task SetSubscriberRoleAsync(Guid channelId, Guid actorId, Guid targetUserId, bool isAdmin, CancellationToken ct = default);
+
+    /// <summary>Приглашает пользователя в приватный канал (только администратор канала).</summary>
+    Task InviteToChannelAsync(Guid channelId, Guid actorId, Guid inviteeUserId, CancellationToken ct = default);
+
+    // ─── Закреплённые публикации канала (FR-MSG-01.2) ────────────────────────
+
+    /// <summary>Закрепляет публикацию в канале (только администратор канала).</summary>
+    Task<ChannelPinnedPostDto> PinPostAsync(Guid channelId, Guid postId, Guid userId, CancellationToken ct = default);
+
+    /// <summary>Открепляет публикацию канала.</summary>
+    Task UnpinPostAsync(Guid channelId, Guid postId, Guid userId, CancellationToken ct = default);
+
+    /// <summary>Возвращает список закреплённых публикаций канала.</summary>
+    Task<IReadOnlyList<ChannelPinnedPostDto>> GetPinnedPostsAsync(Guid channelId, Guid userId, CancellationToken ct = default);
+
     // ─── Настройки ленты (FR-MSG-01.2) ───────────────────────────────────────
 
     /// <summary>Возвращает настройки отображения ленты пользователя.</summary>

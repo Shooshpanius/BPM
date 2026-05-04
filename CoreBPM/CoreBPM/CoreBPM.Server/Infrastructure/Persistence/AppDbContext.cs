@@ -103,6 +103,7 @@ public class AppDbContext : DbContext
     public DbSet<NotifyChannelPost> NotifyChannelPosts => Set<NotifyChannelPost>();
     public DbSet<NotifyPostReaction> NotifyPostReactions => Set<NotifyPostReaction>();
     public DbSet<NotifyPostComment> NotifyPostComments => Set<NotifyPostComment>();
+    public DbSet<NotifyChannelPinnedPost> NotifyChannelPinnedPosts => Set<NotifyChannelPinnedPost>();
     public DbSet<NotifyUserMessagingPrefs> NotifyUserMessagingPrefs => Set<NotifyUserMessagingPrefs>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -1430,6 +1431,22 @@ public class AppDbContext : DbContext
             e.HasOne(c => c.Post)
              .WithMany()
              .HasForeignKey(c => c.PostId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<NotifyChannelPinnedPost>(e =>
+        {
+            e.ToTable("notify_channel_pinned_posts");
+            e.HasKey(p => p.Id);
+            e.HasIndex(p => p.ChannelId);
+            e.HasIndex(p => new { p.ChannelId, p.PostId }).IsUnique();
+            e.HasOne(p => p.Channel)
+             .WithMany()
+             .HasForeignKey(p => p.ChannelId)
+             .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(p => p.Post)
+             .WithMany()
+             .HasForeignKey(p => p.PostId)
              .OnDelete(DeleteBehavior.Cascade);
         });
 

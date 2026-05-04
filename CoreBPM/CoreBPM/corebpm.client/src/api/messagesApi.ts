@@ -465,6 +465,59 @@ export async function getChannelSubscribers(token: string, channelId: string): P
     return r.json();
 }
 
+export async function setSubscriberRole(token: string, channelId: string, targetUserId: string, isAdmin: boolean): Promise<void> {
+    await fetch(`/api/messages/channels/${channelId}/subscribers/${targetUserId}/role`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isAdmin }),
+    });
+}
+
+export async function inviteToChannel(token: string, channelId: string, userId: string): Promise<void> {
+    const r = await fetch(`/api/messages/channels/${channelId}/invite`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+    });
+    if (!r.ok) throw new Error('Ошибка приглашения');
+}
+
+// ─── Закреплённые публикации канала ──────────────────────────────────────────
+
+export interface ChannelPinnedPostDto {
+    pinId: string;
+    postId: string;
+    postTitle: string | null;
+    postBodySnippet: string;
+    pinnedByUserId: string;
+    pinnedByName: string;
+    pinnedAt: string;
+}
+
+export async function getPinnedPosts(token: string, channelId: string): Promise<ChannelPinnedPostDto[]> {
+    const r = await fetch(`/api/messages/channels/${channelId}/pinned-posts`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!r.ok) return [];
+    return r.json();
+}
+
+export async function pinPost(token: string, channelId: string, postId: string): Promise<ChannelPinnedPostDto> {
+    const r = await fetch(`/api/messages/channels/${channelId}/posts/${postId}/pin`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!r.ok) throw new Error('Ошибка закрепления');
+    return r.json();
+}
+
+export async function unpinPost(token: string, channelId: string, postId: string): Promise<void> {
+    await fetch(`/api/messages/channels/${channelId}/posts/${postId}/pin`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+    });
+}
+
 // ─── Счётчик непрочитанных ────────────────────────────────────────────────────
 
 export async function getUnreadCount(token: string): Promise<UnreadCountDto> {

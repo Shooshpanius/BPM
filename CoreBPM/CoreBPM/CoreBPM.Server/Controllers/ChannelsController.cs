@@ -184,4 +184,58 @@ public class ChannelsController : ControllerBase
         if (userId == null) return Unauthorized();
         return Ok(await _svc.GetSubscribersAsync(channelId, userId.Value, ct));
     }
+
+    /// <summary>Назначить или снять роль администратора у подписчика.</summary>
+    [HttpPut("api/messages/channels/{channelId:guid}/subscribers/{targetUserId:guid}/role")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> SetSubscriberRole(Guid channelId, Guid targetUserId, [FromBody] SetSubscriberRoleRequest req, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        await _svc.SetSubscriberRoleAsync(channelId, userId.Value, targetUserId, req.IsAdmin, ct);
+        return NoContent();
+    }
+
+    /// <summary>Пригласить пользователя в приватный канал (только администратор).</summary>
+    [HttpPost("api/messages/channels/{channelId:guid}/invite")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> InviteToChannel(Guid channelId, [FromBody] InviteToChannelRequest req, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        await _svc.InviteToChannelAsync(channelId, userId.Value, req.UserId, ct);
+        return NoContent();
+    }
+
+    /// <summary>Список закреплённых публикаций канала.</summary>
+    [HttpGet("api/messages/channels/{channelId:guid}/pinned-posts")]
+    [ProducesResponseType(typeof(IReadOnlyList<ChannelPinnedPostDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<ChannelPinnedPostDto>>> GetPinnedPosts(Guid channelId, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _svc.GetPinnedPostsAsync(channelId, userId.Value, ct));
+    }
+
+    /// <summary>Закрепить публикацию в канале (только администратор).</summary>
+    [HttpPost("api/messages/channels/{channelId:guid}/posts/{postId:guid}/pin")]
+    [ProducesResponseType(typeof(ChannelPinnedPostDto), StatusCodes.Status201Created)]
+    public async Task<ActionResult<ChannelPinnedPostDto>> PinPost(Guid channelId, Guid postId, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        var dto = await _svc.PinPostAsync(channelId, postId, userId.Value, ct);
+        return CreatedAtAction(nameof(GetPinnedPosts), new { channelId }, dto);
+    }
+
+    /// <summary>Открепить публикацию канала.</summary>
+    [HttpDelete("api/messages/channels/{channelId:guid}/posts/{postId:guid}/pin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> UnpinPost(Guid channelId, Guid postId, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        await _svc.UnpinPostAsync(channelId, postId, userId.Value, ct);
+        return NoContent();
+    }
 }
