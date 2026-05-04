@@ -90,6 +90,18 @@ public class TaskListFilter
     public string SortDir { get; set; } = "desc";
     /// <summary>Фильтр по родительской задаче (для загрузки подзадач).</summary>
     public Guid? ParentTaskId { get; set; }
+    /// <summary>
+    /// Группа задач (FR-TASK-02.2):
+    /// <c>incoming</c> — входящие (исполнитель = я),
+    /// <c>outgoing</c> — исходящие (автор = я),
+    /// <c>control</c> — на контроле (контролёр = я),
+    /// <c>co-exec</c> — соисполнение (участник с ролью CoExecutor = я).
+    /// </summary>
+    public string? Group { get; set; }
+    /// <summary>Страница (1-based) для пагинации (FR-TASK-02.2).</summary>
+    public int Page { get; set; } = 1;
+    /// <summary>Размер страницы (FR-TASK-02.2).</summary>
+    public int PageSize { get; set; } = 50;
 }
 
 /// <summary>Запрос на откладывание задачи (FR-TASK-01.2).</summary>

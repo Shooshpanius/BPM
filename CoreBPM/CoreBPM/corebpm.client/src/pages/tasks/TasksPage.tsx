@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import {
-    listTasks, createTask, exportTasksCsv, bulkVerifyTasks,
+    listTasks, createTask, exportTasksCsv, exportTasksExcel, bulkVerifyTasks,
     getTaskSavedFilters, createTaskSavedFilter, deleteTaskSavedFilter,
     TASK_STATUS_LABELS, TASK_PRIORITY_LABELS,
 } from '../../api/tasksApi';
@@ -14,22 +14,78 @@ interface TasksPageProps {
     onOpenTask: (id: string) => void;
 }
 
-type TabId = 'all' | 'my';
+/** Группы задач (FR-TASK-02.2). */
+type GroupId = 'all' | 'incoming' | 'outgoing' | 'control' | 'co-exec';
+const GROUP_LABELS: Record<GroupId, string> = {
+    all: 'Все задачи',
+    incoming: 'Входящие',
+    outgoing: 'Исходящие',
+    control: 'На контроле',
+    'co-exec': 'Соисполнение',
+};
 
-/** Страница списка задач (FR-TASK-01.1, FR-TASK-02.3). */
+/** Поля для сортировки. */
+type SortField = 'created_at' | 'due_date' | 'priority' | 'status' | 'subject';
+
+/** Режим отображения: таблица / карточки (FR-TASK-02.2). */
+type ViewMode = 'table' | 'card';
+
+/** Группировка в таблице (FR-TASK-02.2). */
+type GroupByField = '' | 'priority' | 'status' | 'categoryId';
+
+/** Возвращает CSS-класс строки для цветового кодирования (FR-TASK-02.2). */
+function getRowClass(task: TaskSummaryDto): string {
+    if (task.isOverdue) return 'tasks-row--overdue';
+    if (task.status === 'InProgress') return 'tasks-row--inprogress';
+    if (task.status === 'CannotDo' || task.status === 'CannotDoNeedsControl') return 'tasks-row--cannotdo';
+    if (task.status === 'Done' || task.status === 'DoneControlled' || task.status === 'Closed') return 'tasks-row--done';
+    if (task.status === 'New' || task.status === 'Read') return 'tasks-row--new';
+    return '';
+}
+
+/** Иконки видов задач (FR-TASK-02.2). */
+function TaskKindIcon({ kind, scheduledAt, openQuestionCount }: { kind: string; scheduledAt?: string; openQuestionCount: number }) {
+    if (openQuestionCount > 0) return <span title={`Вопросов: ${openQuestionCount}`}>❓</span>;
+    if (scheduledAt) return <span title="Запланировано">📅</span>;
+    switch (kind) {
+        case 'ProcessTask': return <span title="Задача по процессу">⚙️</span>;
+        case 'Periodic':    return <span title="Периодическая задача">🔄</span>;
+        case 'Resolution':  return <span title="Задача-резолюция">📋</span>;
+        default:            return <span title="Обычная задача">✅</span>;
+    }
+}
+
+/** Страница списка задач (FR-TASK-01.1, FR-TASK-02.2, FR-TASK-02.3). */
 export function TasksPage({ onOpenTask }: TasksPageProps) {
     const { accessToken: token, userId } = useAuth();
 
-    const [tab, setTab] = useState<TabId>('all');
+    const [group, setGroup] = useState<GroupId>('incoming');
     const [tasks, setTasks] = useState<TaskSummaryDto[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    // ─── Режим отображения и группировка (FR-TASK-02.2)
+    const [viewMode, setViewMode] = useState<ViewMode>('table');
+    const [groupBy, setGroupBy] = useState<GroupByField>('');
 
     // ─── Базовые фильтры
     const [filterStatus, setFilterStatus] = useState('');
     const [filterPriority, setFilterPriority] = useState('');
     const [filterSearch, setFilterSearch] = useState('');
     const [filterOverdue, setFilterOverdue] = useState(false);
+
+    // ─── Сортировка по клику на заголовок таблицы (FR-TASK-02.2)
+    const [sortField, setSortField] = useState<SortField>('created_at');
+    const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+
+    const handleHeaderSort = (field: SortField) => {
+        if (sortField === field) {
+            setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortField(field);
+            setSortDir('desc');
+        }
+    };
 
     // ─── Расширенный поиск (FR-TASK-02.3)
     const [showAdvanced, setShowAdvanced] = useState(false);
@@ -39,8 +95,6 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
     const [filterTagValue, setFilterTagValue] = useState('');
     const [filterDateFrom, setFilterDateFrom] = useState('');
     const [filterDateTo, setFilterDateTo] = useState('');
-    const [filterSortBy, setFilterSortBy] = useState('created_at');
-    const [filterSortDir, setFilterSortDir] = useState('desc');
 
     // ─── Сохранённые фильтры (FR-TASK-02.3)
     const [savedFilters, setSavedFilters] = useState<TaskSavedFilterDto[]>([]);
@@ -87,13 +141,13 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
                 priority: filterPriority || undefined,
                 search: filterSearch || undefined,
                 isOverdue: filterOverdue || undefined,
-                assigneeId: tab === 'my' && userId ? userId : undefined,
+                group: group !== 'all' ? group : undefined,
                 authorId: filterAuthorId || undefined,
                 tagValue: filterTagValue || undefined,
                 dateFrom: filterDateFrom || undefined,
                 dateTo: filterDateTo || undefined,
-                sortBy: filterSortBy,
-                sortDir: filterSortDir,
+                sortBy: sortField,
+                sortDir,
             });
             setTasks(data);
         } catch (e) {
@@ -101,8 +155,8 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
         } finally {
             setLoading(false);
         }
-    }, [token, tab, filterStatus, filterPriority, filterSearch, filterOverdue, userId,
-        filterAuthorId, filterTagValue, filterDateFrom, filterDateTo, filterSortBy, filterSortDir]);
+    }, [token, group, filterStatus, filterPriority, filterSearch, filterOverdue,
+        filterAuthorId, filterTagValue, filterDateFrom, filterDateTo, sortField, sortDir]);
 
     useEffect(() => { load(); }, [load]);
 
@@ -161,23 +215,32 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
         setSaveError(null);
     };
 
-    const handleExport = async () => {
+    const handleExport = async (format: 'csv' | 'xlsx' = 'csv') => {
         if (!token) return;
         try {
-            const blob = await exportTasksCsv(token, {
+            const params = {
                 status: filterStatus || undefined,
                 priority: filterPriority || undefined,
                 search: filterSearch || undefined,
-                assigneeId: tab === 'my' && userId ? userId : undefined,
+                group: group !== 'all' ? group : undefined,
                 authorId: filterAuthorId || undefined,
                 tagValue: filterTagValue || undefined,
                 dateFrom: filterDateFrom || undefined,
                 dateTo: filterDateTo || undefined,
-            });
+            };
+            let blob: Blob;
+            let filename: string;
+            if (format === 'xlsx') {
+                blob = await exportTasksExcel(token, params);
+                filename = 'tasks.xlsx';
+            } else {
+                blob = await exportTasksCsv(token, params);
+                filename = 'tasks.csv';
+            }
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'tasks.csv';
+            a.download = filename;
             a.click();
             URL.revokeObjectURL(url);
         } catch { /* игнорируем */ }
@@ -210,8 +273,8 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
                 tagValue: filterTagValue || undefined,
                 dateFrom: filterDateFrom || undefined,
                 dateTo: filterDateTo || undefined,
-                sortBy: filterSortBy,
-                sortDir: filterSortDir,
+                sortBy: sortField,
+                sortDir,
             };
             const newFilter = await createTaskSavedFilter(token, newFilterName.trim(), JSON.stringify(filterParams));
             setSavedFilters(prev => [...prev, newFilter]);
@@ -234,8 +297,8 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
             setFilterTagValue(params.tagValue ?? '');
             setFilterDateFrom(params.dateFrom ?? '');
             setFilterDateTo(params.dateTo ?? '');
-            setFilterSortBy(params.sortBy ?? 'created_at');
-            setFilterSortDir(params.sortDir ?? 'desc');
+            if (params.sortBy) setSortField(params.sortBy as SortField);
+            if (params.sortDir) setSortDir(params.sortDir as 'asc' | 'desc');
             setShowAdvanced(true);
         } catch { /* игнорируем */ }
     };
@@ -272,13 +335,26 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
 
     const hasAdvancedFilters = !!(filterAuthorId || filterTagValue || filterDateFrom || filterDateTo);
 
+    // ─── Группировка отображения (FR-TASK-02.2) ───────────────────────────────
+    const groupedTasks = (() => {
+        if (!groupBy) return [{ key: '', tasks }];
+        const map = new Map<string, TaskSummaryDto[]>();
+        tasks.forEach(t => {
+            const key = (t as Record<string, unknown>)[groupBy] as string ?? '(не задано)';
+            if (!map.has(key)) map.set(key, []);
+            map.get(key)!.push(t);
+        });
+        return Array.from(map.entries()).map(([key, t]) => ({ key, tasks: t }));
+    })();
+
     return (
         <div className="tasks-page">
             <div className="tasks-page__header">
                 <h2 className="tasks-page__title">Задачи</h2>
                 <div className="tasks-page__actions">
                     <button className="tasks-page__btn tasks-page__btn--primary" onClick={handleOpenCreate}>+ Создать задачу</button>
-                    <button className="tasks-page__btn" onClick={handleExport}>Экспорт CSV</button>
+                    <button className="tasks-page__btn" onClick={() => handleExport('csv')}>⬇ CSV</button>
+                    <button className="tasks-page__btn" onClick={() => handleExport('xlsx')}>⬇ Excel</button>
                     {selectedIds.size > 0 && (
                         <button
                             className="tasks-page__btn tasks-page__btn--success"
@@ -296,12 +372,35 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
                 </div>
             )}
 
+            {/* ── FR-TASK-02.2: Группы задач (вкладки) */}
             <div className="tasks-page__tabs">
-                {(['all', 'my'] as TabId[]).map(t => (
-                    <button key={t} className={`tasks-page__tab${tab === t ? ' tasks-page__tab--active' : ''}`} onClick={() => setTab(t)}>
-                        {t === 'all' ? 'Все задачи' : 'Мои задачи'}
+                {(Object.keys(GROUP_LABELS) as GroupId[]).map(g => (
+                    <button key={g} className={`tasks-page__tab${group === g ? ' tasks-page__tab--active' : ''}`} onClick={() => setGroup(g)}>
+                        {GROUP_LABELS[g]}
                     </button>
                 ))}
+            </div>
+
+            {/* ── FR-TASK-02.2: Режим отображения + Группировка */}
+            <div className="tasks-page__view-toolbar">
+                <span style={{ fontSize: 12, color: '#888' }}>Вид:</span>
+                <button
+                    className={`tasks-page__btn${viewMode === 'table' ? ' tasks-page__btn--accent' : ''}`}
+                    onClick={() => setViewMode('table')}
+                    title="Таблица"
+                >≡ Таблица</button>
+                <button
+                    className={`tasks-page__btn${viewMode === 'card' ? ' tasks-page__btn--accent' : ''}`}
+                    onClick={() => setViewMode('card')}
+                    title="Карточки"
+                >⊞ Карточки</button>
+                <span style={{ fontSize: 12, color: '#888', marginLeft: 12 }}>Группировать:</span>
+                <select className="tasks-page__select" value={groupBy} onChange={e => setGroupBy(e.target.value as GroupByField)}>
+                    <option value="">Без группировки</option>
+                    <option value="priority">По приоритету</option>
+                    <option value="status">По статусу</option>
+                    <option value="categoryId">По категории</option>
+                </select>
             </div>
 
             {/* ── Основные фильтры + переключатель расширенного поиска */}
@@ -397,16 +496,17 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
                         {/* Сортировка */}
                         <div className="tasks-page__adv-field">
                             <label className="tasks-page__adv-label">Сортировка</label>
-                            <select className="tasks-page__input" value={filterSortBy} onChange={e => setFilterSortBy(e.target.value)}>
+                            <select className="tasks-page__input" value={sortField} onChange={e => setSortField(e.target.value as SortField)}>
                                 <option value="created_at">Дата создания</option>
                                 <option value="due_date">Срок завершения</option>
                                 <option value="priority">Приоритет</option>
                                 <option value="status">Статус</option>
+                                <option value="subject">Тема</option>
                             </select>
                         </div>
                         <div className="tasks-page__adv-field">
                             <label className="tasks-page__adv-label">Направление</label>
-                            <select className="tasks-page__input" value={filterSortDir} onChange={e => setFilterSortDir(e.target.value)}>
+                            <select className="tasks-page__input" value={sortDir} onChange={e => setSortDir(e.target.value as 'asc' | 'desc')}>
                                 <option value="desc">По убыванию</option>
                                 <option value="asc">По возрастанию</option>
                             </select>
@@ -418,7 +518,7 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
                             <button className="tasks-page__btn" onClick={() => {
                                 setFilterAuthorId(''); setFilterAuthorName(''); setFilterAuthorSearch('');
                                 setFilterTagValue(''); setFilterDateFrom(''); setFilterDateTo('');
-                                setFilterSortBy('created_at'); setFilterSortDir('desc');
+                                setSortField('created_at'); setSortDir('desc');
                             }}>Сбросить</button>
                             <button className="tasks-page__btn" onClick={() => setShowSaveFilter(true)} title="Сохранить текущий набор фильтров">
                                 💾 Сохранить как фильтр
@@ -455,42 +555,112 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
             {error && <div className="tasks-page__error">{error}</div>}
             {!loading && !error && tasks.length === 0 && <div className="tasks-page__empty">Задачи не найдены</div>}
 
-            {!loading && tasks.length > 0 && (
+            {!loading && tasks.length > 0 && viewMode === 'table' && (
                 <table className="tasks-page__table">
                     <thead>
                         <tr>
                             <th style={{ width: 32 }}></th>
-                            <th>№</th>
-                            <th>Тема</th>
-                            <th>Статус</th>
-                            <th>Приоритет</th>
+                            <th className="tasks-page__th--sortable" onClick={() => handleHeaderSort('subject')}>
+                                Тема {sortField === 'subject' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                            </th>
+                            <th className="tasks-page__th--sortable" onClick={() => handleHeaderSort('status')}>
+                                Статус {sortField === 'status' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                            </th>
+                            <th className="tasks-page__th--sortable" onClick={() => handleHeaderSort('priority')}>
+                                Приоритет {sortField === 'priority' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                            </th>
                             <th>Исполнитель</th>
-                            <th>Срок</th>
+                            <th>Автор</th>
+                            <th className="tasks-page__th--sortable" onClick={() => handleHeaderSort('due_date')}>
+                                Срок {sortField === 'due_date' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                            </th>
                             <th>Теги</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {tasks.map(task => (
-                            <tr key={task.id} className={`tasks-page__row${task.isOverdue ? ' tasks-page__row--overdue' : ''}`} onClick={() => onOpenTask(task.id)}>
-                                <td onClick={e => toggleSelect(task.id, e)} style={{ textAlign: 'center', cursor: 'pointer' }}>
-                                    <input
-                                        type="checkbox"
-                                        checked={selectedIds.has(task.id)}
-                                        onChange={() => {/* handled by td onClick */}}
-                                        onClick={e => { e.stopPropagation(); }}
-                                    />
-                                </td>
-                                <td className="tasks-page__num">T-{task.number}</td>
-                                <td className="tasks-page__subject">{task.subject}</td>
-                                <td><span className={getStatusClass(task.status, task.isOverdue)}>{TASK_STATUS_LABELS[task.status]}</span></td>
-                                <td><span className={getPriorityClass(task.priority)}>{TASK_PRIORITY_LABELS[task.priority]}</span></td>
-                                <td>{task.assigneeName}</td>
-                                <td>{new Date(task.dueDate).toLocaleDateString('ru-RU')}</td>
-                                <td className="tasks-page__tags">{task.tags.slice(0, 3).map(tag => <span key={tag} className="tasks-page__tag">{tag}</span>)}</td>
-                            </tr>
+                        {groupedTasks.map(({ key, tasks: groupTasks }) => (
+                            <>
+                                {groupBy && key && (
+                                    <tr key={`group-${key}`} className="tasks-page__group-header">
+                                        <td colSpan={8}>
+                                            <strong>{key}</strong>
+                                            <span style={{ marginLeft: 8, color: '#888', fontSize: 12 }}>({groupTasks.length})</span>
+                                        </td>
+                                    </tr>
+                                )}
+                                {groupTasks.map(task => (
+                                    <tr
+                                        key={task.id}
+                                        className={`tasks-page__row ${getRowClass(task)}`}
+                                        onClick={() => onOpenTask(task.id)}
+                                    >
+                                        <td onClick={e => toggleSelect(task.id, e)} style={{ textAlign: 'center', cursor: 'pointer' }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedIds.has(task.id)}
+                                                onChange={() => {/* handled by td onClick */}}
+                                                onClick={e => { e.stopPropagation(); }}
+                                            />
+                                        </td>
+                                        <td className="tasks-page__subject">
+                                            <TaskKindIcon kind={task.kind} scheduledAt={task.scheduledAt} openQuestionCount={task.openQuestionCount} />
+                                            {' '}
+                                            <span className="tasks-page__num" style={{ color: '#888', marginRight: 4 }}>T-{task.number}</span>
+                                            {task.subject}
+                                            {task.isCoExecutor && <span className="tasks-page__badge tasks-page__badge--coexec" title="Соисполнитель">★</span>}
+                                        </td>
+                                        <td><span className={getStatusClass(task.status, task.isOverdue)}>{TASK_STATUS_LABELS[task.status]}</span></td>
+                                        <td><span className={getPriorityClass(task.priority)}>{TASK_PRIORITY_LABELS[task.priority]}</span></td>
+                                        <td>{task.assigneeName}</td>
+                                        <td>{task.authorName}</td>
+                                        <td style={{ whiteSpace: 'nowrap' }}>{new Date(task.dueDate).toLocaleDateString('ru-RU')}</td>
+                                        <td className="tasks-page__tags">{task.tags.slice(0, 3).map(tag => <span key={tag} className="tasks-page__tag">{tag}</span>)}</td>
+                                    </tr>
+                                ))}
+                            </>
                         ))}
                     </tbody>
                 </table>
+            )}
+
+            {/* FR-TASK-02.2: Режим карточек */}
+            {!loading && tasks.length > 0 && viewMode === 'card' && (
+                <div className="tasks-page__cards">
+                    {groupedTasks.map(({ key, tasks: groupTasks }) => (
+                        <div key={key || 'ungrouped'}>
+                            {groupBy && key && (
+                                <div className="tasks-page__card-group-title">
+                                    {key} <span style={{ color: '#888', fontSize: 12 }}>({groupTasks.length})</span>
+                                </div>
+                            )}
+                            {groupTasks.map(task => (
+                                <div
+                                    key={task.id}
+                                    className={`tasks-page__card ${getRowClass(task)}`}
+                                    onClick={() => onOpenTask(task.id)}
+                                >
+                                    <div className="tasks-page__card-header">
+                                        <TaskKindIcon kind={task.kind} scheduledAt={task.scheduledAt} openQuestionCount={task.openQuestionCount} />
+                                        <span className="tasks-page__num" style={{ color: '#888', marginRight: 4 }}>T-{task.number}</span>
+                                        <span className="tasks-page__card-subject">{task.subject}</span>
+                                        {task.isCoExecutor && <span className="tasks-page__badge tasks-page__badge--coexec" title="Соисполнитель">★</span>}
+                                    </div>
+                                    <div className="tasks-page__card-meta">
+                                        <span className={getStatusClass(task.status, task.isOverdue)}>{TASK_STATUS_LABELS[task.status]}</span>
+                                        <span className={getPriorityClass(task.priority)}>{TASK_PRIORITY_LABELS[task.priority]}</span>
+                                        <span>{task.assigneeName}</span>
+                                        <span style={{ color: '#888' }}>{new Date(task.dueDate).toLocaleDateString('ru-RU')}</span>
+                                    </div>
+                                    {task.tags.length > 0 && (
+                                        <div className="tasks-page__tags">
+                                            {task.tags.slice(0, 5).map(tag => <span key={tag} className="tasks-page__tag">{tag}</span>)}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    ))}
+                </div>
             )}
 
             {/* ── Диалог сохранения фильтра */}

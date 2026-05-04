@@ -37,12 +37,29 @@ public class TasksController : ControllerBase
 
     /// <summary>Экспортирует задачи в CSV.</summary>
     [HttpGet("api/tasks/export")]
-    public async Task<IActionResult> Export([FromQuery] TaskListFilter filter, CancellationToken ct)
+    public async Task<IActionResult> Export([FromQuery] TaskListFilter filter, [FromQuery] string format = "csv", CancellationToken ct = default)
     {
         var userId = GetCurrentUserId();
         if (userId == null) return Unauthorized();
+
+        if (format.Equals("xlsx", StringComparison.OrdinalIgnoreCase))
+        {
+            var xlsxBytes = await _service.ExportToExcelAsync(userId.Value, User.IsInRole("Admin"), filter, ct);
+            return File(xlsxBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "tasks.xlsx");
+        }
+
         var bytes = await _service.ExportToCsvAsync(userId.Value, User.IsInRole("Admin"), filter, ct);
         return File(bytes, "text/csv;charset=utf-8", "tasks.csv");
+    }
+
+    /// <summary>Возвращает счётчики задач для бейджей Sidebar (FR-TASK-02.2).</summary>
+    [HttpGet("api/tasks/counters")]
+    [ProducesResponseType(typeof(TaskCountersDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TaskCountersDto>> GetCounters(CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.GetCountersAsync(userId.Value, ct));
     }
 
     /// <summary>Возвращает сохранённые фильтры.</summary>

@@ -198,4 +198,10 @@ public interface ITaskService
 
     /// <summary>Обновить настройки уведомлений пользователя (FR-TASK-02.3).</summary>
     Task<IReadOnlyList<UserTaskNotificationSettingsDto>> UpdateNotificationSettingsAsync(Guid userId, IReadOnlyList<UpdateNotificationSettingRequest> settings, CancellationToken ct = default);
+
+    /// <summary>Получить счётчики задач для бейджей в Sidebar (FR-TASK-02.2).</summary>
+    Task<TaskCountersDto> GetCountersAsync(Guid userId, CancellationToken ct = default);
+
+    /// <summary>Экспортировать задачи в Excel-файл (FR-TASK-02.2).</summary>
+    Task<byte[]> ExportToExcelAsync(Guid userId, bool isAdmin, TaskListFilter filter, CancellationToken ct = default);
 }

@@ -440,3 +440,57 @@
     color: #1a73e8;
     border-color: #c5d8f7;
 }
+
+/* ─── FR-TASK-02.2: Цветовое кодирование строк ──────────────────────────────── */
+.tasks-row--overdue td { color: var(--danger, #e53935); }
+.tasks-row--overdue { border-left: 3px solid var(--danger, #e53935); }
+.tasks-row--inprogress { border-left: 3px solid #43a047; }
+.tasks-row--cannotdo { border-left: 3px solid #fb8c00; }
+.tasks-row--done { opacity: 0.6; text-decoration: line-through; }
+.tasks-row--new { border-left: 3px solid #1a73e8; }
+
+/* ─── FR-TASK-02.2: Сортируемые заголовки ───────────────────────────────────── */
+.tasks-page__th--sortable {
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+.tasks-page__th--sortable:hover { background: #f5f7fa; }
+
+/* ─── FR-TASK-02.2: Заголовок группы ────────────────────────────────────────── */
+.tasks-page__group-header td {
+    background: #f8f9fb;
+    padding: 6px 12px;
+    font-size: 13px;
+    color: #555;
+}
+
+/* ─── FR-TASK-02.2: Режим карточек ──────────────────────────────────────────── */
+.tasks-page__cards { display: flex; flex-direction: column; gap: 8px; padding: 0 0 16px; }
+.tasks-page__card {
+    background: #fff;
+    border: 1px solid #e8eaed;
+    border-radius: 6px;
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: box-shadow 0.15s;
+    border-left: 3px solid transparent;
+}
+.tasks-page__card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.tasks-page__card-header { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; font-size: 14px; font-weight: 500; }
+.tasks-page__card-subject { flex: 1; }
+.tasks-page__card-meta { display: flex; align-items: center; gap: 10px; font-size: 12px; flex-wrap: wrap; }
+.tasks-page__card-group-title { font-size: 13px; font-weight: 600; color: #555; padding: 10px 0 4px; }
+
+/* ─── FR-TASK-02.2: Toolbar вид + группировка ───────────────────────────────── */
+.tasks-page__view-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+/* ─── FR-TASK-02.2: Бейдж соисполнителя ─────────────────────────────────────── */
+.tasks-page__badge { display: inline-block; border-radius: 3px; font-size: 11px; padding: 0 4px; margin-left: 4px; line-height: 16px; }
+.tasks-page__badge--coexec { background: #e8f0fe; color: #1a73e8; }

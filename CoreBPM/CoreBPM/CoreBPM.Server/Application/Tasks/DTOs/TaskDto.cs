@@ -136,3 +136,16 @@ public class UserTaskNotificationSettingsDto
     public bool InApp { get; set; }
     public bool Email { get; set; }
 }
+
+/// <summary>Счётчики задач для бейджей в Sidebar (FR-TASK-02.2).</summary>
+public class TaskCountersDto
+{
+    /// <summary>Мои входящие задачи (исполнитель = я, незавершённые).</summary>
+    public int Incoming { get; set; }
+    /// <summary>Просроченные задачи текущего пользователя.</summary>
+    public int Overdue { get; set; }
+    /// <summary>Задачи на согласовании (статус OnApproval), где пользователь — согласующий.</summary>
+    public int OnApproval { get; set; }
+    /// <summary>Задачи, требующие контроля пользователя (DoneNeedsControl / CannotDoNeedsControl).</summary>
+    public int NeedsControl { get; set; }
+}

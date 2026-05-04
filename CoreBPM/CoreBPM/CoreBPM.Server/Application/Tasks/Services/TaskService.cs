@@ -127,12 +127,33 @@ public class TaskService : ITaskService
     {
         var query = _db.TaskItems.AsNoTracking();
 
-        if (!isAdmin)
+        // ─── Группа задач (FR-TASK-02.2) ─────────────────────────────────
+        switch (filter.Group)
         {
-            var participantTaskIds = _db.TaskParticipants
-                .Where(p => p.UserId == userId)
-                .Select(p => p.TaskId);
-            query = query.Where(t => t.AuthorUserId == userId || t.AssigneeUserId == userId || participantTaskIds.Contains(t.Id));
+            case "incoming":
+                query = query.Where(t => t.AssigneeUserId == userId);
+                break;
+            case "outgoing":
+                query = query.Where(t => t.AuthorUserId == userId);
+                break;
+            case "control":
+                query = query.Where(t => t.ControllerUserId == userId);
+                break;
+            case "co-exec":
+                var coExecTaskIds = _db.TaskParticipants
+                    .Where(p => p.UserId == userId && p.Role == TaskParticipantRole.CoExecutor)
+                    .Select(p => p.TaskId);
+                query = query.Where(t => coExecTaskIds.Contains(t.Id));
+                break;
+            default:
+                if (!isAdmin)
+                {
+                    var participantTaskIds = _db.TaskParticipants
+                        .Where(p => p.UserId == userId)
+                        .Select(p => p.TaskId);
+                    query = query.Where(t => t.AuthorUserId == userId || t.AssigneeUserId == userId || participantTaskIds.Contains(t.Id));
+                }
+                break;
         }
 
         if (!string.IsNullOrEmpty(filter.Status) && Enum.TryParse<TaskStatus>(filter.Status, out var status))
@@ -163,13 +184,46 @@ public class TaskService : ITaskService
         if (filter.ParentTaskId.HasValue)
             query = query.Where(t => t.ParentTaskId == filter.ParentTaskId.Value);
 
-        var tasks = await query.OrderByDescending(t => t.CreatedAt).ToListAsync(ct);
+        // ─── Сортировка (FR-TASK-02.2) ────────────────────────────────────
+        query = (filter.SortBy, filter.SortDir?.ToLowerInvariant()) switch
+        {
+            ("due_date",  "asc")  => query.OrderBy(t => t.DueDate),
+            ("due_date",  _)      => query.OrderByDescending(t => t.DueDate),
+            ("priority",  "asc")  => query.OrderBy(t => t.Priority),
+            ("priority",  _)      => query.OrderByDescending(t => t.Priority),
+            ("status",    "asc")  => query.OrderBy(t => t.Status),
+            ("status",    _)      => query.OrderByDescending(t => t.Status),
+            ("subject",   "asc")  => query.OrderBy(t => t.Subject),
+            ("subject",   _)      => query.OrderByDescending(t => t.Subject),
+            ("created_at","asc")  => query.OrderBy(t => t.CreatedAt),
+            _                     => query.OrderByDescending(t => t.CreatedAt),
+        };
+
+        // ─── Пагинация (FR-TASK-02.2) ─────────────────────────────────────
+        var pageSize = filter.PageSize is > 0 and <= 200 ? filter.PageSize : 50;
+        var page = filter.Page > 0 ? filter.Page : 1;
+        query = query.Skip((page - 1) * pageSize).Take(pageSize);
+
+        var tasks = await query.ToListAsync(ct);
 
         var taskIds = tasks.Select(t => t.Id).ToList();
         var tags = await _db.TaskTags.AsNoTracking()
             .Where(t => taskIds.Contains(t.TaskId))
             .ToListAsync(ct);
-        var userIds = tasks.Select(t => t.AssigneeUserId).Distinct().ToList();
+
+        var participants = await _db.TaskParticipants.AsNoTracking()
+            .Where(p => taskIds.Contains(p.TaskId))
+            .ToListAsync(ct);
+
+        var openQuestionsCount = await _db.TaskQuestions.AsNoTracking()
+            .Where(q => taskIds.Contains(q.TaskId) && q.AnsweredAt == null)
+            .GroupBy(q => q.TaskId)
+            .Select(g => new { TaskId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.TaskId, x => x.Count, ct);
+
+        var userIds = tasks.Select(t => t.AssigneeUserId)
+            .Concat(tasks.Select(t => t.AuthorUserId))
+            .Distinct().ToList();
         var users = await _db.OrgUsers.AsNoTracking()
             .Where(u => userIds.Contains(u.Id))
             .ToDictionaryAsync(u => u.Id, u => u.DisplayName, ct);
@@ -179,6 +233,11 @@ public class TaskService : ITaskService
             var taggedTaskIds = tags.Where(t => t.Value == filter.TagValue).Select(t => t.TaskId).ToHashSet();
             tasks = tasks.Where(t => taggedTaskIds.Contains(t.Id)).ToList();
         }
+
+        var coExecSet = participants
+            .Where(p => p.UserId == userId && p.Role == TaskParticipantRole.CoExecutor)
+            .Select(p => p.TaskId)
+            .ToHashSet();
 
         return tasks.Select(t => new TaskSummaryDto
         {
@@ -190,10 +249,16 @@ public class TaskService : ITaskService
             CategoryId = t.CategoryId,
             AssigneeUserId = t.AssigneeUserId,
             AssigneeName = users.GetValueOrDefault(t.AssigneeUserId, t.AssigneeUserId.ToString()),
+            AuthorUserId = t.AuthorUserId,
+            AuthorName = users.GetValueOrDefault(t.AuthorUserId, t.AuthorUserId.ToString()),
             DueDate = t.DueDate,
             IsOverdue = t.IsOverdue,
             CreatedAt = t.CreatedAt,
             Tags = tags.Where(tag => tag.TaskId == t.Id).Select(tag => tag.Value).ToList(),
+            Kind = t.Kind.ToString(),
+            ScheduledAt = t.ScheduledAt,
+            IsCoExecutor = coExecSet.Contains(t.Id),
+            OpenQuestionCount = openQuestionsCount.GetValueOrDefault(t.Id, 0),
         }).ToList();
     }
 
@@ -2642,5 +2707,81 @@ public class TaskService : ITaskService
         }
         await _db.SaveChangesAsync(ct);
         return await GetNotificationSettingsAsync(userId, ct);
+    }
+
+    // ─── FR-TASK-02.2: Счётчики задач ────────────────────────────────────────
+
+    /// <inheritdoc/>
+    public async Task<TaskCountersDto> GetCountersAsync(Guid userId, CancellationToken ct = default)
+    {
+        var finalStatuses = new[] { TaskStatus.Done, TaskStatus.DoneControlled, TaskStatus.CannotDo, TaskStatus.CannotDoControlled, TaskStatus.Closed };
+
+        var incoming = await _db.TaskItems.AsNoTracking()
+            .CountAsync(t => t.AssigneeUserId == userId && !finalStatuses.Contains(t.Status), ct);
+
+        var overdue = await _db.TaskItems.AsNoTracking()
+            .CountAsync(t => t.AssigneeUserId == userId && t.IsOverdue && !finalStatuses.Contains(t.Status), ct);
+
+        var approverParticipantTaskIds = _db.TaskParticipants
+            .Where(p => p.UserId == userId && p.Role == TaskParticipantRole.Approver)
+            .Select(p => p.TaskId);
+        var onApproval = await _db.TaskItems.AsNoTracking()
+            .CountAsync(t => t.Status == TaskStatus.OnApproval && approverParticipantTaskIds.Contains(t.Id), ct);
+
+        var needsControl = await _db.TaskItems.AsNoTracking()
+            .CountAsync(t => t.ControllerUserId == userId
+                && (t.Status == TaskStatus.DoneNeedsControl || t.Status == TaskStatus.CannotDoNeedsControl), ct);
+
+        return new TaskCountersDto
+        {
+            Incoming = incoming,
+            Overdue = overdue,
+            OnApproval = onApproval,
+            NeedsControl = needsControl,
+        };
+    }
+
+    // ─── FR-TASK-02.2: Excel-экспорт ─────────────────────────────────────────
+
+    /// <inheritdoc/>
+    public async Task<byte[]> ExportToExcelAsync(Guid userId, bool isAdmin, TaskListFilter filter, CancellationToken ct = default)
+    {
+        // Снимаем пагинацию для экспорта
+        filter.Page = 1;
+        filter.PageSize = 10_000;
+        var tasks = await ListAsync(userId, isAdmin, filter, ct);
+
+        using var wb = new ClosedXML.Excel.XLWorkbook();
+        var ws = wb.Worksheets.Add("Задачи");
+
+        // Заголовки
+        var headers = new[] { "№", "Тема", "Статус", "Приоритет", "Вид", "Исполнитель", "Автор", "Срок", "Категория", "Теги", "Создана" };
+        for (int i = 0; i < headers.Length; i++)
+        {
+            ws.Cell(1, i + 1).Value = headers[i];
+            ws.Cell(1, i + 1).Style.Font.Bold = true;
+        }
+
+        int row = 2;
+        foreach (var t in tasks)
+        {
+            ws.Cell(row, 1).Value = $"T-{t.Number}";
+            ws.Cell(row, 2).Value = t.Subject;
+            ws.Cell(row, 3).Value = t.Status;
+            ws.Cell(row, 4).Value = t.Priority;
+            ws.Cell(row, 5).Value = t.Kind;
+            ws.Cell(row, 6).Value = t.AssigneeName;
+            ws.Cell(row, 7).Value = t.AuthorName;
+            ws.Cell(row, 8).Value = t.DueDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm");
+            ws.Cell(row, 9).Value = t.CategoryId ?? "";
+            ws.Cell(row, 10).Value = string.Join(", ", t.Tags);
+            ws.Cell(row, 11).Value = t.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm");
+            row++;
+        }
+        ws.Columns().AdjustToContents();
+
+        using var ms = new System.IO.MemoryStream();
+        wb.SaveAs(ms);
+        return ms.ToArray();
     }
 }

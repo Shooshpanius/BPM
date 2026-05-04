@@ -50,10 +50,21 @@ export interface TaskSummaryDto {
     categoryId?: string;
     assigneeUserId: string;
     assigneeName: string;
+    /** Автор задачи (FR-TASK-02.2) */
+    authorUserId: string;
+    authorName: string;
     dueDate: string;
     isOverdue: boolean;
     createdAt: string;
     tags: string[];
+    /** Вид задачи (FR-TASK-02.2) */
+    kind: string;
+    /** Дата планирования в календаре (FR-TASK-02.3) */
+    scheduledAt?: string;
+    /** Текущий пользователь — соисполнитель (FR-TASK-02.2) */
+    isCoExecutor: boolean;
+    /** Количество незакрытых вопросов (FR-TASK-02.2) */
+    openQuestionCount: number;
 }
 
 export interface TaskDto {
@@ -179,6 +190,11 @@ export interface TaskListParams {
     sortDir?: string;
     /** Фильтр по родительской задаче (для загрузки подзадач). */
     parentTaskId?: string;
+    /** Группа задач: incoming | outgoing | control | co-exec (FR-TASK-02.2) */
+    group?: string;
+    /** Страница (1-based) для пагинации (FR-TASK-02.2) */
+    page?: number;
+    pageSize?: number;
 }
 
 async function apiFetch<T>(token: string, url: string, options?: RequestInit): Promise<T> {
@@ -214,6 +230,9 @@ export async function listTasks(token: string, params: TaskListParams = {}): Pro
     if (params.sortBy) q.set('sortBy', params.sortBy);
     if (params.sortDir) q.set('sortDir', params.sortDir);
     if (params.parentTaskId) q.set('parentTaskId', params.parentTaskId);
+    if (params.group) q.set('group', params.group);
+    if (params.page) q.set('page', String(params.page));
+    if (params.pageSize) q.set('pageSize', String(params.pageSize));
     return apiFetch<TaskSummaryDto[]>(token, `/api/tasks?${q}`);
 }
 
@@ -917,4 +936,34 @@ export interface SearchResultsDto {
 export async function searchTasks(token: string, q: string, limit = 20): Promise<SearchResultsDto> {
     const params = new URLSearchParams({ q, type: 'task', limit: String(limit) });
     return apiFetch<SearchResultsDto>(token, `/api/search?${params}`);
+}
+
+// ─── FR-TASK-02.2: Счётчики + Excel-экспорт ──────────────────────────────────
+
+export interface TaskCountersDto {
+    incoming: number;
+    overdue: number;
+    onApproval: number;
+    needsControl: number;
+}
+
+/** Получить счётчики задач для бейджей Sidebar. FR-TASK-02.2. */
+export async function getTaskCounters(token: string): Promise<TaskCountersDto> {
+    return apiFetch<TaskCountersDto>(token, '/api/tasks/counters');
+}
+
+/** Экспортировать задачи в Excel (.xlsx). FR-TASK-02.2. */
+export async function exportTasksExcel(token: string, params: TaskListParams = {}): Promise<Blob> {
+    const q = new URLSearchParams({ format: 'xlsx' });
+    if (params.status) q.set('status', params.status);
+    if (params.priority) q.set('priority', params.priority);
+    if (params.assigneeId) q.set('assigneeId', params.assigneeId);
+    if (params.search) q.set('search', params.search);
+    if (params.group) q.set('group', params.group);
+
+    const res = await fetch(`/api/tasks/export?${q}`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.blob();
 }
