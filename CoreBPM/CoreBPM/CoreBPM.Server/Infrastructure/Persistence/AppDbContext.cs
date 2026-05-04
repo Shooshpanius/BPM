@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using CoreBPM.Server.Domain.Admin;
 using CoreBPM.Server.Domain.Auth;
 using CoreBPM.Server.Domain.Bpm;
+using CoreBPM.Server.Domain.Notify;
 using CoreBPM.Server.Domain.Org;
 using CoreBPM.Server.Domain.Portal;
 using CoreBPM.Server.Domain.Rules;
@@ -87,6 +89,43 @@ public class AppDbContext : DbContext
     public DbSet<PortalDashboardWidget> PortalDashboardWidgets => Set<PortalDashboardWidget>();
     public DbSet<PortalBranding> PortalBrandings => Set<PortalBranding>();
     public DbSet<PortalMenuItem> PortalMenuItems => Set<PortalMenuItem>();
+
+    // FR-MSG-01: Чаты и сообщения
+    public DbSet<NotifyChat> NotifyChats => Set<NotifyChat>();
+    public DbSet<NotifyChatMember> NotifyChatMembers => Set<NotifyChatMember>();
+    public DbSet<NotifyMessage> NotifyMessages => Set<NotifyMessage>();
+    public DbSet<NotifyMessageRead> NotifyMessageReads => Set<NotifyMessageRead>();
+    public DbSet<NotifyMessageReaction> NotifyMessageReactions => Set<NotifyMessageReaction>();
+    public DbSet<NotifyPinnedMessage> NotifyPinnedMessages => Set<NotifyPinnedMessage>();
+
+    // FR-MSG-01.2: Каналы
+    public DbSet<NotifyChannel> NotifyChannels => Set<NotifyChannel>();
+    public DbSet<NotifyChannelSubscriber> NotifyChannelSubscribers => Set<NotifyChannelSubscriber>();
+    public DbSet<NotifyChannelPost> NotifyChannelPosts => Set<NotifyChannelPost>();
+    public DbSet<NotifyPostReaction> NotifyPostReactions => Set<NotifyPostReaction>();
+    public DbSet<NotifyPostComment> NotifyPostComments => Set<NotifyPostComment>();
+    public DbSet<NotifyChannelPinnedPost> NotifyChannelPinnedPosts => Set<NotifyChannelPinnedPost>();
+    public DbSet<NotifyUserMessagingPrefs> NotifyUserMessagingPrefs => Set<NotifyUserMessagingPrefs>();
+
+    // ─── In-app уведомления (FR-MSG-02.1) ────────────────────────────────────
+    public DbSet<NotifyInboxEntry> NotifyInboxEntries => Set<NotifyInboxEntry>();
+    public DbSet<NotifyActionToken> NotifyActionTokens => Set<NotifyActionToken>();
+    public DbSet<NotifyPushSubscription> NotifyPushSubscriptions => Set<NotifyPushSubscription>();
+    public DbSet<NotifySmsLog> NotifySmsLogs => Set<NotifySmsLog>();
+
+    // ─── Настройки условий отправки (FR-MSG-02.2) ──────────────────────────
+    public DbSet<NotifyDndSettings> NotifyDndSettings => Set<NotifyDndSettings>();
+    public DbSet<NotifyDeliveryLog> NotifyDeliveryLogs => Set<NotifyDeliveryLog>();
+    public DbSet<AdminNotificationTemplate> AdminNotificationTemplates => Set<AdminNotificationTemplate>();
+    public DbSet<NotifyThrottleSetting> NotifyThrottleSettings => Set<NotifyThrottleSetting>();
+    public DbSet<NotifyThrottleLog> NotifyThrottleLogs => Set<NotifyThrottleLog>();
+    public DbSet<AdminNotificationLogSettings> AdminNotificationLogSettings => Set<AdminNotificationLogSettings>();
+
+    // ─── Настройки SMTP / Email-шаблоны / SMS / VAPID (FR-ADM-02.1, FR-MSG-02.1) ──
+    public DbSet<AdminSmtpSettings> AdminSmtpSettings => Set<AdminSmtpSettings>();
+    public DbSet<AdminEmailTemplate> AdminEmailTemplates => Set<AdminEmailTemplate>();
+    public DbSet<AdminSmsSettings> AdminSmsSettings => Set<AdminSmsSettings>();
+    public DbSet<AdminVapidSettings> AdminVapidSettings => Set<AdminVapidSettings>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -1275,6 +1314,323 @@ public class AppDbContext : DbContext
             e.HasKey(m => m.Id);
             e.Property(m => m.Label).IsRequired().HasMaxLength(200);
             e.HasIndex(m => m.SortOrder);
+        });
+
+        // ─── FR-MSG-01: Чаты и сообщения ──────────────────────────────────────────
+
+        modelBuilder.Entity<NotifyChat>(e =>
+        {
+            e.ToTable("notify_chats");
+            e.HasKey(c => c.Id);
+            e.Property(c => c.Name).HasMaxLength(200);
+            e.Property(c => c.Kind).HasConversion<string>().HasMaxLength(20);
+            e.HasIndex(c => c.LastMessageAt);
+        });
+
+        modelBuilder.Entity<NotifyChatMember>(e =>
+        {
+            e.ToTable("notify_chat_members");
+            e.HasKey(m => m.Id);
+            e.HasIndex(m => new { m.ChatId, m.UserId }).IsUnique();
+            e.HasOne(m => m.Chat)
+             .WithMany(c => c.Members)
+             .HasForeignKey(m => m.ChatId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<NotifyMessage>(e =>
+        {
+            e.ToTable("notify_messages");
+            e.HasKey(msg => msg.Id);
+            e.Property(msg => msg.Text).IsRequired();
+            e.HasIndex(msg => msg.ChatId);
+            e.HasIndex(msg => msg.CreatedAt);
+            e.HasOne(msg => msg.Chat)
+             .WithMany(c => c.Messages)
+             .HasForeignKey(msg => msg.ChatId)
+             .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(msg => msg.ReplyToMessage)
+             .WithMany()
+             .HasForeignKey(msg => msg.ReplyToMessageId)
+             .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<NotifyMessageRead>(e =>
+        {
+            e.ToTable("notify_message_reads");
+            e.HasKey(r => r.Id);
+            e.HasIndex(r => new { r.MessageId, r.UserId }).IsUnique();
+            e.HasOne(r => r.Message)
+             .WithMany(m => m.Reads)
+             .HasForeignKey(r => r.MessageId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<NotifyMessageReaction>(e =>
+        {
+            e.ToTable("notify_message_reactions");
+            e.HasKey(r => r.Id);
+            e.HasIndex(r => new { r.MessageId, r.UserId, r.Emoji }).IsUnique();
+            e.Property(r => r.Emoji).IsRequired().HasMaxLength(50);
+            e.HasOne(r => r.Message)
+             .WithMany(m => m.Reactions)
+             .HasForeignKey(r => r.MessageId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<NotifyPinnedMessage>(e =>
+        {
+            e.ToTable("notify_pinned_messages");
+            e.HasKey(p => p.Id);
+            e.HasIndex(p => p.ChatId);
+            e.HasOne(p => p.Chat)
+             .WithMany(c => c.PinnedMessages)
+             .HasForeignKey(p => p.ChatId)
+             .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(p => p.Message)
+             .WithMany()
+             .HasForeignKey(p => p.MessageId)
+             .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ─── FR-MSG-01.2: Каналы ──────────────────────────────────────────────────
+
+        modelBuilder.Entity<NotifyChannel>(e =>
+        {
+            e.ToTable("notify_channels");
+            e.HasKey(c => c.Id);
+            e.Property(c => c.Name).IsRequired().HasMaxLength(200);
+            e.Property(c => c.Description).HasMaxLength(1000);
+            e.Property(c => c.IconEmoji).HasMaxLength(50);
+            e.Property(c => c.Kind).HasConversion<string>().HasMaxLength(20);
+        });
+
+        modelBuilder.Entity<NotifyChannelSubscriber>(e =>
+        {
+            e.ToTable("notify_channel_subscribers");
+            e.HasKey(s => s.Id);
+            e.HasIndex(s => new { s.ChannelId, s.UserId }).IsUnique();
+            e.HasOne(s => s.Channel)
+             .WithMany(c => c.Subscribers)
+             .HasForeignKey(s => s.ChannelId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<NotifyChannelPost>(e =>
+        {
+            e.ToTable("notify_channel_posts");
+            e.HasKey(p => p.Id);
+            e.Property(p => p.Title).HasMaxLength(500);
+            e.Property(p => p.Body).IsRequired();
+            e.HasIndex(p => p.ChannelId);
+            e.HasIndex(p => p.CreatedAt);
+            e.HasOne(p => p.Channel)
+             .WithMany(c => c.Posts)
+             .HasForeignKey(p => p.ChannelId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<NotifyPostReaction>(e =>
+        {
+            e.ToTable("notify_post_reactions");
+            e.HasKey(r => r.Id);
+            e.HasIndex(r => new { r.PostId, r.UserId, r.Emoji }).IsUnique();
+            e.Property(r => r.Emoji).IsRequired().HasMaxLength(50);
+            e.HasOne(r => r.Post)
+             .WithMany()
+             .HasForeignKey(r => r.PostId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<NotifyPostComment>(e =>
+        {
+            e.ToTable("notify_post_comments");
+            e.HasKey(c => c.Id);
+            e.HasIndex(c => c.PostId);
+            e.HasIndex(c => c.CreatedAt);
+            e.Property(c => c.Text).IsRequired().HasMaxLength(4000);
+            e.HasOne(c => c.Post)
+             .WithMany()
+             .HasForeignKey(c => c.PostId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<NotifyChannelPinnedPost>(e =>
+        {
+            e.ToTable("notify_channel_pinned_posts");
+            e.HasKey(p => p.Id);
+            e.HasIndex(p => p.ChannelId);
+            e.HasIndex(p => new { p.ChannelId, p.PostId }).IsUnique();
+            e.HasOne(p => p.Channel)
+             .WithMany()
+             .HasForeignKey(p => p.ChannelId)
+             .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(p => p.Post)
+             .WithMany()
+             .HasForeignKey(p => p.PostId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<NotifyUserMessagingPrefs>(e =>
+        {
+            e.ToTable("notify_user_messaging_prefs");
+            e.HasKey(p => p.Id);
+            e.HasIndex(p => p.UserId).IsUnique();
+            e.Property(p => p.SortOrder).IsRequired().HasMaxLength(30);
+            e.Property(p => p.PinnedChatIds).IsRequired();
+            e.Property(p => p.HiddenChatIds).IsRequired();
+        });
+
+        // ─── In-app уведомления ─────────────────────────────────────────────────
+        modelBuilder.Entity<NotifyInboxEntry>(e =>
+        {
+            e.ToTable("notify_inbox");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.UserId, x.IsRead });
+            e.HasIndex(x => x.CreatedAt);
+            e.Property(x => x.Type).IsRequired().HasMaxLength(100);
+            e.Property(x => x.Title).IsRequired().HasMaxLength(500);
+            e.Property(x => x.Body).IsRequired().HasMaxLength(2000);
+            e.Property(x => x.Link).HasMaxLength(2000);
+        });
+
+        // ─── SMTP настройки ─────────────────────────────────────────────────────
+        modelBuilder.Entity<AdminSmtpSettings>(e =>
+        {
+            e.ToTable("admin_smtp_settings");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Host).IsRequired().HasMaxLength(255);
+            e.Property(x => x.FromAddress).IsRequired().HasMaxLength(255);
+            e.Property(x => x.FromName).IsRequired().HasMaxLength(200);
+            e.Property(x => x.Username).HasMaxLength(255);
+            e.Property(x => x.Password).HasMaxLength(500);
+        });
+
+        // ─── Rich email шаблоны (FR-MSG-02.1) ────────────────────────────────
+        modelBuilder.Entity<AdminEmailTemplate>(e =>
+        {
+            e.ToTable("admin_email_templates");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.EventType).IsUnique();
+            e.Property(x => x.EventType).IsRequired().HasMaxLength(100);
+            e.Property(x => x.Subject).IsRequired().HasMaxLength(500);
+            e.Property(x => x.HtmlTemplate).IsRequired();
+            e.Property(x => x.IsActive).HasDefaultValue(true);
+        });
+
+        // ─── Токены действий для actionable email (FR-MSG-02.1) ──────────────
+        modelBuilder.Entity<NotifyActionToken>(e =>
+        {
+            e.ToTable("notify_action_tokens");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.Token).IsUnique();
+            e.Property(x => x.EventType).IsRequired().HasMaxLength(100);
+            e.Property(x => x.ActionType).IsRequired().HasMaxLength(50);
+        });
+
+        // ─── SMS настройки (FR-MSG-02.1) ─────────────────────────────────────
+        modelBuilder.Entity<AdminSmsSettings>(e =>
+        {
+            e.ToTable("admin_sms_settings");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.ProviderUrl).HasMaxLength(500);
+            e.Property(x => x.ApiKey).HasMaxLength(500);
+            e.Property(x => x.FromNumber).HasMaxLength(50);
+            e.Property(x => x.PhoneParamName).IsRequired().HasMaxLength(50).HasDefaultValue("to");
+            e.Property(x => x.MessageParamName).IsRequired().HasMaxLength(50).HasDefaultValue("msg");
+            e.Property(x => x.ApiKeyParamName).IsRequired().HasMaxLength(50).HasDefaultValue("api_id");
+        });
+
+        // ─── Лог SMS (FR-MSG-02.1) ────────────────────────────────────────────
+        modelBuilder.Entity<NotifySmsLog>(e =>
+        {
+            e.ToTable("notify_sms_log");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.PhoneNumber).IsRequired().HasMaxLength(50);
+            e.Property(x => x.EventType).IsRequired().HasMaxLength(100);
+            e.Property(x => x.Message).IsRequired().HasMaxLength(1000);
+            e.Property(x => x.Status).IsRequired().HasMaxLength(20);
+            e.Property(x => x.ErrorMessage).HasMaxLength(1000);
+            e.Property(x => x.ProviderResponse).HasMaxLength(1000);
+        });
+
+        // ─── Web Push подписки (FR-MSG-02.1) ─────────────────────────────────
+        modelBuilder.Entity<NotifyPushSubscription>(e =>
+        {
+            e.ToTable("notify_push_subscriptions");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.UserId, x.Endpoint }).IsUnique();
+            e.Property(x => x.Endpoint).IsRequired().HasMaxLength(2000);
+            e.Property(x => x.P256dh).IsRequired().HasMaxLength(500);
+            e.Property(x => x.Auth).IsRequired().HasMaxLength(200);
+            e.Property(x => x.UserAgent).HasMaxLength(500);
+        });
+
+        // ─── VAPID ключи (FR-MSG-02.1) ────────────────────────────────────────
+        modelBuilder.Entity<AdminVapidSettings>(e =>
+        {
+            e.ToTable("admin_vapid_settings");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.PublicKey).HasMaxLength(200);
+            e.Property(x => x.PrivateKey).HasMaxLength(200);
+            e.Property(x => x.Subject).IsRequired().HasMaxLength(200);
+        });
+
+        // ─── DND настройки (FR-MSG-02.2) ──────────────────────────────────────
+        modelBuilder.Entity<NotifyDndSettings>(e =>
+        {
+            e.ToTable("notify_dnd_settings");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.UserId).IsUnique();
+            e.Property(x => x.DisabledDays).HasMaxLength(20).HasDefaultValue("");
+            e.Property(x => x.TimeZone).HasMaxLength(100).HasDefaultValue("UTC");
+        });
+
+        // ─── Журнал доставки (FR-MSG-02.2) ────────────────────────────────────
+        modelBuilder.Entity<NotifyDeliveryLog>(e =>
+        {
+            e.ToTable("notify_delivery_log");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.UserId, x.CreatedAt });
+            e.HasIndex(x => new { x.EventType, x.Channel, x.Status });
+            e.Property(x => x.EventType).HasMaxLength(100);
+            e.Property(x => x.Error).HasMaxLength(2000);
+        });
+
+        // ─── Глобальные шаблоны уведомлений (FR-MSG-02.2) ────────────────────
+        modelBuilder.Entity<AdminNotificationTemplate>(e =>
+        {
+            e.ToTable("admin_notification_templates");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.EventType).IsUnique();
+            e.Property(x => x.EventType).IsRequired().HasMaxLength(100);
+            e.Property(x => x.EventLabel).HasMaxLength(200);
+            e.Property(x => x.EmailSubjectTemplate).HasMaxLength(500);
+            e.Property(x => x.ShortTemplate).HasMaxLength(500);
+        });
+
+        // ─── Ограничение частоты уведомлений (FR-MSG-02.2 throttle) ─────────
+        modelBuilder.Entity<NotifyThrottleSetting>(e =>
+        {
+            e.ToTable("notify_throttle_settings");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.UserId, x.EventType, x.Channel }).IsUnique();
+            e.Property(x => x.EventType).IsRequired().HasMaxLength(100);
+        });
+
+        modelBuilder.Entity<NotifyThrottleLog>(e =>
+        {
+            e.ToTable("notify_throttle_log");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.UserId, x.EventType, x.Channel }).IsUnique();
+            e.Property(x => x.EventType).IsRequired().HasMaxLength(100);
+        });
+
+        // ─── Настройки хранения журнала (FR-MSG-02.2 retention) ─────────────
+        modelBuilder.Entity<AdminNotificationLogSettings>(e =>
+        {
+            e.ToTable("admin_notification_log_settings");
+            e.HasKey(x => x.Id);
         });
     }
 }

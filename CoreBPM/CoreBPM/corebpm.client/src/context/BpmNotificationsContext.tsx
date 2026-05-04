@@ -8,6 +8,12 @@ import {
 } from 'react';
 import * as signalR from '@microsoft/signalr';
 import { useAuth } from './AuthContext';
+import {
+    getNotifications,
+    markNotificationRead as apiMarkRead,
+    markAllNotificationsRead as apiMarkAllRead,
+    type InboxEntryDto,
+} from '../api/notificationsApi';
 
 // ─── Типы ─────────────────────────────────────────────────────────────────────
 
@@ -19,12 +25,15 @@ export interface BpmNotification {
     read: boolean;
     /** Дополнительные данные (зависят от типа). */
     payload?: unknown;
+    /** Ссылка для перехода. */
+    link?: string | null;
 }
 
 interface BpmNotificationsCtx {
     notifications: BpmNotification[];
     unreadCount: number;
     markRead: (id: string) => void;
+    markAllRead: () => void;
     clearAll: () => void;
 }
 
@@ -34,6 +43,7 @@ const BpmNotificationsContext = createContext<BpmNotificationsCtx>({
     notifications: [],
     unreadCount: 0,
     markRead: () => {},
+    markAllRead: () => {},
     clearAll: () => {},
 });
 
@@ -44,6 +54,17 @@ export function BpmNotificationsProvider({ children }: { children: ReactNode }) 
     const { accessToken, isAuthenticated } = useAuth();
     const [notifications, setNotifications] = useState<BpmNotification[]>([]);
     const connectionRef = useRef<signalR.HubConnection | null>(null);
+
+    // Загружаем последние уведомления из API при старте
+    useEffect(() => {
+        if (!isAuthenticated) return;
+        getNotifications({ page: 1, pageSize: 30 })
+            .then(res => {
+                const mapped = res.items.map(apiEntryToNotification);
+                setNotifications(mapped);
+            })
+            .catch(() => {/* если API недоступен — продолжаем только через SignalR */});
+    }, [isAuthenticated]);
 
     useEffect(() => {
         if (!isAuthenticated || !accessToken) return;
@@ -73,15 +94,22 @@ export function BpmNotificationsProvider({ children }: { children: ReactNode }) 
         };
     }, [isAuthenticated, accessToken]);
 
-    const markRead = (id: string) =>
+    const markRead = (id: string) => {
         setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+        apiMarkRead(id).catch(() => {/* игнорируем ошибки синхронизации */});
+    };
+
+    const markAllRead = () => {
+        setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+        apiMarkAllRead().catch(() => {});
+    };
 
     const clearAll = () => setNotifications([]);
 
     const unreadCount = notifications.filter(n => !n.read && n.message).length;
 
     return (
-        <BpmNotificationsContext.Provider value={{ notifications, unreadCount, markRead, clearAll }}>
+        <BpmNotificationsContext.Provider value={{ notifications, unreadCount, markRead, markAllRead, clearAll }}>
             {children}
             <BpmNotificationToast notifications={notifications.filter(n => !n.read && n.message).slice(0, 3)} onClose={markRead} />
         </BpmNotificationsContext.Provider>
@@ -187,6 +215,15 @@ function buildNotification(data: Record<string, unknown>): BpmNotification {
             // Служебное событие — без сообщения (не показывается как тост)
             message = '';
             break;
+        case 'NewMessage': {
+            // Служебное событие — без тоста; бейдж обновляется в Sidebar
+            message = '';
+            break;
+        }
+        case 'NewChannelPost': {
+            message = `Новая публикация в канале «${data.channelName ?? ''}»${data.title ? `: ${data.title}` : ''}`;
+            break;
+        }
         default:
             message = typeof data.message === 'string' ? data.message : `Уведомление: ${type}`;
     }
@@ -206,6 +243,19 @@ function toastColor(type: string): string {
         case 'JobFailed': return '#ef4444';
         case 'MigrationPackageCompleted': return '#10b981';
         case 'ImprovementStatusChanged': return '#f59e0b';
+        case 'NewChannelPost': return '#10b981';
         default: return '#3b82f6';
     }
+}
+
+/** Маппинг API-записи inbox в клиентский объект BpmNotification. */
+function apiEntryToNotification(entry: InboxEntryDto): BpmNotification {
+    return {
+        id: entry.id,
+        type: entry.type,
+        message: entry.title + (entry.body ? `: ${entry.body}` : ''),
+        occurredAt: new Date(entry.createdAt),
+        read: entry.isRead,
+        link: entry.link,
+    };
 }

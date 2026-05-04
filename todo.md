@@ -1345,40 +1345,61 @@
 ### FR-MSG-01: Внутренние сообщения
 
 #### FR-MSG-01.1: Корпоративный чат / Лента
-- [ ] **Личные сообщения (Direct Messages)**: диалог 1:1 между двумя пользователями; `POST /api/messages/direct`; `GET /api/messages/direct/{userId}`; список диалогов с сортировкой по последнему сообщению; индикатор непрочитанных
-- [ ] **Групповые чаты**: создание чата с произвольным набором участников; добавление/удаление участников администратором чата; `POST /api/messages/chats`; `POST /api/messages/chats/{id}/members`; `DELETE /api/messages/chats/{id}/members/{userId}`
-- [ ] **Сообщение**: текст (Markdown-форматирование), вложения (файлы, изображения), эмодзи-реакции; `POST /api/messages/chats/{id}/messages`; максимальный размер вложения настраивается администратором
-- [ ] **Упоминания**: `@пользователь` в тексте вызывает in-app уведомление упомянутому; `@channel` уведомляет всех участников чата; при вводе `@` — автодополнение по имени
-- [ ] **Ответ на сообщение** (reply/threading): цитирование конкретного сообщения; ветка ответов сворачивается в основном потоке; `POST /api/messages/chats/{id}/messages?replyTo={msgId}`
-- [ ] **Редактирование и удаление** собственных сообщений с отметкой «изменено»; `PUT /api/messages/{id}`; `DELETE /api/messages/{id}`; история редактирования доступна по иконке
-- [ ] **Поиск по сообщениям**: полнотекстовый поиск в рамках конкретного чата и глобально; `GET /api/messages/search?q=...&chatId=...`
-- [ ] Статусы прочтения: «отправлено», «доставлено», «прочитано» (чекбоксы / галочки); `PUT /api/messages/{id}/read`
+- [x] **Личные сообщения (Direct Messages)**: диалог 1:1 между двумя пользователями; `POST /api/messages/direct`; `GET /api/messages/direct/{userId}`; список диалогов с сортировкой по последнему сообщению; индикатор непрочитанных
+- [x] **Групповые чаты**: создание чата с произвольным набором участников; добавление/удаление участников администратором чата; `POST /api/messages/chats`; `POST /api/messages/chats/{id}/members`; `DELETE /api/messages/chats/{id}/members/{userId}`
+- [x] **Переименование группового чата**: администратор чата может изменить название; `PUT /api/messages/chats/{id}`; кнопка «Переименовать» в шапке чата
+- [x] **Покинуть групповой чат**: пользователь выходит самостоятельно; `POST /api/messages/chats/{id}/leave`; защита от выхода единственного администратора
+- [x] **Сообщение**: текст, эмодзи-реакции (toggle); `POST /api/messages/chats/{id}/messages`; вложения — отложено
+- [x] **Упоминания**: `@пользователь` разбирается через регулярное выражение на бэкенде и доставляется через SignalR-уведомление `NewMessage`; автодополнение — отложено
+- [x] **Ответ на сообщение** (reply/threading): цитирование конкретного сообщения через `replyToMessageId`; цитата отображается над текстом ответа
+- [x] **Пересылка сообщений** (forward): копирование сообщения в другой чат; `POST /api/messages/{id}/forward`; диалог выбора целевого чата на фронтенде
+- [x] **Редактирование и удаление** собственных сообщений с отметкой «изменено»; `PUT /api/messages/{id}`; `DELETE /api/messages/{id}` (soft delete)
+- [x] **Поиск по сообщениям**: полнотекстовый поиск в рамках конкретного чата и глобально; `GET /api/messages/search?q=...&chatId=...`
+- [x] Статусы прочтения: `PUT /api/messages/{id}/read`; `PUT /api/messages/chats/{id}/read-all`; количество непрочитанных `GET /api/messages/unread-count`
+- [x] **Индикатор «пользователь печатает»** (Typing indicator): `POST /api/messages/chats/{id}/typing` — SignalR-событие `Typing` доставляется участникам чата без записи в БД; добавлена проверка членства в чате перед рассылкой (защита от несанкционированной рассылки)
+- [x] **Бейдж непрочитанных в сайдбаре**: счётчик обновляется каждые 60 секунд и по push-событию `NewMessage`
+- [x] **Безопасность SignalR (JoinChat)**: метод `BpmNotificationHub.JoinChat` проверяет членство пользователя в чате перед добавлением в группу; неавторизованная подписка на чужой чат игнорируется (защита от IDOR)
+- [x] **Контроль доступа (MarkRead, ToggleReaction, ForwardMessage)**: добавлена проверка членства в чате для `MarkReadAsync`, `ToggleReactionAsync` и доступа к исходному чату в `ForwardMessageAsync` (защита от IDOR)
+- [x] **Ограничения ввода**: максимальная длина текста сообщения ограничена 10 000 символами; длина emoji-реакции ограничена 16 символами (защита от DoS)
 
 #### FR-MSG-01.2: Информационные каналы
-- [ ] **Создание канала**: публичный (любой может подписаться) / приватный (по приглашению); название, описание, иконка; `POST /api/messages/channels`
-- [ ] **Подписка / отписка**: `POST /api/messages/channels/{id}/subscribe`; `DELETE /api/messages/channels/{id}/subscribe`
-- [ ] В канале только администраторы/модераторы канала могут публиковать; остальные могут только читать и ставить реакции
-- [ ] Список всех доступных каналов с количеством подписчиков и последней активностью; `GET /api/messages/channels`
-- [ ] **Публикации канала**: пост с заголовком, rich-text телом, вложениями; `POST /api/messages/channels/{id}/posts`; пользователи видят посты в хронологическом порядке
-- [ ] **Настройки ленты**: пользователь настраивает отображение — какие чаты/каналы показывать в сайдбаре; сортировка (по активности / алфавиту / ручная); «Закреплённые» чаты вверху списка; `PUT /api/users/me/messaging-prefs`
-- [ ] **Закреплённые сообщения**: администратор чата/канала может закрепить важное сообщение; `POST /api/messages/chats/{id}/pinned`; `GET /api/messages/chats/{id}/pinned`
+- [x] **Создание канала**: публичный (любой может подписаться) / приватный (по приглашению); название, описание, иконка; `POST /api/messages/channels`
+- [x] **Редактирование канала**: администратор канала может изменить название, описание и иконку; `PUT /api/messages/channels/{id}`; кнопки управления в списке каналов
+- [x] **Удаление канала**: создатель или администратор канала может удалить его; `DELETE /api/messages/channels/{id}`; каскадное удаление постов и подписчиков
+- [x] **Подписка / отписка**: `POST /api/messages/channels/{id}/subscribe`; `DELETE /api/messages/channels/{id}/subscribe`
+- [x] В канале только администраторы/модераторы канала могут публиковать; остальные могут только читать
+- [x] Список всех доступных каналов с количеством подписчиков и последней активностью; `GET /api/messages/channels`
+- [x] **Публикации канала**: пост с заголовком, rich-text телом; `POST /api/messages/channels/{id}/posts`; `PUT/DELETE /api/messages/channels/{id}/posts/{postId}`; пользователи видят посты в хронологическом порядке
+- [x] **Настройки ленты**: пользователь настраивает отображение — какие чаты/каналы показывать; сортировка (по активности / алфавиту / ручная); закреплённые чаты вверху списка; `GET/PUT /api/users/me/messaging-prefs`
+- [x] **Закреплённые сообщения**: администратор чата может закрепить важное сообщение; `POST /api/messages/chats/{id}/pinned`; `GET /api/messages/chats/{id}/pinned`; `DELETE /api/messages/chats/{id}/pinned/{pinId}`
+- [x] **Реакции на публикации**: подписчики ставят эмодзи-реакции на посты (toggle); `POST /api/messages/channels/{channelId}/posts/{postId}/react`; таблица `notify_post_reactions`; отображение под постом в ChannelsPage
+- [x] **Комментарии к публикациям**: подписчики публичных и приватных каналов могут оставлять комментарии к постам; `GET/POST /api/messages/channels/{channelId}/posts/{postId}/comments`; `DELETE /api/messages/channels/{channelId}/posts/{postId}/comments/{commentId}`; таблица `notify_post_comments`; секция комментариев разворачивается по клику в ChannelsPage
+- [x] **Поиск по публикациям**: фильтрация постов по тексту заголовка и тела; `GET /api/messages/channels/{channelId}/posts?q=...`; поле поиска в шапке канала
+- [x] **Список подписчиков**: просмотр всех подписчиков канала с отметкой администраторов; `GET /api/messages/channels/{channelId}/subscribers`; диалог «Подписчики» открывается из шапки
+- [x] **Управление ролями подписчиков**: администратор канала может повышать/понижать подписчика до администратора (защита от снятия последнего администратора); `PUT /api/messages/channels/{channelId}/subscribers/{userId}/role`; кнопки ⬆️/⬇️ в диалоге подписчиков
+- [x] **Приглашение в приватный канал**: администратор приватного канала приглашает пользователей через PeoplePicker; `POST /api/messages/channels/{channelId}/invite`; приглашённый получает уведомление `ChannelInvite`; кнопка «✉️ Пригласить» в шапке приватного канала
+- [x] **Закреплённые публикации канала**: администратор закрепляет/откепляет публикации внутри канала; `POST/DELETE /api/messages/channels/{channelId}/posts/{postId}/pin`; `GET /api/messages/channels/{channelId}/pinned-posts`; таблица `notify_channel_pinned_posts`; диалог «📌 Закреплённые» в шапке; кнопки Закрепить/Открепить в меню поста
+- [x] **SignalR push для новых постов**: при создании публикации все подписчики канала получают событие `NewChannelPost` через SignalR (hub `bpm:notification`); ChannelsPage автоматически перезагружает посты при получении события для открытого канала
 
 ### FR-MSG-02: Уведомления
 
 #### FR-MSG-02.1: Каналы доставки уведомлений
-- [ ] **In-app уведомления**: колокольчик с баджем непрочитанных; выпадающий список последних уведомлений; страница всех уведомлений с фильтрацией по типу / прочитанные/непрочитанные; `GET /api/notifications?read=false`; `PUT /api/notifications/{id}/read`; `PUT /api/notifications/read-all`; доставка в реальном времени через SignalR/WebSocket
-- [ ] **Email-уведомления**: rich HTML шаблоны (шаблон настраивается в разделе администрирования); отправка через настроенный SMTP; `POST /api/notifications/email` (внутренний сервис); возможность использовать branding (логотип, цвета) в шаблоне; дайджест-режим (один email в день со всеми уведомлениями за день — настраивается пользователем)
-- [ ] **Оповещения в формате Rich email**: HTML-письма с расширенным форматированием — встроенные кнопки действий прямо в теле письма (Согласовать / Отклонить / Открыть задачу), табличное представление данных, встроенные изображения; шаблоны редактируются в визуальном WYSIWYG-редакторе; `GET/POST/PUT/DELETE /api/admin/email-templates`
-- [ ] **Actionable email (кнопки действий)**: ссылки в письме позволяют выполнить действие (согласовать задачу, принять/отклонить) без перехода в браузер, при клике открывается защищённая одноразовая ссылка-подтверждение; токены действий хранятся в БД с ограниченным TTL
-- [ ] **SMS-уведомления**: отправка через настроенного провайдера (configurable URL / API key); шаблоны SMS; `POST /api/notifications/sms` (внутренний сервис); лог попыток отправки
-- [ ] **Push-уведомления (Web Push / PWA)**: подписка браузера на push через Service Worker; `POST /api/users/me/push-subscription`; отображение уведомления даже когда вкладка закрыта
+- [x] **In-app уведомления**: колокольчик с баджем непрочитанных в Sidebar; страница всех уведомлений с фильтрацией по типу / прочитанные/непрочитанные; `GET /api/notifications?read=false&type=&page=`; `GET /api/notifications/unread-count`; `PUT /api/notifications/{id}/read`; `PUT /api/notifications/read-all`; `DELETE /api/notifications/{id}`; таблица `notify_inbox`; доставка в реальном времени через SignalR + персистентное хранение в БД (`InAppNotificationService`); `BpmNotificationsContext` загружает последние 30 из API при старте и мёржит с SignalR-пушами
+- [x] **Email-уведомления**: базовая отправка через `System.Net.Mail.SmtpClient`; HTML-шаблон с заголовком, телом и ссылкой; отправка при каждом вызове `NotifyUserAsync` (если у пользователя задан `WorkEmail` и SMTP настроен); `IEmailService` / `EmailService`
+- [x] **Оповещения в формате Rich email**: HTML-письма с расширенным форматированием — встроенные кнопки действий в теле письма, табличное представление данных; шаблоны хранятся в `admin_email_templates`; `IEmailTemplateService` / `EmailTemplateService`; `GET/PUT /api/admin/email-templates/{eventType}`; `POST /api/admin/email-templates/{eventType}/preview` (предпросмотр); визуальный редактор шаблонов `EmailTemplatesPage`; переменные `{{title}}`, `{{body}}`, `{{link}}`, `{{linkHtml}}`, `{{actions}}`; `BpmNotificationService.NotifyUserAsync` использует шаблоны через `IEmailTemplateService.RenderAsync`
+- [x] **Actionable email (кнопки действий)**: одноразовые защищённые ссылки-токены в письме; таблица `notify_action_tokens` с TTL 24 ч; `GET /api/action/{token}` — обрабатывает токен, отмечает использованным, редиректит на нужную страницу (`/tasks/{id}?action=approve`); `GET /api/action/{token}/status` — проверка статуса токена; `ActionTokenController`
+- [x] **SMS-уведомления**: отправка через configurable HTTP-провайдер (`AdminSmsSettings`); `ISmsService` / `SmsService`; настраиваемые имена параметров запроса (`phoneParamName`, `messageParamName`, `apiKeyParamName`); лог попыток в `notify_sms_log` (Sent/Failed/Skipped); `AdminSmsController` — `GET/PUT /api/admin/settings/sms`, `POST /api/admin/settings/sms/test`; `SmsSettingsPage`; `BpmNotificationService.NotifyUserAsync` отправляет SMS на `MobilePhone` пользователя
+- [x] **Push-уведомления (Web Push / PWA)**: VAPID-ключи (`admin_vapid_settings`); `IPushNotificationService` / `PushNotificationService` через NuGet `WebPush`; `POST /api/users/me/push-subscription` — регистрация подписки; `DELETE /api/users/me/push-subscription` — отписка; `GET /api/users/me/push-subscriptions` — список подписок; `GET /api/notifications/vapid-public-key`; `POST /api/admin/vapid/generate` — генерация ключей; `PushSubscriptionsController`; `public/sw.js` (Service Worker); хук `usePushNotifications.ts`; кнопка «Подписаться на push» в `NotificationsPage`; автоматическое удаление устаревших подписок (HTTP 410/404)
 
 #### FR-MSG-02.2: Настройки условий отправки
-- [ ] **Матрица настроек**: для каждого типа события (назначена задача / добавлен комментарий / изменён статус / напоминание / упоминание в чате / и т.д.) пользователь выбирает, по каким каналам получать уведомление (in-app / email / SMS / push); `GET/PUT /api/users/me/notification-settings`
-- [ ] **Расписание «не беспокоить»**: диапазон времени суток и/или дней недели, в которые push и SMS не отправляются; `PUT /api/users/me/notification-settings/dnd`
-- [ ] **Глобальные шаблоны уведомлений** (администратор): список событий-триггеров, текстовые шаблоны с переменными `{{task.name}}`, `{{user.fullName}}` и т.д.; `GET/POST/PUT/DELETE /api/admin/notification-templates`
-- [ ] **Принудительные уведомления**: администратор может пометить тип события как «обязательный» — пользователь не может отключить этот канал доставки
-- [ ] Журнал отправленных уведомлений (успех / ошибка / пропущено из-за DND): `GET /api/admin/notification-logs?userId=...&type=...`
+- [x] **Матрица настроек**: для каждого типа события (назначена задача / добавлен комментарий / изменён статус / напоминание / упоминание в чате / и т.д.) пользователь выбирает, по каким каналам получать уведомление (in-app / email / SMS / push); `GET/PUT /api/users/me/notification-settings`. Добавлены колонки SMS+Push в `UserTaskNotificationSettings`; расширен список типов событий (ChatMessageReceived, ChannelPostPublished, ChannelInvite, TaskApprovalRequired, TaskApprovalDecision); поле `HasMandatory` отображает 🔒 в UI. Страница `NotificationSettingsPage` обновлена — матрица 4 канала + DND.
+- [x] **Расписание «не беспокоить»**: диапазон времени суток и/или дней недели, в которые push и SMS не отправляются; `GET/PUT /api/users/me/notification-settings/dnd`. Сущность `NotifyDndSettings` (notify_dnd_settings), сервис `INotificationSettingsService/NotificationSettingsService`, контроллер `NotificationConditionsController`. `BpmNotificationService.NotifyUserAsync` проверяет DND перед отправкой SMS/Push.
+- [x] **Глобальные шаблоны уведомлений** (администратор): список событий-триггеров, текстовые шаблоны с переменными `{{task.name}}`, `{{user.fullName}}` и т.д.; `GET/PUT /api/admin/notification-templates/{eventType}`, `DELETE /api/admin/notification-templates/{id}`, `POST /api/admin/notification-templates/{eventType}/preview`. Сущность `AdminNotificationTemplate` (admin_notification_templates), `INotificationTemplateService/NotificationTemplateService`, `AdminNotificationTemplatesController`, страница `NotificationTemplatesPage`.
+- [x] **Принудительные уведомления**: администратор может пометить тип события как «обязательный» — пользователь не может отключить этот канал доставки. Флаги `IsMandatoryInApp/Email/Sms/Push` в `AdminNotificationTemplate`; `UpdateNotificationSettingsAsync` принудительно включает обязательные каналы; UI показывает 🔒.
+- [x] **Журнал отправленных уведомлений** (успех / ошибка / пропущено из-за DND / пропущено по throttle): `GET /api/admin/notification-logs?userId=...&type=...&channel=...&status=...`, `GET /api/admin/notification-logs/export` (экспорт CSV с защитой от Formula/CSV Injection). Сущность `NotifyDeliveryLog` (notify_delivery_log), enum `DeliveryChannel/NotifyDeliveryStatus` (добавлен `SkippedThrottle=4`); `BpmNotificationService` логирует каждую попытку по каждому каналу; страница `NotificationLogsPage` с фильтрами, пагинацией, кнопкой экспорта CSV и настройкой срока хранения. Миграция `AddNotificationSettingsV2`.
+- [x] **Ограничение частоты уведомлений (Throttle/Rate limiting)**: пользователь задаёт минимальный интервал (мин) между уведомлениями одного типа по каждому каналу; 0 = без ограничения; `GET/PUT /api/users/me/notification-settings/throttle`. Сущности `NotifyThrottleSetting` (notify_throttle_settings) и `NotifyThrottleLog` (notify_throttle_log); `INotificationSettingsService.IsThrottledAsync` проверяется в `BpmNotificationService.NotifyUserAsync` перед Email/SMS/Push; UI-секция «Ограничение частоты» в `NotificationSettingsPage`.
+- [x] **Автоочистка журнала доставки**: фоновый воркер `NotificationLogCleanupWorker` ежедневно удаляет записи старше настроенного срока; `GET/PUT /api/admin/notification-settings/retention`; настройка отображается в `NotificationLogsPage`. Сущность `AdminNotificationLogSettings` (admin_notification_log_settings, singleton). Миграция `AddNotificationThrottleAndStats`.
+- [x] **Статистика доставки уведомлений** (администратор): сводные счётчики Sent/Failed/Skipped по каналам за произвольный период, топ-10 типов событий; `GET /api/admin/notification-stats?from=...&to=...`; страница `NotificationStatsPage` (Sidebar: «Статистика уведомлений»).
 
 ---
 
@@ -1755,8 +1776,8 @@
 ### FR-ADM-02: Системные настройки
 
 #### FR-ADM-02.1: Исходящая почта (SMTP)
-- [ ] **Конфигурация SMTP**: хост, порт, STARTTLS/SSL, логин, пароль, отправитель (From name / From address); `PUT /api/admin/settings/smtp`
-- [ ] **Тестовое письмо**: отправка тестового email на указанный адрес для проверки конфигурации; `POST /api/admin/settings/smtp/test`
+- [x] **Конфигурация SMTP**: хост, порт, SSL, логин, пароль, отправитель (From name / From address); `GET /api/admin/settings/smtp`; `PUT /api/admin/settings/smtp`; таблица `admin_smtp_settings` (singleton); `AdminSmtpController`; `SmtpSettingsPage.tsx` в разделе Admin
+- [x] **Тестовое письмо**: отправка тестового email на From-адрес для проверки конфигурации; `POST /api/admin/settings/smtp/test`
 - [ ] **Пул соединений**: настройка максимального числа одновременных SMTP-соединений; очередь писем с повтором при временной недоступности сервера
 - [ ] **Лог отправки**: `GET /api/admin/settings/smtp/log` — история отправленных сообщений, статус (успех / ошибка), тема, получатель
 

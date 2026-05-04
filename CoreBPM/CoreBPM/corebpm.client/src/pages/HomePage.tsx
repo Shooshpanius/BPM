@@ -26,6 +26,13 @@ import { ProcessAnalyticsPage } from './bpm/ProcessAnalyticsPage';
 import TaskControlSettingsPage from './admin/TaskControlSettingsPage';
 import TimelogsReportPage from './admin/TimelogsReportPage';
 import { NotificationSettingsPage } from './admin/NotificationSettingsPage';
+import NotificationsPage from './NotificationsPage';
+import SmtpSettingsPage from './admin/SmtpSettingsPage';
+import EmailTemplatesPage from './admin/EmailTemplatesPage';
+import SmsSettingsPage from './admin/SmsSettingsPage';
+import { NotificationTemplatesPage } from './admin/NotificationTemplatesPage';
+import { NotificationLogsPage } from './admin/NotificationLogsPage';
+import { NotificationStatsPage } from './admin/NotificationStatsPage';
 import { MyColleaguesWidget } from '../components/org/MyColleaguesWidget';
 import { TasksPage } from './tasks/TasksPage';
 import { TaskDetailPage } from './tasks/TaskDetailPage';
@@ -35,6 +42,8 @@ import { CompanyPage } from './company/CompanyPage';
 import { UserProfilePage } from './profile/UserProfilePage';
 import { UserPreferencesPage } from './profile/UserPreferencesPage';
 import { PortalDashboardPage } from './portal/PortalDashboardPage';
+import { MessagesPage } from './messages/MessagesPage';
+import { ChannelsPage } from './messages/ChannelsPage';
 import './HomePage.css';
 
 interface HomePageProps {
@@ -245,6 +254,24 @@ export function HomePage({ onAdmin }: HomePageProps) {
                     {section === 'timelogs-report' && <TimelogsReportPage />}
                     {/* FR-TASK-02.3: Настройки уведомлений */}
                     {section === 'notification-settings' && <NotificationSettingsPage />}
+                    {/* FR-MSG-02.1: In-app уведомления */}
+                    {section === 'notifications' && <NotificationsPage />}
+                    {/* FR-ADM-02.1: Настройки SMTP */}
+                    {section === 'smtp-settings' && <SmtpSettingsPage />}
+                    {/* FR-MSG-02.1: Шаблоны email */}
+                    {section === 'email-templates' && <EmailTemplatesPage />}
+                    {/* FR-MSG-02.1: Настройки SMS */}
+                    {section === 'sms-settings' && <SmsSettingsPage />}
+                    {/* FR-MSG-02.2: Шаблоны уведомлений */}
+                    {section === 'notification-templates' && <NotificationTemplatesPage />}
+                    {/* FR-MSG-02.2: Журнал доставки */}
+                    {section === 'notification-logs' && <NotificationLogsPage />}
+                    {/* FR-MSG-02.2: Статистика доставки */}
+                    {section === 'notification-stats' && <NotificationStatsPage />}
+                    {/* FR-MSG-01.1: Корпоративный чат */}
+                    {section === 'messages' && <MessagesPage />}
+                    {/* FR-MSG-01.2: Информационные каналы */}
+                    {section === 'channels' && <ChannelsPage />}
                 </main>
             </div>
             {isMobile && <MobileNav active={section} onSelect={handleSelect} />}

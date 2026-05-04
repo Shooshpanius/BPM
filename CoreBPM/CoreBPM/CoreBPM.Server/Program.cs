@@ -3,6 +3,8 @@ using CoreBPM.Server.Application.Admin.Services;
 using CoreBPM.Server.Application.Bpm.Interfaces;
 using CoreBPM.Server.Application.Bpm.Scripting;
 using CoreBPM.Server.Application.Bpm.Services;
+using CoreBPM.Server.Application.Notify.Interfaces;
+using CoreBPM.Server.Application.Notify.Services;
 using CoreBPM.Server.Application.Org.Interfaces;
 using CoreBPM.Server.Application.Org.Services;
 using CoreBPM.Server.Application.Rules.Interfaces;
@@ -102,6 +104,17 @@ builder.Services.AddScoped<IUserProfileService, UserProfileService>();
 builder.Services.AddScoped<IUserPreferencesService, UserPreferencesService>();
 builder.Services.AddScoped<ICompanyService, CompanyService>();
 
+// Регистрация сервисов Messaging (FR-MSG-01: чаты, каналы, сообщения; FR-MSG-02.1: уведомления, SMTP, email-шаблоны, SMS, Push)
+builder.Services.AddScoped<IMessagingService, MessagingService>();
+builder.Services.AddScoped<IInAppNotificationService, InAppNotificationService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
+builder.Services.AddScoped<ISmsService, SmsService>();
+builder.Services.AddScoped<IPushNotificationService, PushNotificationService>();
+builder.Services.AddScoped<INotificationSettingsService, NotificationSettingsService>();
+builder.Services.AddScoped<INotificationTemplateService, NotificationTemplateService>();
+builder.Services.AddHttpClient("sms");
+
 // Регистрация сервисов Portal (FR-PORTAL-01)
 builder.Services.AddScoped<IPortalDashboardService, PortalDashboardService>();
 builder.Services.AddScoped<IPortalBrandingService, PortalBrandingService>();
@@ -156,6 +169,7 @@ builder.Services.AddHostedService<TaskOverdueWorker>();
 builder.Services.AddHostedService<TaskPostponeWorker>();
 builder.Services.AddHostedService<TaskReminderWorker>();
 builder.Services.AddHostedService<TaskPeriodicWorker>();
+builder.Services.AddHostedService<NotificationLogCleanupWorker>();
 
 var app = builder.Build();
 

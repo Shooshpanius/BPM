@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getTaskCounters, type TaskCountersDto } from '../api/tasksApi';
+import { getUnreadCount } from '../api/messagesApi';
 import { useBpmNotifications } from '../context/BpmNotificationsContext';
 import { APP_VERSION, LAST_PR_DATE } from '../version';
 import './Sidebar.css';
 
-export type SidebarSection = 'portal' | 'tasks' | 'tasks-periodic' | 'tasks-dashboard' | 'contacts' | 'org-structure' | 'company' | 'user-profile' | 'user-preferences' | 'bpm-processes' | 'bpm-my-processes' | 'bpm-monitor' | 'bpm-queue' | 'bpm-documentation' | 'bpm-rules' | 'bpm-forms' | 'bpm-scripts' | 'bpm-migration' | 'bpm-improvements' | 'bpm-analytics' | 'task-control-settings' | 'timelogs-report' | 'notification-settings';
+export type SidebarSection = 'portal' | 'notifications' | 'tasks' | 'tasks-periodic' | 'tasks-dashboard' | 'contacts' | 'org-structure' | 'company' | 'user-profile' | 'user-preferences' | 'bpm-processes' | 'bpm-my-processes' | 'bpm-monitor' | 'bpm-queue' | 'bpm-documentation' | 'bpm-rules' | 'bpm-forms' | 'bpm-scripts' | 'bpm-migration' | 'bpm-improvements' | 'bpm-analytics' | 'task-control-settings' | 'timelogs-report' | 'notification-settings' | 'smtp-settings' | 'email-templates' | 'sms-settings' | 'push-settings' | 'notification-templates' | 'notification-logs' | 'notification-stats' | 'messages' | 'channels';
 
 interface SidebarProps {
     active: SidebarSection;
@@ -17,11 +18,17 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
     const { hasRole, accessToken } = useAuth();
     const canManageOrg = hasRole('Admin') || hasRole('HR');
     const [counters, setCounters] = useState<TaskCountersDto | null>(null);
-    const { notifications } = useBpmNotifications();
+    const [unreadMessages, setUnreadMessages] = useState(0);
+    const { notifications, unreadCount: inboxUnread } = useBpmNotifications();
 
     const loadCounters = useCallback(() => {
         if (!accessToken) return;
         getTaskCounters(accessToken).then(c => setCounters(c)).catch(() => {});
+    }, [accessToken]);
+
+    const loadUnreadMessages = useCallback(() => {
+        if (!accessToken) return;
+        getUnreadCount(accessToken).then(r => setUnreadMessages(r.totalUnread)).catch(() => {});
     }, [accessToken]);
 
     // FR-TASK-02.2: Периодическое обновление счётчиков задач (fallback каждые 5 минут)
@@ -32,13 +39,25 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
         return () => clearInterval(id);
     }, [accessToken, loadCounters]);
 
+    // FR-MSG-01: Периодическое обновление счётчика непрочитанных сообщений (каждые 60 секунд)
+    useEffect(() => {
+        if (!accessToken) return;
+        loadUnreadMessages();
+        const id = setInterval(loadUnreadMessages, 60_000);
+        return () => clearInterval(id);
+    }, [accessToken, loadUnreadMessages]);
+
     // FR-TASK-02.2: Push-обновление счётчиков при получении SignalR-события TaskCountersUpdated
     useEffect(() => {
         const last = notifications[0];
         if (last?.type === 'TaskCountersUpdated') {
             loadCounters();
         }
-    }, [notifications, loadCounters]);
+        // FR-MSG-01: Push-обновление счётчика непрочитанных при получении нового сообщения
+        if (last?.type === 'NewMessage') {
+            loadUnreadMessages();
+        }
+    }, [notifications, loadCounters, loadUnreadMessages]);
 
     return (
         <nav className="sidebar" aria-label="Разделы системы">
@@ -149,6 +168,46 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         <circle cx="12" cy="12" r="3"/>
                         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                    </svg>
+                }
+            />
+            <div className="sidebar-divider" role="separator" />
+            {/* FR-MSG-01.1: Чаты и сообщения */}
+            <SidebarItem
+                id="messages"
+                label="Сообщения"
+                active={active === 'messages'}
+                onClick={() => onSelect('messages')}
+                badge={unreadMessages > 0 ? unreadMessages : undefined}
+                icon={
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                    </svg>
+                }
+            />
+            {/* FR-MSG-01.2: Информационные каналы */}
+            <SidebarItem
+                id="channels"
+                label="Каналы"
+                active={active === 'channels'}
+                onClick={() => onSelect('channels')}
+                icon={
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13.5a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2.69h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 10a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+                    </svg>
+                }
+            />
+            {/* FR-MSG-02.1: In-app уведомления */}
+            <SidebarItem
+                id="notifications"
+                label="Уведомления"
+                active={active === 'notifications'}
+                onClick={() => onSelect('notifications')}
+                badge={inboxUnread > 0 ? inboxUnread : undefined}
+                icon={
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                        <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
                     </svg>
                 }
             />
@@ -349,6 +408,102 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
                     </svg>
                 }
             />
+            {/* FR-ADM-02.1: Настройки SMTP — только Admin */}
+            {hasRole('Admin') && (
+                <SidebarItem
+                    id="smtp-settings"
+                    label="Настройки SMTP"
+                    active={active === 'smtp-settings'}
+                    onClick={() => onSelect('smtp-settings')}
+                    icon={
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                            <polyline points="22,6 12,13 2,6"/>
+                        </svg>
+                    }
+                />
+            )}
+            {/* FR-MSG-02.1: Шаблоны email — только Admin */}
+            {hasRole('Admin') && (
+                <SidebarItem
+                    id="email-templates"
+                    label="Шаблоны email"
+                    active={active === 'email-templates'}
+                    onClick={() => onSelect('email-templates')}
+                    icon={
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                            <polyline points="22,6 12,13 2,6"/>
+                            <line x1="12" y1="12" x2="12" y2="18"/>
+                            <line x1="9" y1="15" x2="15" y2="15"/>
+                        </svg>
+                    }
+                />
+            )}
+            {/* FR-MSG-02.1: Настройки SMS — только Admin */}
+            {hasRole('Admin') && (
+                <SidebarItem
+                    id="sms-settings"
+                    label="Настройки SMS"
+                    active={active === 'sms-settings'}
+                    onClick={() => onSelect('sms-settings')}
+                    icon={
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                        </svg>
+                    }
+                />
+            )}
+            {/* FR-MSG-02.2: Шаблоны уведомлений — только Admin */}
+            {hasRole('Admin') && (
+                <SidebarItem
+                    id="notification-templates"
+                    label="Шаблоны уведомлений"
+                    active={active === 'notification-templates'}
+                    onClick={() => onSelect('notification-templates')}
+                    icon={
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/>
+                            <line x1="7" y1="8" x2="17" y2="8"/>
+                            <line x1="7" y1="12" x2="14" y2="12"/>
+                            <line x1="7" y1="16" x2="11" y2="16"/>
+                        </svg>
+                    }
+                />
+            )}
+            {/* FR-MSG-02.2: Журнал доставки — только Admin */}
+            {hasRole('Admin') && (
+                <SidebarItem
+                    id="notification-logs"
+                    label="Журнал доставки"
+                    active={active === 'notification-logs'}
+                    onClick={() => onSelect('notification-logs')}
+                    icon={
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="9" y1="13" x2="15" y2="13"/>
+                            <line x1="9" y1="17" x2="12" y2="17"/>
+                        </svg>
+                    }
+                />
+            )}
+            {/* FR-MSG-02.2: Статистика доставки — только Admin */}
+            {hasRole('Admin') && (
+                <SidebarItem
+                    id="notification-stats"
+                    label="Статистика уведомлений"
+                    active={active === 'notification-stats'}
+                    onClick={() => onSelect('notification-stats')}
+                    icon={
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <line x1="18" y1="20" x2="18" y2="10"/>
+                            <line x1="12" y1="20" x2="12" y2="4"/>
+                            <line x1="6" y1="20" x2="6" y2="14"/>
+                        </svg>
+                    }
+                />
+            )}
             {canManageOrg && (
                 <>
                     <div className="sidebar-divider" role="separator" />

@@ -1,17 +1,46 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using CoreBPM.Server.Application.Bpm.Interfaces;
+using CoreBPM.Server.Application.Notify.DTOs;
+using CoreBPM.Server.Application.Notify.Interfaces;
+using CoreBPM.Server.Domain.Notify;
 using CoreBPM.Server.Infrastructure.Hubs;
+using CoreBPM.Server.Infrastructure.Persistence;
 
 namespace CoreBPM.Server.Application.Bpm.Services;
 
-/// <summary>Реализация сервиса уведомлений через SignalR.</summary>
+/// <summary>Реализация сервиса уведомлений через SignalR + in-app inbox + email + SMS + push (FR-MSG-02.1).</summary>
 public class BpmNotificationService : IBpmNotificationService
 {
     private readonly IHubContext<BpmNotificationHub> _hub;
+    private readonly IInAppNotificationService _inbox;
+    private readonly IEmailService _email;
+    private readonly IEmailTemplateService _emailTemplates;
+    private readonly ISmsService _sms;
+    private readonly IPushNotificationService _push;
+    private readonly AppDbContext _db;
 
-    public BpmNotificationService(IHubContext<BpmNotificationHub> hub)
+    private readonly INotificationSettingsService _notifSettings;
+
+    public BpmNotificationService(
+        IHubContext<BpmNotificationHub> hub,
+        IInAppNotificationService inbox,
+        IEmailService email,
+        IEmailTemplateService emailTemplates,
+        ISmsService sms,
+        IPushNotificationService push,
+        INotificationSettingsService notifSettings,
+        AppDbContext db)
     {
         _hub = hub;
+        _inbox = inbox;
+        _email = email;
+        _emailTemplates = emailTemplates;
+        _sms = sms;
+        _push = push;
+        _notifSettings = notifSettings;
+        _db = db;
     }
 
     /// <inheritdoc />
@@ -110,9 +139,158 @@ public class BpmNotificationService : IBpmNotificationService
         object payload,
         CancellationToken ct = default)
     {
+        // 1. SignalR push (in-app real-time — всегда доставляется)
         await _hub.Clients
             .Group($"user:{userId}")
             .SendAsync("bpm:notification", new { type = eventType, data = payload }, ct);
+
+        // 2. Сохранение в persistent inbox
+        var title = BuildTitle(eventType, payload);
+        var body = BuildBody(eventType, payload);
+        var link = BuildLink(eventType, payload);
+        var payloadJson = JsonSerializer.Serialize(payload);
+
+        await _inbox.SaveAsync(new SaveInboxEntryRequest(
+            userId, eventType, title, body, link, payloadJson), ct);
+
+        // Журнал доставки: in-app
+        await _notifSettings.LogDeliveryAsync(userId, eventType, DeliveryChannel.InApp, NotifyDeliveryStatus.Sent, ct: ct);
+
+        // 3. Получаем данные пользователя и его настройки уведомлений
+        var orgUser = await _db.OrgUsers.AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == userId, ct);
+        if (orgUser is null) return;
+
+        var displayName = $"{orgUser.FirstName} {orgUser.LastName}".Trim();
+        if (string.IsNullOrWhiteSpace(displayName)) displayName = orgUser.WorkEmail ?? userId.ToString();
+
+        // Настройки каналов пользователя
+        var userPref = await _db.UserTaskNotificationSettings.AsNoTracking()
+            .FirstOrDefaultAsync(s => s.UserId == userId && s.EventType == eventType, ct);
+
+        var sendEmail = userPref?.Email ?? true;
+        var sendSms = userPref?.Sms ?? false;
+        var sendPush = userPref?.Push ?? false;
+
+        // Проверяем обязательные каналы (принудительные флаги из шаблонов)
+        var tmpl = await _db.AdminNotificationTemplates.AsNoTracking()
+            .FirstOrDefaultAsync(t => t.EventType == eventType, ct);
+
+        if (tmpl is not null)
+        {
+            if (tmpl.IsMandatoryEmail) sendEmail = true;
+            if (tmpl.IsMandatorySms) sendSms = true;
+            if (tmpl.IsMandatoryPush) sendPush = true;
+        }
+
+        // Проверяем DND (только для push и SMS)
+        var inDnd = await _notifSettings.IsInDndAsync(userId, ct);
+
+        // 4. Rich email
+        if (sendEmail && !string.IsNullOrWhiteSpace(orgUser.WorkEmail))
+        {
+            // Проверяем throttle для email
+            if (await _notifSettings.IsThrottledAsync(userId, eventType, DeliveryChannel.Email, ct))
+            {
+                await _notifSettings.LogDeliveryAsync(userId, eventType, DeliveryChannel.Email,
+                    NotifyDeliveryStatus.SkippedThrottle, ct: ct);
+            }
+            else
+            {
+                try
+                {
+                    var actions = BuildActionButtons(eventType, payload);
+                    var (emailSubject, htmlBody) = await _emailTemplates.RenderAsync(
+                        eventType, title, body, link, actions, ct);
+
+                    await _email.SendAsync(orgUser.WorkEmail, displayName, emailSubject, htmlBody, ct);
+                    await _notifSettings.LogDeliveryAsync(userId, eventType, DeliveryChannel.Email, NotifyDeliveryStatus.Sent, ct: ct);
+                }
+                catch (Exception ex)
+                {
+                    await _notifSettings.LogDeliveryAsync(userId, eventType, DeliveryChannel.Email,
+                        NotifyDeliveryStatus.Failed, ex.Message, ct);
+                }
+            }
+        }
+        else if (!sendEmail)
+        {
+            await _notifSettings.LogDeliveryAsync(userId, eventType, DeliveryChannel.Email,
+                NotifyDeliveryStatus.SkippedUserSettings, ct: ct);
+        }
+
+        // 5. SMS
+        if (sendSms && !string.IsNullOrWhiteSpace(orgUser.MobilePhone))
+        {
+            var dndSettings = await _db.NotifyDndSettings.AsNoTracking()
+                .FirstOrDefaultAsync(d => d.UserId == userId, ct);
+            if (inDnd && (dndSettings?.ApplyToSms ?? true))
+            {
+                await _notifSettings.LogDeliveryAsync(userId, eventType, DeliveryChannel.Sms,
+                    NotifyDeliveryStatus.SkippedDnd, ct: ct);
+            }
+            else if (await _notifSettings.IsThrottledAsync(userId, eventType, DeliveryChannel.Sms, ct))
+            {
+                await _notifSettings.LogDeliveryAsync(userId, eventType, DeliveryChannel.Sms,
+                    NotifyDeliveryStatus.SkippedThrottle, ct: ct);
+            }
+            else
+            {
+                try
+                {
+                    var smsText = BuildSmsText(eventType, title, body);
+                    await _sms.SendAsync(orgUser.MobilePhone, smsText, eventType, userId, ct);
+                    await _notifSettings.LogDeliveryAsync(userId, eventType, DeliveryChannel.Sms,
+                        NotifyDeliveryStatus.Sent, ct: ct);
+                }
+                catch (Exception ex)
+                {
+                    await _notifSettings.LogDeliveryAsync(userId, eventType, DeliveryChannel.Sms,
+                        NotifyDeliveryStatus.Failed, ex.Message, ct);
+                }
+            }
+        }
+        else if (!sendSms)
+        {
+            await _notifSettings.LogDeliveryAsync(userId, eventType, DeliveryChannel.Sms,
+                NotifyDeliveryStatus.SkippedUserSettings, ct: ct);
+        }
+
+        // 6. Web Push
+        if (sendPush)
+        {
+            var dndSettings = await _db.NotifyDndSettings.AsNoTracking()
+                .FirstOrDefaultAsync(d => d.UserId == userId, ct);
+            if (inDnd && (dndSettings?.ApplyToPush ?? true))
+            {
+                await _notifSettings.LogDeliveryAsync(userId, eventType, DeliveryChannel.Push,
+                    NotifyDeliveryStatus.SkippedDnd, ct: ct);
+            }
+            else if (await _notifSettings.IsThrottledAsync(userId, eventType, DeliveryChannel.Push, ct))
+            {
+                await _notifSettings.LogDeliveryAsync(userId, eventType, DeliveryChannel.Push,
+                    NotifyDeliveryStatus.SkippedThrottle, ct: ct);
+            }
+            else
+            {
+                try
+                {
+                    await _push.SendAsync(userId, title, body, link, ct);
+                    await _notifSettings.LogDeliveryAsync(userId, eventType, DeliveryChannel.Push,
+                        NotifyDeliveryStatus.Sent, ct: ct);
+                }
+                catch (Exception ex)
+                {
+                    await _notifSettings.LogDeliveryAsync(userId, eventType, DeliveryChannel.Push,
+                        NotifyDeliveryStatus.Failed, ex.Message, ct);
+                }
+            }
+        }
+        else
+        {
+            await _notifSettings.LogDeliveryAsync(userId, eventType, DeliveryChannel.Push,
+                NotifyDeliveryStatus.SkippedUserSettings, ct: ct);
+        }
     }
 
     /// <inheritdoc />
@@ -152,5 +330,115 @@ public class BpmNotificationService : IBpmNotificationService
         await _hub.Clients
             .Group($"user:{userId}")
             .SendAsync("bpm:notification", payload, ct);
+    }
+
+    // ─── Вспомогательные методы для построения текстов уведомлений ──────────────
+
+    private static string BuildTitle(string eventType, object payload) => eventType switch
+    {
+        "TaskAssigned" => "Вам назначена задача",
+        "TaskDone" => "Задача выполнена",
+        "TaskReminder" => "Напоминание по задаче",
+        "ResolutionTaskDone" => "Резолюция выполнена",
+        "ChannelInvite" => "Приглашение в канал",
+        "NewChannelPost" => "Новая публикация в канале",
+        "ImprovementStatusChanged" => "Статус предложения изменён",
+        "MigrationPackageCompleted" => "Пакет миграции завершён",
+        "JobFailed" => "Ошибка задания процесса",
+        _ => $"Уведомление: {eventType}",
+    };
+
+    private static string BuildBody(string eventType, object payload)
+    {
+        try
+        {
+            var json = JsonSerializer.Serialize(payload);
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            return eventType switch
+            {
+                "TaskAssigned" when root.TryGetProperty("taskTitle", out var t) => $"Задача «{t.GetString()}»",
+                "ChannelInvite" when root.TryGetProperty("channelName", out var c) => $"Канал «{c.GetString()}»",
+                "NewChannelPost" when root.TryGetProperty("title", out var t) => t.GetString() ?? "",
+                "ImprovementStatusChanged" when root.TryGetProperty("subject", out var s) => s.GetString() ?? "",
+                _ => "",
+            };
+        }
+        catch { return ""; }
+    }
+
+    private static string? BuildLink(string eventType, object payload)
+    {
+        try
+        {
+            var json = JsonSerializer.Serialize(payload);
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            return eventType switch
+            {
+                "TaskAssigned" when root.TryGetProperty("taskId", out var id) => $"/tasks/{id.GetGuid()}",
+                "TaskDone" when root.TryGetProperty("taskId", out var id) => $"/tasks/{id.GetGuid()}",
+                "TaskReminder" when root.TryGetProperty("taskId", out var id) => $"/tasks/{id.GetGuid()}",
+                "ChannelInvite" when root.TryGetProperty("channelId", out var id) => $"/channels",
+                "NewChannelPost" when root.TryGetProperty("channelId", out var id) => $"/channels",
+                _ => null,
+            };
+        }
+        catch { return null; }
+    }
+
+    private static string BuildEmailHtml(string title, string body, string? link)
+    {
+        var linkHtml = !string.IsNullOrWhiteSpace(link)
+            ? $"<p><a href=\"{link}\" style=\"color:#3b82f6\">Перейти →</a></p>"
+            : "";
+        var bodyHtml = !string.IsNullOrWhiteSpace(body)
+            ? $"<p style=\"color:#374151\">{body}</p>"
+            : "";
+
+        return $"""
+            <!DOCTYPE html>
+            <html>
+            <head><meta charset="utf-8"/></head>
+            <body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px">
+              <h2 style="color:#111827;margin-bottom:8px">{title}</h2>
+              {bodyHtml}
+              {linkHtml}
+              <hr style="border:none;border-top:1px solid #e5e7eb;margin-top:24px"/>
+              <p style="color:#9ca3af;font-size:12px">Core BPM — автоматическое уведомление</p>
+            </body>
+            </html>
+            """;
+    }
+
+    /// <summary>Формирует кнопки действий для actionable email.</summary>
+    private static IReadOnlyList<EmailActionButton>? BuildActionButtons(string eventType, object payload)
+    {
+        try
+        {
+            var json = JsonSerializer.Serialize(payload);
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            return eventType switch
+            {
+                "TaskAssigned" when root.TryGetProperty("approveToken", out var at)
+                                 && root.TryGetProperty("rejectToken", out var rt) =>
+                [
+                    new("/action/approve?token=" + at.GetString(), "Согласовать", "#16a34a"),
+                    new("/action/reject?token=" + rt.GetString(), "Отклонить", "#dc2626"),
+                ],
+                _ => null,
+            };
+        }
+        catch { return null; }
+    }
+
+    /// <summary>Формирует краткий текст SMS-уведомления.</summary>
+    private static string BuildSmsText(string eventType, string title, string body)
+    {
+        var text = string.IsNullOrWhiteSpace(body) ? title : $"{title}: {body}";
+        // SMS ограничен 160 символами для однопакетного сообщения
+        return text.Length > 160 ? text[..157] + "..." : text;
     }
 }

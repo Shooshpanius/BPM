@@ -2697,6 +2697,9 @@ public class TaskService : ITaskService
         "TaskAssigned", "TaskDone", "TaskOverdue", "TaskCommentAdded",
         "TaskReminder", "TaskRescheduled", "TaskReopened", "TaskQuestionAsked",
         "TaskMentioned", "TaskCompleted", "TaskScheduled",
+        // Сообщения и каналы (FR-MSG-02.2)
+        "ChatMessageReceived", "ChannelPostPublished", "ChannelInvite",
+        "TaskApprovalRequired", "TaskApprovalDecision",
     ];
 
     /// <inheritdoc/>
@@ -2706,17 +2709,28 @@ public class TaskService : ITaskService
             .Where(s => s.UserId == userId)
             .ToListAsync(ct);
 
+        // Загружаем обязательные флаги из шаблонов администратора
+        var mandatoryMap = await _db.AdminNotificationTemplates.AsNoTracking()
+            .Where(t => t.IsActive)
+            .ToDictionaryAsync(t => t.EventType, ct);
+
         // Возвращаем дефолтные записи для событий, которые ещё не настраивались
         var result = new List<UserTaskNotificationSettingsDto>();
         foreach (var eventType in DefaultTaskEventTypes)
         {
             var existing = saved.FirstOrDefault(s => s.EventType == eventType);
+            var hasMandatory = mandatoryMap.TryGetValue(eventType, out var tmpl)
+                && (tmpl.IsMandatoryInApp || tmpl.IsMandatoryEmail || tmpl.IsMandatorySms || tmpl.IsMandatoryPush);
+
             result.Add(new UserTaskNotificationSettingsDto
             {
                 Id = existing?.Id ?? Guid.Empty,
                 EventType = eventType,
                 InApp = existing?.InApp ?? true,
                 Email = existing?.Email ?? false,
+                Sms = existing?.Sms ?? false,
+                Push = existing?.Push ?? false,
+                HasMandatory = hasMandatory,
             });
         }
         return result;
@@ -2729,6 +2743,11 @@ public class TaskService : ITaskService
         var existing = await _db.UserTaskNotificationSettings
             .Where(s => s.UserId == userId)
             .ToListAsync(ct);
+
+        // Загружаем обязательные флаги из шаблонов администратора
+        var mandatoryMap = await _db.AdminNotificationTemplates.AsNoTracking()
+            .Where(t => t.IsActive)
+            .ToDictionaryAsync(t => t.EventType, ct);
 
         foreach (var req in settings)
         {
@@ -2743,8 +2762,13 @@ public class TaskService : ITaskService
                 };
                 _db.UserTaskNotificationSettings.Add(entity);
             }
-            entity.InApp = req.InApp;
-            entity.Email = req.Email;
+
+            // Принудительные каналы нельзя отключить
+            mandatoryMap.TryGetValue(req.EventType, out var tmpl);
+            entity.InApp = req.InApp || (tmpl?.IsMandatoryInApp ?? false);
+            entity.Email = req.Email || (tmpl?.IsMandatoryEmail ?? false);
+            entity.Sms = req.Sms || (tmpl?.IsMandatorySms ?? false);
+            entity.Push = req.Push || (tmpl?.IsMandatoryPush ?? false);
         }
         await _db.SaveChangesAsync(ct);
         return await GetNotificationSettingsAsync(userId, ct);

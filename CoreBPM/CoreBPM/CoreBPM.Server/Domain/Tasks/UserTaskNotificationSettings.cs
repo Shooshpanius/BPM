@@ -1,8 +1,8 @@
 namespace CoreBPM.Server.Domain.Tasks;
 
 /// <summary>
-/// Настройки уведомлений пользователя по задачам (таблица user_task_notification_settings, FR-TASK-02.3).
-/// Каждая строка — один тип события + канал + включён/выключен.
+/// Настройки уведомлений пользователя по типу события (таблица user_task_notification_settings, FR-MSG-02.2).
+/// Каждая строка — один тип события + выбранные каналы доставки.
 /// </summary>
 public class UserTaskNotificationSettings
 {
@@ -12,8 +12,9 @@ public class UserTaskNotificationSettings
     public Guid UserId { get; set; }
 
     /// <summary>
-    /// Тип события задачи: TaskAssigned, TaskDone, TaskOverdue, TaskCommentAdded,
-    /// TaskReminder, TaskRescheduled, TaskReopened, TaskQuestionAsked, TaskMentioned, и т.д.
+    /// Тип события: TaskAssigned, TaskDone, TaskOverdue, TaskCommentAdded,
+    /// TaskReminder, TaskRescheduled, TaskReopened, TaskQuestionAsked, TaskMentioned,
+    /// ChatMessageReceived, ChannelPostPublished, ChannelInvite и т.д.
     /// </summary>
     public string EventType { get; set; } = string.Empty;
 
@@ -22,4 +23,10 @@ public class UserTaskNotificationSettings
 
     /// <summary>Отправлять ли email-уведомление.</summary>
     public bool Email { get; set; } = false;
+
+    /// <summary>Отправлять ли SMS-уведомление.</summary>
+    public bool Sms { get; set; } = false;
+
+    /// <summary>Отправлять ли Web Push-уведомление.</summary>
+    public bool Push { get; set; } = false;
 }
