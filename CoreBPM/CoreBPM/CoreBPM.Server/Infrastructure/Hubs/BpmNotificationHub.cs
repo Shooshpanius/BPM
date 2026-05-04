@@ -14,11 +14,16 @@ namespace CoreBPM.Server.Infrastructure.Hubs;
 public class BpmNotificationHub : Hub
 {
     private readonly AppDbContext _db;
+    private readonly ILogger<BpmNotificationHub> _logger;
 
     /// <summary>Имя группы, в которую добавляются все администраторы.</summary>
     public const string AdminGroup = "admin";
 
-    public BpmNotificationHub(AppDbContext db) => _db = db;
+    public BpmNotificationHub(AppDbContext db, ILogger<BpmNotificationHub> logger)
+    {
+        _db = db;
+        _logger = logger;
+    }
 
     /// <inheritdoc />
     public override async Task OnConnectedAsync()
@@ -43,7 +48,12 @@ public class BpmNotificationHub : Hub
 
         var isMember = await _db.NotifyChatMembers
             .AnyAsync(m => m.ChatId == id && m.UserId == userId);
-        if (!isMember) return;
+
+        if (!isMember)
+        {
+            _logger.LogWarning("Пользователь {UserId} попытался подписаться на чат {ChatId} без членства.", userId, chatId);
+            return;
+        }
 
         await Groups.AddToGroupAsync(Context.ConnectionId, $"chat:{chatId}");
     }
