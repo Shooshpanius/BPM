@@ -28,7 +28,7 @@ export function PeoplePicker({ value = [], onChange, multiple = false, placehold
     const [results, setResults] = useState<DirectoryEmployeeDto[]>([]);
     const [loading, setLoading] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
-    const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const searchDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const doSearch = useCallback((q: string) => {
         if (!token) return;
@@ -41,10 +41,10 @@ export function PeoplePicker({ value = [], onChange, multiple = false, placehold
 
     useEffect(() => {
         if (!open) return;
-        if (searchTimeout.current) clearTimeout(searchTimeout.current);
-        searchTimeout.current = setTimeout(() => doSearch(search), 250);
+        if (searchDebounceTimer.current) clearTimeout(searchDebounceTimer.current);
+        searchDebounceTimer.current = setTimeout(() => doSearch(search), 250);
         return () => {
-            if (searchTimeout.current) clearTimeout(searchTimeout.current);
+            if (searchDebounceTimer.current) clearTimeout(searchDebounceTimer.current);
         };
     }, [search, open, doSearch]);
 

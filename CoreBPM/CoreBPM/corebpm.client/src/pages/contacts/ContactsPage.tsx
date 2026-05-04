@@ -452,7 +452,7 @@ export function ContactsPage() {
                         value={positionFilter}
                         onChange={e => { setPositionFilter(e.target.value); setPage(1); }}
                     />
-                    <select className="toolbar-sort" value={`${sortBy}:${sortDir}`} onChange={e => { const [b, d] = e.target.value.split(':'); setSortBy(b); setSortDir(d as 'asc' | 'desc'); setPage(1); }}>
+                    <select className="toolbar-sort" value={`${sortBy}:${sortDir}`} onChange={e => { const [sortByValue, sortDirValue] = e.target.value.split(':'); setSortBy(sortByValue); setSortDir(sortDirValue as 'asc' | 'desc'); setPage(1); }}>
                         <option value="displayName:asc">Имя А→Я</option>
                         <option value="displayName:desc">Имя Я→А</option>
                         <option value="position:asc">Должность А→Я</option>
