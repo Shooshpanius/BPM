@@ -69,6 +69,7 @@ public class AppDbContext : DbContext
     public DbSet<TaskControlSettings> TaskControlSettings => Set<TaskControlSettings>();
     public DbSet<TaskRecurrence> TaskRecurrences => Set<TaskRecurrence>();
     public DbSet<TaskQuestion> TaskQuestions => Set<TaskQuestion>();
+    public DbSet<UserTaskNotificationSettings> UserTaskNotificationSettings => Set<UserTaskNotificationSettings>();
     public DbSet<DmnTable> DmnTables => Set<DmnTable>();
     public DbSet<DmnTableVersion> DmnTableVersions => Set<DmnTableVersion>();
     public DbSet<DmnColumn> DmnColumns => Set<DmnColumn>();
@@ -1173,6 +1174,15 @@ public class AppDbContext : DbContext
                 .HasForeignKey(q => q.TaskId).OnDelete(DeleteBehavior.Cascade);
             e.Property(q => q.QuestionText).HasMaxLength(2000);
             e.Property(q => q.AnswerText).HasMaxLength(2000);
+        });
+
+        // FR-TASK-02.3: Настройки уведомлений пользователя по задачам
+        modelBuilder.Entity<UserTaskNotificationSettings>(e =>
+        {
+            e.ToTable("user_task_notification_settings");
+            e.HasKey(s => s.Id);
+            e.HasIndex(s => new { s.UserId, s.EventType }).IsUnique();
+            e.Property(s => s.EventType).HasMaxLength(100);
         });
     }
 }

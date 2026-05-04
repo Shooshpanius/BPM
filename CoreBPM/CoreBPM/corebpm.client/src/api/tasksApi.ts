@@ -93,6 +93,8 @@ export interface TaskDto {
     seriesId?: string;
     processInfo?: ProcessTaskInfoDto;
     recurrence?: TaskRecurrenceDto;
+    /** FR-TASK-02.3: Дата и время планирования в календаре */
+    scheduledAt?: string;
     createdAt: string;
     updatedAt: string;
     participants: TaskParticipantDto[];
@@ -801,3 +803,94 @@ export async function answerTaskQuestion(token: string, taskId: string, question
     });
 }
 
+
+// ─── FR-TASK-02.3: Поиск, подписка, уведомления и календарь ─────────────────
+
+/** Подписаться на задачу (текущий пользователь). FR-TASK-02.3. */
+export async function watchTask(token: string, taskId: string): Promise<TaskParticipantDto> {
+    return apiFetch<TaskParticipantDto>(token, `/api/tasks/${taskId}/watch`, { method: 'POST' });
+}
+
+/** Отписаться от задачи. FR-TASK-02.3. */
+export async function unwatchTask(token: string, taskId: string): Promise<void> {
+    await apiFetch<void>(token, `/api/tasks/${taskId}/watch`, { method: 'DELETE' });
+}
+
+export interface TaskReminderDto {
+    id: string;
+    taskId: string;
+    userId: string;
+    remindAt: string;
+    note?: string;
+    isSent: boolean;
+    createdAt: string;
+}
+
+/** Получить напоминания пользователя по задаче. FR-TASK-02.3. */
+export async function getTaskReminders(token: string, taskId: string): Promise<TaskReminderDto[]> {
+    return apiFetch<TaskReminderDto[]>(token, `/api/tasks/${taskId}/reminders`);
+}
+
+/** Добавить напоминание по задаче. FR-TASK-02.3. */
+export async function addTaskReminder(token: string, taskId: string, remindAt: string, note?: string): Promise<TaskReminderDto> {
+    return apiFetch<TaskReminderDto>(token, `/api/tasks/${taskId}/reminders`, {
+        method: 'POST',
+        body: JSON.stringify({ remindAt, note }),
+    });
+}
+
+/** Удалить напоминание. FR-TASK-02.3. */
+export async function deleteTaskReminder(token: string, taskId: string, reminderId: string): Promise<void> {
+    await apiFetch<void>(token, `/api/tasks/${taskId}/reminders/${reminderId}`, { method: 'DELETE' });
+}
+
+/** Запланировать задачу в календаре. FR-TASK-02.3. */
+export async function scheduleTask(token: string, taskId: string, scheduledAt: string): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, `/api/tasks/${taskId}/schedule`, {
+        method: 'POST',
+        body: JSON.stringify({ scheduledAt }),
+    });
+}
+
+/** Снять задачу с планирования. FR-TASK-02.3. */
+export async function unscheduleTask(token: string, taskId: string): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, `/api/tasks/${taskId}/schedule`, { method: 'DELETE' });
+}
+
+export interface TaskDailyStatDto {
+    date: string;
+    created: number;
+    closed: number;
+}
+export interface TaskDashboardDto {
+    byStatus: Record<string, number>;
+    byPriority: Record<string, number>;
+    overdueCount: number;
+    openCount: number;
+    dailyStats: TaskDailyStatDto[];
+}
+
+/** Получить данные дашборда задач. FR-TASK-02.3. */
+export async function getTaskDashboard(token: string): Promise<TaskDashboardDto> {
+    return apiFetch<TaskDashboardDto>(token, '/api/dashboard/tasks');
+}
+
+export interface NotificationSettingDto {
+    id: string;
+    eventType: string;
+    inApp: boolean;
+    email: boolean;
+}
+
+/** Получить настройки уведомлений. FR-TASK-02.3. */
+export async function getNotificationSettings(token: string): Promise<NotificationSettingDto[]> {
+    return apiFetch<NotificationSettingDto[]>(token, '/api/users/me/notification-settings');
+}
+
+/** Обновить настройки уведомлений. FR-TASK-02.3. */
+export async function updateNotificationSettings(token: string, settings: Array<{ eventType: string; inApp: boolean; email: boolean }>): Promise<NotificationSettingDto[]> {
+    return apiFetch<NotificationSettingDto[]>(token, '/api/users/me/notification-settings', {
+        method: 'PUT',
+        body: JSON.stringify(settings),
+    });
+}

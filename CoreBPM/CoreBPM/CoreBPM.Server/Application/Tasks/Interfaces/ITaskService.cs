@@ -172,4 +172,30 @@ public interface ITaskService
 
     /// <summary>Создать следующий экземпляр в серии периодических задач (вызывается воркером).</summary>
     Task<TaskItem?> CreateNextPeriodicInstanceAsync(Guid recurrenceId, CancellationToken ct = default);
+
+    // ─── FR-TASK-02.3: Поиск, подписка, уведомления и календарь ─────────────
+
+    /// <summary>Получить напоминания пользователя по задаче (FR-TASK-02.3).</summary>
+    Task<IReadOnlyList<TaskReminderDto>> GetRemindersAsync(Guid taskId, Guid userId, CancellationToken ct = default);
+
+    /// <summary>Добавить напоминание по задаче (FR-TASK-02.3).</summary>
+    Task<TaskReminderDto> AddReminderAsync(Guid taskId, AddTaskReminderRequest req, Guid userId, CancellationToken ct = default);
+
+    /// <summary>Удалить напоминание (FR-TASK-02.3).</summary>
+    Task DeleteReminderAsync(Guid reminderId, Guid actorId, CancellationToken ct = default);
+
+    /// <summary>Запланировать задачу на конкретное время (FR-TASK-02.3).</summary>
+    Task<TaskDto> ScheduleTaskAsync(Guid taskId, ScheduleTaskRequest req, Guid actorId, CancellationToken ct = default);
+
+    /// <summary>Снять задачу с планирования в календаре (FR-TASK-02.3).</summary>
+    Task<TaskDto> UnscheduleTaskAsync(Guid taskId, Guid actorId, CancellationToken ct = default);
+
+    /// <summary>Получить дашборд задач текущего пользователя (FR-TASK-02.3).</summary>
+    Task<TaskDashboardDto> GetDashboardAsync(Guid userId, bool isAdmin, CancellationToken ct = default);
+
+    /// <summary>Получить настройки уведомлений пользователя по задачам (FR-TASK-02.3).</summary>
+    Task<IReadOnlyList<UserTaskNotificationSettingsDto>> GetNotificationSettingsAsync(Guid userId, CancellationToken ct = default);
+
+    /// <summary>Обновить настройки уведомлений пользователя (FR-TASK-02.3).</summary>
+    Task<IReadOnlyList<UserTaskNotificationSettingsDto>> UpdateNotificationSettingsAsync(Guid userId, IReadOnlyList<UpdateNotificationSettingRequest> settings, CancellationToken ct = default);
 }

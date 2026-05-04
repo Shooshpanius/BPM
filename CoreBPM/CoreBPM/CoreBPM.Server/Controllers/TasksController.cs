@@ -653,6 +653,86 @@ public class TasksController : ControllerBase
         if (userId == null) return Unauthorized();
         return Ok(await _service.AnswerQuestionAsync(id, questionId, req, userId.Value, ct));
     }
+
+    // ─── FR-TASK-02.3: Самоподписка (watch/unwatch) ──────────────────────────
+
+    /// <summary>Подписаться на задачу (добавить текущего пользователя в наблюдатели). FR-TASK-02.3.</summary>
+    [HttpPost("api/tasks/{id:guid}/watch")]
+    [ProducesResponseType(typeof(TaskParticipantDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TaskParticipantDto>> Watch(Guid id, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        var dto = await _service.AddWatcherAsync(id, userId.Value, userId.Value, ct);
+        return Ok(dto);
+    }
+
+    /// <summary>Отписаться от задачи (удалить текущего пользователя из наблюдателей). FR-TASK-02.3.</summary>
+    [HttpDelete("api/tasks/{id:guid}/watch")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> Unwatch(Guid id, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        await _service.RemoveWatcherAsync(id, userId.Value, userId.Value, User.IsInRole("Admin"), ct);
+        return NoContent();
+    }
+
+    // ─── FR-TASK-02.3: Напоминания ────────────────────────────────────────────
+
+    /// <summary>Получить напоминания текущего пользователя по задаче. FR-TASK-02.3.</summary>
+    [HttpGet("api/tasks/{id:guid}/reminders")]
+    [ProducesResponseType(typeof(IReadOnlyList<TaskReminderDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<TaskReminderDto>>> GetReminders(Guid id, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.GetRemindersAsync(id, userId.Value, ct));
+    }
+
+    /// <summary>Добавить напоминание по задаче для текущего пользователя. FR-TASK-02.3.</summary>
+    [HttpPost("api/tasks/{id:guid}/reminders")]
+    [ProducesResponseType(typeof(TaskReminderDto), StatusCodes.Status201Created)]
+    public async Task<ActionResult<TaskReminderDto>> AddReminder(Guid id, [FromBody] AddTaskReminderRequest req, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        var dto = await _service.AddReminderAsync(id, req, userId.Value, ct);
+        return Created($"/api/tasks/{id}/reminders/{dto.Id}", dto);
+    }
+
+    /// <summary>Удалить напоминание. FR-TASK-02.3.</summary>
+    [HttpDelete("api/tasks/{id:guid}/reminders/{reminderId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> DeleteReminder(Guid id, Guid reminderId, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        await _service.DeleteReminderAsync(reminderId, userId.Value, ct);
+        return NoContent();
+    }
+
+    // ─── FR-TASK-02.3: Планирование в календаре ──────────────────────────────
+
+    /// <summary>Запланировать задачу на дату/время. FR-TASK-02.3.</summary>
+    [HttpPost("api/tasks/{id:guid}/schedule")]
+    [ProducesResponseType(typeof(TaskDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TaskDto>> Schedule(Guid id, [FromBody] ScheduleTaskRequest req, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.ScheduleTaskAsync(id, req, userId.Value, ct));
+    }
+
+    /// <summary>Снять задачу с планирования в календаре. FR-TASK-02.3.</summary>
+    [HttpDelete("api/tasks/{id:guid}/schedule")]
+    [ProducesResponseType(typeof(TaskDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TaskDto>> Unschedule(Guid id, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.UnscheduleTaskAsync(id, userId.Value, ct));
+    }
 }
 
 

@@ -11,12 +11,15 @@ import {
     getTaskWatchers, addTaskWatcher, removeTaskWatcher,
     getTaskQuestions, askTaskQuestion, answerTaskQuestion,
     updateTask,
+    watchTask, unwatchTask,
+    getTaskReminders, addTaskReminder, deleteTaskReminder,
+    scheduleTask, unscheduleTask,
     TASK_STATUS_LABELS, TASK_PRIORITY_LABELS,
 } from '../../api/tasksApi';
 import type {
     TaskDto, TaskCommentDto, TaskAttachmentDto,
     TaskRelationDto, TaskParticipantDto, TaskHistoryEntryDto,
-    TaskSummaryDto, TaskTimeLogDto, TaskQuestionDto,
+    TaskSummaryDto, TaskTimeLogDto, TaskQuestionDto, TaskReminderDto,
 } from '../../api/tasksApi';
 import { getDirectoryEmployees } from '../../api/orgDirectoryApi';
 import type { DirectoryEmployeeDto } from '../../api/orgDirectoryApi';
@@ -27,7 +30,7 @@ interface TaskDetailPageProps {
     onBack: () => void;
 }
 
-type TabId = 'description' | 'subtasks' | 'relations' | 'participants' | 'timelogs' | 'process-info' | 'watchers' | 'questions';
+type TabId = 'description' | 'subtasks' | 'relations' | 'participants' | 'timelogs' | 'process-info' | 'watchers' | 'questions' | 'reminders';
 
 const RELATION_LABELS: Record<string, string> = {
     DependsOn: 'Зависит от', Blocks: 'Блокирует', RelatedTo: 'Связана с',
@@ -40,7 +43,7 @@ const PARTICIPANT_ROLE_LABELS: Record<string, string> = {
 
 /** Карточка задачи с 4 вкладками (FR-TASK-01.1). */
 export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
-    const { accessToken: token } = useAuth();
+    const { accessToken: token, userId } = useAuth();
     const [task, setTask] = useState<TaskDto | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -116,6 +119,19 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
     const [subtaskDueDate, setSubtaskDueDate] = useState('');
     const [subtaskPriority, setSubtaskPriority] = useState('Medium');
     const [subtaskDescription, setSubtaskDescription] = useState('');
+
+    // ─── FR-TASK-02.3: Напоминания, планирование, self-subscribe ─────────────
+    const [reminders, setReminders] = useState<TaskReminderDto[]>([]);
+    const [showAddReminder, setShowAddReminder] = useState(false);
+    const [reminderDate, setReminderDate] = useState('');
+    const [reminderNote, setReminderNote] = useState('');
+    const [reminderSaving, setReminderSaving] = useState(false);
+
+    const [showScheduleDialog, setShowScheduleDialog] = useState(false);
+    const [scheduleDate, setScheduleDate] = useState('');
+    const [scheduleSaving, setScheduleSaving] = useState(false);
+
+    const [watchSaving, setWatchSaving] = useState(false);
 
     // ─── FR-TASK-01.4: Добавление трудозатрат ────────────────────────────────
     const [showAddTimeLog, setShowAddTimeLog] = useState(false);
@@ -212,6 +228,8 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                 setWatchers(await getTaskWatchers(token, taskId));
             } else if (tab === 'questions') {
                 setQuestions(await getTaskQuestions(token, taskId));
+            } else if (tab === 'reminders') {
+                setReminders(await getTaskReminders(token, taskId));
             }
         } catch { /* игнорируем */ }
     }, [token, taskId, tab]);
@@ -759,6 +777,61 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                             📤 На согласование
                         </button>
                     )}
+                    {/* FR-TASK-02.3: Подписка / Отписка */}
+                    {(() => {
+                        const isWatcher = watchers.some(w => w.userId === userId);
+                        return isWatcher
+                            ? (
+                                <button className="task-detail__btn" disabled={watchSaving}
+                                    onClick={async () => {
+                                        if (!token) return;
+                                        setWatchSaving(true);
+                                        try {
+                                            await unwatchTask(token, taskId);
+                                            setWatchers(prev => prev.filter(w => w.userId !== userId));
+                                        } finally { setWatchSaving(false); }
+                                    }}>
+                                    👁 Отписаться
+                                </button>
+                            )
+                            : (
+                                <button className="task-detail__btn" disabled={watchSaving}
+                                    onClick={async () => {
+                                        if (!token) return;
+                                        setWatchSaving(true);
+                                        try {
+                                            const w = await watchTask(token, taskId);
+                                            setWatchers(prev => [...prev, w]);
+                                        } finally { setWatchSaving(false); }
+                                    }}>
+                                    👁 Подписаться
+                                </button>
+                            );
+                    })()}
+                    {/* FR-TASK-02.3: Запланировать в календаре */}
+                    {task.scheduledAt
+                        ? (
+                            <button className="task-detail__btn" title={`Запланировано на ${new Date(task.scheduledAt).toLocaleString('ru-RU')}`}
+                                onClick={async () => {
+                                    if (!token) return;
+                                    const t = await unscheduleTask(token, taskId);
+                                    setTask(t);
+                                }}>
+                                📅 Запланировано ✕
+                            </button>
+                        )
+                        : (
+                            <button className="task-detail__btn"
+                                onClick={() => {
+                                    const d = new Date();
+                                    d.setHours(d.getHours() + 1, 0, 0, 0);
+                                    setScheduleDate(d.toISOString().slice(0, 16));
+                                    setShowScheduleDialog(true);
+                                }}>
+                                📅 Запланировать
+                            </button>
+                        )
+                    }
                 </div>
             </div>
 
@@ -771,6 +844,12 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                     <strong>Срок:</strong> {new Date(task.dueDate).toLocaleString('ru-RU')}
                     {task.isOverdue && <span className="task-detail__overdue-badge"> ⚠ Просрочена</span>}
                 </span>
+                {/* FR-TASK-02.3: Запланировано */}
+                {task.scheduledAt && (
+                    <span className="task-detail__meta-item">
+                        <strong>📅 Запланировано:</strong> {new Date(task.scheduledAt).toLocaleString('ru-RU')}
+                    </span>
+                )}
                 {/* FR-TASK-01.3: согласующий */}
                 {task.approverName && (
                     <span className="task-detail__meta-item">
@@ -893,6 +972,7 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                     { id: 'timelogs', label: 'Трудозатраты' },
                     { id: 'watchers', label: `👁 Наблюдатели (${watchers.length})` },
                     { id: 'questions', label: `❓ Вопросы (${questions.length})` },
+                    { id: 'reminders', label: `⏰ Напоминания (${reminders.length})` },
                     ...(task.kind === 'ProcessTask' && task.processInfo
                         ? [{ id: 'process-info' as TabId, label: '⚙️ Процесс' }]
                         : []),
@@ -1190,6 +1270,48 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                                                     </button>
                                                 )
                                             }
+                                        </div>
+                                    ))}
+                                </div>
+                            )
+                        }
+                    </div>
+                )}
+
+                {/* ─── FR-TASK-02.3: Напоминания ─── */}
+                {tab === 'reminders' && (
+                    <div className="task-detail__tab-content">
+                        <div className="task-detail__section-header">
+                            <h4>Напоминания</h4>
+                            <button className="task-detail__btn" onClick={() => {
+                                const d = new Date(); d.setHours(d.getHours() + 1);
+                                setReminderDate(d.toISOString().slice(0, 16));
+                                setReminderNote('');
+                                setShowAddReminder(true);
+                            }}>+ Добавить</button>
+                        </div>
+                        {reminders.length === 0
+                            ? <div className="task-detail__empty">Напоминаний нет</div>
+                            : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                    {reminders.map(r => (
+                                        <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: 6, background: r.isSent ? '#f9fafb' : '#fffbeb' }}>
+                                            <span style={{ fontSize: 20 }}>{r.isSent ? '✅' : '⏰'}</span>
+                                            <div style={{ flex: 1 }}>
+                                                <div style={{ fontWeight: 500 }}>{new Date(r.remindAt).toLocaleString('ru-RU')}</div>
+                                                {r.note && <div style={{ fontSize: 13, color: '#6b7280' }}>{r.note}</div>}
+                                                {r.isSent && <div style={{ fontSize: 11, color: '#9ca3af' }}>Отправлено</div>}
+                                            </div>
+                                            {!r.isSent && (
+                                                <button className="task-detail__btn task-detail__btn--danger task-detail__btn--sm"
+                                                    onClick={async () => {
+                                                        if (!token) return;
+                                                        await deleteTaskReminder(token, taskId, r.id);
+                                                        setReminders(prev => prev.filter(x => x.id !== r.id));
+                                                    }}>
+                                                    ✕
+                                                </button>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
@@ -1612,6 +1734,65 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                                 {editSaving ? 'Сохранение...' : 'Сохранить'}
                             </button>
                             <button className="task-detail__btn" onClick={() => setShowEditDialog(false)}>Отмена</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* FR-TASK-02.3: Диалог добавления напоминания */}
+            {showAddReminder && (
+                <div className="task-detail__overlay" onClick={() => setShowAddReminder(false)}>
+                    <div className="task-detail__dialog" onClick={e => e.stopPropagation()}>
+                        <h3>⏰ Добавить напоминание</h3>
+                        <label className="task-detail__field-label">Дата и время</label>
+                        <input className="task-detail__input" type="datetime-local" value={reminderDate}
+                            onChange={e => setReminderDate(e.target.value)} />
+                        <label className="task-detail__field-label">Заметка (необязательно)</label>
+                        <input className="task-detail__input" type="text" placeholder="Например, позвонить заказчику" value={reminderNote}
+                            onChange={e => setReminderNote(e.target.value)} />
+                        <div className="task-detail__dialog-footer">
+                            <button className="task-detail__btn task-detail__btn--primary"
+                                disabled={reminderSaving || !reminderDate}
+                                onClick={async () => {
+                                    if (!token || !reminderDate) return;
+                                    setReminderSaving(true);
+                                    try {
+                                        const r = await addTaskReminder(token, taskId, new Date(reminderDate).toISOString(), reminderNote || undefined);
+                                        setReminders(prev => [...prev, r]);
+                                        setShowAddReminder(false);
+                                    } finally { setReminderSaving(false); }
+                                }}>
+                                {reminderSaving ? 'Сохранение...' : 'Добавить'}
+                            </button>
+                            <button className="task-detail__btn" onClick={() => setShowAddReminder(false)}>Отмена</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* FR-TASK-02.3: Диалог планирования задачи */}
+            {showScheduleDialog && (
+                <div className="task-detail__overlay" onClick={() => setShowScheduleDialog(false)}>
+                    <div className="task-detail__dialog" onClick={e => e.stopPropagation()}>
+                        <h3>📅 Запланировать задачу</h3>
+                        <label className="task-detail__field-label">Дата и время</label>
+                        <input className="task-detail__input" type="datetime-local" value={scheduleDate}
+                            onChange={e => setScheduleDate(e.target.value)} />
+                        <div className="task-detail__dialog-footer">
+                            <button className="task-detail__btn task-detail__btn--primary"
+                                disabled={scheduleSaving || !scheduleDate}
+                                onClick={async () => {
+                                    if (!token || !scheduleDate) return;
+                                    setScheduleSaving(true);
+                                    try {
+                                        const t = await scheduleTask(token, taskId, new Date(scheduleDate).toISOString());
+                                        setTask(t);
+                                        setShowScheduleDialog(false);
+                                    } finally { setScheduleSaving(false); }
+                                }}>
+                                {scheduleSaving ? 'Сохранение...' : 'Запланировать'}
+                            </button>
+                            <button className="task-detail__btn" onClick={() => setShowScheduleDialog(false)}>Отмена</button>
                         </div>
                     </div>
                 </div>

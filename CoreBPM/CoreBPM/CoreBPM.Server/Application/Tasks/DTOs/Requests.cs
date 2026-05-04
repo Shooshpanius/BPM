@@ -212,3 +212,32 @@ public class AnswerTaskQuestionRequest
     /// <summary>Текст ответа.</summary>
     public string AnswerText { get; set; } = string.Empty;
 }
+
+// ─── FR-TASK-02.3: Поиск, подписка, уведомления и календарь ─────────────────
+
+/// <summary>Запрос на добавление напоминания по задаче (FR-TASK-02.3).</summary>
+public class AddTaskReminderRequest
+{
+    /// <summary>Дата и время напоминания.</summary>
+    public DateTimeOffset RemindAt { get; set; }
+    /// <summary>Необязательный комментарий к напоминанию.</summary>
+    public string? Note { get; set; }
+}
+
+/// <summary>Запрос на планирование задачи в календаре (FR-TASK-02.3).</summary>
+public class ScheduleTaskRequest
+{
+    /// <summary>Дата и время, на которое планируется выполнение задачи.</summary>
+    public DateTimeOffset ScheduledAt { get; set; }
+}
+
+/// <summary>Запрос на обновление одного типа настройки уведомлений (FR-TASK-02.3).</summary>
+public class UpdateNotificationSettingRequest
+{
+    /// <summary>Тип события (например, TaskAssigned, TaskDone).</summary>
+    public string EventType { get; set; } = string.Empty;
+    /// <summary>In-app (SignalR) уведомление.</summary>
+    public bool InApp { get; set; }
+    /// <summary>Email уведомление.</summary>
+    public bool Email { get; set; }
+}

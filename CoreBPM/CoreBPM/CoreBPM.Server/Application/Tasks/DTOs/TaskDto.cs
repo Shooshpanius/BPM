@@ -43,6 +43,8 @@ public class TaskDto
     public ProcessTaskInfoDto? ProcessInfo { get; set; }
     /// <summary>Детали серии (заполняется для задач вида Periodic, FR-TASK-01.5.1).</summary>
     public TaskRecurrenceDto? Recurrence { get; set; }
+    /// <summary>Дата и время, на которое запланировано выполнение задачи (FR-TASK-02.3).</summary>
+    public DateTimeOffset? ScheduledAt { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
     public List<TaskParticipantDto> Participants { get; set; } = new();
@@ -89,4 +91,48 @@ public class PeriodicSeriesItemDto
     public DateTimeOffset StartDate { get; set; }
     public DateTimeOffset DueDate { get; set; }
     public bool IsOverdue { get; set; }
+}
+
+/// <summary>Напоминание по задаче (FR-TASK-02.3).</summary>
+public class TaskReminderDto
+{
+    public Guid Id { get; set; }
+    public Guid TaskId { get; set; }
+    public Guid UserId { get; set; }
+    public DateTimeOffset RemindAt { get; set; }
+    public string? Note { get; set; }
+    public bool IsSent { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+}
+
+/// <summary>Дашборд задач (FR-TASK-02.3).</summary>
+public class TaskDashboardDto
+{
+    /// <summary>Задачи по статусам.</summary>
+    public Dictionary<string, int> ByStatus { get; set; } = new();
+    /// <summary>Задачи по приоритетам.</summary>
+    public Dictionary<string, int> ByPriority { get; set; } = new();
+    /// <summary>Просроченные задачи (мои открытые).</summary>
+    public int OverdueCount { get; set; }
+    /// <summary>Всего открытых задач пользователя.</summary>
+    public int OpenCount { get; set; }
+    /// <summary>Динамика создания/закрытия задач за последние 30 дней.</summary>
+    public List<TaskDailyStatDto> DailyStats { get; set; } = new();
+}
+
+/// <summary>Статистика создания/закрытия задач за день (FR-TASK-02.3).</summary>
+public class TaskDailyStatDto
+{
+    public string Date { get; set; } = string.Empty;
+    public int Created { get; set; }
+    public int Closed { get; set; }
+}
+
+/// <summary>Настройки уведомлений пользователя для одного типа события (FR-TASK-02.3).</summary>
+public class UserTaskNotificationSettingsDto
+{
+    public Guid Id { get; set; }
+    public string EventType { get; set; } = string.Empty;
+    public bool InApp { get; set; }
+    public bool Email { get; set; }
 }

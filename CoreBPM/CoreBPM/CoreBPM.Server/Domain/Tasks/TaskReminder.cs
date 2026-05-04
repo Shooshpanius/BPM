@@ -6,6 +6,8 @@ public class TaskReminder
     public Guid TaskId { get; set; }
     public Guid UserId { get; set; }
     public DateTimeOffset RemindAt { get; set; }
+    /// <summary>Необязательная заметка к напоминанию (FR-TASK-02.3).</summary>
+    public string? Note { get; set; }
     public bool IsSent { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public TaskItem Task { get; set; } = null!;

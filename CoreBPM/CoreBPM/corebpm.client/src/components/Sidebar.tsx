@@ -2,7 +2,7 @@ import { useAuth } from '../context/AuthContext';
 import { APP_VERSION, LAST_PR_DATE } from '../version';
 import './Sidebar.css';
 
-export type SidebarSection = 'tasks' | 'tasks-periodic' | 'contacts' | 'org-structure' | 'bpm-processes' | 'bpm-my-processes' | 'bpm-monitor' | 'bpm-queue' | 'bpm-documentation' | 'bpm-rules' | 'bpm-forms' | 'bpm-scripts' | 'bpm-migration' | 'bpm-improvements' | 'bpm-analytics' | 'task-control-settings' | 'timelogs-report';
+export type SidebarSection = 'tasks' | 'tasks-periodic' | 'tasks-dashboard' | 'contacts' | 'org-structure' | 'bpm-processes' | 'bpm-my-processes' | 'bpm-monitor' | 'bpm-queue' | 'bpm-documentation' | 'bpm-rules' | 'bpm-forms' | 'bpm-scripts' | 'bpm-migration' | 'bpm-improvements' | 'bpm-analytics' | 'task-control-settings' | 'timelogs-report' | 'notification-settings';
 
 interface SidebarProps {
     active: SidebarSection;
@@ -38,6 +38,21 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
                         <path d="M17 2.1l4 4-4 4"/>
                         <path d="M3 12.2v-2a4 4 0 0 1 4-4h12.8M7 21.9l-4-4 4-4"/>
                         <path d="M21 11.8v2a4 4 0 0 1-4 4H4.2"/>
+                    </svg>
+                }
+            />
+            {/* FR-TASK-02.3: Дашборд задач */}
+            <SidebarItem
+                id="tasks-dashboard"
+                label="Дашборд задач"
+                active={active === 'tasks-dashboard'}
+                onClick={() => onSelect('tasks-dashboard')}
+                icon={
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <rect x="3" y="3" width="7" height="7"/>
+                        <rect x="14" y="3" width="7" height="7"/>
+                        <rect x="14" y="14" width="7" height="7"/>
+                        <rect x="3" y="14" width="7" height="7"/>
                     </svg>
                 }
             />
@@ -240,6 +255,19 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
                     }
                 />
             )}
+            {/* FR-TASK-02.3: Настройки уведомлений — доступно всем авторизованным */}
+            <SidebarItem
+                id="notification-settings"
+                label="Настройки уведомлений"
+                active={active === 'notification-settings'}
+                onClick={() => onSelect('notification-settings')}
+                icon={
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                        <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                    </svg>
+                }
+            />
             {canManageOrg && (
                 <>
                     <div className="sidebar-divider" role="separator" />

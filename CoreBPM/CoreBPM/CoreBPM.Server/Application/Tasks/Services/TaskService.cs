@@ -307,6 +307,9 @@ public class TaskService : ITaskService
             new { taskId = task.Id, number = task.Number, subject = task.Subject, dueDate = task.DueDate },
             ct);
 
+        // FR-TASK-02.3: Уведомление наблюдателей о переназначении
+        await NotifyObserversAsync(task, "TaskReassigned", ct);
+
         return await BuildDtoAsync(taskId, ct);
     }
 
@@ -323,6 +326,12 @@ public class TaskService : ITaskService
 
         // FR-TASK-02.1: Обработка упоминаний @displayname в тексте комментария
         await ProcessMentionsAsync(taskId, req.Body, authorId, now, ct);
+
+        // FR-TASK-02.3: Уведомление наблюдателей о новом комментарии
+        var taskForNotify = await _db.TaskItems.Include(t => t.Participants)
+            .AsNoTracking().FirstOrDefaultAsync(t => t.Id == taskId, ct);
+        if (taskForNotify != null)
+            await NotifyObserversAsync(taskForNotify, "TaskCommentAdded", ct);
 
         var authorName = await GetDisplayNameAsync(authorId, ct);
         return new TaskCommentDto { Id = comment.Id, AuthorUserId = authorId, AuthorName = authorName, Body = comment.Body, CreatedAt = comment.CreatedAt };
@@ -642,6 +651,7 @@ public class TaskService : ITaskService
             Kind = task.Kind.ToString(),
             DocumentId = task.DocumentId,
             SeriesId = task.SeriesId,
+            ScheduledAt = task.ScheduledAt,
             CreatedAt = task.CreatedAt,
             UpdatedAt = task.UpdatedAt,
             Participants = task.Participants.Select(p => new TaskParticipantDto { Id = p.Id, UserId = p.UserId, UserName = participantUsers.GetValueOrDefault(p.UserId, p.UserId.ToString()), Role = p.Role.ToString() }).ToList(),
@@ -820,6 +830,9 @@ public class TaskService : ITaskService
         // Уведомление соисполнителей о начале работы
         if (req?.NotifyCoExecutors == true)
             await NotifyCoExecutorsAsync(task, "TaskStarted", ct);
+
+        // FR-TASK-02.3: Уведомление наблюдателей о начале работы
+        await NotifyObserversAsync(task, "TaskStarted", ct);
 
         return await BuildDtoAsync(taskId, ct);
     }
@@ -2098,6 +2111,10 @@ public class TaskService : ITaskService
             _db.TaskComments.Add(new TaskComment { Id = Guid.NewGuid(), TaskId = taskId, AuthorUserId = actorId, Body = req.Comment.Trim(), CreatedAt = now });
 
         await _db.SaveChangesAsync(ct);
+
+        // FR-TASK-02.3: Уведомление наблюдателей о переносе срока
+        await NotifyObserversAsync(task, "TaskRescheduled", ct);
+
         return await BuildDtoAsync(taskId, ct);
     }
 
@@ -2141,6 +2158,9 @@ public class TaskService : ITaskService
         if (task.AssigneeUserId != actorId)
             await _notifications.NotifyUserAsync(task.AssigneeUserId, "TaskReopened",
                 new { taskId = task.Id, number = task.Number, subject = task.Subject }, ct);
+
+        // FR-TASK-02.3: Уведомление наблюдателей об открытии заново
+        await NotifyObserversAsync(task, "TaskReopened", ct);
 
         return await BuildDtoAsync(taskId, ct);
     }
@@ -2418,5 +2438,209 @@ public class TaskService : ITaskService
         foreach (var userId in coExecutors)
             await _notifications.NotifyUserAsync(userId, eventType,
                 new { taskId = task.Id, number = task.Number, subject = task.Subject }, ct);
+    }
+    // ─── FR-TASK-02.3: Напоминания ────────────────────────────────────────────
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<TaskReminderDto>> GetRemindersAsync(Guid taskId, Guid userId, CancellationToken ct = default)
+    {
+        var reminders = await _db.TaskReminders.AsNoTracking()
+            .Where(r => r.TaskId == taskId && r.UserId == userId)
+            .OrderBy(r => r.RemindAt)
+            .ToListAsync(ct);
+        return reminders.Select(r => new TaskReminderDto
+        {
+            Id = r.Id,
+            TaskId = r.TaskId,
+            UserId = r.UserId,
+            RemindAt = r.RemindAt,
+            Note = r.Note,
+            IsSent = r.IsSent,
+            CreatedAt = r.CreatedAt,
+        }).ToList();
+    }
+
+    /// <inheritdoc/>
+    public async Task<TaskReminderDto> AddReminderAsync(Guid taskId, AddTaskReminderRequest req, Guid userId, CancellationToken ct = default)
+    {
+        _ = await _db.TaskItems.AsNoTracking().FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+
+        if (req.RemindAt <= DateTimeOffset.UtcNow)
+            throw new ValidationException("Дата напоминания должна быть в будущем.");
+
+        var now = DateTimeOffset.UtcNow;
+        var reminder = new TaskReminder
+        {
+            Id = Guid.NewGuid(),
+            TaskId = taskId,
+            UserId = userId,
+            RemindAt = req.RemindAt,
+            Note = req.Note?.Trim(),
+            IsSent = false,
+            CreatedAt = now,
+        };
+        _db.TaskReminders.Add(reminder);
+        await _db.SaveChangesAsync(ct);
+
+        return new TaskReminderDto
+        {
+            Id = reminder.Id,
+            TaskId = taskId,
+            UserId = userId,
+            RemindAt = reminder.RemindAt,
+            Note = reminder.Note,
+            IsSent = false,
+            CreatedAt = now,
+        };
+    }
+
+    /// <inheritdoc/>
+    public async Task DeleteReminderAsync(Guid reminderId, Guid actorId, CancellationToken ct = default)
+    {
+        var reminder = await _db.TaskReminders.FirstOrDefaultAsync(r => r.Id == reminderId && r.UserId == actorId, ct);
+        if (reminder == null) return; // уже удалено или не принадлежит актору
+        _db.TaskReminders.Remove(reminder);
+        await _db.SaveChangesAsync(ct);
+    }
+
+    // ─── FR-TASK-02.3: Планирование в календаре ──────────────────────────────
+
+    /// <inheritdoc/>
+    public async Task<TaskDto> ScheduleTaskAsync(Guid taskId, ScheduleTaskRequest req, Guid actorId, CancellationToken ct = default)
+    {
+        var task = await _db.TaskItems.Include(t => t.Participants)
+            .FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+
+        task.ScheduledAt = req.ScheduledAt;
+        task.UpdatedAt = DateTimeOffset.UtcNow;
+        await _db.SaveChangesAsync(ct);
+
+        await NotifyObserversAsync(task, "TaskScheduled", ct);
+        return await GetAsync(taskId, ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<TaskDto> UnscheduleTaskAsync(Guid taskId, Guid actorId, CancellationToken ct = default)
+    {
+        var task = await _db.TaskItems.Include(t => t.Participants)
+            .FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+
+        task.ScheduledAt = null;
+        task.UpdatedAt = DateTimeOffset.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return await GetAsync(taskId, ct);
+    }
+
+    // ─── FR-TASK-02.3: Дашборд задач ─────────────────────────────────────────
+
+    /// <inheritdoc/>
+    public async Task<TaskDashboardDto> GetDashboardAsync(Guid userId, bool isAdmin, CancellationToken ct = default)
+    {
+        IQueryable<TaskItem> query = _db.TaskItems.AsNoTracking();
+        if (!isAdmin)
+        {
+            var participantTaskIds = _db.TaskParticipants
+                .Where(p => p.UserId == userId)
+                .Select(p => p.TaskId);
+            query = query.Where(t => t.AuthorUserId == userId || t.AssigneeUserId == userId || participantTaskIds.Contains(t.Id));
+        }
+
+        var tasks = await query.ToListAsync(ct);
+        var openTasks = tasks.Where(t => !FinalStatuses.Contains(t.Status)).ToList();
+
+        var byStatus = openTasks
+            .GroupBy(t => t.Status.ToString())
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        var byPriority = openTasks
+            .GroupBy(t => t.Priority.ToString())
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        var cutoff = DateTimeOffset.UtcNow.AddDays(-30).Date;
+        var recentTasks = tasks.Where(t => t.CreatedAt.Date >= cutoff).ToList();
+        var closedRecent = tasks.Where(t => FinalStatuses.Contains(t.Status) && t.UpdatedAt.Date >= cutoff).ToList();
+
+        var dailyStats = new List<TaskDailyStatDto>();
+        for (var day = cutoff; day <= DateTimeOffset.UtcNow.Date; day = day.AddDays(1))
+        {
+            dailyStats.Add(new TaskDailyStatDto
+            {
+                Date = day.ToString("yyyy-MM-dd"),
+                Created = recentTasks.Count(t => t.CreatedAt.Date == day),
+                Closed = closedRecent.Count(t => t.UpdatedAt.Date == day),
+            });
+        }
+
+        return new TaskDashboardDto
+        {
+            ByStatus = byStatus,
+            ByPriority = byPriority,
+            OverdueCount = openTasks.Count(t => t.IsOverdue),
+            OpenCount = openTasks.Count,
+            DailyStats = dailyStats,
+        };
+    }
+
+    // ─── FR-TASK-02.3: Настройки уведомлений ─────────────────────────────────
+
+    private static readonly string[] DefaultTaskEventTypes =
+    [
+        "TaskAssigned", "TaskDone", "TaskOverdue", "TaskCommentAdded",
+        "TaskReminder", "TaskRescheduled", "TaskReopened", "TaskQuestionAsked",
+        "TaskMentioned", "TaskCompleted", "TaskScheduled",
+    ];
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<UserTaskNotificationSettingsDto>> GetNotificationSettingsAsync(Guid userId, CancellationToken ct = default)
+    {
+        var saved = await _db.UserTaskNotificationSettings.AsNoTracking()
+            .Where(s => s.UserId == userId)
+            .ToListAsync(ct);
+
+        // Возвращаем дефолтные записи для событий, которые ещё не настраивались
+        var result = new List<UserTaskNotificationSettingsDto>();
+        foreach (var eventType in DefaultTaskEventTypes)
+        {
+            var existing = saved.FirstOrDefault(s => s.EventType == eventType);
+            result.Add(new UserTaskNotificationSettingsDto
+            {
+                Id = existing?.Id ?? Guid.Empty,
+                EventType = eventType,
+                InApp = existing?.InApp ?? true,
+                Email = existing?.Email ?? false,
+            });
+        }
+        return result;
+    }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<UserTaskNotificationSettingsDto>> UpdateNotificationSettingsAsync(
+        Guid userId, IReadOnlyList<UpdateNotificationSettingRequest> settings, CancellationToken ct = default)
+    {
+        var existing = await _db.UserTaskNotificationSettings
+            .Where(s => s.UserId == userId)
+            .ToListAsync(ct);
+
+        foreach (var req in settings)
+        {
+            var entity = existing.FirstOrDefault(s => s.EventType == req.EventType);
+            if (entity == null)
+            {
+                entity = new Domain.Tasks.UserTaskNotificationSettings
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = userId,
+                    EventType = req.EventType,
+                };
+                _db.UserTaskNotificationSettings.Add(entity);
+            }
+            entity.InApp = req.InApp;
+            entity.Email = req.Email;
+        }
+        await _db.SaveChangesAsync(ct);
+        return await GetNotificationSettingsAsync(userId, ct);
     }
 }

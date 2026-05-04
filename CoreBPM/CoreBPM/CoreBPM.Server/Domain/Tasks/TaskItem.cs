@@ -34,6 +34,9 @@ public class TaskItem
     /// <summary>Ссылка на серию периодических задач (FR-TASK-01.5.1).</summary>
     public Guid? SeriesId { get; set; }
 
+    /// <summary>Дата и время, на которое запланировано выполнение задачи (FR-TASK-02.3).</summary>
+    public DateTimeOffset? ScheduledAt { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
     public TaskItem? ParentTask { get; set; }
