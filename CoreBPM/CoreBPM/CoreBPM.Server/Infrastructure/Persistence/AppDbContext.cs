@@ -101,6 +101,8 @@ public class AppDbContext : DbContext
     public DbSet<NotifyChannel> NotifyChannels => Set<NotifyChannel>();
     public DbSet<NotifyChannelSubscriber> NotifyChannelSubscribers => Set<NotifyChannelSubscriber>();
     public DbSet<NotifyChannelPost> NotifyChannelPosts => Set<NotifyChannelPost>();
+    public DbSet<NotifyPostReaction> NotifyPostReactions => Set<NotifyPostReaction>();
+    public DbSet<NotifyPostComment> NotifyPostComments => Set<NotifyPostComment>();
     public DbSet<NotifyUserMessagingPrefs> NotifyUserMessagingPrefs => Set<NotifyUserMessagingPrefs>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -1403,6 +1405,31 @@ public class AppDbContext : DbContext
             e.HasOne(p => p.Channel)
              .WithMany(c => c.Posts)
              .HasForeignKey(p => p.ChannelId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<NotifyPostReaction>(e =>
+        {
+            e.ToTable("notify_post_reactions");
+            e.HasKey(r => r.Id);
+            e.HasIndex(r => new { r.PostId, r.UserId, r.Emoji }).IsUnique();
+            e.Property(r => r.Emoji).IsRequired().HasMaxLength(50);
+            e.HasOne(r => r.Post)
+             .WithMany()
+             .HasForeignKey(r => r.PostId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<NotifyPostComment>(e =>
+        {
+            e.ToTable("notify_post_comments");
+            e.HasKey(c => c.Id);
+            e.HasIndex(c => c.PostId);
+            e.HasIndex(c => c.CreatedAt);
+            e.Property(c => c.Text).IsRequired().HasMaxLength(4000);
+            e.HasOne(c => c.Post)
+             .WithMany()
+             .HasForeignKey(c => c.PostId)
              .OnDelete(DeleteBehavior.Cascade);
         });
 

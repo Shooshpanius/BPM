@@ -917,7 +917,7 @@ public class MessagingService : IMessagingService
     }
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<ChannelPostDto>> GetPostsAsync(Guid channelId, Guid userId, int limit = 30, DateTimeOffset? before = null, CancellationToken ct = default)
+    public async Task<IReadOnlyList<ChannelPostDto>> GetPostsAsync(Guid channelId, Guid userId, int limit = 30, DateTimeOffset? before = null, string? searchQuery = null, CancellationToken ct = default)
     {
         // Проверяем, что пользователь подписан или канал публичный
         var channel = await _db.NotifyChannels.FindAsync(new object[] { channelId }, ct)
@@ -935,6 +935,15 @@ public class MessagingService : IMessagingService
         if (before.HasValue)
             query = query.Where(p => p.CreatedAt < before.Value);
 
+        // Поиск по тексту/заголовку
+        if (!string.IsNullOrWhiteSpace(searchQuery))
+        {
+            var q = searchQuery.ToLower();
+            query = query.Where(p =>
+                (p.Title != null && p.Title.ToLower().Contains(q)) ||
+                p.Body.ToLower().Contains(q));
+        }
+
         var posts = await query
             .OrderByDescending(p => p.CreatedAt)
             .Take(limit)
@@ -945,12 +954,182 @@ public class MessagingService : IMessagingService
         var authorIds = posts.Select(p => p.AuthorUserId).Distinct();
         var users = await GetUserBriefsAsync(authorIds, ct);
 
+        // Загружаем реакции и счётчики комментариев для постов
+        var postIds = posts.Select(p => p.Id).ToList();
+        var reactions = await _db.NotifyPostReactions
+            .Where(r => postIds.Contains(r.PostId))
+            .ToListAsync(ct);
+        var commentCounts = await _db.NotifyPostComments
+            .Where(c => postIds.Contains(c.PostId) && !c.IsDeleted)
+            .GroupBy(c => c.PostId)
+            .Select(g => new { PostId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(g => g.PostId, g => g.Count, ct);
+
         return posts.Select(p =>
         {
             users.TryGetValue(p.AuthorUserId, out var author);
+            var postReactions = reactions
+                .Where(r => r.PostId == p.Id)
+                .GroupBy(r => r.Emoji)
+                .Select(g => new MessageReactionDto(g.Key, g.Count(), g.Any(r => r.UserId == userId)))
+                .ToList();
+            commentCounts.TryGetValue(p.Id, out var cCount);
             return new ChannelPostDto(p.Id, p.ChannelId, p.AuthorUserId,
                 author?.DisplayName ?? "Пользователь", author?.AvatarUrl,
-                p.Title, p.Body, p.IsEdited, p.EditedAt, p.CreatedAt);
+                p.Title, p.Body, p.IsEdited, p.EditedAt, p.CreatedAt,
+                postReactions, cCount);
+        }).ToList();
+    }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<MessageReactionDto>> TogglePostReactionAsync(Guid postId, Guid userId, string emoji, CancellationToken ct = default)
+    {
+        var post = await _db.NotifyChannelPosts.FindAsync(new object[] { postId }, ct)
+            ?? throw new NotFoundException("Публикация не найдена.");
+
+        // Проверяем доступ — подписчик канала
+        var isAccessible = await _db.NotifyChannels
+            .Where(c => c.Id == post.ChannelId)
+            .AnyAsync(c => c.Kind == NotifyChannelKind.Public ||
+                _db.NotifyChannelSubscribers.Any(s => s.ChannelId == c.Id && s.UserId == userId), ct);
+        if (!isAccessible)
+            throw new ForbiddenException("Нет доступа к публикации.");
+
+        var existing = await _db.NotifyPostReactions
+            .FirstOrDefaultAsync(r => r.PostId == postId && r.UserId == userId && r.Emoji == emoji, ct);
+
+        if (existing is not null)
+            _db.NotifyPostReactions.Remove(existing);
+        else
+            _db.NotifyPostReactions.Add(new NotifyPostReaction
+            {
+                Id = Guid.NewGuid(), PostId = postId, UserId = userId,
+                Emoji = emoji, CreatedAt = DateTimeOffset.UtcNow
+            });
+
+        await _db.SaveChangesAsync(ct);
+
+        return await _db.NotifyPostReactions
+            .Where(r => r.PostId == postId)
+            .GroupBy(r => r.Emoji)
+            .Select(g => new MessageReactionDto(g.Key, g.Count(), g.Any(r => r.UserId == userId)))
+            .ToListAsync(ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<PostCommentDto>> GetPostCommentsAsync(Guid postId, Guid userId, CancellationToken ct = default)
+    {
+        var post = await _db.NotifyChannelPosts.FindAsync(new object[] { postId }, ct)
+            ?? throw new NotFoundException("Публикация не найдена.");
+
+        var channel = await _db.NotifyChannels.FindAsync(new object[] { post.ChannelId }, ct);
+        if (channel?.Kind == NotifyChannelKind.Private)
+        {
+            var isSub = await _db.NotifyChannelSubscribers
+                .AnyAsync(s => s.ChannelId == post.ChannelId && s.UserId == userId, ct);
+            if (!isSub)
+                throw new ForbiddenException("Доступ к приватному каналу запрещён.");
+        }
+
+        var comments = await _db.NotifyPostComments
+            .Where(c => c.PostId == postId)
+            .OrderBy(c => c.CreatedAt)
+            .ToListAsync(ct);
+
+        var authorIds = comments.Select(c => c.AuthorUserId).Distinct();
+        var users = await GetUserBriefsAsync(authorIds, ct);
+
+        return comments.Select(c =>
+        {
+            users.TryGetValue(c.AuthorUserId, out var author);
+            return new PostCommentDto(c.Id, c.PostId, c.AuthorUserId,
+                author?.DisplayName ?? "Пользователь", author?.AvatarUrl,
+                c.IsDeleted ? "Комментарий удалён" : c.Text, c.IsDeleted, c.CreatedAt);
+        }).ToList();
+    }
+
+    /// <inheritdoc/>
+    public async Task<PostCommentDto> AddPostCommentAsync(Guid postId, Guid userId, AddPostCommentRequest req, CancellationToken ct = default)
+    {
+        var post = await _db.NotifyChannelPosts.FindAsync(new object[] { postId }, ct)
+            ?? throw new NotFoundException("Публикация не найдена.");
+
+        // Для приватного канала — только подписчики
+        var channel = await _db.NotifyChannels.FindAsync(new object[] { post.ChannelId }, ct);
+        if (channel?.Kind == NotifyChannelKind.Private)
+        {
+            var isSub = await _db.NotifyChannelSubscribers
+                .AnyAsync(s => s.ChannelId == post.ChannelId && s.UserId == userId, ct);
+            if (!isSub)
+                throw new ForbiddenException("Комментировать публикации закрытого канала могут только подписчики.");
+        }
+
+        if (string.IsNullOrWhiteSpace(req.Text))
+            throw new ValidationException("Текст комментария обязателен.");
+
+        var comment = new NotifyPostComment
+        {
+            Id = Guid.NewGuid(), PostId = postId, AuthorUserId = userId,
+            Text = req.Text.Trim(), CreatedAt = DateTimeOffset.UtcNow
+        };
+        _db.NotifyPostComments.Add(comment);
+        await _db.SaveChangesAsync(ct);
+
+        var author = await GetUserBriefAsync(userId, ct);
+        return new PostCommentDto(comment.Id, postId, userId, author.DisplayName,
+            author.AvatarUrl, comment.Text, false, comment.CreatedAt);
+    }
+
+    /// <inheritdoc/>
+    public async Task DeletePostCommentAsync(Guid commentId, Guid userId, CancellationToken ct = default)
+    {
+        var comment = await _db.NotifyPostComments.FindAsync(new object[] { commentId }, ct)
+            ?? throw new NotFoundException("Комментарий не найден.");
+
+        if (comment.AuthorUserId != userId)
+        {
+            var post = await _db.NotifyChannelPosts.FindAsync(new object[] { comment.PostId }, ct);
+            if (post is not null)
+            {
+                var isAdmin = await _db.NotifyChannelSubscribers
+                    .AnyAsync(s => s.ChannelId == post.ChannelId && s.UserId == userId && s.IsAdmin, ct);
+                if (!isAdmin)
+                    throw new ForbiddenException("Удалить комментарий может только автор или администратор канала.");
+            }
+        }
+
+        comment.IsDeleted = true;
+        await _db.SaveChangesAsync(ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<ChannelSubscriberDto>> GetSubscribersAsync(Guid channelId, Guid userId, CancellationToken ct = default)
+    {
+        var channel = await _db.NotifyChannels.FindAsync(new object[] { channelId }, ct)
+            ?? throw new NotFoundException("Канал не найден.");
+
+        // Доступ — подписчик или публичный канал
+        if (channel.Kind == NotifyChannelKind.Private)
+        {
+            var isSub = await _db.NotifyChannelSubscribers
+                .AnyAsync(s => s.ChannelId == channelId && s.UserId == userId, ct);
+            if (!isSub)
+                throw new ForbiddenException("Нет доступа к списку подписчиков.");
+        }
+
+        var subs = await _db.NotifyChannelSubscribers
+            .Where(s => s.ChannelId == channelId)
+            .OrderByDescending(s => s.IsAdmin)
+            .ThenBy(s => s.SubscribedAt)
+            .ToListAsync(ct);
+
+        var userIds = subs.Select(s => s.UserId).Distinct();
+        var users = await GetUserBriefsAsync(userIds, ct);
+
+        return subs.Select(s =>
+        {
+            users.TryGetValue(s.UserId, out var u);
+            return new ChannelSubscriberDto(s.UserId, u?.DisplayName ?? "Пользователь", u?.AvatarUrl, s.IsAdmin, s.SubscribedAt);
         }).ToList();
     }
 

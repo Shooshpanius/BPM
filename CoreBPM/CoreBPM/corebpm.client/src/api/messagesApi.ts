@@ -91,6 +91,27 @@ export interface ChannelPostDto {
     isEdited: boolean;
     editedAt: string | null;
     createdAt: string;
+    reactions: MessageReactionDto[] | null;
+    commentCount: number;
+}
+
+export interface PostCommentDto {
+    id: string;
+    postId: string;
+    authorUserId: string;
+    authorName: string;
+    authorAvatarUrl: string | null;
+    text: string;
+    isDeleted: boolean;
+    createdAt: string;
+}
+
+export interface ChannelSubscriberDto {
+    userId: string;
+    displayName: string;
+    avatarUrl: string | null;
+    isAdmin: boolean;
+    subscribedAt: string;
 }
 
 export interface MessagingPrefsDto {
@@ -357,9 +378,10 @@ export async function unsubscribeChannel(token: string, channelId: string): Prom
     });
 }
 
-export async function getChannelPosts(token: string, channelId: string, limit = 30, before?: string): Promise<ChannelPostDto[]> {
+export async function getChannelPosts(token: string, channelId: string, limit = 30, before?: string, q?: string): Promise<ChannelPostDto[]> {
     const params = new URLSearchParams({ limit: String(limit) });
     if (before) params.set('before', before);
+    if (q) params.set('q', q);
     const r = await fetch(`/api/messages/channels/${channelId}/posts?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
     });
@@ -392,6 +414,55 @@ export async function deleteChannelPost(token: string, channelId: string, postId
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
     });
+}
+
+// ─── Реакции на публикации ────────────────────────────────────────────────────
+
+export async function togglePostReaction(token: string, channelId: string, postId: string, emoji: string): Promise<MessageReactionDto[]> {
+    const r = await fetch(`/api/messages/channels/${channelId}/posts/${postId}/react`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emoji }),
+    });
+    if (!r.ok) throw new Error('Ошибка реакции');
+    return r.json();
+}
+
+// ─── Комментарии к публикациям ────────────────────────────────────────────────
+
+export async function getPostComments(token: string, channelId: string, postId: string): Promise<PostCommentDto[]> {
+    const r = await fetch(`/api/messages/channels/${channelId}/posts/${postId}/comments`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!r.ok) return [];
+    return r.json();
+}
+
+export async function addPostComment(token: string, channelId: string, postId: string, text: string): Promise<PostCommentDto> {
+    const r = await fetch(`/api/messages/channels/${channelId}/posts/${postId}/comments`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+    });
+    if (!r.ok) throw new Error('Ошибка добавления комментария');
+    return r.json();
+}
+
+export async function deletePostComment(token: string, channelId: string, postId: string, commentId: string): Promise<void> {
+    await fetch(`/api/messages/channels/${channelId}/posts/${postId}/comments/${commentId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+    });
+}
+
+// ─── Подписчики канала ────────────────────────────────────────────────────────
+
+export async function getChannelSubscribers(token: string, channelId: string): Promise<ChannelSubscriberDto[]> {
+    const r = await fetch(`/api/messages/channels/${channelId}/subscribers`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!r.ok) return [];
+    return r.json();
 }
 
 // ─── Счётчик непрочитанных ────────────────────────────────────────────────────

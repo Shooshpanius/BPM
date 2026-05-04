@@ -101,7 +101,28 @@ public interface IMessagingService
     Task DeletePostAsync(Guid postId, Guid userId, CancellationToken ct = default);
 
     /// <summary>Возвращает список публикаций канала в хронологическом порядке.</summary>
-    Task<IReadOnlyList<ChannelPostDto>> GetPostsAsync(Guid channelId, Guid userId, int limit = 30, DateTimeOffset? before = null, CancellationToken ct = default);
+    Task<IReadOnlyList<ChannelPostDto>> GetPostsAsync(Guid channelId, Guid userId, int limit = 30, DateTimeOffset? before = null, string? searchQuery = null, CancellationToken ct = default);
+
+    // ─── Реакции на публикации (FR-MSG-01.2) ─────────────────────────────────
+
+    /// <summary>Добавляет или снимает реакцию на публикацию (toggle).</summary>
+    Task<IReadOnlyList<MessageReactionDto>> TogglePostReactionAsync(Guid postId, Guid userId, string emoji, CancellationToken ct = default);
+
+    // ─── Комментарии к публикациям (FR-MSG-01.2) ─────────────────────────────
+
+    /// <summary>Возвращает список комментариев к публикации.</summary>
+    Task<IReadOnlyList<PostCommentDto>> GetPostCommentsAsync(Guid postId, Guid userId, CancellationToken ct = default);
+
+    /// <summary>Добавляет комментарий к публикации (подписчик или администратор).</summary>
+    Task<PostCommentDto> AddPostCommentAsync(Guid postId, Guid userId, AddPostCommentRequest req, CancellationToken ct = default);
+
+    /// <summary>Удаляет комментарий (автор или администратор канала — soft delete).</summary>
+    Task DeletePostCommentAsync(Guid commentId, Guid userId, CancellationToken ct = default);
+
+    // ─── Подписчики канала (FR-MSG-01.2) ─────────────────────────────────────
+
+    /// <summary>Возвращает список подписчиков канала (только администратор или подписчик).</summary>
+    Task<IReadOnlyList<ChannelSubscriberDto>> GetSubscribersAsync(Guid channelId, Guid userId, CancellationToken ct = default);
 
     // ─── Настройки ленты (FR-MSG-01.2) ───────────────────────────────────────
 

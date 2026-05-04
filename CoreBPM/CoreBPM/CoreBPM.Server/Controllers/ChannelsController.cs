@@ -92,11 +92,12 @@ public class ChannelsController : ControllerBase
         Guid channelId,
         [FromQuery] int limit = 30,
         [FromQuery] DateTimeOffset? before = null,
+        [FromQuery] string? q = null,
         CancellationToken ct = default)
     {
         var userId = GetCurrentUserId();
         if (userId == null) return Unauthorized();
-        return Ok(await _svc.GetPostsAsync(channelId, userId.Value, limit, before, ct));
+        return Ok(await _svc.GetPostsAsync(channelId, userId.Value, limit, before, q, ct));
     }
 
     /// <summary>Создать публикацию в канале (только администратор/модератор).</summary>
@@ -129,5 +130,58 @@ public class ChannelsController : ControllerBase
         if (userId == null) return Unauthorized();
         await _svc.DeletePostAsync(postId, userId.Value, ct);
         return NoContent();
+    }
+
+    /// <summary>Добавить или снять реакцию на публикацию.</summary>
+    [HttpPost("api/messages/channels/{channelId:guid}/posts/{postId:guid}/react")]
+    [ProducesResponseType(typeof(IReadOnlyList<MessageReactionDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<MessageReactionDto>>> TogglePostReaction(
+        Guid channelId, Guid postId, [FromBody] ToggleReactionRequest req, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _svc.TogglePostReactionAsync(postId, userId.Value, req.Emoji, ct));
+    }
+
+    /// <summary>Получить комментарии к публикации.</summary>
+    [HttpGet("api/messages/channels/{channelId:guid}/posts/{postId:guid}/comments")]
+    [ProducesResponseType(typeof(IReadOnlyList<PostCommentDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<PostCommentDto>>> GetPostComments(Guid channelId, Guid postId, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _svc.GetPostCommentsAsync(postId, userId.Value, ct));
+    }
+
+    /// <summary>Добавить комментарий к публикации.</summary>
+    [HttpPost("api/messages/channels/{channelId:guid}/posts/{postId:guid}/comments")]
+    [ProducesResponseType(typeof(PostCommentDto), StatusCodes.Status201Created)]
+    public async Task<ActionResult<PostCommentDto>> AddPostComment(Guid channelId, Guid postId, [FromBody] AddPostCommentRequest req, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        var dto = await _svc.AddPostCommentAsync(postId, userId.Value, req, ct);
+        return CreatedAtAction(nameof(GetPostComments), new { channelId, postId }, dto);
+    }
+
+    /// <summary>Удалить комментарий к публикации.</summary>
+    [HttpDelete("api/messages/channels/{channelId:guid}/posts/{postId:guid}/comments/{commentId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> DeletePostComment(Guid channelId, Guid postId, Guid commentId, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        await _svc.DeletePostCommentAsync(commentId, userId.Value, ct);
+        return NoContent();
+    }
+
+    /// <summary>Список подписчиков канала.</summary>
+    [HttpGet("api/messages/channels/{channelId:guid}/subscribers")]
+    [ProducesResponseType(typeof(IReadOnlyList<ChannelSubscriberDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<ChannelSubscriberDto>>> GetSubscribers(Guid channelId, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _svc.GetSubscribersAsync(channelId, userId.Value, ct));
     }
 }

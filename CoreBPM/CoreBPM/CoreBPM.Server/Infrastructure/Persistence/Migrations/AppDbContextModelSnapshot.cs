@@ -4337,6 +4337,82 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
 
                     b.Navigation("TimeLogs");
                 });
+            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyPostComment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("PostId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("post_id");
+
+                    b.Property<Guid>("AuthorUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("author_user_id");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("text");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notify_post_comments");
+
+                    b.HasIndex("PostId")
+                        .HasDatabaseName("ix_notify_post_comments_post_id");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_notify_post_comments_created_at");
+
+                    b.ToTable("notify_post_comments", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyPostReaction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("PostId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("post_id");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<string>("Emoji")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("emoji");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notify_post_reactions");
+
+                    b.HasIndex("PostId", "UserId", "Emoji")
+                        .IsUnique()
+                        .HasDatabaseName("ix_notify_post_reactions_post_user_emoji");
+
+                    b.ToTable("notify_post_reactions", (string)null);
+                });
+
 #pragma warning restore 612, 618
         }
     }

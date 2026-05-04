@@ -17,6 +17,9 @@ public record EditMessageRequest(string Text);
 /// <summary>Добавление/снятие реакции.</summary>
 public record ToggleReactionRequest(string Emoji);
 
+/// <summary>Добавление комментария к публикации канала.</summary>
+public record AddPostCommentRequest(string Text);
+
 /// <summary>Создание информационного канала.</summary>
 public record CreateChannelRequest(string Name, string? Description, string? IconEmoji, string Kind);
 
@@ -122,7 +125,28 @@ public record ChannelPostDto(
     string Body,
     bool IsEdited,
     DateTimeOffset? EditedAt,
+    DateTimeOffset CreatedAt,
+    IReadOnlyList<MessageReactionDto>? Reactions = null,
+    int CommentCount = 0);
+
+/// <summary>Комментарий к публикации канала.</summary>
+public record PostCommentDto(
+    Guid Id,
+    Guid PostId,
+    Guid AuthorUserId,
+    string AuthorName,
+    string? AuthorAvatarUrl,
+    string Text,
+    bool IsDeleted,
     DateTimeOffset CreatedAt);
+
+/// <summary>Подписчик информационного канала.</summary>
+public record ChannelSubscriberDto(
+    Guid UserId,
+    string DisplayName,
+    string? AvatarUrl,
+    bool IsAdmin,
+    DateTimeOffset SubscribedAt);
 
 /// <summary>Настройки ленты сообщений пользователя.</summary>
 public record MessagingPrefsDto(

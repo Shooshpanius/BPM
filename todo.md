@@ -1369,6 +1369,10 @@
 - [x] **Публикации канала**: пост с заголовком, rich-text телом; `POST /api/messages/channels/{id}/posts`; `PUT/DELETE /api/messages/channels/{id}/posts/{postId}`; пользователи видят посты в хронологическом порядке
 - [x] **Настройки ленты**: пользователь настраивает отображение — какие чаты/каналы показывать; сортировка (по активности / алфавиту / ручная); закреплённые чаты вверху списка; `GET/PUT /api/users/me/messaging-prefs`
 - [x] **Закреплённые сообщения**: администратор чата может закрепить важное сообщение; `POST /api/messages/chats/{id}/pinned`; `GET /api/messages/chats/{id}/pinned`; `DELETE /api/messages/chats/{id}/pinned/{pinId}`
+- [x] **Реакции на публикации**: подписчики ставят эмодзи-реакции на посты (toggle); `POST /api/messages/channels/{channelId}/posts/{postId}/react`; таблица `notify_post_reactions`; отображение под постом в ChannelsPage
+- [x] **Комментарии к публикациям**: подписчики публичных и приватных каналов могут оставлять комментарии к постам; `GET/POST /api/messages/channels/{channelId}/posts/{postId}/comments`; `DELETE /api/messages/channels/{channelId}/posts/{postId}/comments/{commentId}`; таблица `notify_post_comments`; секция комментариев разворачивается по клику в ChannelsPage
+- [x] **Поиск по публикациям**: фильтрация постов по тексту заголовка и тела; `GET /api/messages/channels/{channelId}/posts?q=...`; поле поиска в шапке канала
+- [x] **Список подписчиков**: просмотр всех подписчиков канала с отметкой администраторов; `GET /api/messages/channels/{channelId}/subscribers`; диалог «Подписчики» открывается из шапки
 
 ### FR-MSG-02: Уведомления
 
