@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getTaskCounters, type TaskCountersDto } from '../api/tasksApi';
+import { useBpmNotifications } from '../context/BpmNotificationsContext';
 import { APP_VERSION, LAST_PR_DATE } from '../version';
 import './Sidebar.css';
 
@@ -16,18 +17,28 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
     const { hasRole, accessToken } = useAuth();
     const canManageOrg = hasRole('Admin') || hasRole('HR');
     const [counters, setCounters] = useState<TaskCountersDto | null>(null);
+    const { notifications } = useBpmNotifications();
 
-    // FR-TASK-02.2: Периодическое обновление счётчиков задач (каждые 60 с)
+    const loadCounters = useCallback(() => {
+        if (!accessToken) return;
+        getTaskCounters(accessToken).then(c => setCounters(c)).catch(() => {});
+    }, [accessToken]);
+
+    // FR-TASK-02.2: Периодическое обновление счётчиков задач (fallback каждые 5 минут)
     useEffect(() => {
         if (!accessToken) return;
-        let cancelled = false;
-        const load = () => {
-            getTaskCounters(accessToken).then(c => { if (!cancelled) setCounters(c); }).catch(() => {});
-        };
-        load();
-        const id = setInterval(load, 60_000);
-        return () => { cancelled = true; clearInterval(id); };
-    }, [accessToken]);
+        loadCounters();
+        const id = setInterval(loadCounters, 300_000);
+        return () => clearInterval(id);
+    }, [accessToken, loadCounters]);
+
+    // FR-TASK-02.2: Push-обновление счётчиков при получении SignalR-события TaskCountersUpdated
+    useEffect(() => {
+        const last = notifications[0];
+        if (last?.type === 'TaskCountersUpdated') {
+            loadCounters();
+        }
+    }, [notifications, loadCounters]);
 
     return (
         <nav className="sidebar" aria-label="Разделы системы">

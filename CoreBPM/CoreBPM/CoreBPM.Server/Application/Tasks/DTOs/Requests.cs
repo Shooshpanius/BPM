@@ -102,6 +102,12 @@ public class TaskListFilter
     public int Page { get; set; } = 1;
     /// <summary>Размер страницы (FR-TASK-02.2).</summary>
     public int PageSize { get; set; } = 50;
+    /// <summary>
+    /// EQL-запрос (FR-TASK-02.2): строка вида <c>field:value [AND|OR field:value]...</c>.
+    /// Поддерживаемые поля: status, priority, tag, assignee, author, category, overdue.
+    /// Пример: <c>status:InProgress AND priority:High</c>.
+    /// </summary>
+    public string? Eql { get; set; }
 }
 
 /// <summary>Запрос на откладывание задачи (FR-TASK-01.2).</summary>

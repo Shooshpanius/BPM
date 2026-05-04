@@ -195,6 +195,8 @@ export interface TaskListParams {
     /** Страница (1-based) для пагинации (FR-TASK-02.2) */
     page?: number;
     pageSize?: number;
+    /** EQL-запрос (FR-TASK-02.2): field:value [AND|OR field:value]... */
+    eql?: string;
 }
 
 async function apiFetch<T>(token: string, url: string, options?: RequestInit): Promise<T> {
@@ -233,6 +235,7 @@ export async function listTasks(token: string, params: TaskListParams = {}): Pro
     if (params.group) q.set('group', params.group);
     if (params.page) q.set('page', String(params.page));
     if (params.pageSize) q.set('pageSize', String(params.pageSize));
+    if (params.eql) q.set('eql', params.eql);
     return apiFetch<TaskSummaryDto[]>(token, `/api/tasks?${q}`);
 }
 

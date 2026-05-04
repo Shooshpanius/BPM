@@ -144,4 +144,13 @@ public class BpmNotificationService : IBpmNotificationService
             .Group(BpmNotificationHub.AdminGroup)
             .SendAsync("bpm:notification", payload, ct);
     }
+
+    /// <inheritdoc/>
+    public async Task NotifyTaskCountersUpdatedAsync(Guid userId, CancellationToken ct = default)
+    {
+        var payload = new { type = "TaskCountersUpdated", occurredAt = DateTimeOffset.UtcNow };
+        await _hub.Clients
+            .Group($"user:{userId}")
+            .SendAsync("bpm:notification", payload, ct);
+    }
 }

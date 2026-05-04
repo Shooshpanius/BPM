@@ -31,7 +31,34 @@ type SortField = 'created_at' | 'due_date' | 'priority' | 'status' | 'subject';
 type ViewMode = 'table' | 'card';
 
 /** Группировка в таблице (FR-TASK-02.2). */
-type GroupByField = '' | 'priority' | 'status' | 'categoryId';
+type GroupByField = '' | 'priority' | 'status' | 'categoryId' | 'assignee' | 'dueDate';
+
+/** Возвращает CSS-класс строки для цветового кодирования (FR-TASK-02.2). */
+function getRowClass(task: TaskSummaryDto): string {
+    if (task.isOverdue) return 'tasks-row--overdue';
+    if (task.status === 'InProgress') return 'tasks-row--inprogress';
+    if (task.status === 'CannotDo' || task.status === 'CannotDoNeedsControl') return 'tasks-row--cannotdo';
+    if (task.status === 'Done' || task.status === 'DoneControlled' || task.status === 'Closed') return 'tasks-row--done';
+    if (task.status === 'New' || task.status === 'Read') return 'tasks-row--new';
+    return '';
+}
+
+/**
+ * Возвращает бакет для группировки по дате дедлайна (FR-TASK-02.2).
+ * «Просрочено» / «Сегодня» / «На этой неделе» / «Позже»
+ */
+function getDueDateBucket(dueDate?: string): string {
+    if (!dueDate) return 'Без срока';
+    const due = new Date(dueDate);
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayEnd = new Date(todayStart.getTime() + 86400_000);
+    const weekEnd = new Date(todayStart.getTime() + 7 * 86400_000);
+    if (due < todayStart) return '🔴 Просрочено';
+    if (due < todayEnd)   return '🟡 Сегодня';
+    if (due < weekEnd)    return '🔵 На этой неделе';
+    return '⚪ Позже';
+}
 
 /** Возвращает CSS-класс строки для цветового кодирования (FR-TASK-02.2). */
 function getRowClass(task: TaskSummaryDto): string {
@@ -60,6 +87,8 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
     const { accessToken: token, userId } = useAuth();
 
     const [group, setGroup] = useState<GroupId>('incoming');
+    // ─── Быстрые sub-фильтры внутри группы (FR-TASK-02.2)
+    const [subFilter, setSubFilter] = useState<'all' | 'active' | 'overdue'>('all');
     const [tasks, setTasks] = useState<TaskSummaryDto[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -95,6 +124,10 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
     const [filterTagValue, setFilterTagValue] = useState('');
     const [filterDateFrom, setFilterDateFrom] = useState('');
     const [filterDateTo, setFilterDateTo] = useState('');
+
+    // ─── EQL-поиск (FR-TASK-02.2)
+    const [filterEql, setFilterEql] = useState('');
+    const [eqlError, setEqlError] = useState<string | null>(null);
 
     // ─── Сохранённые фильтры (FR-TASK-02.3)
     const [savedFilters, setSavedFilters] = useState<TaskSavedFilterDto[]>([]);
@@ -135,12 +168,18 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
         if (!token) return;
         setLoading(true);
         setError(null);
+        setEqlError(null);
         try {
+            // Вычисляем overdue/status из sub-фильтра
+            const subOverdue = subFilter === 'overdue' ? true : (filterOverdue || undefined);
+            // «Активные» = незавершённые статусы
+            const activeStatuses = 'New,Read,InProgress,OnApproval,DoneNeedsControl,CannotDoNeedsControl';
+            const subStatus = subFilter === 'active' ? activeStatuses : (filterStatus || undefined);
             const data = await listTasks(token, {
-                status: filterStatus || undefined,
+                status: subStatus,
                 priority: filterPriority || undefined,
                 search: filterSearch || undefined,
-                isOverdue: filterOverdue || undefined,
+                isOverdue: subOverdue,
                 group: group !== 'all' ? group : undefined,
                 authorId: filterAuthorId || undefined,
                 tagValue: filterTagValue || undefined,
@@ -148,15 +187,21 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
                 dateTo: filterDateTo || undefined,
                 sortBy: sortField,
                 sortDir,
+                eql: filterEql || undefined,
             });
             setTasks(data);
         } catch (e) {
-            setError(e instanceof Error ? e.message : 'Ошибка загрузки');
+            const msg = e instanceof Error ? e.message : 'Ошибка загрузки';
+            if (msg.startsWith('EQL:')) {
+                setEqlError(msg);
+            } else {
+                setError(msg);
+            }
         } finally {
             setLoading(false);
         }
-    }, [token, group, filterStatus, filterPriority, filterSearch, filterOverdue,
-        filterAuthorId, filterTagValue, filterDateFrom, filterDateTo, sortField, sortDir]);
+    }, [token, group, subFilter, filterStatus, filterPriority, filterSearch, filterOverdue,
+        filterAuthorId, filterTagValue, filterDateFrom, filterDateTo, sortField, sortDir, filterEql]);
 
     useEffect(() => { load(); }, [load]);
 
@@ -340,13 +385,21 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
         if (!groupBy) return [{ key: '', tasks }];
         const map = new Map<string, TaskSummaryDto[]>();
         tasks.forEach(t => {
-            const fieldValue: string = groupBy === 'priority' ? t.priority
-                : groupBy === 'status' ? t.status
-                : groupBy === 'categoryId' ? (t.categoryId ?? '(не задано)')
-                : '(не задано)';
+            let fieldValue: string;
+            if (groupBy === 'priority') fieldValue = t.priority;
+            else if (groupBy === 'status') fieldValue = t.status;
+            else if (groupBy === 'categoryId') fieldValue = t.categoryId ?? '(не задано)';
+            else if (groupBy === 'assignee') fieldValue = t.assigneeName ?? '(не задано)';
+            else if (groupBy === 'dueDate') fieldValue = getDueDateBucket(t.dueDate);
+            else fieldValue = '(не задано)';
             if (!map.has(fieldValue)) map.set(fieldValue, []);
             map.get(fieldValue)!.push(t);
         });
+        // Для дедлайна сортируем бакеты в логичном порядке
+        if (groupBy === 'dueDate') {
+            const order = ['🔴 Просрочено', '🟡 Сегодня', '🔵 На этой неделе', '⚪ Позже', 'Без срока'];
+            return order.filter(k => map.has(k)).map(k => ({ key: k, tasks: map.get(k)! }));
+        }
         return Array.from(map.entries()).map(([key, t]) => ({ key, tasks: t }));
     })();
 
@@ -378,8 +431,21 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
             {/* ── FR-TASK-02.2: Группы задач (вкладки) */}
             <div className="tasks-page__tabs">
                 {(Object.keys(GROUP_LABELS) as GroupId[]).map(g => (
-                    <button key={g} className={`tasks-page__tab${group === g ? ' tasks-page__tab--active' : ''}`} onClick={() => setGroup(g)}>
+                    <button key={g} className={`tasks-page__tab${group === g ? ' tasks-page__tab--active' : ''}`} onClick={() => { setGroup(g); setSubFilter('all'); }}>
                         {GROUP_LABELS[g]}
+                    </button>
+                ))}
+            </div>
+
+            {/* ── FR-TASK-02.2: Быстрые sub-фильтры внутри группы */}
+            <div className="tasks-page__sub-tabs">
+                {(['all', 'active', 'overdue'] as const).map(sf => (
+                    <button
+                        key={sf}
+                        className={`tasks-page__sub-tab${subFilter === sf ? ' tasks-page__sub-tab--active' : ''}`}
+                        onClick={() => setSubFilter(sf)}
+                    >
+                        {sf === 'all' ? 'Все' : sf === 'active' ? 'Активные' : 'Просроченные'}
                     </button>
                 ))}
             </div>
@@ -403,6 +469,8 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
                     <option value="priority">По приоритету</option>
                     <option value="status">По статусу</option>
                     <option value="categoryId">По категории</option>
+                    <option value="assignee">По исполнителю</option>
+                    <option value="dueDate">По сроку</option>
                 </select>
             </div>
 
@@ -515,6 +583,21 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
                             </select>
                         </div>
 
+                        {/* EQL-поиск (FR-TASK-02.2) */}
+                        <div className="tasks-page__adv-field tasks-page__adv-field--full">
+                            <label className="tasks-page__adv-label">
+                                EQL-запрос
+                                <span title="Пример: status:InProgress AND priority:High&#10;Поля: status, priority, tag, category, overdue, search" style={{ marginLeft: 4, cursor: 'help', color: '#6b7280' }}>ℹ️</span>
+                            </label>
+                            <input
+                                className="tasks-page__input"
+                                placeholder="Например: status:InProgress AND priority:High"
+                                value={filterEql}
+                                onChange={e => { setFilterEql(e.target.value); setEqlError(null); }}
+                            />
+                            {eqlError && <div style={{ color: '#dc2626', fontSize: 12, marginTop: 2 }}>{eqlError}</div>}
+                        </div>
+
                         {/* Кнопки */}
                         <div className="tasks-page__adv-actions">
                             <button className="tasks-page__btn tasks-page__btn--primary" onClick={load}>Найти</button>
@@ -522,6 +605,7 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
                                 setFilterAuthorId(''); setFilterAuthorName(''); setFilterAuthorSearch('');
                                 setFilterTagValue(''); setFilterDateFrom(''); setFilterDateTo('');
                                 setSortField('created_at'); setSortDir('desc');
+                                setFilterEql(''); setEqlError(null);
                             }}>Сбросить</button>
                             <button className="tasks-page__btn" onClick={() => setShowSaveFilter(true)} title="Сохранить текущий набор фильтров">
                                 💾 Сохранить как фильтр

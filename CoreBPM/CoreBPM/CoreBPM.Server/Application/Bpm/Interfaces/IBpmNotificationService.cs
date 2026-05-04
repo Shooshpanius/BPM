@@ -34,6 +34,12 @@ public interface IBpmNotificationService
     Task NotifyUserAsync(Guid userId, string eventType, object payload, CancellationToken ct = default);
 
     /// <summary>
+    /// Уведомляет пользователя об изменении счётчиков задач (FR-TASK-02.2 SignalR push).
+    /// Клиент должен обновить бейджи в Sidebar немедленно.
+    /// </summary>
+    Task NotifyTaskCountersUpdatedAsync(Guid userId, CancellationToken ct = default);
+
+    /// <summary>
     /// Уведомляет инициатора и владельца процесса о смене статуса предложения по улучшению (FR-BPM-03.1).
     /// </summary>
     Task NotifyImprovementStatusChangedAsync(

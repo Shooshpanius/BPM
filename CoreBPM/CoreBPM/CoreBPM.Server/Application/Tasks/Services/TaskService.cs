@@ -104,6 +104,11 @@ public class TaskService : ITaskService
             new { taskId = task.Id, number = task.Number, subject = task.Subject, dueDate = task.DueDate },
             ct);
 
+        // Push-обновление счётчиков Sidebar (FR-TASK-02.2)
+        await _notifications.NotifyTaskCountersUpdatedAsync(task.AssigneeUserId, ct);
+        if (task.AuthorUserId != task.AssigneeUserId)
+            await _notifications.NotifyTaskCountersUpdatedAsync(task.AuthorUserId, ct);
+
         return await BuildDtoAsync(task.Id, ct);
     }
 
@@ -125,6 +130,10 @@ public class TaskService : ITaskService
     /// <inheritdoc/>
     public async Task<IReadOnlyList<TaskSummaryDto>> ListAsync(Guid userId, bool isAdmin, TaskListFilter filter, CancellationToken ct = default)
     {
+        // ─── EQL-поиск (FR-TASK-02.2) ────────────────────────────────────────
+        if (!string.IsNullOrWhiteSpace(filter.Eql))
+            EqlParser.Apply(filter.Eql, filter);
+
         var query = _db.TaskItems.AsNoTracking();
 
         // ─── Группа задач (FR-TASK-02.2) ─────────────────────────────────
@@ -156,8 +165,20 @@ public class TaskService : ITaskService
                 break;
         }
 
-        if (!string.IsNullOrEmpty(filter.Status) && Enum.TryParse<TaskStatus>(filter.Status, out var status))
-            query = query.Where(t => t.Status == status);
+        if (!string.IsNullOrEmpty(filter.Status))
+        {
+            // Поддержка нескольких статусов через запятую (для sub-фильтра «Активные»)
+            var parts = filter.Status.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            var statuses = parts
+                .Select(p => Enum.TryParse<TaskStatus>(p, out var s) ? (TaskStatus?)s : null)
+                .Where(s => s.HasValue)
+                .Select(s => s!.Value)
+                .ToList();
+            if (statuses.Count == 1)
+                query = query.Where(t => t.Status == statuses[0]);
+            else if (statuses.Count > 1)
+                query = query.Where(t => statuses.Contains(t.Status));
+        }
         if (!string.IsNullOrEmpty(filter.Priority) && Enum.TryParse<Domain.Tasks.TaskPriority>(filter.Priority, out var priority))
             query = query.Where(t => t.Priority == priority);
         if (filter.AssigneeId.HasValue)
@@ -374,6 +395,10 @@ public class TaskService : ITaskService
 
         // FR-TASK-02.3: Уведомление наблюдателей о переназначении
         await NotifyObserversAsync(task, "TaskReassigned", ct);
+
+        // Push-обновление счётчиков у старого и нового исполнителя (FR-TASK-02.2)
+        await _notifications.NotifyTaskCountersUpdatedAsync(oldAssignee, ct);
+        await _notifications.NotifyTaskCountersUpdatedAsync(req.AssigneeUserId, ct);
 
         return await BuildDtoAsync(taskId, ct);
     }
@@ -998,6 +1023,11 @@ public class TaskService : ITaskService
             await _notifications.NotifyUserAsync(task.AuthorUserId, "ResolutionTaskDone",
                 new { taskId = task.Id, number = task.Number, subject = task.Subject, documentId = task.DocumentId }, ct);
 
+        // Push-обновление счётчиков (FR-TASK-02.2)
+        await _notifications.NotifyTaskCountersUpdatedAsync(task.AssigneeUserId, ct);
+        if (task.ControllerUserId.HasValue)
+            await _notifications.NotifyTaskCountersUpdatedAsync(task.ControllerUserId.Value, ct);
+
         return await BuildDtoAsync(taskId, ct);
     }
 
@@ -1040,6 +1070,9 @@ public class TaskService : ITaskService
             await _notifications.NotifyUserAsync(task.ControllerUserId.Value, "TaskDoneNotification",
                 new { taskId = task.Id, number = task.Number, subject = task.Subject }, ct);
 
+        // Push-обновление счётчиков (FR-TASK-02.2)
+        await _notifications.NotifyTaskCountersUpdatedAsync(task.AssigneeUserId, ct);
+
         return await BuildDtoAsync(taskId, ct);
     }
 
@@ -1070,6 +1103,10 @@ public class TaskService : ITaskService
         await NotifyObserversAsync(task, "TaskCompleted", ct);
         if (req?.NotifyCoExecutors == true)
             await NotifyCoExecutorsAsync(task, "TaskCompleted", ct);
+
+        // Push-обновление счётчиков (FR-TASK-02.2)
+        await _notifications.NotifyTaskCountersUpdatedAsync(task.AssigneeUserId, ct);
+        await _notifications.NotifyTaskCountersUpdatedAsync(task.AuthorUserId, ct);
 
         return await BuildDtoAsync(taskId, ct);
     }
@@ -1132,6 +1169,10 @@ public class TaskService : ITaskService
         await _db.SaveChangesAsync(ct);
 
         await NotifyObserversAsync(task, "TaskCompleted", ct);
+
+        // Push-обновление счётчиков для контролёра (FR-TASK-02.2)
+        await _notifications.NotifyTaskCountersUpdatedAsync(actorId, ct);
+
         return await BuildDtoAsync(taskId, ct);
     }
 

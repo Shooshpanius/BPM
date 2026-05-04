@@ -27,7 +27,7 @@
     display: flex;
     gap: 0;
     border-bottom: 2px solid #e0e0e0;
-    margin-bottom: 16px;
+    margin-bottom: 0;
 }
 
 .tasks-page__tab {
@@ -47,6 +47,34 @@
     border-bottom-color: #1a73e8;
     font-weight: 600;
 }
+
+/* ── Sub-фильтры внутри группы (FR-TASK-02.2) */
+.tasks-page__sub-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid #e0e0e0;
+    margin-bottom: 16px;
+    background: #f5f7fa;
+}
+
+.tasks-page__sub-tab {
+    padding: 5px 16px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 0.82rem;
+    color: #777;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color 0.15s;
+}
+
+.tasks-page__sub-tab--active {
+    color: #1a73e8;
+    border-bottom-color: #1a73e8;
+    font-weight: 600;
+}
+
 
 .tasks-page__filters {
     display: flex;
@@ -365,6 +393,11 @@
     display: flex;
     flex-direction: column;
     min-width: 160px;
+}
+
+.tasks-page__adv-field--full {
+    flex: 1 1 100%;
+    min-width: 300px;
 }
 
 .tasks-page__adv-label {

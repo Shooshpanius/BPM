@@ -17,11 +17,19 @@ public class TasksController : ControllerBase
     /// <summary>Возвращает список задач с фильтрацией.</summary>
     [HttpGet("api/tasks")]
     [ProducesResponseType(typeof(IReadOnlyList<TaskSummaryDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<IReadOnlyList<TaskSummaryDto>>> List([FromQuery] TaskListFilter filter, CancellationToken ct)
     {
         var userId = GetCurrentUserId();
         if (userId == null) return Unauthorized();
-        return Ok(await _service.ListAsync(userId.Value, User.IsInRole("Admin"), filter, ct));
+        try
+        {
+            return Ok(await _service.ListAsync(userId.Value, User.IsInRole("Admin"), filter, ct));
+        }
+        catch (ArgumentException ex) when (ex.Message.StartsWith("EQL:"))
+        {
+            return BadRequest(new { error = ex.Message });
+        }
     }
 
     /// <summary>Создаёт новую задачу.</summary>
