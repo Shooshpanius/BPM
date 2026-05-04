@@ -99,11 +99,58 @@ public class OrgDirectoryService : IOrgDirectoryService
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyList<DirectoryEmployeeDto>> GetEmployeesAsync(
+    public async Task<DirectoryEmployeesPagedDto> GetEmployeesAsync(
         Guid? organizationId,
         Guid? departmentId,
         string? search,
+        string? position = null,
+        string? sortBy = null,
+        string? sortDir = null,
+        int page = 1,
+        int pageSize = 50,
         CancellationToken ct = default)
+    {
+        var items = await QueryEmployeesAsync(organizationId, departmentId, search, position, sortBy, ct);
+        var total = items.Count;
+
+        var paged = items
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+
+        // Применяем сортировку по убыванию если sortDir == "desc"
+        if (string.Equals(sortDir, "desc", StringComparison.OrdinalIgnoreCase))
+            paged = SortDescending(paged, sortBy);
+
+        return new DirectoryEmployeesPagedDto
+        {
+            Items = paged,
+            Total = total,
+            Page = page,
+            PageSize = pageSize
+        };
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<DirectoryEmployeeDto>> GetEmployeesForExportAsync(
+        Guid? organizationId,
+        Guid? departmentId,
+        string? search,
+        string? position = null,
+        string? sortBy = null,
+        CancellationToken ct = default)
+    {
+        return await QueryEmployeesAsync(organizationId, departmentId, search, position, sortBy, ct);
+    }
+
+    /// <summary>Общий метод формирования и сортировки списка сотрудников (без пагинации).</summary>
+    private async Task<List<DirectoryEmployeeDto>> QueryEmployeesAsync(
+        Guid? organizationId,
+        Guid? departmentId,
+        string? search,
+        string? position,
+        string? sortBy,
+        CancellationToken ct)
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
@@ -202,7 +249,7 @@ public class OrgDirectoryService : IOrgDirectoryService
                     .ThenByDescending(a => a.CreatedAt)
                     .First());
 
-        return employees.Select(e =>
+        var result = employees.Select(e =>
         {
             assignmentsByKey.TryGetValue((e.UserId, e.OrganizationId), out var assignment);
             return new DirectoryEmployeeDto
@@ -223,6 +270,37 @@ public class OrgDirectoryService : IOrgDirectoryService
                 DepartmentName = assignment?.Department?.Name ?? assignment?.Position?.Department?.Name
             };
         }).ToList();
+
+        // Фильтр по должности (применяется в памяти после JOIN с назначениями)
+        if (!string.IsNullOrWhiteSpace(position))
+        {
+            var posLower = position.Trim().ToLowerInvariant();
+            result = result.Where(r => r.Position != null &&
+                r.Position.ToLowerInvariant().Contains(posLower)).ToList();
+        }
+
+        // Сортировка по возрастанию
+        result = sortBy?.ToLowerInvariant() switch
+        {
+            "position" => result.OrderBy(r => r.Position ?? string.Empty).ToList(),
+            "department" => result.OrderBy(r => r.DepartmentName ?? string.Empty).ToList(),
+            _ => result.OrderBy(r => r.LastName ?? string.Empty)
+                       .ThenBy(r => r.FirstName ?? string.Empty).ToList()
+        };
+
+        return result;
+    }
+
+    /// <summary>Переупорядочивает список по убыванию по заданному полю.</summary>
+    private static List<DirectoryEmployeeDto> SortDescending(List<DirectoryEmployeeDto> list, string? sortBy)
+    {
+        return sortBy?.ToLowerInvariant() switch
+        {
+            "position" => list.OrderByDescending(r => r.Position ?? string.Empty).ToList(),
+            "department" => list.OrderByDescending(r => r.DepartmentName ?? string.Empty).ToList(),
+            _ => list.OrderByDescending(r => r.LastName ?? string.Empty)
+                     .ThenByDescending(r => r.FirstName ?? string.Empty).ToList()
+        };
     }
 
     private static void SortChildren(List<DirectoryDepartmentTreeDto> nodes)

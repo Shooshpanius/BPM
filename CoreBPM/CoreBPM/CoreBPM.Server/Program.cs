@@ -5,8 +5,8 @@ using CoreBPM.Server.Application.Bpm.Scripting;
 using CoreBPM.Server.Application.Bpm.Services;
 using CoreBPM.Server.Application.Org.Interfaces;
 using CoreBPM.Server.Application.Org.Services;
-using CoreBPM.Server.Application.Rules.Interfaces;
 using CoreBPM.Server.Application.Rules.Services;
+using CoreBPM.Server.Application.Rules.Interfaces;
 using CoreBPM.Server.Application.Tasks.Interfaces;
 using CoreBPM.Server.Application.Tasks.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -96,6 +96,9 @@ builder.Services.AddScoped<IOrgUnitsService, OrgUnitsService>();
 builder.Services.AddScoped<IOrgPositionsService, OrgPositionsService>();
 builder.Services.AddScoped<IOrgAssignmentService, OrgAssignmentService>();
 builder.Services.AddScoped<IOrgChartService, OrgChartService>();
+builder.Services.AddScoped<IUserProfileService, UserProfileService>();
+builder.Services.AddScoped<IUserPreferencesService, UserPreferencesService>();
+builder.Services.AddScoped<ICompanyService, CompanyService>();
 
 // Регистрация сервисов BPM (бизнес-процессы)
 builder.Services.AddScoped<IBpmProcessService, BpmProcessService>();

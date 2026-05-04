@@ -13,6 +13,12 @@ public class OrgUser
     public string WorkEmail { get; set; } = string.Empty;
     public string? Phone { get; set; }
     public string? AvatarUrl { get; set; }
+    public string? MobilePhone { get; set; }
+    public string? InternalPhone { get; set; }
+    public string? PersonalEmail { get; set; }
+    public string? Bio { get; set; }
+    public DateOnly? BirthDate { get; set; }
+    public string BirthDateVisibility { get; set; } = "all";
     public bool IsActive { get; set; } = true;
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
