@@ -88,6 +88,26 @@ public class TaskListFilter
     public string? Search { get; set; }
     public string SortBy { get; set; } = "created_at";
     public string SortDir { get; set; } = "desc";
+    /// <summary>Фильтр по родительской задаче (для загрузки подзадач).</summary>
+    public Guid? ParentTaskId { get; set; }
+    /// <summary>
+    /// Группа задач (FR-TASK-02.2):
+    /// <c>incoming</c> — входящие (исполнитель = я),
+    /// <c>outgoing</c> — исходящие (автор = я),
+    /// <c>control</c> — на контроле (контролёр = я),
+    /// <c>co-exec</c> — соисполнение (участник с ролью CoExecutor = я).
+    /// </summary>
+    public string? Group { get; set; }
+    /// <summary>Страница (1-based) для пагинации (FR-TASK-02.2).</summary>
+    public int Page { get; set; } = 1;
+    /// <summary>Размер страницы (FR-TASK-02.2).</summary>
+    public int PageSize { get; set; } = 50;
+    /// <summary>
+    /// EQL-запрос (FR-TASK-02.2): строка вида <c>field:value [AND|OR field:value]...</c>.
+    /// Поддерживаемые поля: status, priority, tag, assignee, author, category, overdue.
+    /// Пример: <c>status:InProgress AND priority:High</c>.
+    /// </summary>
+    public string? Eql { get; set; }
 }
 
 /// <summary>Запрос на откладывание задачи (FR-TASK-01.2).</summary>
@@ -140,4 +160,102 @@ public class UpdateSeriesRequest
     public DateTimeOffset? EndDate { get; set; }
     public int? LookAheadCount { get; set; }
     public int? DurationMinutes { get; set; }
+}
+
+// ─── FR-TASK-02.1: Действия с задачей ────────────────────────────────────────
+
+/// <summary>Запрос на выполнение задачи (FR-TASK-02.1).</summary>
+public class MarkDoneRequest
+{
+    /// <summary>Комментарий к выполнению.</summary>
+    public string? Comment { get; set; }
+    /// <summary>Затраченное время (минуты). При наличии сохраняется как запись трудозатрат.</summary>
+    public int? EffortMinutes { get; set; }
+    /// <summary>Дата начала работ для записи трудозатрат.</summary>
+    public DateTimeOffset? WorkStartDate { get; set; }
+    /// <summary>Скопировать вложения из подзадач в текущую задачу.</summary>
+    public bool CopyAttachmentsFromSubtasks { get; set; }
+    /// <summary>Отправить уведомление соисполнителям о выполнении.</summary>
+    public bool NotifyCoExecutors { get; set; }
+}
+
+/// <summary>Запрос на отметку «Невозможно выполнить» (FR-TASK-02.1).</summary>
+public class MarkCannotDoRequest
+{
+    public string? Comment { get; set; }
+    public bool NotifyCoExecutors { get; set; }
+}
+
+/// <summary>Запрос на начало работы над задачей (FR-TASK-02.1).</summary>
+public class StartWorkRequest
+{
+    public string? Comment { get; set; }
+    public bool NotifyCoExecutors { get; set; }
+}
+
+/// <summary>Запрос на закрытие/отмену задачи (FR-TASK-02.1).</summary>
+public class CloseTaskRequest
+{
+    public string? Comment { get; set; }
+    public bool NotifyCoExecutors { get; set; }
+}
+
+/// <summary>Запрос на перенос срока задачи без смены статуса (FR-TASK-02.1).</summary>
+public class RescheduleTaskRequest
+{
+    /// <summary>Новый срок выполнения задачи.</summary>
+    public DateTimeOffset NewDueDate { get; set; }
+    public string? Comment { get; set; }
+}
+
+/// <summary>Запрос на добавление наблюдателя (FR-TASK-02.1).</summary>
+public class AddWatcherRequest
+{
+    /// <summary>Идентификатор пользователя-наблюдателя.</summary>
+    public Guid UserId { get; set; }
+}
+
+/// <summary>Запрос на вопрос по задаче (FR-TASK-02.1).</summary>
+public class AskTaskQuestionRequest
+{
+    /// <summary>Текст вопроса.</summary>
+    public string QuestionText { get; set; } = string.Empty;
+    /// <summary>Идентификатор получателя вопроса.</summary>
+    public Guid RecipientId { get; set; }
+}
+
+/// <summary>Запрос на ответ по вопросу к задаче (FR-TASK-02.1).</summary>
+public class AnswerTaskQuestionRequest
+{
+    /// <summary>Текст ответа.</summary>
+    public string AnswerText { get; set; } = string.Empty;
+}
+
+// ─── FR-TASK-02.3: Поиск, подписка, уведомления и календарь ─────────────────
+
+/// <summary>Запрос на добавление напоминания по задаче (FR-TASK-02.3).</summary>
+public class AddTaskReminderRequest
+{
+    /// <summary>Дата и время напоминания.</summary>
+    public DateTimeOffset RemindAt { get; set; }
+    /// <summary>Необязательный комментарий к напоминанию.</summary>
+    public string? Note { get; set; }
+}
+
+/// <summary>Запрос на планирование задачи в календаре (FR-TASK-02.3).</summary>
+public class ScheduleTaskRequest
+{
+    /// <summary>Дата и время, на которое планируется выполнение задачи.</summary>
+    public DateTimeOffset ScheduledAt { get; set; }
+}
+
+/// <summary>Запрос на обновление одного типа настройки уведомлений (FR-TASK-02.3).</summary>
+public class UpdateNotificationSettingRequest
+{
+    /// <summary>Тип события (например, TaskAssigned, TaskDone).</summary>
+    public string EventType { get; set; } = string.Empty;
+    /// <summary>In-app (SignalR) уведомление.</summary>
+    public bool InApp { get; set; }
+    /// <summary>Email уведомление.</summary>
+    public bool Email { get; set; }
 }

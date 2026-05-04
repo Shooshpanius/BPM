@@ -25,10 +25,12 @@ import { AnalyticsSummaryPage } from './bpm/AnalyticsSummaryPage';
 import { ProcessAnalyticsPage } from './bpm/ProcessAnalyticsPage';
 import TaskControlSettingsPage from './admin/TaskControlSettingsPage';
 import TimelogsReportPage from './admin/TimelogsReportPage';
+import { NotificationSettingsPage } from './admin/NotificationSettingsPage';
 import { MyColleaguesWidget } from '../components/org/MyColleaguesWidget';
 import { TasksPage } from './tasks/TasksPage';
 import { TaskDetailPage } from './tasks/TaskDetailPage';
 import { PeriodicTasksPage } from './tasks/PeriodicTasksPage';
+import { TaskDashboardPage } from './tasks/TaskDashboardPage';
 import './HomePage.css';
 
 interface HomePageProps {
@@ -122,6 +124,8 @@ export function HomePage({ onAdmin }: HomePageProps) {
                             ? <TaskDetailPage taskId={openTaskId} onBack={() => setOpenTaskId(null)} />
                             : <PeriodicTasksPage onOpenTask={setOpenTaskId} />
                     )}
+                    {/* FR-TASK-02.3: Дашборд задач */}
+                    {section === 'tasks-dashboard' && <TaskDashboardPage />}
                     {section === 'contacts' && (
                         <div className="hp-contacts-layout">
                             <ContactsPage />
@@ -221,6 +225,8 @@ export function HomePage({ onAdmin }: HomePageProps) {
                     )}
                     {section === 'task-control-settings' && <TaskControlSettingsPage />}
                     {section === 'timelogs-report' && <TimelogsReportPage />}
+                    {/* FR-TASK-02.3: Настройки уведомлений */}
+                    {section === 'notification-settings' && <NotificationSettingsPage />}
                 </main>
             </div>
             {isMobile && <MobileNav active={section} onSelect={handleSelect} />}

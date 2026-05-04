@@ -17,11 +17,19 @@ public class TasksController : ControllerBase
     /// <summary>Возвращает список задач с фильтрацией.</summary>
     [HttpGet("api/tasks")]
     [ProducesResponseType(typeof(IReadOnlyList<TaskSummaryDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<IReadOnlyList<TaskSummaryDto>>> List([FromQuery] TaskListFilter filter, CancellationToken ct)
     {
         var userId = GetCurrentUserId();
         if (userId == null) return Unauthorized();
-        return Ok(await _service.ListAsync(userId.Value, User.IsInRole("Admin"), filter, ct));
+        try
+        {
+            return Ok(await _service.ListAsync(userId.Value, User.IsInRole("Admin"), filter, ct));
+        }
+        catch (ArgumentException ex) when (ex.Message.StartsWith("EQL:"))
+        {
+            return BadRequest(new { error = ex.Message });
+        }
     }
 
     /// <summary>Создаёт новую задачу.</summary>
@@ -37,12 +45,29 @@ public class TasksController : ControllerBase
 
     /// <summary>Экспортирует задачи в CSV.</summary>
     [HttpGet("api/tasks/export")]
-    public async Task<IActionResult> Export([FromQuery] TaskListFilter filter, CancellationToken ct)
+    public async Task<IActionResult> Export([FromQuery] TaskListFilter filter, [FromQuery] string format = "csv", CancellationToken ct = default)
     {
         var userId = GetCurrentUserId();
         if (userId == null) return Unauthorized();
+
+        if (format.Equals("xlsx", StringComparison.OrdinalIgnoreCase))
+        {
+            var xlsxBytes = await _service.ExportToExcelAsync(userId.Value, User.IsInRole("Admin"), filter, ct);
+            return File(xlsxBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "tasks.xlsx");
+        }
+
         var bytes = await _service.ExportToCsvAsync(userId.Value, User.IsInRole("Admin"), filter, ct);
         return File(bytes, "text/csv;charset=utf-8", "tasks.csv");
+    }
+
+    /// <summary>Возвращает счётчики задач для бейджей Sidebar (FR-TASK-02.2).</summary>
+    [HttpGet("api/tasks/counters")]
+    [ProducesResponseType(typeof(TaskCountersDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TaskCountersDto>> GetCounters(CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.GetCountersAsync(userId.Value, ct));
     }
 
     /// <summary>Возвращает сохранённые фильтры.</summary>
@@ -91,7 +116,7 @@ public class TasksController : ControllerBase
     {
         var userId = GetCurrentUserId();
         if (userId == null) return Unauthorized();
-        return Ok(await _service.UpdateAsync(id, req, userId.Value, ct));
+        return Ok(await _service.UpdateAsync(id, req, userId.Value, User.IsInRole("Admin"), ct));
     }
 
     /// <summary>Удаляет задачу.</summary>
@@ -285,41 +310,41 @@ public class TasksController : ControllerBase
     /// <summary>Начать работу по задаче (New/Read → InProgress).</summary>
     [HttpPost("api/tasks/{id:guid}/actions/start")]
     [ProducesResponseType(typeof(TaskDto), StatusCodes.Status200OK)]
-    public async Task<ActionResult<TaskDto>> StartWork(Guid id, CancellationToken ct)
+    public async Task<ActionResult<TaskDto>> StartWork(Guid id, [FromBody] StartWorkRequest? req, CancellationToken ct)
     {
         var userId = GetCurrentUserId();
         if (userId == null) return Unauthorized();
-        return Ok(await _service.StartWorkAsync(id, userId.Value, ct));
+        return Ok(await _service.StartWorkAsync(id, req, userId.Value, ct));
     }
 
     /// <summary>Отметить задачу как выполненную (InProgress → Done/DoneNeedsControl).</summary>
     [HttpPost("api/tasks/{id:guid}/actions/done")]
     [ProducesResponseType(typeof(TaskDto), StatusCodes.Status200OK)]
-    public async Task<ActionResult<TaskDto>> MarkDone(Guid id, CancellationToken ct)
+    public async Task<ActionResult<TaskDto>> MarkDone(Guid id, [FromBody] MarkDoneRequest? req, CancellationToken ct)
     {
         var userId = GetCurrentUserId();
         if (userId == null) return Unauthorized();
-        return Ok(await _service.MarkDoneAsync(id, userId.Value, ct));
+        return Ok(await _service.MarkDoneAsync(id, req, userId.Value, ct));
     }
 
     /// <summary>Отметить задачу как невозможную для выполнения (InProgress → CannotDo/CannotDoNeedsControl).</summary>
     [HttpPost("api/tasks/{id:guid}/actions/cannot-do")]
     [ProducesResponseType(typeof(TaskDto), StatusCodes.Status200OK)]
-    public async Task<ActionResult<TaskDto>> CannotDo(Guid id, CancellationToken ct)
+    public async Task<ActionResult<TaskDto>> CannotDo(Guid id, [FromBody] MarkCannotDoRequest? req, CancellationToken ct)
     {
         var userId = GetCurrentUserId();
         if (userId == null) return Unauthorized();
-        return Ok(await _service.MarkCannotDoAsync(id, userId.Value, ct));
+        return Ok(await _service.MarkCannotDoAsync(id, req, userId.Value, ct));
     }
 
     /// <summary>Закрыть (отменить) задачу (→ Closed). Только автор или Admin.</summary>
     [HttpPost("api/tasks/{id:guid}/actions/close")]
     [ProducesResponseType(typeof(TaskDto), StatusCodes.Status200OK)]
-    public async Task<ActionResult<TaskDto>> CloseTask(Guid id, CancellationToken ct)
+    public async Task<ActionResult<TaskDto>> CloseTask(Guid id, [FromBody] CloseTaskRequest? req, CancellationToken ct)
     {
         var userId = GetCurrentUserId();
         if (userId == null) return Unauthorized();
-        return Ok(await _service.CloseAsync(id, userId.Value, User.IsInRole("Admin"), ct));
+        return Ok(await _service.CloseAsync(id, req, userId.Value, User.IsInRole("Admin"), ct));
     }
 
     /// <summary>Отложить задачу до указанной даты (→ Postponed).</summary>
@@ -561,6 +586,177 @@ public class TasksController : ControllerBase
     {
         var (stream, fileName) = await _service.DownloadAttachmentsZipAsync(id, ct);
         return File(stream, "application/zip", fileName);
+    }
+
+    // ─── FR-TASK-02.1: Дополнительные действия ────────────────────────────────
+
+    /// <summary>Перенести срок задачи без смены статуса. Доступно автору, контролёру, Admin.</summary>
+    [HttpPost("api/tasks/{id:guid}/actions/reschedule")]
+    [ProducesResponseType(typeof(TaskDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TaskDto>> Reschedule(Guid id, [FromBody] RescheduleTaskRequest req, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.RescheduleAsync(id, req, userId.Value, User.IsInRole("Admin"), ct));
+    }
+
+    /// <summary>Открыть задачу заново (Done/DoneControlled/CannotDo/CannotDoControlled → New). Доступно автору, контролёру, Admin.</summary>
+    [HttpPost("api/tasks/{id:guid}/actions/reopen")]
+    [ProducesResponseType(typeof(TaskDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TaskDto>> Reopen(Guid id, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.ReopenAsync(id, userId.Value, User.IsInRole("Admin"), ct));
+    }
+
+    /// <summary>Взять задачу из очереди роли (claim). Доступно любому пользователю, кроме текущего исполнителя.</summary>
+    [HttpPost("api/tasks/{id:guid}/claim")]
+    [ProducesResponseType(typeof(TaskDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TaskDto>> ClaimTask(Guid id, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.ClaimAsync(id, userId.Value, ct));
+    }
+
+    // ─── FR-TASK-02.1: Наблюдатели ─────────────────────────────────────────────
+
+    /// <summary>Получить список наблюдателей задачи.</summary>
+    [HttpGet("api/tasks/{id:guid}/watchers")]
+    [ProducesResponseType(typeof(IReadOnlyList<TaskParticipantDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<TaskParticipantDto>>> GetWatchers(Guid id, CancellationToken ct)
+        => Ok(await _service.GetWatchersAsync(id, ct));
+
+    /// <summary>Добавить наблюдателя к задаче.</summary>
+    [HttpPost("api/tasks/{id:guid}/watchers")]
+    [ProducesResponseType(typeof(TaskParticipantDto), StatusCodes.Status201Created)]
+    public async Task<ActionResult<TaskParticipantDto>> AddWatcher(Guid id, [FromBody] AddWatcherRequest req, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        var dto = await _service.AddWatcherAsync(id, req.UserId, userId.Value, ct);
+        return Created($"/api/tasks/{id}/watchers", dto);
+    }
+
+    /// <summary>Удалить наблюдателя из задачи.</summary>
+    [HttpDelete("api/tasks/{id:guid}/watchers/{watcherUserId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> RemoveWatcher(Guid id, Guid watcherUserId, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        await _service.RemoveWatcherAsync(id, watcherUserId, userId.Value, User.IsInRole("Admin"), ct);
+        return NoContent();
+    }
+
+    // ─── FR-TASK-02.1: Вопросы ───────────────────────────────────────────────
+
+    /// <summary>Получить список вопросов по задаче.</summary>
+    [HttpGet("api/tasks/{id:guid}/questions")]
+    [ProducesResponseType(typeof(IReadOnlyList<TaskQuestionDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<TaskQuestionDto>>> GetQuestions(Guid id, CancellationToken ct)
+        => Ok(await _service.GetQuestionsAsync(id, ct));
+
+    /// <summary>Задать вопрос по задаче.</summary>
+    [HttpPost("api/tasks/{id:guid}/questions")]
+    [ProducesResponseType(typeof(TaskQuestionDto), StatusCodes.Status201Created)]
+    public async Task<ActionResult<TaskQuestionDto>> AskQuestion(Guid id, [FromBody] AskTaskQuestionRequest req, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        var dto = await _service.AskQuestionAsync(id, req, userId.Value, ct);
+        return Created($"/api/tasks/{id}/questions/{dto.Id}", dto);
+    }
+
+    /// <summary>Ответить на вопрос по задаче.</summary>
+    [HttpPut("api/tasks/{id:guid}/questions/{questionId:guid}/answer")]
+    [ProducesResponseType(typeof(TaskQuestionDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TaskQuestionDto>> AnswerQuestion(Guid id, Guid questionId, [FromBody] AnswerTaskQuestionRequest req, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.AnswerQuestionAsync(id, questionId, req, userId.Value, ct));
+    }
+
+    // ─── FR-TASK-02.3: Самоподписка (watch/unwatch) ──────────────────────────
+
+    /// <summary>Подписаться на задачу (добавить текущего пользователя в наблюдатели). FR-TASK-02.3.</summary>
+    [HttpPost("api/tasks/{id:guid}/watch")]
+    [ProducesResponseType(typeof(TaskParticipantDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TaskParticipantDto>> Watch(Guid id, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        var dto = await _service.AddWatcherAsync(id, userId.Value, userId.Value, ct);
+        return Ok(dto);
+    }
+
+    /// <summary>Отписаться от задачи (удалить текущего пользователя из наблюдателей). FR-TASK-02.3.</summary>
+    [HttpDelete("api/tasks/{id:guid}/watch")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> Unwatch(Guid id, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        await _service.RemoveWatcherAsync(id, userId.Value, userId.Value, User.IsInRole("Admin"), ct);
+        return NoContent();
+    }
+
+    // ─── FR-TASK-02.3: Напоминания ────────────────────────────────────────────
+
+    /// <summary>Получить напоминания текущего пользователя по задаче. FR-TASK-02.3.</summary>
+    [HttpGet("api/tasks/{id:guid}/reminders")]
+    [ProducesResponseType(typeof(IReadOnlyList<TaskReminderDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<TaskReminderDto>>> GetReminders(Guid id, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.GetRemindersAsync(id, userId.Value, ct));
+    }
+
+    /// <summary>Добавить напоминание по задаче для текущего пользователя. FR-TASK-02.3.</summary>
+    [HttpPost("api/tasks/{id:guid}/reminders")]
+    [ProducesResponseType(typeof(TaskReminderDto), StatusCodes.Status201Created)]
+    public async Task<ActionResult<TaskReminderDto>> AddReminder(Guid id, [FromBody] AddTaskReminderRequest req, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        var dto = await _service.AddReminderAsync(id, req, userId.Value, ct);
+        return Created($"/api/tasks/{id}/reminders/{dto.Id}", dto);
+    }
+
+    /// <summary>Удалить напоминание. FR-TASK-02.3.</summary>
+    [HttpDelete("api/tasks/{id:guid}/reminders/{reminderId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> DeleteReminder(Guid id, Guid reminderId, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        await _service.DeleteReminderAsync(reminderId, userId.Value, ct);
+        return NoContent();
+    }
+
+    // ─── FR-TASK-02.3: Планирование в календаре ──────────────────────────────
+
+    /// <summary>Запланировать задачу на дату/время. FR-TASK-02.3.</summary>
+    [HttpPost("api/tasks/{id:guid}/schedule")]
+    [ProducesResponseType(typeof(TaskDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TaskDto>> Schedule(Guid id, [FromBody] ScheduleTaskRequest req, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.ScheduleTaskAsync(id, req, userId.Value, ct));
+    }
+
+    /// <summary>Снять задачу с планирования в календаре. FR-TASK-02.3.</summary>
+    [HttpDelete("api/tasks/{id:guid}/schedule")]
+    [ProducesResponseType(typeof(TaskDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TaskDto>> Unschedule(Guid id, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        return Ok(await _service.UnscheduleTaskAsync(id, userId.Value, ct));
     }
 }
 

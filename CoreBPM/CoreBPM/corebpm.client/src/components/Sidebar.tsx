@@ -1,8 +1,11 @@
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { getTaskCounters, type TaskCountersDto } from '../api/tasksApi';
+import { useBpmNotifications } from '../context/BpmNotificationsContext';
 import { APP_VERSION, LAST_PR_DATE } from '../version';
 import './Sidebar.css';
 
-export type SidebarSection = 'tasks' | 'tasks-periodic' | 'contacts' | 'org-structure' | 'bpm-processes' | 'bpm-my-processes' | 'bpm-monitor' | 'bpm-queue' | 'bpm-documentation' | 'bpm-rules' | 'bpm-forms' | 'bpm-scripts' | 'bpm-migration' | 'bpm-improvements' | 'bpm-analytics' | 'task-control-settings' | 'timelogs-report';
+export type SidebarSection = 'tasks' | 'tasks-periodic' | 'tasks-dashboard' | 'contacts' | 'org-structure' | 'bpm-processes' | 'bpm-my-processes' | 'bpm-monitor' | 'bpm-queue' | 'bpm-documentation' | 'bpm-rules' | 'bpm-forms' | 'bpm-scripts' | 'bpm-migration' | 'bpm-improvements' | 'bpm-analytics' | 'task-control-settings' | 'timelogs-report' | 'notification-settings';
 
 interface SidebarProps {
     active: SidebarSection;
@@ -11,8 +14,31 @@ interface SidebarProps {
 
 /** Вертикальный сайдбар навигации (~60px) с иконками разделов. */
 export function Sidebar({ active, onSelect }: SidebarProps) {
-    const { hasRole } = useAuth();
+    const { hasRole, accessToken } = useAuth();
     const canManageOrg = hasRole('Admin') || hasRole('HR');
+    const [counters, setCounters] = useState<TaskCountersDto | null>(null);
+    const { notifications } = useBpmNotifications();
+
+    const loadCounters = useCallback(() => {
+        if (!accessToken) return;
+        getTaskCounters(accessToken).then(c => setCounters(c)).catch(() => {});
+    }, [accessToken]);
+
+    // FR-TASK-02.2: Периодическое обновление счётчиков задач (fallback каждые 5 минут)
+    useEffect(() => {
+        if (!accessToken) return;
+        loadCounters();
+        const id = setInterval(loadCounters, 300_000);
+        return () => clearInterval(id);
+    }, [accessToken, loadCounters]);
+
+    // FR-TASK-02.2: Push-обновление счётчиков при получении SignalR-события TaskCountersUpdated
+    useEffect(() => {
+        const last = notifications[0];
+        if (last?.type === 'TaskCountersUpdated') {
+            loadCounters();
+        }
+    }, [notifications, loadCounters]);
 
     return (
         <nav className="sidebar" aria-label="Разделы системы">
@@ -21,6 +47,7 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
                 label="Задачи"
                 active={active === 'tasks'}
                 onClick={() => onSelect('tasks')}
+                badge={counters && counters.incoming > 0 ? counters.incoming : undefined}
                 icon={
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         <polyline points="9 11 12 14 22 4"/>
@@ -38,6 +65,21 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
                         <path d="M17 2.1l4 4-4 4"/>
                         <path d="M3 12.2v-2a4 4 0 0 1 4-4h12.8M7 21.9l-4-4 4-4"/>
                         <path d="M21 11.8v2a4 4 0 0 1-4 4H4.2"/>
+                    </svg>
+                }
+            />
+            {/* FR-TASK-02.3: Дашборд задач */}
+            <SidebarItem
+                id="tasks-dashboard"
+                label="Дашборд задач"
+                active={active === 'tasks-dashboard'}
+                onClick={() => onSelect('tasks-dashboard')}
+                icon={
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <rect x="3" y="3" width="7" height="7"/>
+                        <rect x="14" y="3" width="7" height="7"/>
+                        <rect x="14" y="14" width="7" height="7"/>
+                        <rect x="3" y="14" width="7" height="7"/>
                     </svg>
                 }
             />
@@ -240,6 +282,19 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
                     }
                 />
             )}
+            {/* FR-TASK-02.3: Настройки уведомлений — доступно всем авторизованным */}
+            <SidebarItem
+                id="notification-settings"
+                label="Настройки уведомлений"
+                active={active === 'notification-settings'}
+                onClick={() => onSelect('notification-settings')}
+                icon={
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                        <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                    </svg>
+                }
+            />
             {canManageOrg && (
                 <>
                     <div className="sidebar-divider" role="separator" />
@@ -276,18 +331,26 @@ interface SidebarItemProps {
     active: boolean;
     onClick: () => void;
     icon: React.ReactNode;
+    badge?: number;
 }
 
-function SidebarItem({ label, active, onClick, icon }: SidebarItemProps) {
+function SidebarItem({ label, active, onClick, icon, badge }: SidebarItemProps) {
     return (
         <button
             className={`sidebar-item${active ? ' active' : ''}`}
             onClick={onClick}
-            title={label}
-            aria-label={label}
+            title={badge ? `${label} (${badge})` : label}
+            aria-label={badge ? `${label}: ${badge}` : label}
             aria-pressed={active}
         >
-            <span className="sidebar-icon">{icon}</span>
+            <span className="sidebar-icon" style={{ position: 'relative' }}>
+                {icon}
+                {badge !== undefined && badge > 0 && (
+                    <span className="sidebar-badge" aria-hidden="true">
+                        {badge > 99 ? '99+' : badge}
+                    </span>
+                )}
+            </span>
             <span className="sidebar-label">{label}</span>
         </button>
     );

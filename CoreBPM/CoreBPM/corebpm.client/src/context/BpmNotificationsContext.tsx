@@ -78,12 +78,12 @@ export function BpmNotificationsProvider({ children }: { children: ReactNode }) 
 
     const clearAll = () => setNotifications([]);
 
-    const unreadCount = notifications.filter(n => !n.read).length;
+    const unreadCount = notifications.filter(n => !n.read && n.message).length;
 
     return (
         <BpmNotificationsContext.Provider value={{ notifications, unreadCount, markRead, clearAll }}>
             {children}
-            <BpmNotificationToast notifications={notifications.filter(n => !n.read).slice(0, 3)} onClose={markRead} />
+            <BpmNotificationToast notifications={notifications.filter(n => !n.read && n.message).slice(0, 3)} onClose={markRead} />
         </BpmNotificationsContext.Provider>
     );
 }
@@ -183,6 +183,10 @@ function buildNotification(data: Record<string, unknown>): BpmNotification {
             message = `Предложение «${data.subject ?? ''}» по процессу «${data.processName ?? ''}» ${statusLabel}`;
             break;
         }
+        case 'TaskCountersUpdated':
+            // Служебное событие — без сообщения (не показывается как тост)
+            message = '';
+            break;
         default:
             message = typeof data.message === 'string' ? data.message : `Уведомление: ${type}`;
     }

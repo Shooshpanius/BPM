@@ -28,6 +28,10 @@ public class TaskService : ITaskService
         TaskStatus.Closed,
     };
 
+    /// <summary>Регулярное выражение для поиска @упоминаний в тексте комментария.</summary>
+    private static readonly System.Text.RegularExpressions.Regex MentionRegex =
+        new(@"@([\w\.\-]+)", System.Text.RegularExpressions.RegexOptions.Compiled);
+
     public TaskService(AppDbContext db, IBpmNotificationService notifications, ITaskControlSettingsService controlSettings)
     {
         _db = db;
@@ -100,6 +104,11 @@ public class TaskService : ITaskService
             new { taskId = task.Id, number = task.Number, subject = task.Subject, dueDate = task.DueDate },
             ct);
 
+        // Push-обновление счётчиков Sidebar (FR-TASK-02.2)
+        await _notifications.NotifyTaskCountersUpdatedAsync(task.AssigneeUserId, ct);
+        if (task.AuthorUserId != task.AssigneeUserId)
+            await _notifications.NotifyTaskCountersUpdatedAsync(task.AuthorUserId, ct);
+
         return await BuildDtoAsync(task.Id, ct);
     }
 
@@ -121,18 +130,55 @@ public class TaskService : ITaskService
     /// <inheritdoc/>
     public async Task<IReadOnlyList<TaskSummaryDto>> ListAsync(Guid userId, bool isAdmin, TaskListFilter filter, CancellationToken ct = default)
     {
+        // ─── EQL-поиск (FR-TASK-02.2) ────────────────────────────────────────
+        if (!string.IsNullOrWhiteSpace(filter.Eql))
+            EqlParser.Apply(filter.Eql, filter);
+
         var query = _db.TaskItems.AsNoTracking();
 
-        if (!isAdmin)
+        // ─── Группа задач (FR-TASK-02.2) ─────────────────────────────────
+        switch (filter.Group)
         {
-            var participantTaskIds = _db.TaskParticipants
-                .Where(p => p.UserId == userId)
-                .Select(p => p.TaskId);
-            query = query.Where(t => t.AuthorUserId == userId || t.AssigneeUserId == userId || participantTaskIds.Contains(t.Id));
+            case "incoming":
+                query = query.Where(t => t.AssigneeUserId == userId);
+                break;
+            case "outgoing":
+                query = query.Where(t => t.AuthorUserId == userId);
+                break;
+            case "control":
+                query = query.Where(t => t.ControllerUserId == userId);
+                break;
+            case "co-exec":
+                var coExecTaskIds = _db.TaskParticipants
+                    .Where(p => p.UserId == userId && p.Role == TaskParticipantRole.CoExecutor)
+                    .Select(p => p.TaskId);
+                query = query.Where(t => coExecTaskIds.Contains(t.Id));
+                break;
+            default:
+                if (!isAdmin)
+                {
+                    var participantTaskIds = _db.TaskParticipants
+                        .Where(p => p.UserId == userId)
+                        .Select(p => p.TaskId);
+                    query = query.Where(t => t.AuthorUserId == userId || t.AssigneeUserId == userId || participantTaskIds.Contains(t.Id));
+                }
+                break;
         }
 
-        if (!string.IsNullOrEmpty(filter.Status) && Enum.TryParse<TaskStatus>(filter.Status, out var status))
-            query = query.Where(t => t.Status == status);
+        if (!string.IsNullOrEmpty(filter.Status))
+        {
+            // Поддержка нескольких статусов через запятую (для sub-фильтра «Активные»)
+            var parts = filter.Status.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            var statuses = parts
+                .Select(p => Enum.TryParse<TaskStatus>(p, out var s) ? (TaskStatus?)s : null)
+                .Where(s => s.HasValue)
+                .Select(s => s!.Value)
+                .ToList();
+            if (statuses.Count == 1)
+                query = query.Where(t => t.Status == statuses[0]);
+            else if (statuses.Count > 1)
+                query = query.Where(t => statuses.Contains(t.Status));
+        }
         if (!string.IsNullOrEmpty(filter.Priority) && Enum.TryParse<Domain.Tasks.TaskPriority>(filter.Priority, out var priority))
             query = query.Where(t => t.Priority == priority);
         if (filter.AssigneeId.HasValue)
@@ -155,14 +201,50 @@ public class TaskService : ITaskService
             query = query.Where(t => t.DueDate >= filter.DateFrom.Value);
         if (filter.DateTo.HasValue)
             query = query.Where(t => t.DueDate <= filter.DateTo.Value);
+        // Фильтр по родительской задаче (для загрузки подзадач)
+        if (filter.ParentTaskId.HasValue)
+            query = query.Where(t => t.ParentTaskId == filter.ParentTaskId.Value);
 
-        var tasks = await query.OrderByDescending(t => t.CreatedAt).ToListAsync(ct);
+        // ─── Сортировка (FR-TASK-02.2) ────────────────────────────────────
+        query = (filter.SortBy, filter.SortDir?.ToLowerInvariant()) switch
+        {
+            ("due_date",  "asc")  => query.OrderBy(t => t.DueDate),
+            ("due_date",  _)      => query.OrderByDescending(t => t.DueDate),
+            ("priority",  "asc")  => query.OrderBy(t => t.Priority),
+            ("priority",  _)      => query.OrderByDescending(t => t.Priority),
+            ("status",    "asc")  => query.OrderBy(t => t.Status),
+            ("status",    _)      => query.OrderByDescending(t => t.Status),
+            ("subject",   "asc")  => query.OrderBy(t => t.Subject),
+            ("subject",   _)      => query.OrderByDescending(t => t.Subject),
+            ("created_at","asc")  => query.OrderBy(t => t.CreatedAt),
+            _                     => query.OrderByDescending(t => t.CreatedAt),
+        };
+
+        // ─── Пагинация (FR-TASK-02.2) ─────────────────────────────────────
+        var pageSize = filter.PageSize is > 0 and <= 200 ? filter.PageSize : 50;
+        var page = filter.Page > 0 ? filter.Page : 1;
+        query = query.Skip((page - 1) * pageSize).Take(pageSize);
+
+        var tasks = await query.ToListAsync(ct);
 
         var taskIds = tasks.Select(t => t.Id).ToList();
         var tags = await _db.TaskTags.AsNoTracking()
             .Where(t => taskIds.Contains(t.TaskId))
             .ToListAsync(ct);
-        var userIds = tasks.Select(t => t.AssigneeUserId).Distinct().ToList();
+
+        var participants = await _db.TaskParticipants.AsNoTracking()
+            .Where(p => taskIds.Contains(p.TaskId))
+            .ToListAsync(ct);
+
+        var openQuestionsCount = await _db.TaskQuestions.AsNoTracking()
+            .Where(q => taskIds.Contains(q.TaskId) && q.AnsweredAt == null)
+            .GroupBy(q => q.TaskId)
+            .Select(g => new { TaskId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.TaskId, x => x.Count, ct);
+
+        var userIds = tasks.Select(t => t.AssigneeUserId)
+            .Concat(tasks.Select(t => t.AuthorUserId))
+            .Distinct().ToList();
         var users = await _db.OrgUsers.AsNoTracking()
             .Where(u => userIds.Contains(u.Id))
             .ToDictionaryAsync(u => u.Id, u => u.DisplayName, ct);
@@ -172,6 +254,11 @@ public class TaskService : ITaskService
             var taggedTaskIds = tags.Where(t => t.Value == filter.TagValue).Select(t => t.TaskId).ToHashSet();
             tasks = tasks.Where(t => taggedTaskIds.Contains(t.Id)).ToList();
         }
+
+        var coExecSet = participants
+            .Where(p => p.UserId == userId && p.Role == TaskParticipantRole.CoExecutor)
+            .Select(p => p.TaskId)
+            .ToHashSet();
 
         return tasks.Select(t => new TaskSummaryDto
         {
@@ -183,18 +270,28 @@ public class TaskService : ITaskService
             CategoryId = t.CategoryId,
             AssigneeUserId = t.AssigneeUserId,
             AssigneeName = users.GetValueOrDefault(t.AssigneeUserId, t.AssigneeUserId.ToString()),
+            AuthorUserId = t.AuthorUserId,
+            AuthorName = users.GetValueOrDefault(t.AuthorUserId, t.AuthorUserId.ToString()),
             DueDate = t.DueDate,
             IsOverdue = t.IsOverdue,
             CreatedAt = t.CreatedAt,
             Tags = tags.Where(tag => tag.TaskId == t.Id).Select(tag => tag.Value).ToList(),
+            Kind = t.Kind.ToString(),
+            ScheduledAt = t.ScheduledAt,
+            IsCoExecutor = coExecSet.Contains(t.Id),
+            OpenQuestionCount = openQuestionsCount.GetValueOrDefault(t.Id, 0),
         }).ToList();
     }
 
     /// <inheritdoc/>
-    public async Task<TaskDto> UpdateAsync(Guid taskId, UpdateTaskRequest req, Guid actorId, CancellationToken ct = default)
+    public async Task<TaskDto> UpdateAsync(Guid taskId, UpdateTaskRequest req, Guid actorId, bool isAdmin, CancellationToken ct = default)
     {
         var task = await _db.TaskItems.FirstOrDefaultAsync(t => t.Id == taskId, ct)
             ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+
+        // Редактирование доступно только автору задачи или Admin
+        if (task.AuthorUserId != actorId && !isAdmin)
+            throw new ForbiddenException("Редактировать задачу может только её автор или администратор.");
         var now = DateTimeOffset.UtcNow;
         var changes = new List<TaskHistoryEntry>();
 
@@ -296,6 +393,13 @@ public class TaskService : ITaskService
             new { taskId = task.Id, number = task.Number, subject = task.Subject, dueDate = task.DueDate },
             ct);
 
+        // FR-TASK-02.3: Уведомление наблюдателей о переназначении
+        await NotifyObserversAsync(task, "TaskReassigned", ct);
+
+        // Push-обновление счётчиков у старого и нового исполнителя (FR-TASK-02.2)
+        await _notifications.NotifyTaskCountersUpdatedAsync(oldAssignee, ct);
+        await _notifications.NotifyTaskCountersUpdatedAsync(req.AssigneeUserId, ct);
+
         return await BuildDtoAsync(taskId, ct);
     }
 
@@ -309,6 +413,16 @@ public class TaskService : ITaskService
         _db.TaskComments.Add(comment);
         _db.TaskHistoryEntries.Add(new TaskHistoryEntry { Id = Guid.NewGuid(), TaskId = taskId, ActorUserId = authorId, Action = TaskHistoryAction.CommentAdded, CreatedAt = now });
         await _db.SaveChangesAsync(ct);
+
+        // FR-TASK-02.1: Обработка упоминаний @displayname в тексте комментария
+        await ProcessMentionsAsync(taskId, req.Body, authorId, now, ct);
+
+        // FR-TASK-02.3: Уведомление наблюдателей о новом комментарии
+        var taskForNotify = await _db.TaskItems.Include(t => t.Participants)
+            .AsNoTracking().FirstOrDefaultAsync(t => t.Id == taskId, ct);
+        if (taskForNotify != null)
+            await NotifyObserversAsync(taskForNotify, "TaskCommentAdded", ct);
+
         var authorName = await GetDisplayNameAsync(authorId, ct);
         return new TaskCommentDto { Id = comment.Id, AuthorUserId = authorId, AuthorName = authorName, Body = comment.Body, CreatedAt = comment.CreatedAt };
     }
@@ -627,6 +741,7 @@ public class TaskService : ITaskService
             Kind = task.Kind.ToString(),
             DocumentId = task.DocumentId,
             SeriesId = task.SeriesId,
+            ScheduledAt = task.ScheduledAt,
             CreatedAt = task.CreatedAt,
             UpdatedAt = task.UpdatedAt,
             Participants = task.Participants.Select(p => new TaskParticipantDto { Id = p.Id, UserId = p.UserId, UserName = participantUsers.GetValueOrDefault(p.UserId, p.UserId.ToString()), Role = p.Role.ToString() }).ToList(),
@@ -733,11 +848,33 @@ public class TaskService : ITaskService
         if (!FinalStatuses.Contains(status) && (isController || isAdmin) && task.ControllerUserId.HasValue)
             actions.Add(new TaskAllowedActionDto { Action = "release-control", Label = "Снять с контроля" });
 
+        // FR-TASK-02.1: дополнительные действия
+
+        // Перенести срок: автор, контролёр, Admin
+        if (!FinalStatuses.Contains(status) && (isAuthor || isController || isAdmin))
+            actions.Add(new TaskAllowedActionDto { Action = "reschedule", Label = "Перенести срок" });
+
+        // Открыть заново: из Done/DoneControlled/CannotDo/CannotDoControlled — автор, контролёр, Admin
+        var reopenableStatuses = new HashSet<TaskStatus>
+        {
+            TaskStatus.Done, TaskStatus.DoneControlled, TaskStatus.CannotDo, TaskStatus.CannotDoControlled,
+        };
+        if (reopenableStatuses.Contains(status) && (isAuthor || isController || isAdmin))
+            actions.Add(new TaskAllowedActionDto { Action = "reopen", Label = "Открыть заново" });
+
+        // Взять задачу из очереди: любой, кто ещё не является исполнителем
+        if (!FinalStatuses.Contains(status) && !isAssignee)
+            actions.Add(new TaskAllowedActionDto { Action = "claim", Label = "Взять задачу" });
+
+        // Редактирование задачи: автор или Admin; не применимо к закрытым задачам
+        if (!FinalStatuses.Contains(status) && (isAuthor || isAdmin))
+            actions.Add(new TaskAllowedActionDto { Action = "edit", Label = "Изменить" });
+
         return actions;
     }
 
     /// <inheritdoc/>
-    public async Task<TaskDto> StartWorkAsync(Guid taskId, Guid actorId, CancellationToken ct = default)
+    public async Task<TaskDto> StartWorkAsync(Guid taskId, StartWorkRequest? req, Guid actorId, CancellationToken ct = default)
     {
         var task = await _db.TaskItems.Include(t => t.Participants)
             .FirstOrDefaultAsync(t => t.Id == taskId, ct)
@@ -774,12 +911,24 @@ public class TaskService : ITaskService
         task.Status = TaskStatus.InProgress;
         task.UpdatedAt = now;
         AddStatusHistory(task.Id, actorId, oldStatus, TaskStatus.InProgress, now);
+
+        if (!string.IsNullOrWhiteSpace(req?.Comment))
+            _db.TaskComments.Add(new TaskComment { Id = Guid.NewGuid(), TaskId = taskId, AuthorUserId = actorId, Body = req.Comment.Trim(), CreatedAt = now });
+
         await _db.SaveChangesAsync(ct);
+
+        // Уведомление соисполнителей о начале работы
+        if (req?.NotifyCoExecutors == true)
+            await NotifyCoExecutorsAsync(task, "TaskStarted", ct);
+
+        // FR-TASK-02.3: Уведомление наблюдателей о начале работы
+        await NotifyObserversAsync(task, "TaskStarted", ct);
+
         return await BuildDtoAsync(taskId, ct);
     }
 
     /// <inheritdoc/>
-    public async Task<TaskDto> MarkDoneAsync(Guid taskId, Guid actorId, CancellationToken ct = default)
+    public async Task<TaskDto> MarkDoneAsync(Guid taskId, MarkDoneRequest? req, Guid actorId, CancellationToken ct = default)
     {
         var task = await _db.TaskItems.Include(t => t.Participants)
             .FirstOrDefaultAsync(t => t.Id == taskId, ct)
@@ -797,7 +946,8 @@ public class TaskService : ITaskService
         {
             var hasLogs = await _db.TaskTimeLogs.AsNoTracking()
                 .AnyAsync(l => l.TaskId == taskId, ct);
-            if (!hasLogs)
+            // Разрешаем, если трудозатраты переданы прямо в запросе
+            if (!hasLogs && (req?.EffortMinutes == null || req.EffortMinutes <= 0))
                 throw new ValidationException("Перед выполнением задачи необходимо добавить трудозатраты.");
         }
 
@@ -810,7 +960,54 @@ public class TaskService : ITaskService
         task.Status = newStatus;
         task.UpdatedAt = now;
         AddStatusHistory(task.Id, actorId, oldStatus, newStatus, now);
+
+        if (!string.IsNullOrWhiteSpace(req?.Comment))
+            _db.TaskComments.Add(new TaskComment { Id = Guid.NewGuid(), TaskId = taskId, AuthorUserId = actorId, Body = req.Comment.Trim(), CreatedAt = now });
+
+        // Сохранить трудозатраты из запроса
+        if (req?.EffortMinutes > 0)
+            _db.TaskTimeLogs.Add(new TaskTimeLog
+            {
+                Id = Guid.NewGuid(),
+                TaskId = taskId,
+                UserId = actorId,
+                StartDate = req.WorkStartDate ?? now,
+                DurationMinutes = req.EffortMinutes.Value,
+                CreatedAt = now,
+            });
+
+        // Скопировать вложения из подзадач
+        if (req?.CopyAttachmentsFromSubtasks == true)
+        {
+            var subtaskIds = await _db.TaskItems.AsNoTracking()
+                .Where(t => t.ParentTaskId == taskId)
+                .Select(t => t.Id)
+                .ToListAsync(ct);
+            if (subtaskIds.Count > 0)
+            {
+                var subAttachments = await _db.TaskAttachments.AsNoTracking()
+                    .Where(a => subtaskIds.Contains(a.TaskId))
+                    .ToListAsync(ct);
+                foreach (var att in subAttachments)
+                    _db.TaskAttachments.Add(new TaskAttachment
+                    {
+                        Id = Guid.NewGuid(),
+                        TaskId = taskId,
+                        FileName = att.FileName,
+                        ContentType = att.ContentType,
+                        StorageKey = att.StorageKey,
+                        SizeBytes = att.SizeBytes,
+                        UploadedByUserId = actorId,
+                        CreatedAt = now,
+                    });
+            }
+        }
+
         await _db.SaveChangesAsync(ct);
+
+        // Уведомление соисполнителям
+        if (req?.NotifyCoExecutors == true)
+            await NotifyCoExecutorsAsync(task, "TaskCompleted", ct);
 
         // Уведомление наблюдателям при финальном статусе
         if (newStatus == TaskStatus.Done)
@@ -826,11 +1023,16 @@ public class TaskService : ITaskService
             await _notifications.NotifyUserAsync(task.AuthorUserId, "ResolutionTaskDone",
                 new { taskId = task.Id, number = task.Number, subject = task.Subject, documentId = task.DocumentId }, ct);
 
+        // Push-обновление счётчиков (FR-TASK-02.2)
+        await _notifications.NotifyTaskCountersUpdatedAsync(task.AssigneeUserId, ct);
+        if (task.ControllerUserId.HasValue)
+            await _notifications.NotifyTaskCountersUpdatedAsync(task.ControllerUserId.Value, ct);
+
         return await BuildDtoAsync(taskId, ct);
     }
 
     /// <inheritdoc/>
-    public async Task<TaskDto> MarkCannotDoAsync(Guid taskId, Guid actorId, CancellationToken ct = default)
+    public async Task<TaskDto> MarkCannotDoAsync(Guid taskId, MarkCannotDoRequest? req, Guid actorId, CancellationToken ct = default)
     {
         var task = await _db.TaskItems.Include(t => t.Participants)
             .FirstOrDefaultAsync(t => t.Id == taskId, ct)
@@ -851,21 +1053,31 @@ public class TaskService : ITaskService
         task.Status = newStatus;
         task.UpdatedAt = now;
         AddStatusHistory(task.Id, actorId, oldStatus, newStatus, now);
+
+        if (!string.IsNullOrWhiteSpace(req?.Comment))
+            _db.TaskComments.Add(new TaskComment { Id = Guid.NewGuid(), TaskId = taskId, AuthorUserId = actorId, Body = req.Comment.Trim(), CreatedAt = now });
+
         await _db.SaveChangesAsync(ct);
 
         if (newStatus == TaskStatus.CannotDo)
             await NotifyObserversAsync(task, "TaskCompleted", ct);
+
+        if (req?.NotifyCoExecutors == true)
+            await NotifyCoExecutorsAsync(task, "TaskCompleted", ct);
 
         // FR-TASK-01.4: «Оповещать при выполнении» — уведомить контролёра-наблюдателя
         if (task.ControlType == TaskControlType.NotifyOnCompletion && task.ControllerUserId.HasValue)
             await _notifications.NotifyUserAsync(task.ControllerUserId.Value, "TaskDoneNotification",
                 new { taskId = task.Id, number = task.Number, subject = task.Subject }, ct);
 
+        // Push-обновление счётчиков (FR-TASK-02.2)
+        await _notifications.NotifyTaskCountersUpdatedAsync(task.AssigneeUserId, ct);
+
         return await BuildDtoAsync(taskId, ct);
     }
 
     /// <inheritdoc/>
-    public async Task<TaskDto> CloseAsync(Guid taskId, Guid actorId, bool isAdmin, CancellationToken ct = default)
+    public async Task<TaskDto> CloseAsync(Guid taskId, CloseTaskRequest? req, Guid actorId, bool isAdmin, CancellationToken ct = default)
     {
         var task = await _db.TaskItems.Include(t => t.Participants)
             .FirstOrDefaultAsync(t => t.Id == taskId, ct)
@@ -882,9 +1094,20 @@ public class TaskService : ITaskService
         task.Status = TaskStatus.Closed;
         task.UpdatedAt = now;
         AddStatusHistory(task.Id, actorId, oldStatus, TaskStatus.Closed, now);
+
+        if (!string.IsNullOrWhiteSpace(req?.Comment))
+            _db.TaskComments.Add(new TaskComment { Id = Guid.NewGuid(), TaskId = taskId, AuthorUserId = actorId, Body = req.Comment.Trim(), CreatedAt = now });
+
         await _db.SaveChangesAsync(ct);
 
         await NotifyObserversAsync(task, "TaskCompleted", ct);
+        if (req?.NotifyCoExecutors == true)
+            await NotifyCoExecutorsAsync(task, "TaskCompleted", ct);
+
+        // Push-обновление счётчиков (FR-TASK-02.2)
+        await _notifications.NotifyTaskCountersUpdatedAsync(task.AssigneeUserId, ct);
+        await _notifications.NotifyTaskCountersUpdatedAsync(task.AuthorUserId, ct);
+
         return await BuildDtoAsync(taskId, ct);
     }
 
@@ -946,6 +1169,10 @@ public class TaskService : ITaskService
         await _db.SaveChangesAsync(ct);
 
         await NotifyObserversAsync(task, "TaskCompleted", ct);
+
+        // Push-обновление счётчиков для контролёра (FR-TASK-02.2)
+        await _notifications.NotifyTaskCountersUpdatedAsync(actorId, ct);
+
         return await BuildDtoAsync(taskId, ct);
     }
 
@@ -1362,6 +1589,80 @@ public class TaskService : ITaskService
         var payload = new { taskId = task.Id, subject = task.Subject, status = task.Status.ToString() };
         foreach (var userId in observerIds)
             await _notifications.NotifyUserAsync(userId, eventType, payload, ct);
+    }
+
+    /// <summary>
+    /// Обрабатывает упоминания @ИмяПользователя в тексте комментария (FR-TASK-02.1).
+    /// Упомянутые пользователи получают уведомление и автоматически добавляются в наблюдатели.
+    /// </summary>
+    private async Task ProcessMentionsAsync(Guid taskId, string text, Guid authorId, DateTimeOffset now, CancellationToken ct)
+    {
+        // Извлекаем уникальные упоминания @слово
+        var matches = MentionRegex.Matches(text);
+        if (matches.Count == 0) return;
+
+        var mentionedNames = matches
+            .Select(m => m.Groups[1].Value.ToLowerInvariant())
+            .Distinct()
+            .ToList();
+
+        // Ищем пользователей по DisplayName или WorkEmail (по нормализованному имени)
+        var allUsers = await _db.OrgUsers.AsNoTracking()
+            .Where(u => u.IsActive)
+            .Select(u => new { u.Id, u.DisplayName, WorkEmail = u.WorkEmail })
+            .ToListAsync(ct);
+
+        // Нормализуем данные пользователей заранее для эффективного сравнения
+        var normalizedUsers = allUsers.Select(u => new
+        {
+            u.Id,
+            NormalizedName = u.DisplayName.Replace(" ", "").ToLowerInvariant(),
+            NormalizedEmail = (!string.IsNullOrEmpty(u.WorkEmail) && u.WorkEmail.Contains('@'))
+                    ? u.WorkEmail.Split('@')[0].ToLowerInvariant()
+                    : (u.WorkEmail?.ToLowerInvariant() ?? string.Empty),
+        }).ToList();
+
+        var mentionedUserIds = normalizedUsers
+            .Where(u => mentionedNames.Any(m => u.NormalizedName.Contains(m) || u.NormalizedEmail == m))
+            .Select(u => u.Id)
+            .Where(id => id != authorId)
+            .Distinct()
+            .ToList();
+
+        if (mentionedUserIds.Count == 0) return;
+
+        var existingWatchers = await _db.TaskParticipants.AsNoTracking()
+            .Where(p => p.TaskId == taskId && p.Role == TaskParticipantRole.Observer && mentionedUserIds.Contains(p.UserId))
+            .Select(p => p.UserId)
+            .ToListAsync(ct);
+
+        bool hasNewWatchers = false;
+        foreach (var userId in mentionedUserIds)
+        {
+            if (!existingWatchers.Contains(userId))
+            {
+                _db.TaskParticipants.Add(new TaskParticipant { Id = Guid.NewGuid(), TaskId = taskId, UserId = userId, Role = TaskParticipantRole.Observer, CreatedAt = now });
+                hasNewWatchers = true;
+            }
+
+            _db.TaskHistoryEntries.Add(new TaskHistoryEntry
+            {
+                Id = Guid.NewGuid(),
+                TaskId = taskId,
+                ActorUserId = authorId,
+                Action = TaskHistoryAction.Mentioned,
+                NewValue = userId.ToString(),
+                CreatedAt = now,
+            });
+        }
+
+        if (hasNewWatchers) await _db.SaveChangesAsync(ct);
+
+        // Уведомить упомянутых пользователей
+        var task = await _db.TaskItems.AsNoTracking().FirstOrDefaultAsync(t => t.Id == taskId, ct);
+        foreach (var userId in mentionedUserIds)
+            await _notifications.NotifyUserAsync(userId, "TaskMentioned",
+                new { taskId, number = task?.Number, subject = task?.Subject }, ct);
     }
 
     /// <summary>Проверяет, является ли актор исполнителем или соисполнителем задачи.</summary>
@@ -1875,5 +2176,653 @@ public class TaskService : ITaskService
 
         await _db.SaveChangesAsync(ct);
     }
-}
 
+    // ─── FR-TASK-02.1: Дополнительные действия ──────────────────────────────────
+
+    /// <inheritdoc/>
+    public async Task<TaskDto> RescheduleAsync(Guid taskId, RescheduleTaskRequest req, Guid actorId, bool isAdmin, CancellationToken ct = default)
+    {
+        var task = await _db.TaskItems.Include(t => t.Participants)
+            .FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+
+        if (FinalStatuses.Contains(task.Status))
+            throw new ValidationException($"Нельзя перенести срок задачи в финальном статусе «{task.Status}».");
+
+        var isAuthor = task.AuthorUserId == actorId;
+        var isController = task.ControllerUserId == actorId;
+        if (!isAuthor && !isController && !isAdmin)
+            throw new ValidationException("Только автор, контролёр или администратор может перенести срок задачи.");
+
+        if (req.NewDueDate <= task.DueDate || req.NewDueDate <= DateTimeOffset.UtcNow)
+            throw new ValidationException("Новый срок должен быть в будущем и позже текущего срока задачи.");
+
+        var now = DateTimeOffset.UtcNow;
+        var oldDueDate = task.DueDate;
+        task.DueDate = req.NewDueDate;
+        task.UpdatedAt = now;
+
+        _db.TaskHistoryEntries.Add(new TaskHistoryEntry
+        {
+            Id = Guid.NewGuid(),
+            TaskId = taskId,
+            ActorUserId = actorId,
+            Action = TaskHistoryAction.Rescheduled,
+            OldValue = oldDueDate.ToString("O"),
+            NewValue = req.NewDueDate.ToString("O"),
+            CreatedAt = now,
+        });
+
+        if (!string.IsNullOrWhiteSpace(req.Comment))
+            _db.TaskComments.Add(new TaskComment { Id = Guid.NewGuid(), TaskId = taskId, AuthorUserId = actorId, Body = req.Comment.Trim(), CreatedAt = now });
+
+        await _db.SaveChangesAsync(ct);
+
+        // FR-TASK-02.3: Уведомление наблюдателей о переносе срока
+        await NotifyObserversAsync(task, "TaskRescheduled", ct);
+
+        return await BuildDtoAsync(taskId, ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<TaskDto> ReopenAsync(Guid taskId, Guid actorId, bool isAdmin, CancellationToken ct = default)
+    {
+        var task = await _db.TaskItems.Include(t => t.Participants)
+            .FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+
+        var reopenableStatuses = new HashSet<TaskStatus>
+        {
+            TaskStatus.Done, TaskStatus.DoneControlled, TaskStatus.CannotDo, TaskStatus.CannotDoControlled,
+        };
+
+        if (!reopenableStatuses.Contains(task.Status))
+            throw new ValidationException($"Нельзя открыть заново задачу в статусе «{task.Status}».");
+
+        var isAuthor = task.AuthorUserId == actorId;
+        var isController = task.ControllerUserId == actorId;
+        if (!isAuthor && !isController && !isAdmin)
+            throw new ValidationException("Только автор, контролёр или администратор может открыть задачу заново.");
+
+        var now = DateTimeOffset.UtcNow;
+        var oldStatus = task.Status;
+        task.Status = TaskStatus.New;
+        task.UpdatedAt = now;
+        AddStatusHistory(task.Id, actorId, oldStatus, TaskStatus.New, now);
+        _db.TaskHistoryEntries.Add(new TaskHistoryEntry
+        {
+            Id = Guid.NewGuid(),
+            TaskId = taskId,
+            ActorUserId = actorId,
+            Action = TaskHistoryAction.Reopened,
+            CreatedAt = now,
+        });
+
+        await _db.SaveChangesAsync(ct);
+
+        // Уведомить исполнителя
+        if (task.AssigneeUserId != actorId)
+            await _notifications.NotifyUserAsync(task.AssigneeUserId, "TaskReopened",
+                new { taskId = task.Id, number = task.Number, subject = task.Subject }, ct);
+
+        // FR-TASK-02.3: Уведомление наблюдателей об открытии заново
+        await NotifyObserversAsync(task, "TaskReopened", ct);
+
+        return await BuildDtoAsync(taskId, ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<TaskDto> ClaimAsync(Guid taskId, Guid actorId, CancellationToken ct = default)
+    {
+        var task = await _db.TaskItems.Include(t => t.Participants)
+            .FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+
+        if (FinalStatuses.Contains(task.Status))
+            throw new ValidationException($"Нельзя взять задачу в статусе «{task.Status}».");
+
+        if (task.AssigneeUserId == actorId)
+            throw new ValidationException("Вы уже являетесь исполнителем задачи.");
+
+        var now = DateTimeOffset.UtcNow;
+        var oldAssigneeId = task.AssigneeUserId;
+        task.AssigneeUserId = actorId;
+        task.UpdatedAt = now;
+
+        _db.TaskHistoryEntries.Add(new TaskHistoryEntry
+        {
+            Id = Guid.NewGuid(),
+            TaskId = taskId,
+            ActorUserId = actorId,
+            Action = TaskHistoryAction.Claimed,
+            OldValue = oldAssigneeId.ToString(),
+            NewValue = actorId.ToString(),
+            CreatedAt = now,
+        });
+
+        await _db.SaveChangesAsync(ct);
+        return await BuildDtoAsync(taskId, ct);
+    }
+
+    // ─── FR-TASK-02.1: Наблюдатели ───────────────────────────────────────────────
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<TaskParticipantDto>> GetWatchersAsync(Guid taskId, CancellationToken ct = default)
+    {
+        var _ = await _db.TaskItems.AsNoTracking().FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+
+        var watchers = await _db.TaskParticipants.AsNoTracking()
+            .Where(p => p.TaskId == taskId && p.Role == TaskParticipantRole.Observer)
+            .ToListAsync(ct);
+
+        var userIds = watchers.Select(p => p.UserId).ToList();
+        var users = await _db.OrgUsers.AsNoTracking()
+            .Where(u => userIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => u.DisplayName, ct);
+
+        return watchers.Select(p => new TaskParticipantDto
+        {
+            Id = p.Id,
+            UserId = p.UserId,
+            UserName = users.GetValueOrDefault(p.UserId, p.UserId.ToString()),
+            Role = p.Role.ToString(),
+        }).ToList();
+    }
+
+    /// <inheritdoc/>
+    public async Task<TaskParticipantDto> AddWatcherAsync(Guid taskId, Guid watcherUserId, Guid actorId, CancellationToken ct = default)
+    {
+        var task = await _db.TaskItems.FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+
+        var existing = await _db.TaskParticipants
+            .FirstOrDefaultAsync(p => p.TaskId == taskId && p.UserId == watcherUserId && p.Role == TaskParticipantRole.Observer, ct);
+        if (existing != null)
+        {
+            var existingUser = await _db.OrgUsers.AsNoTracking().FirstOrDefaultAsync(u => u.Id == watcherUserId, ct);
+            return new TaskParticipantDto { Id = existing.Id, UserId = existing.UserId, UserName = existingUser?.DisplayName ?? watcherUserId.ToString(), Role = existing.Role.ToString() };
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var participant = new TaskParticipant { Id = Guid.NewGuid(), TaskId = taskId, UserId = watcherUserId, Role = TaskParticipantRole.Observer, CreatedAt = now };
+        _db.TaskParticipants.Add(participant);
+        _db.TaskHistoryEntries.Add(new TaskHistoryEntry
+        {
+            Id = Guid.NewGuid(),
+            TaskId = taskId,
+            ActorUserId = actorId,
+            Action = TaskHistoryAction.WatcherAdded,
+            NewValue = watcherUserId.ToString(),
+            CreatedAt = now,
+        });
+        await _db.SaveChangesAsync(ct);
+
+        var user = await _db.OrgUsers.AsNoTracking().FirstOrDefaultAsync(u => u.Id == watcherUserId, ct);
+        return new TaskParticipantDto { Id = participant.Id, UserId = watcherUserId, UserName = user?.DisplayName ?? watcherUserId.ToString(), Role = TaskParticipantRole.Observer.ToString() };
+    }
+
+    /// <inheritdoc/>
+    public async Task RemoveWatcherAsync(Guid taskId, Guid watcherUserId, Guid actorId, bool isAdmin, CancellationToken ct = default)
+    {
+        var participant = await _db.TaskParticipants
+            .FirstOrDefaultAsync(p => p.TaskId == taskId && p.UserId == watcherUserId && p.Role == TaskParticipantRole.Observer, ct);
+        if (participant == null) return;
+
+        // Разрешено: сам наблюдатель, автор задачи, исполнитель, контролёр, Admin
+        var task = await _db.TaskItems.AsNoTracking().FirstOrDefaultAsync(t => t.Id == taskId, ct);
+        var canRemove = isAdmin || actorId == watcherUserId
+            || (task != null && (task.AuthorUserId == actorId || task.AssigneeUserId == actorId || task.ControllerUserId == actorId));
+        if (!canRemove)
+            throw new ValidationException("Недостаточно прав для удаления наблюдателя.");
+
+        _db.TaskParticipants.Remove(participant);
+        var now = DateTimeOffset.UtcNow;
+        _db.TaskHistoryEntries.Add(new TaskHistoryEntry
+        {
+            Id = Guid.NewGuid(),
+            TaskId = taskId,
+            ActorUserId = actorId,
+            Action = TaskHistoryAction.WatcherRemoved,
+            OldValue = watcherUserId.ToString(),
+            CreatedAt = now,
+        });
+        await _db.SaveChangesAsync(ct);
+    }
+
+    // ─── FR-TASK-02.1: Вопросы ─────────────────────────────────────────────────
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<TaskQuestionDto>> GetQuestionsAsync(Guid taskId, CancellationToken ct = default)
+    {
+        var _ = await _db.TaskItems.AsNoTracking().FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+
+        var questions = await _db.TaskQuestions.AsNoTracking()
+            .Where(q => q.TaskId == taskId)
+            .OrderBy(q => q.CreatedAt)
+            .ToListAsync(ct);
+
+        var userIds = questions.SelectMany(q => new[] { q.AuthorUserId, q.RecipientId }).Distinct().ToList();
+        var users = await _db.OrgUsers.AsNoTracking()
+            .Where(u => userIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => u.DisplayName, ct);
+
+        return questions.Select(q => new TaskQuestionDto
+        {
+            Id = q.Id,
+            TaskId = q.TaskId,
+            AuthorUserId = q.AuthorUserId,
+            AuthorName = users.GetValueOrDefault(q.AuthorUserId, q.AuthorUserId.ToString()),
+            RecipientId = q.RecipientId,
+            RecipientName = users.GetValueOrDefault(q.RecipientId, q.RecipientId.ToString()),
+            QuestionText = q.QuestionText,
+            AnswerText = q.AnswerText,
+            AnsweredAt = q.AnsweredAt,
+            CreatedAt = q.CreatedAt,
+        }).ToList();
+    }
+
+    /// <inheritdoc/>
+    public async Task<TaskQuestionDto> AskQuestionAsync(Guid taskId, AskTaskQuestionRequest req, Guid authorId, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(req.QuestionText))
+            throw new ValidationException("Текст вопроса обязателен.");
+        if (req.RecipientId == Guid.Empty)
+            throw new ValidationException("Получатель вопроса обязателен.");
+
+        var task = await _db.TaskItems.AsNoTracking().FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+
+        var now = DateTimeOffset.UtcNow;
+        var question = new TaskQuestion
+        {
+            Id = Guid.NewGuid(),
+            TaskId = taskId,
+            AuthorUserId = authorId,
+            RecipientId = req.RecipientId,
+            QuestionText = req.QuestionText.Trim(),
+            CreatedAt = now,
+        };
+        _db.TaskQuestions.Add(question);
+        _db.TaskHistoryEntries.Add(new TaskHistoryEntry
+        {
+            Id = Guid.NewGuid(),
+            TaskId = taskId,
+            ActorUserId = authorId,
+            Action = TaskHistoryAction.QuestionAsked,
+            CreatedAt = now,
+        });
+        await _db.SaveChangesAsync(ct);
+
+        // Уведомить получателя
+        await _notifications.NotifyUserAsync(req.RecipientId, "TaskQuestion",
+            new { taskId = task.Id, number = task.Number, subject = task.Subject, questionId = question.Id }, ct);
+
+        // Автоматически добавить получателя в наблюдатели (если ещё нет)
+        var alreadyWatcher = await _db.TaskParticipants
+            .AnyAsync(p => p.TaskId == taskId && p.UserId == req.RecipientId && p.Role == TaskParticipantRole.Observer, ct);
+        if (!alreadyWatcher)
+            _db.TaskParticipants.Add(new TaskParticipant { Id = Guid.NewGuid(), TaskId = taskId, UserId = req.RecipientId, Role = TaskParticipantRole.Observer, CreatedAt = now });
+
+        await _db.SaveChangesAsync(ct);
+
+        var authorUser = await _db.OrgUsers.AsNoTracking().FirstOrDefaultAsync(u => u.Id == authorId, ct);
+        var recipientUser = await _db.OrgUsers.AsNoTracking().FirstOrDefaultAsync(u => u.Id == req.RecipientId, ct);
+        return new TaskQuestionDto
+        {
+            Id = question.Id,
+            TaskId = taskId,
+            AuthorUserId = authorId,
+            AuthorName = authorUser?.DisplayName ?? authorId.ToString(),
+            RecipientId = req.RecipientId,
+            RecipientName = recipientUser?.DisplayName ?? req.RecipientId.ToString(),
+            QuestionText = question.QuestionText,
+            CreatedAt = question.CreatedAt,
+        };
+    }
+
+    /// <inheritdoc/>
+    public async Task<TaskQuestionDto> AnswerQuestionAsync(Guid taskId, Guid questionId, AnswerTaskQuestionRequest req, Guid actorId, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(req.AnswerText))
+            throw new ValidationException("Текст ответа обязателен.");
+
+        var question = await _db.TaskQuestions
+            .FirstOrDefaultAsync(q => q.Id == questionId && q.TaskId == taskId, ct)
+            ?? throw new NotFoundException($"Вопрос {questionId} не найден.");
+
+        if (question.RecipientId != actorId)
+            throw new ValidationException("Только получатель вопроса может ответить на него.");
+
+        if (question.AnswerText != null)
+            throw new ValidationException("На вопрос уже дан ответ.");
+
+        var now = DateTimeOffset.UtcNow;
+        question.AnswerText = req.AnswerText.Trim();
+        question.AnsweredAt = now;
+
+        _db.TaskHistoryEntries.Add(new TaskHistoryEntry
+        {
+            Id = Guid.NewGuid(),
+            TaskId = taskId,
+            ActorUserId = actorId,
+            Action = TaskHistoryAction.QuestionAnswered,
+            CreatedAt = now,
+        });
+        await _db.SaveChangesAsync(ct);
+
+        // Уведомить автора вопроса об ответе
+        await _notifications.NotifyUserAsync(question.AuthorUserId, "TaskQuestionAnswered",
+            new { taskId, questionId = question.Id }, ct);
+
+        var authorUser = await _db.OrgUsers.AsNoTracking().FirstOrDefaultAsync(u => u.Id == question.AuthorUserId, ct);
+        var recipientUser = await _db.OrgUsers.AsNoTracking().FirstOrDefaultAsync(u => u.Id == actorId, ct);
+        return new TaskQuestionDto
+        {
+            Id = question.Id,
+            TaskId = taskId,
+            AuthorUserId = question.AuthorUserId,
+            AuthorName = authorUser?.DisplayName ?? question.AuthorUserId.ToString(),
+            RecipientId = actorId,
+            RecipientName = recipientUser?.DisplayName ?? actorId.ToString(),
+            QuestionText = question.QuestionText,
+            AnswerText = question.AnswerText,
+            AnsweredAt = question.AnsweredAt,
+            CreatedAt = question.CreatedAt,
+        };
+    }
+
+    // ─── Вспомогательный метод: уведомление соисполнителей ────────────────────
+
+    private async Task NotifyCoExecutorsAsync(TaskItem task, string eventType, CancellationToken ct)
+    {
+        var coExecutors = task.Participants
+            .Where(p => p.Role == TaskParticipantRole.CoExecutor)
+            .Select(p => p.UserId)
+            .Distinct();
+        foreach (var userId in coExecutors)
+            await _notifications.NotifyUserAsync(userId, eventType,
+                new { taskId = task.Id, number = task.Number, subject = task.Subject }, ct);
+    }
+    // ─── FR-TASK-02.3: Напоминания ────────────────────────────────────────────
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<TaskReminderDto>> GetRemindersAsync(Guid taskId, Guid userId, CancellationToken ct = default)
+    {
+        var reminders = await _db.TaskReminders.AsNoTracking()
+            .Where(r => r.TaskId == taskId && r.UserId == userId)
+            .OrderBy(r => r.RemindAt)
+            .ToListAsync(ct);
+        return reminders.Select(r => new TaskReminderDto
+        {
+            Id = r.Id,
+            TaskId = r.TaskId,
+            UserId = r.UserId,
+            RemindAt = r.RemindAt,
+            Note = r.Note,
+            IsSent = r.IsSent,
+            CreatedAt = r.CreatedAt,
+        }).ToList();
+    }
+
+    /// <inheritdoc/>
+    public async Task<TaskReminderDto> AddReminderAsync(Guid taskId, AddTaskReminderRequest req, Guid userId, CancellationToken ct = default)
+    {
+        _ = await _db.TaskItems.AsNoTracking().FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+
+        if (req.RemindAt <= DateTimeOffset.UtcNow)
+            throw new ValidationException("Дата напоминания должна быть в будущем.");
+
+        var now = DateTimeOffset.UtcNow;
+        var reminder = new TaskReminder
+        {
+            Id = Guid.NewGuid(),
+            TaskId = taskId,
+            UserId = userId,
+            RemindAt = req.RemindAt,
+            Note = req.Note?.Trim(),
+            IsSent = false,
+            CreatedAt = now,
+        };
+        _db.TaskReminders.Add(reminder);
+        await _db.SaveChangesAsync(ct);
+
+        return new TaskReminderDto
+        {
+            Id = reminder.Id,
+            TaskId = taskId,
+            UserId = userId,
+            RemindAt = reminder.RemindAt,
+            Note = reminder.Note,
+            IsSent = false,
+            CreatedAt = now,
+        };
+    }
+
+    /// <inheritdoc/>
+    public async Task DeleteReminderAsync(Guid reminderId, Guid actorId, CancellationToken ct = default)
+    {
+        var reminder = await _db.TaskReminders.FirstOrDefaultAsync(r => r.Id == reminderId && r.UserId == actorId, ct);
+        if (reminder == null) return; // уже удалено или не принадлежит актору
+        _db.TaskReminders.Remove(reminder);
+        await _db.SaveChangesAsync(ct);
+    }
+
+    // ─── FR-TASK-02.3: Планирование в календаре ──────────────────────────────
+
+    /// <inheritdoc/>
+    public async Task<TaskDto> ScheduleTaskAsync(Guid taskId, ScheduleTaskRequest req, Guid actorId, CancellationToken ct = default)
+    {
+        var task = await _db.TaskItems.Include(t => t.Participants)
+            .FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+
+        task.ScheduledAt = req.ScheduledAt;
+        task.UpdatedAt = DateTimeOffset.UtcNow;
+        await _db.SaveChangesAsync(ct);
+
+        await NotifyObserversAsync(task, "TaskScheduled", ct);
+        return await GetAsync(taskId, ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<TaskDto> UnscheduleTaskAsync(Guid taskId, Guid actorId, CancellationToken ct = default)
+    {
+        var task = await _db.TaskItems.Include(t => t.Participants)
+            .FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+
+        task.ScheduledAt = null;
+        task.UpdatedAt = DateTimeOffset.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return await GetAsync(taskId, ct);
+    }
+
+    // ─── FR-TASK-02.3: Дашборд задач ─────────────────────────────────────────
+
+    /// <inheritdoc/>
+    public async Task<TaskDashboardDto> GetDashboardAsync(Guid userId, bool isAdmin, CancellationToken ct = default)
+    {
+        IQueryable<TaskItem> query = _db.TaskItems.AsNoTracking();
+        if (!isAdmin)
+        {
+            var participantTaskIds = _db.TaskParticipants
+                .Where(p => p.UserId == userId)
+                .Select(p => p.TaskId);
+            query = query.Where(t => t.AuthorUserId == userId || t.AssigneeUserId == userId || participantTaskIds.Contains(t.Id));
+        }
+
+        var tasks = await query.ToListAsync(ct);
+        var openTasks = tasks.Where(t => !FinalStatuses.Contains(t.Status)).ToList();
+
+        var byStatus = openTasks
+            .GroupBy(t => t.Status.ToString())
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        var byPriority = openTasks
+            .GroupBy(t => t.Priority.ToString())
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        var cutoff = DateTimeOffset.UtcNow.AddDays(-30).Date;
+        var recentTasks = tasks.Where(t => t.CreatedAt.Date >= cutoff).ToList();
+        var closedRecent = tasks.Where(t => FinalStatuses.Contains(t.Status) && t.UpdatedAt.Date >= cutoff).ToList();
+
+        var dailyStats = new List<TaskDailyStatDto>();
+        for (var day = cutoff; day <= DateTimeOffset.UtcNow.Date; day = day.AddDays(1))
+        {
+            dailyStats.Add(new TaskDailyStatDto
+            {
+                Date = day.ToString("yyyy-MM-dd"),
+                Created = recentTasks.Count(t => t.CreatedAt.Date == day),
+                Closed = closedRecent.Count(t => t.UpdatedAt.Date == day),
+            });
+        }
+
+        return new TaskDashboardDto
+        {
+            ByStatus = byStatus,
+            ByPriority = byPriority,
+            OverdueCount = openTasks.Count(t => t.IsOverdue),
+            OpenCount = openTasks.Count,
+            DailyStats = dailyStats,
+        };
+    }
+
+    // ─── FR-TASK-02.3: Настройки уведомлений ─────────────────────────────────
+
+    private static readonly string[] DefaultTaskEventTypes =
+    [
+        "TaskAssigned", "TaskDone", "TaskOverdue", "TaskCommentAdded",
+        "TaskReminder", "TaskRescheduled", "TaskReopened", "TaskQuestionAsked",
+        "TaskMentioned", "TaskCompleted", "TaskScheduled",
+    ];
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<UserTaskNotificationSettingsDto>> GetNotificationSettingsAsync(Guid userId, CancellationToken ct = default)
+    {
+        var saved = await _db.UserTaskNotificationSettings.AsNoTracking()
+            .Where(s => s.UserId == userId)
+            .ToListAsync(ct);
+
+        // Возвращаем дефолтные записи для событий, которые ещё не настраивались
+        var result = new List<UserTaskNotificationSettingsDto>();
+        foreach (var eventType in DefaultTaskEventTypes)
+        {
+            var existing = saved.FirstOrDefault(s => s.EventType == eventType);
+            result.Add(new UserTaskNotificationSettingsDto
+            {
+                Id = existing?.Id ?? Guid.Empty,
+                EventType = eventType,
+                InApp = existing?.InApp ?? true,
+                Email = existing?.Email ?? false,
+            });
+        }
+        return result;
+    }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<UserTaskNotificationSettingsDto>> UpdateNotificationSettingsAsync(
+        Guid userId, IReadOnlyList<UpdateNotificationSettingRequest> settings, CancellationToken ct = default)
+    {
+        var existing = await _db.UserTaskNotificationSettings
+            .Where(s => s.UserId == userId)
+            .ToListAsync(ct);
+
+        foreach (var req in settings)
+        {
+            var entity = existing.FirstOrDefault(s => s.EventType == req.EventType);
+            if (entity == null)
+            {
+                entity = new Domain.Tasks.UserTaskNotificationSettings
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = userId,
+                    EventType = req.EventType,
+                };
+                _db.UserTaskNotificationSettings.Add(entity);
+            }
+            entity.InApp = req.InApp;
+            entity.Email = req.Email;
+        }
+        await _db.SaveChangesAsync(ct);
+        return await GetNotificationSettingsAsync(userId, ct);
+    }
+
+    // ─── FR-TASK-02.2: Счётчики задач ────────────────────────────────────────
+
+    /// <inheritdoc/>
+    public async Task<TaskCountersDto> GetCountersAsync(Guid userId, CancellationToken ct = default)
+    {
+        var finalStatuses = new[] { TaskStatus.Done, TaskStatus.DoneControlled, TaskStatus.CannotDo, TaskStatus.CannotDoControlled, TaskStatus.Closed };
+
+        var incoming = await _db.TaskItems.AsNoTracking()
+            .CountAsync(t => t.AssigneeUserId == userId && !finalStatuses.Contains(t.Status), ct);
+
+        var overdue = await _db.TaskItems.AsNoTracking()
+            .CountAsync(t => t.AssigneeUserId == userId && t.IsOverdue && !finalStatuses.Contains(t.Status), ct);
+
+        var approverParticipantTaskIds = _db.TaskParticipants
+            .Where(p => p.UserId == userId && p.Role == TaskParticipantRole.Approver)
+            .Select(p => p.TaskId);
+        var onApproval = await _db.TaskItems.AsNoTracking()
+            .CountAsync(t => t.Status == TaskStatus.OnApproval && approverParticipantTaskIds.Contains(t.Id), ct);
+
+        var needsControl = await _db.TaskItems.AsNoTracking()
+            .CountAsync(t => t.ControllerUserId == userId
+                && (t.Status == TaskStatus.DoneNeedsControl || t.Status == TaskStatus.CannotDoNeedsControl), ct);
+
+        return new TaskCountersDto
+        {
+            Incoming = incoming,
+            Overdue = overdue,
+            OnApproval = onApproval,
+            NeedsControl = needsControl,
+        };
+    }
+
+    // ─── FR-TASK-02.2: Excel-экспорт ─────────────────────────────────────────
+
+    /// <inheritdoc/>
+    public async Task<byte[]> ExportToExcelAsync(Guid userId, bool isAdmin, TaskListFilter filter, CancellationToken ct = default)
+    {
+        // Снимаем пагинацию для экспорта
+        filter.Page = 1;
+        filter.PageSize = 10_000;
+        var tasks = await ListAsync(userId, isAdmin, filter, ct);
+
+        using var wb = new ClosedXML.Excel.XLWorkbook();
+        var ws = wb.Worksheets.Add("Задачи");
+
+        // Заголовки
+        var headers = new[] { "№", "Тема", "Статус", "Приоритет", "Вид", "Исполнитель", "Автор", "Срок", "Категория", "Теги", "Создана" };
+        for (int i = 0; i < headers.Length; i++)
+        {
+            ws.Cell(1, i + 1).Value = headers[i];
+            ws.Cell(1, i + 1).Style.Font.Bold = true;
+        }
+
+        int row = 2;
+        foreach (var t in tasks)
+        {
+            ws.Cell(row, 1).Value = $"T-{t.Number}";
+            ws.Cell(row, 2).Value = t.Subject;
+            ws.Cell(row, 3).Value = t.Status;
+            ws.Cell(row, 4).Value = t.Priority;
+            ws.Cell(row, 5).Value = t.Kind;
+            ws.Cell(row, 6).Value = t.AssigneeName;
+            ws.Cell(row, 7).Value = t.AuthorName;
+            ws.Cell(row, 8).Value = t.DueDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm");
+            ws.Cell(row, 9).Value = t.CategoryId ?? "";
+            ws.Cell(row, 10).Value = string.Join(", ", t.Tags);
+            ws.Cell(row, 11).Value = t.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm");
+            row++;
+        }
+        ws.Columns().AdjustToContents();
+
+        using var ms = new System.IO.MemoryStream();
+        wb.SaveAs(ms);
+        return ms.ToArray();
+    }
+}

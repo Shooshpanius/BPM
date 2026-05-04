@@ -102,3 +102,22 @@
     max-width: 54px;
     display: block;
 }
+
+/* FR-TASK-02.2: Бейджи счётчиков в Sidebar */
+.sidebar-badge {
+    position: absolute;
+    top: -4px;
+    right: -6px;
+    min-width: 16px;
+    height: 16px;
+    background: var(--danger, #e53935);
+    color: #fff;
+    border-radius: 8px;
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 16px;
+    text-align: center;
+    padding: 0 3px;
+    pointer-events: none;
+    z-index: 1;
+}

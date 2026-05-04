@@ -50,10 +50,21 @@ export interface TaskSummaryDto {
     categoryId?: string;
     assigneeUserId: string;
     assigneeName: string;
+    /** Автор задачи (FR-TASK-02.2) */
+    authorUserId: string;
+    authorName: string;
     dueDate: string;
     isOverdue: boolean;
     createdAt: string;
     tags: string[];
+    /** Вид задачи (FR-TASK-02.2) */
+    kind: string;
+    /** Дата планирования в календаре (FR-TASK-02.3) */
+    scheduledAt?: string;
+    /** Текущий пользователь — соисполнитель (FR-TASK-02.2) */
+    isCoExecutor: boolean;
+    /** Количество незакрытых вопросов (FR-TASK-02.2) */
+    openQuestionCount: number;
 }
 
 export interface TaskDto {
@@ -93,6 +104,8 @@ export interface TaskDto {
     seriesId?: string;
     processInfo?: ProcessTaskInfoDto;
     recurrence?: TaskRecurrenceDto;
+    /** FR-TASK-02.3: Дата и время планирования в календаре */
+    scheduledAt?: string;
     createdAt: string;
     updatedAt: string;
     participants: TaskParticipantDto[];
@@ -175,6 +188,15 @@ export interface TaskListParams {
     search?: string;
     sortBy?: string;
     sortDir?: string;
+    /** Фильтр по родительской задаче (для загрузки подзадач). */
+    parentTaskId?: string;
+    /** Группа задач: incoming | outgoing | control | co-exec (FR-TASK-02.2) */
+    group?: string;
+    /** Страница (1-based) для пагинации (FR-TASK-02.2) */
+    page?: number;
+    pageSize?: number;
+    /** EQL-запрос (FR-TASK-02.2): field:value [AND|OR field:value]... */
+    eql?: string;
 }
 
 async function apiFetch<T>(token: string, url: string, options?: RequestInit): Promise<T> {
@@ -209,6 +231,11 @@ export async function listTasks(token: string, params: TaskListParams = {}): Pro
     if (params.search) q.set('search', params.search);
     if (params.sortBy) q.set('sortBy', params.sortBy);
     if (params.sortDir) q.set('sortDir', params.sortDir);
+    if (params.parentTaskId) q.set('parentTaskId', params.parentTaskId);
+    if (params.group) q.set('group', params.group);
+    if (params.page) q.set('page', String(params.page));
+    if (params.pageSize) q.set('pageSize', String(params.pageSize));
+    if (params.eql) q.set('eql', params.eql);
     return apiFetch<TaskSummaryDto[]>(token, `/api/tasks?${q}`);
 }
 
@@ -679,3 +706,267 @@ export function getTimelogsReportExportUrl(filter: TimelogReportFilter = {}): st
     return `/api/reports/timelogs/export${qs ? `?${qs}` : ''}`;
 }
 
+// ─── FR-TASK-02.1: Расширенные диалоги действий ────────────────────────────
+
+export interface MarkDoneRequest {
+    comment?: string;
+    effortMinutes?: number;
+    workStartDate?: string;
+    copyAttachmentsFromSubtasks?: boolean;
+    notifyCoExecutors?: boolean;
+}
+
+export interface MarkCannotDoRequest {
+    comment?: string;
+    notifyCoExecutors?: boolean;
+}
+
+export interface StartWorkRequest {
+    comment?: string;
+    notifyCoExecutors?: boolean;
+}
+
+export interface CloseTaskRequest {
+    comment?: string;
+    notifyCoExecutors?: boolean;
+}
+
+/** Начать работу над задачей с дополнительными данными (FR-TASK-02.1). */
+export async function startTaskWork(token: string, id: string, req?: StartWorkRequest): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, `/api/tasks/${id}/actions/start`, { method: 'POST', body: JSON.stringify(req ?? {}) });
+}
+
+/** Отметить задачу как выполненную с дополнительными данными (FR-TASK-02.1). */
+export async function markTaskDone(token: string, id: string, req?: MarkDoneRequest): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, `/api/tasks/${id}/actions/done`, { method: 'POST', body: JSON.stringify(req ?? {}) });
+}
+
+/** Отметить «Невозможно выполнить» с дополнительными данными (FR-TASK-02.1). */
+export async function markTaskCannotDo(token: string, id: string, req?: MarkCannotDoRequest): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, `/api/tasks/${id}/actions/cannot-do`, { method: 'POST', body: JSON.stringify(req ?? {}) });
+}
+
+/** Закрыть (отменить) задачу с комментарием (FR-TASK-02.1). */
+export async function closeTask(token: string, id: string, req?: CloseTaskRequest): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, `/api/tasks/${id}/actions/close`, { method: 'POST', body: JSON.stringify(req ?? {}) });
+}
+
+/** Перенести срок задачи без смены статуса (FR-TASK-02.1). */
+export async function rescheduleTask(token: string, id: string, newDueDate: string, comment?: string): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, `/api/tasks/${id}/actions/reschedule`, {
+        method: 'POST',
+        body: JSON.stringify({ newDueDate, comment }),
+    });
+}
+
+/** Открыть задачу заново из финального статуса (FR-TASK-02.1). */
+export async function reopenTask(token: string, id: string): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, `/api/tasks/${id}/actions/reopen`, { method: 'POST' });
+}
+
+/** Взять задачу из очереди на себя (FR-TASK-02.1). */
+export async function claimTask(token: string, id: string): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, `/api/tasks/${id}/claim`, { method: 'POST' });
+}
+
+// ─── FR-TASK-02.1: Наблюдатели ────────────────────────────────────────────
+
+/** Получить список наблюдателей задачи (FR-TASK-02.1). */
+export async function getTaskWatchers(token: string, taskId: string): Promise<TaskParticipantDto[]> {
+    return apiFetch<TaskParticipantDto[]>(token, `/api/tasks/${taskId}/watchers`);
+}
+
+/** Добавить наблюдателя к задаче (FR-TASK-02.1). */
+export async function addTaskWatcher(token: string, taskId: string, userId: string): Promise<TaskParticipantDto> {
+    return apiFetch<TaskParticipantDto>(token, `/api/tasks/${taskId}/watchers`, {
+        method: 'POST',
+        body: JSON.stringify({ userId }),
+    });
+}
+
+/** Удалить наблюдателя из задачи (FR-TASK-02.1). */
+export async function removeTaskWatcher(token: string, taskId: string, watcherUserId: string): Promise<void> {
+    await apiFetch<void>(token, `/api/tasks/${taskId}/watchers/${watcherUserId}`, { method: 'DELETE' });
+}
+
+// ─── FR-TASK-02.1: Вопросы ────────────────────────────────────────────────
+
+export interface TaskQuestionDto {
+    id: string;
+    taskId: string;
+    authorUserId: string;
+    authorName: string;
+    recipientId: string;
+    recipientName: string;
+    questionText: string;
+    answerText?: string;
+    answeredAt?: string;
+    createdAt: string;
+}
+
+/** Получить список вопросов по задаче (FR-TASK-02.1). */
+export async function getTaskQuestions(token: string, taskId: string): Promise<TaskQuestionDto[]> {
+    return apiFetch<TaskQuestionDto[]>(token, `/api/tasks/${taskId}/questions`);
+}
+
+/** Задать вопрос по задаче (FR-TASK-02.1). */
+export async function askTaskQuestion(token: string, taskId: string, questionText: string, recipientId: string): Promise<TaskQuestionDto> {
+    return apiFetch<TaskQuestionDto>(token, `/api/tasks/${taskId}/questions`, {
+        method: 'POST',
+        body: JSON.stringify({ questionText, recipientId }),
+    });
+}
+
+/** Ответить на вопрос по задаче (FR-TASK-02.1). */
+export async function answerTaskQuestion(token: string, taskId: string, questionId: string, answerText: string): Promise<TaskQuestionDto> {
+    return apiFetch<TaskQuestionDto>(token, `/api/tasks/${taskId}/questions/${questionId}/answer`, {
+        method: 'PUT',
+        body: JSON.stringify({ answerText }),
+    });
+}
+
+
+// ─── FR-TASK-02.3: Поиск, подписка, уведомления и календарь ─────────────────
+
+/** Подписаться на задачу (текущий пользователь). FR-TASK-02.3. */
+export async function watchTask(token: string, taskId: string): Promise<TaskParticipantDto> {
+    return apiFetch<TaskParticipantDto>(token, `/api/tasks/${taskId}/watch`, { method: 'POST' });
+}
+
+/** Отписаться от задачи. FR-TASK-02.3. */
+export async function unwatchTask(token: string, taskId: string): Promise<void> {
+    await apiFetch<void>(token, `/api/tasks/${taskId}/watch`, { method: 'DELETE' });
+}
+
+export interface TaskReminderDto {
+    id: string;
+    taskId: string;
+    userId: string;
+    remindAt: string;
+    note?: string;
+    isSent: boolean;
+    createdAt: string;
+}
+
+/** Получить напоминания пользователя по задаче. FR-TASK-02.3. */
+export async function getTaskReminders(token: string, taskId: string): Promise<TaskReminderDto[]> {
+    return apiFetch<TaskReminderDto[]>(token, `/api/tasks/${taskId}/reminders`);
+}
+
+/** Добавить напоминание по задаче. FR-TASK-02.3. */
+export async function addTaskReminder(token: string, taskId: string, remindAt: string, note?: string): Promise<TaskReminderDto> {
+    return apiFetch<TaskReminderDto>(token, `/api/tasks/${taskId}/reminders`, {
+        method: 'POST',
+        body: JSON.stringify({ remindAt, note }),
+    });
+}
+
+/** Удалить напоминание. FR-TASK-02.3. */
+export async function deleteTaskReminder(token: string, taskId: string, reminderId: string): Promise<void> {
+    await apiFetch<void>(token, `/api/tasks/${taskId}/reminders/${reminderId}`, { method: 'DELETE' });
+}
+
+/** Запланировать задачу в календаре. FR-TASK-02.3. */
+export async function scheduleTask(token: string, taskId: string, scheduledAt: string): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, `/api/tasks/${taskId}/schedule`, {
+        method: 'POST',
+        body: JSON.stringify({ scheduledAt }),
+    });
+}
+
+/** Снять задачу с планирования. FR-TASK-02.3. */
+export async function unscheduleTask(token: string, taskId: string): Promise<TaskDto> {
+    return apiFetch<TaskDto>(token, `/api/tasks/${taskId}/schedule`, { method: 'DELETE' });
+}
+
+export interface TaskDailyStatDto {
+    date: string;
+    created: number;
+    closed: number;
+}
+export interface TaskDashboardDto {
+    byStatus: Record<string, number>;
+    byPriority: Record<string, number>;
+    overdueCount: number;
+    openCount: number;
+    dailyStats: TaskDailyStatDto[];
+}
+
+/** Получить данные дашборда задач. FR-TASK-02.3. */
+export async function getTaskDashboard(token: string): Promise<TaskDashboardDto> {
+    return apiFetch<TaskDashboardDto>(token, '/api/dashboard/tasks');
+}
+
+export interface NotificationSettingDto {
+    id: string;
+    eventType: string;
+    inApp: boolean;
+    email: boolean;
+}
+
+/** Получить настройки уведомлений. FR-TASK-02.3. */
+export async function getNotificationSettings(token: string): Promise<NotificationSettingDto[]> {
+    return apiFetch<NotificationSettingDto[]>(token, '/api/users/me/notification-settings');
+}
+
+/** Обновить настройки уведомлений. FR-TASK-02.3. */
+export async function updateNotificationSettings(token: string, settings: Array<{ eventType: string; inApp: boolean; email: boolean }>): Promise<NotificationSettingDto[]> {
+    return apiFetch<NotificationSettingDto[]>(token, '/api/users/me/notification-settings', {
+        method: 'PUT',
+        body: JSON.stringify(settings),
+    });
+}
+
+// ─── FR-TASK-02.3: Глобальный поиск задач ────────────────────────────────────
+
+export interface TaskSearchHitDto {
+    id: string;
+    number: number;
+    subject: string;
+    status: string;
+    priority: string;
+    assigneeUserId: string;
+    isOverdue: boolean;
+    dueDate: string;
+}
+
+export interface SearchResultsDto {
+    tasks: TaskSearchHitDto[];
+    total: number;
+}
+
+/** Глобальный поиск задач по теме и описанию. FR-TASK-02.3. */
+export async function searchTasks(token: string, q: string, limit = 20): Promise<SearchResultsDto> {
+    const params = new URLSearchParams({ q, type: 'task', limit: String(limit) });
+    return apiFetch<SearchResultsDto>(token, `/api/search?${params}`);
+}
+
+// ─── FR-TASK-02.2: Счётчики + Excel-экспорт ──────────────────────────────────
+
+export interface TaskCountersDto {
+    incoming: number;
+    overdue: number;
+    onApproval: number;
+    needsControl: number;
+}
+
+/** Получить счётчики задач для бейджей Sidebar. FR-TASK-02.2. */
+export async function getTaskCounters(token: string): Promise<TaskCountersDto> {
+    return apiFetch<TaskCountersDto>(token, '/api/tasks/counters');
+}
+
+/** Экспортировать задачи в Excel (.xlsx). FR-TASK-02.2. */
+export async function exportTasksExcel(token: string, params: TaskListParams = {}): Promise<Blob> {
+    const q = new URLSearchParams({ format: 'xlsx' });
+    if (params.status) q.set('status', params.status);
+    if (params.priority) q.set('priority', params.priority);
+    if (params.assigneeId) q.set('assigneeId', params.assigneeId);
+    if (params.search) q.set('search', params.search);
+    if (params.group) q.set('group', params.group);
+
+    const res = await fetch(`/api/tasks/export?${q}`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.blob();
+}
