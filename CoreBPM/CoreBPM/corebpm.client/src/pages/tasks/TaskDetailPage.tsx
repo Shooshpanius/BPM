@@ -10,6 +10,7 @@ import {
     startTaskWork, markTaskDone, markTaskCannotDo, closeTask, rescheduleTask, reopenTask, claimTask,
     getTaskWatchers, addTaskWatcher, removeTaskWatcher,
     getTaskQuestions, askTaskQuestion, answerTaskQuestion,
+    updateTask,
     TASK_STATUS_LABELS, TASK_PRIORITY_LABELS,
 } from '../../api/tasksApi';
 import type {
@@ -101,6 +102,21 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
     const [answerSaving, setAnswerSaving] = useState(false);
     const [actionError, setActionError] = useState<string | null>(null);
 
+    // FR-TASK-02.1: диалог редактирования задачи
+    const [showEditDialog, setShowEditDialog] = useState(false);
+    const [editSubject, setEditSubject] = useState('');
+    const [editDescription, setEditDescription] = useState('');
+    const [editPriority, setEditPriority] = useState('');
+    const [editDueDate, setEditDueDate] = useState('');
+    const [editPlannedEffort, setEditPlannedEffort] = useState('');
+    const [editSaving, setEditSaving] = useState(false);
+    const [editError, setEditError] = useState<string | null>(null);
+
+    // FR-TASK-02.1: диалог создания подзадачи — расширенные поля
+    const [subtaskDueDate, setSubtaskDueDate] = useState('');
+    const [subtaskPriority, setSubtaskPriority] = useState('Medium');
+    const [subtaskDescription, setSubtaskDescription] = useState('');
+
     // ─── FR-TASK-01.4: Добавление трудозатрат ────────────────────────────────
     const [showAddTimeLog, setShowAddTimeLog] = useState(false);
     const [timeLogDuration, setTimeLogDuration] = useState('');
@@ -189,8 +205,7 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
             } else if (tab === 'relations') {
                 setRelations(await getTaskRelations(token, taskId));
             } else if (tab === 'subtasks') {
-                const all = await listTasks(token, {});
-                setSubtasks(all.filter((t: TaskSummaryDto) => t.id !== taskId));
+                setSubtasks(await listTasks(token, { parentTaskId: taskId }));
             } else if (tab === 'timelogs') {
                 setTimeLogs(await getTaskTimeLogs(token, taskId));
             } else if (tab === 'watchers') {
@@ -583,23 +598,62 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
         setRelations(prev => prev.filter(r => r.id !== rId));
     };
 
+    // FR-TASK-02.1: редактирование задачи
+    const openEditDialog = () => {
+        if (!task) return;
+        setEditSubject(task.subject);
+        setEditDescription(task.description ?? '');
+        setEditPriority(task.priority);
+        setEditDueDate(task.dueDate ? new Date(task.dueDate).toISOString().slice(0, 16) : '');
+        setEditPlannedEffort(task.plannedEffortMinutes ? String(task.plannedEffortMinutes) : '');
+        setEditError(null);
+        setShowEditDialog(true);
+    };
+
+    const handleEdit = async () => {
+        if (!token || !editSubject.trim()) return;
+        setEditSaving(true);
+        setEditError(null);
+        try {
+            const updated = await updateTask(token, taskId, {
+                subject: editSubject.trim(),
+                description: editDescription.trim() || undefined,
+                priority: editPriority || undefined,
+                dueDate: editDueDate ? new Date(editDueDate).toISOString() : undefined,
+                plannedEffortMinutes: editPlannedEffort ? parseInt(editPlannedEffort, 10) : undefined,
+            });
+            setTask(updated);
+            setShowEditDialog(false);
+        } catch (e) {
+            setEditError(e instanceof Error ? e.message : 'Ошибка');
+        } finally {
+            setEditSaving(false);
+        }
+    };
+
     const handleCreateSubtask = async () => {
         if (!token || !subtaskSubject.trim() || !subtaskAssigneeId) return;
         setSubtaskSaving(true);
         try {
             const now = new Date();
-            const due = new Date(now);
-            due.setDate(due.getDate() + 7);
+            const due = subtaskDueDate
+                ? new Date(subtaskDueDate)
+                : (() => { const d = new Date(now); d.setDate(d.getDate() + 7); return d; })();
             await createSubtask(token, taskId, {
                 subject: subtaskSubject.trim(),
                 assigneeUserId: subtaskAssigneeId,
                 startDate: now.toISOString(),
                 dueDate: due.toISOString(),
+                description: subtaskDescription.trim() || undefined,
+                priority: subtaskPriority,
             });
             setShowCreateSubtask(false);
             setSubtaskSubject('');
             setSubtaskAssigneeId('');
             setSubtaskSearch('');
+            setSubtaskDueDate('');
+            setSubtaskPriority('Medium');
+            setSubtaskDescription('');
             loadTabData();
         } finally {
             setSubtaskSaving(false);
@@ -625,6 +679,12 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                 <div className="task-detail__header-actions">
                     <button className="task-detail__btn" onClick={() => { setShowReassign(true); loadEmployees(); }}>Переназначить</button>
                     <button className="task-detail__btn" onClick={handleCopy}>Копировать</button>
+                    {/* FR-TASK-02.1: редактирование задачи */}
+                    {hasAction('edit') && (
+                        <button className="task-detail__btn" onClick={openEditDialog}>
+                            ✏️ Изменить
+                        </button>
+                    )}
                     {/* FR-TASK-02.1: основные действия с расширенными диалогами */}
                     {hasAction('start') && (
                         <button className="task-detail__btn task-detail__btn--primary"
@@ -1225,7 +1285,9 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                 <div className="task-detail__overlay" onClick={() => setShowCreateSubtask(false)}>
                     <div className="task-detail__dialog" onClick={e => e.stopPropagation()}>
                         <h3>Создать подзадачу</h3>
+                        <label className="task-detail__field-label">Тема *</label>
                         <input className="task-detail__input" placeholder="Тема подзадачи" value={subtaskSubject} onChange={e => setSubtaskSubject(e.target.value)} />
+                        <label className="task-detail__field-label">Исполнитель *</label>
                         <input className="task-detail__input" placeholder="Поиск исполнителя..." value={subtaskSearch} onChange={e => setSubtaskSearch(e.target.value)} />
                         {filteredForSubtask.length > 0 && subtaskSearch && (
                             <div className="task-detail__dropdown">
@@ -1237,6 +1299,19 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                                 ))}
                             </div>
                         )}
+                        <label className="task-detail__field-label">Срок</label>
+                        <input className="task-detail__input" type="datetime-local"
+                            value={subtaskDueDate}
+                            onChange={e => setSubtaskDueDate(e.target.value)} />
+                        <label className="task-detail__field-label">Приоритет</label>
+                        <select className="task-detail__input" value={subtaskPriority} onChange={e => setSubtaskPriority(e.target.value)}>
+                            <option value="Low">Низкий</option>
+                            <option value="Medium">Средний</option>
+                            <option value="High">Высокий</option>
+                            <option value="Critical">Критический</option>
+                        </select>
+                        <label className="task-detail__field-label">Описание</label>
+                        <textarea className="task-detail__input" placeholder="Необязательно" value={subtaskDescription} onChange={e => setSubtaskDescription(e.target.value)} rows={2} />
                         <div className="task-detail__dialog-footer">
                             <button className="task-detail__btn task-detail__btn--primary" onClick={handleCreateSubtask} disabled={subtaskSaving || !subtaskSubject.trim() || !subtaskAssigneeId}>
                                 {subtaskSaving ? 'Создание...' : 'Создать'}
@@ -1500,6 +1575,43 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                                 {answerSaving ? 'Отправка...' : 'Ответить'}
                             </button>
                             <button className="task-detail__btn" onClick={() => setShowAnswerDialog(null)}>Отмена</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ─── FR-TASK-02.1: Диалог редактирования задачи ─── */}
+            {showEditDialog && (
+                <div className="task-detail__overlay" onClick={() => setShowEditDialog(false)}>
+                    <div className="task-detail__dialog" onClick={e => e.stopPropagation()}>
+                        <h3>✏️ Изменить задачу</h3>
+                        <label className="task-detail__field-label">Тема *</label>
+                        <input className="task-detail__input" placeholder="Тема задачи" value={editSubject}
+                            onChange={e => setEditSubject(e.target.value)} />
+                        <label className="task-detail__field-label">Описание</label>
+                        <textarea className="task-detail__input" placeholder="Необязательно" value={editDescription}
+                            onChange={e => setEditDescription(e.target.value)} rows={3} />
+                        <label className="task-detail__field-label">Приоритет</label>
+                        <select className="task-detail__input" value={editPriority}
+                            onChange={e => setEditPriority(e.target.value)}>
+                            <option value="Low">Низкий</option>
+                            <option value="Medium">Средний</option>
+                            <option value="High">Высокий</option>
+                            <option value="Critical">Критический</option>
+                        </select>
+                        <label className="task-detail__field-label">Срок</label>
+                        <input className="task-detail__input" type="datetime-local" value={editDueDate}
+                            onChange={e => setEditDueDate(e.target.value)} />
+                        <label className="task-detail__field-label">Плановые трудозатраты (мин.)</label>
+                        <input className="task-detail__input" type="number" min="1" placeholder="Например, 60"
+                            value={editPlannedEffort} onChange={e => setEditPlannedEffort(e.target.value)} />
+                        {editError && <p className="task-detail__error">{editError}</p>}
+                        <div className="task-detail__dialog-footer">
+                            <button className="task-detail__btn task-detail__btn--primary" onClick={handleEdit}
+                                disabled={editSaving || !editSubject.trim()}>
+                                {editSaving ? 'Сохранение...' : 'Сохранить'}
+                            </button>
+                            <button className="task-detail__btn" onClick={() => setShowEditDialog(false)}>Отмена</button>
                         </div>
                     </div>
                 </div>

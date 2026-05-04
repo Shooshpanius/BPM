@@ -88,6 +88,8 @@ public class TaskListFilter
     public string? Search { get; set; }
     public string SortBy { get; set; } = "created_at";
     public string SortDir { get; set; } = "desc";
+    /// <summary>Фильтр по родительской задаче (для загрузки подзадач).</summary>
+    public Guid? ParentTaskId { get; set; }
 }
 
 /// <summary>Запрос на откладывание задачи (FR-TASK-01.2).</summary>

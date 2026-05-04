@@ -91,7 +91,7 @@ public class TasksController : ControllerBase
     {
         var userId = GetCurrentUserId();
         if (userId == null) return Unauthorized();
-        return Ok(await _service.UpdateAsync(id, req, userId.Value, ct));
+        return Ok(await _service.UpdateAsync(id, req, userId.Value, User.IsInRole("Admin"), ct));
     }
 
     /// <summary>Удаляет задачу.</summary>

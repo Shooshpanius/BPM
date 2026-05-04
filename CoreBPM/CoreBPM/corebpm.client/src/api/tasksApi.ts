@@ -175,6 +175,8 @@ export interface TaskListParams {
     search?: string;
     sortBy?: string;
     sortDir?: string;
+    /** Фильтр по родительской задаче (для загрузки подзадач). */
+    parentTaskId?: string;
 }
 
 async function apiFetch<T>(token: string, url: string, options?: RequestInit): Promise<T> {
@@ -209,6 +211,7 @@ export async function listTasks(token: string, params: TaskListParams = {}): Pro
     if (params.search) q.set('search', params.search);
     if (params.sortBy) q.set('sortBy', params.sortBy);
     if (params.sortDir) q.set('sortDir', params.sortDir);
+    if (params.parentTaskId) q.set('parentTaskId', params.parentTaskId);
     return apiFetch<TaskSummaryDto[]>(token, `/api/tasks?${q}`);
 }
 

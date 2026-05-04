@@ -159,6 +159,9 @@ public class TaskService : ITaskService
             query = query.Where(t => t.DueDate >= filter.DateFrom.Value);
         if (filter.DateTo.HasValue)
             query = query.Where(t => t.DueDate <= filter.DateTo.Value);
+        // Фильтр по родительской задаче (для загрузки подзадач)
+        if (filter.ParentTaskId.HasValue)
+            query = query.Where(t => t.ParentTaskId == filter.ParentTaskId.Value);
 
         var tasks = await query.OrderByDescending(t => t.CreatedAt).ToListAsync(ct);
 
@@ -195,10 +198,14 @@ public class TaskService : ITaskService
     }
 
     /// <inheritdoc/>
-    public async Task<TaskDto> UpdateAsync(Guid taskId, UpdateTaskRequest req, Guid actorId, CancellationToken ct = default)
+    public async Task<TaskDto> UpdateAsync(Guid taskId, UpdateTaskRequest req, Guid actorId, bool isAdmin, CancellationToken ct = default)
     {
         var task = await _db.TaskItems.FirstOrDefaultAsync(t => t.Id == taskId, ct)
             ?? throw new NotFoundException($"Задача {taskId} не найдена.");
+
+        // Редактирование доступно только автору задачи или Admin
+        if (task.AuthorUserId != actorId && !isAdmin)
+            throw new ForbiddenException("Редактировать задачу может только её автор или администратор.");
         var now = DateTimeOffset.UtcNow;
         var changes = new List<TaskHistoryEntry>();
 
@@ -758,6 +765,10 @@ public class TaskService : ITaskService
         // Взять задачу из очереди: любой, кто ещё не является исполнителем
         if (!FinalStatuses.Contains(status) && !isAssignee)
             actions.Add(new TaskAllowedActionDto { Action = "claim", Label = "Взять задачу" });
+
+        // Редактирование задачи: автор или Admin; не применимо к закрытым задачам
+        if (!FinalStatuses.Contains(status) && (isAuthor || isAdmin))
+            actions.Add(new TaskAllowedActionDto { Action = "edit", Label = "Изменить" });
 
         return actions;
     }
@@ -1487,7 +1498,9 @@ public class TaskService : ITaskService
         {
             u.Id,
             NormalizedName = u.DisplayName.Replace(" ", "").ToLowerInvariant(),
-            NormalizedEmail = string.IsNullOrEmpty(u.WorkEmail) ? string.Empty : u.WorkEmail.Split('@')[0].ToLowerInvariant(),
+            NormalizedEmail = (!string.IsNullOrEmpty(u.WorkEmail) && u.WorkEmail.Contains('@'))
+                    ? u.WorkEmail.Split('@')[0].ToLowerInvariant()
+                    : (u.WorkEmail?.ToLowerInvariant() ?? string.Empty),
         }).ToList();
 
         var mentionedUserIds = normalizedUsers
@@ -2062,8 +2075,8 @@ public class TaskService : ITaskService
         if (!isAuthor && !isController && !isAdmin)
             throw new ValidationException("Только автор, контролёр или администратор может перенести срок задачи.");
 
-        if (req.NewDueDate <= task.DueDate && req.NewDueDate <= DateTimeOffset.UtcNow)
-            throw new ValidationException("Новый срок должен быть в будущем или позже текущего срока задачи.");
+        if (req.NewDueDate <= task.DueDate || req.NewDueDate <= DateTimeOffset.UtcNow)
+            throw new ValidationException("Новый срок должен быть в будущем и позже текущего срока задачи.");
 
         var now = DateTimeOffset.UtcNow;
         var oldDueDate = task.DueDate;

@@ -9,7 +9,7 @@ public interface ITaskService
     Task<TaskDto> CreateAsync(CreateTaskRequest req, Guid authorId, CancellationToken ct = default);
     Task<TaskDto> GetAsync(Guid taskId, CancellationToken ct = default);
     Task<IReadOnlyList<TaskSummaryDto>> ListAsync(Guid userId, bool isAdmin, TaskListFilter filter, CancellationToken ct = default);
-    Task<TaskDto> UpdateAsync(Guid taskId, UpdateTaskRequest req, Guid actorId, CancellationToken ct = default);
+    Task<TaskDto> UpdateAsync(Guid taskId, UpdateTaskRequest req, Guid actorId, bool isAdmin, CancellationToken ct = default);
     Task DeleteAsync(Guid taskId, Guid actorId, CancellationToken ct = default);
     Task<TaskDto> CopyAsync(Guid taskId, Guid actorId, CancellationToken ct = default);
     Task MarkReadAsync(Guid taskId, Guid userId, CancellationToken ct = default);
