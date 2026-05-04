@@ -7,6 +7,7 @@ import type {
     DirectoryDepartmentTreeDto,
     DirectoryEmployeeDto,
 } from '../../api/orgDirectoryApi';
+import { EmployeeCardModal } from '../../components/EmployeeCardModal';
 import './ContactsPage.css';
 
 // ─── Вспомогательные функции ───
@@ -17,6 +18,8 @@ function getInitials(emp: DirectoryEmployeeDto): string {
     if (first || last) return (first + last).toUpperCase();
     return emp.displayName[0]?.toUpperCase() ?? '?';
 }
+
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
 /** Страница адресной книги: дерево оргструктуры + карточки сотрудников + поиск. */
 export function ContactsPage() {
@@ -39,6 +42,7 @@ export function ContactsPage() {
 
     // Сотрудники
     const [employees, setEmployees] = useState<DirectoryEmployeeDto[]>([]);
+    const [total, setTotal] = useState(0);
     const [empLoading, setEmpLoading] = useState(false);
     const [empError, setEmpError] = useState<string | null>(null);
 
@@ -46,6 +50,18 @@ export function ContactsPage() {
     const [search, setSearch] = useState('');
     const [searchScope, setSearchScope] = useState<'current' | 'global'>('current');
     const searchTimer = useRef<number | null>(null);
+
+    // Фильтры, сортировка, вид
+    const [positionFilter, setPositionFilter] = useState('');
+    const [sortBy, setSortBy] = useState('displayName');
+    const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+    const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(25);
+    const [exporting, setExporting] = useState(false);
+
+    // Модальное окно карточки сотрудника
+    const [selectedEmployee, setSelectedEmployee] = useState<DirectoryEmployeeDto | null>(null);
 
     // Загрузка организаций при монтировании
     useEffect(() => {
@@ -97,8 +113,13 @@ export function ContactsPage() {
                 organizationId: isGlobal ? undefined : (selectedDeptId ? undefined : selectedOrgId ?? undefined),
                 departmentId: isGlobal ? undefined : (selectedDeptId ?? undefined),
                 search: search.trim() || undefined,
+                position: positionFilter.trim() || undefined,
+                sortBy,
+                sortDir,
+                page,
+                pageSize,
             })
-                .then(setEmployees)
+                .then(r => { setEmployees(r.items); setTotal(r.total); })
                 .catch(e => setEmpError(e.message ?? 'Ошибка загрузки'))
                 .finally(() => setEmpLoading(false));
         };
@@ -112,7 +133,7 @@ export function ContactsPage() {
         return () => {
             if (searchTimer.current !== null) window.clearTimeout(searchTimer.current);
         };
-    }, [token, selectedOrgId, selectedDeptId, search, searchScope]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [token, selectedOrgId, selectedDeptId, search, searchScope, positionFilter, sortBy, sortDir, page, pageSize]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // ─── Обработчики дерева ───
 
@@ -123,6 +144,7 @@ export function ContactsPage() {
         setSelectedOrgId(orgId);
         setSelectedDeptId(null);
         setSearch('');
+        setPage(1);
         if (!isExpanded) await loadDepartmentTree(orgId);
     };
 
@@ -130,6 +152,7 @@ export function ContactsPage() {
         setSelectedOrgId(orgId);
         setSelectedDeptId(null);
         setSearch('');
+        setPage(1);
     };
 
     const toggleDept = (deptId: string) => {
@@ -144,7 +167,33 @@ export function ContactsPage() {
         setSelectedOrgId(orgId);
         setSelectedDeptId(deptId);
         setSearch('');
+        setPage(1);
     };
+
+    const handleExport = async () => {
+        if (!token) return;
+        setExporting(true);
+        try {
+            const isGlobal = searchScope === 'global' && search.trim().length > 0;
+            const blob = await api.exportDirectoryEmployees(token, {
+                organizationId: isGlobal ? undefined : (selectedDeptId ? undefined : selectedOrgId ?? undefined),
+                departmentId: isGlobal ? undefined : (selectedDeptId ?? undefined),
+                search: search.trim() || undefined,
+                position: positionFilter.trim() || undefined,
+                sortBy,
+            });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'employees.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+        } finally {
+            setExporting(false);
+        }
+    };
+
+    const totalPages = Math.ceil(total / pageSize);
 
     // ─── Рендер дерева ───
 
@@ -243,7 +292,7 @@ export function ContactsPage() {
     const renderEmployeeCard = (emp: DirectoryEmployeeDto) => {
         const initials = getInitials(emp);
         return (
-            <div className="emp-card" key={emp.id}>
+            <div className="emp-card" key={emp.id} onClick={() => setSelectedEmployee(emp)} role="button" tabIndex={0} onKeyDown={e => e.key === 'Enter' && setSelectedEmployee(emp)}>
                 <div className="emp-avatar" aria-hidden="true">
                     {emp.avatarUrl
                         ? <img src={emp.avatarUrl} alt={emp.displayName} className="emp-avatar-img" />
@@ -253,13 +302,52 @@ export function ContactsPage() {
                 <div className="emp-info">
                     <span className="emp-name">{emp.displayName}</span>
                     {emp.position && <span className="emp-position">{emp.position}</span>}
-                    <a className="emp-email" href={`mailto:${emp.workEmail}`}>{emp.workEmail}</a>
+                    <a className="emp-email" href={`mailto:${emp.workEmail}`} onClick={e => e.stopPropagation()}>{emp.workEmail}</a>
                     {emp.phone && <span className="emp-phone">{emp.phone}</span>}
                     {emp.departmentName && <span className="emp-dept">{emp.departmentName}</span>}
                 </div>
             </div>
         );
     };
+
+    // ─── Рендер таблицы ───
+
+    const renderTable = () => (
+        <div className="emp-table-wrap">
+            <table className="emp-table">
+                <thead>
+                    <tr>
+                        <th>Сотрудник</th>
+                        <th>Должность</th>
+                        <th>Подразделение</th>
+                        <th>Email</th>
+                        <th>Телефон</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {employees.map(emp => (
+                        <tr key={emp.id} className="emp-table-row" onClick={() => setSelectedEmployee(emp)}>
+                            <td>
+                                <div className="emp-table-name-cell">
+                                    <div className="emp-table-avatar">
+                                        {emp.avatarUrl
+                                            ? <img src={emp.avatarUrl} alt={emp.displayName} />
+                                            : <span>{getInitials(emp)}</span>
+                                        }
+                                    </div>
+                                    <span>{emp.displayName}</span>
+                                </div>
+                            </td>
+                            <td>{emp.position ?? '—'}</td>
+                            <td>{emp.departmentName ?? '—'}</td>
+                            <td><a href={`mailto:${emp.workEmail}`} onClick={e => e.stopPropagation()}>{emp.workEmail}</a></td>
+                            <td>{emp.phone ?? '—'}</td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
 
     return (
         <div className="contacts-root">
@@ -352,11 +440,37 @@ export function ContactsPage() {
                 <div className="contacts-section-title">
                     {breadcrumb || 'Контакты'}
                     <span className="contacts-count">
-                        {!empLoading && employees.length > 0 ? `${employees.length}` : ''}
+                        {!empLoading && total > 0 ? total : ''}
                     </span>
                 </div>
 
-                {/* Карточки */}
+                {/* Панель инструментов */}
+                <div className="contacts-toolbar">
+                    <input
+                        className="toolbar-position-filter"
+                        placeholder="Фильтр по должности…"
+                        value={positionFilter}
+                        onChange={e => { setPositionFilter(e.target.value); setPage(1); }}
+                    />
+                    <select className="toolbar-sort" value={`${sortBy}:${sortDir}`} onChange={e => { const [sortByValue, sortDirValue] = e.target.value.split(':'); setSortBy(sortByValue); setSortDir(sortDirValue as 'asc' | 'desc'); setPage(1); }}>
+                        <option value="displayName:asc">Имя А→Я</option>
+                        <option value="displayName:desc">Имя Я→А</option>
+                        <option value="position:asc">Должность А→Я</option>
+                        <option value="position:desc">Должность Я→А</option>
+                    </select>
+                    <select className="toolbar-page-size" value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}>
+                        {PAGE_SIZE_OPTIONS.map(s => <option key={s} value={s}>{s} / стр.</option>)}
+                    </select>
+                    <div className="toolbar-view-toggle">
+                        <button className={`view-btn${viewMode === 'cards' ? ' active' : ''}`} onClick={() => setViewMode('cards')} title="Карточки">⊞</button>
+                        <button className={`view-btn${viewMode === 'table' ? ' active' : ''}`} onClick={() => setViewMode('table')} title="Таблица">☰</button>
+                    </div>
+                    <button className="toolbar-export-btn" onClick={handleExport} disabled={exporting} title="Экспорт CSV">
+                        {exporting ? '…' : '⬇ CSV'}
+                    </button>
+                </div>
+
+                {/* Список / таблица */}
                 <div className="emp-grid-scroll">
                     {empLoading && (
                         <div className="emp-status">Загрузка…</div>
@@ -369,39 +483,55 @@ export function ContactsPage() {
                             {search.trim() ? 'Ничего не найдено' : 'Нет сотрудников'}
                         </div>
                     )}
-                    {!empLoading && !empError && employees.length > 0 && (() => {
-                        // Группируем сотрудников по подразделению
-                        const groups = new Map<string, DirectoryEmployeeDto[]>();
-                        for (const emp of employees) {
-                            const key = emp.departmentName ?? '';
-                            if (!groups.has(key)) groups.set(key, []);
-                            groups.get(key)!.push(emp);
-                        }
-                        const showDividers = groups.size > 1;
-                        if (!showDividers) {
+                    {!empLoading && !empError && employees.length > 0 && (
+                        viewMode === 'table' ? renderTable() : (() => {
+                            // Группируем сотрудников по подразделению
+                            const groups = new Map<string, DirectoryEmployeeDto[]>();
+                            for (const emp of employees) {
+                                const key = emp.departmentName ?? '';
+                                if (!groups.has(key)) groups.set(key, []);
+                                groups.get(key)!.push(emp);
+                            }
+                            const showDividers = groups.size > 1;
+                            if (!showDividers) {
+                                return (
+                                    <div className="emp-grid">
+                                        {employees.map(renderEmployeeCard)}
+                                    </div>
+                                );
+                            }
                             return (
-                                <div className="emp-grid">
-                                    {employees.map(renderEmployeeCard)}
+                                <div className="emp-groups">
+                                    {Array.from(groups.entries()).map(([deptName, emps]) => (
+                                        <div key={deptName} className="emp-group">
+                                            <div className="emp-group-divider">
+                                                <span className="emp-group-name">{deptName || 'Без подразделения'}</span>
+                                            </div>
+                                            <div className="emp-grid">
+                                                {emps.map(renderEmployeeCard)}
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             );
-                        }
-                        return (
-                            <div className="emp-groups">
-                                {Array.from(groups.entries()).map(([deptName, emps]) => (
-                                    <div key={deptName} className="emp-group">
-                                        <div className="emp-group-divider">
-                                            <span className="emp-group-name">{deptName || 'Без подразделения'}</span>
-                                        </div>
-                                        <div className="emp-grid">
-                                            {emps.map(renderEmployeeCard)}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        );
-                    })()}
+                        })()
+                    )}
                 </div>
+
+                {/* Пагинация */}
+                {totalPages > 1 && (
+                    <div className="contacts-pagination">
+                        <button className="page-btn" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>‹</button>
+                        <span className="page-info">{page} / {totalPages}</span>
+                        <button className="page-btn" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>›</button>
+                    </div>
+                )}
             </section>
+
+            {/* Модальное окно карточки сотрудника */}
+            {selectedEmployee && (
+                <EmployeeCardModal employee={selectedEmployee} onClose={() => setSelectedEmployee(null)} />
+            )}
         </div>
     );
 }

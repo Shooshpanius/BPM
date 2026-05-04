@@ -5,7 +5,7 @@ import { useBpmNotifications } from '../context/BpmNotificationsContext';
 import { APP_VERSION, LAST_PR_DATE } from '../version';
 import './Sidebar.css';
 
-export type SidebarSection = 'tasks' | 'tasks-periodic' | 'tasks-dashboard' | 'contacts' | 'org-structure' | 'bpm-processes' | 'bpm-my-processes' | 'bpm-monitor' | 'bpm-queue' | 'bpm-documentation' | 'bpm-rules' | 'bpm-forms' | 'bpm-scripts' | 'bpm-migration' | 'bpm-improvements' | 'bpm-analytics' | 'task-control-settings' | 'timelogs-report' | 'notification-settings';
+export type SidebarSection = 'portal' | 'tasks' | 'tasks-periodic' | 'tasks-dashboard' | 'contacts' | 'org-structure' | 'company' | 'user-profile' | 'user-preferences' | 'bpm-processes' | 'bpm-my-processes' | 'bpm-monitor' | 'bpm-queue' | 'bpm-documentation' | 'bpm-rules' | 'bpm-forms' | 'bpm-scripts' | 'bpm-migration' | 'bpm-improvements' | 'bpm-analytics' | 'task-control-settings' | 'timelogs-report' | 'notification-settings';
 
 interface SidebarProps {
     active: SidebarSection;
@@ -42,6 +42,20 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
 
     return (
         <nav className="sidebar" aria-label="Разделы системы">
+            {/* FR-PORTAL-01: Главная страница */}
+            <SidebarItem
+                id="portal"
+                label="Главная"
+                active={active === 'portal'}
+                onClick={() => onSelect('portal')}
+                icon={
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                        <polyline points="9 22 9 12 15 12 15 22"/>
+                    </svg>
+                }
+            />
+            <div className="sidebar-divider" role="separator" />
             <SidebarItem
                 id="tasks"
                 label="Задачи"
@@ -95,6 +109,46 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
                         <circle cx="9" cy="7" r="4"/>
                         <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
                         <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </svg>
+                }
+            />
+            {/* FR-ORG-03: Страница компании */}
+            <SidebarItem
+                id="company"
+                label="Компания"
+                active={active === 'company'}
+                onClick={() => onSelect('company')}
+                icon={
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M3 21V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v15"/>
+                        <path d="M9 21V12h6v9"/>
+                        <path d="M3 21h18"/>
+                    </svg>
+                }
+            />
+            {/* FR-ORG-02.1: Профиль пользователя */}
+            <SidebarItem
+                id="user-profile"
+                label="Мой профиль"
+                active={active === 'user-profile'}
+                onClick={() => onSelect('user-profile')}
+                icon={
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="8" r="4"/>
+                        <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+                    </svg>
+                }
+            />
+            {/* FR-ORG-02.3: Настройки пользователя */}
+            <SidebarItem
+                id="user-preferences"
+                label="Настройки"
+                active={active === 'user-preferences'}
+                onClick={() => onSelect('user-preferences')}
+                icon={
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
                     </svg>
                 }
             />

@@ -21,6 +21,8 @@ using CoreBPM.Server.Infrastructure.Middleware;
 using CoreBPM.Server.Infrastructure.Persistence;
 using CoreBPM.Server.Infrastructure.Persistence.Repositories;
 using CoreBPM.Server.Infrastructure.Workers;
+using CoreBPM.Server.Application.Portal.Interfaces;
+using CoreBPM.Server.Application.Portal.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -96,6 +98,14 @@ builder.Services.AddScoped<IOrgUnitsService, OrgUnitsService>();
 builder.Services.AddScoped<IOrgPositionsService, OrgPositionsService>();
 builder.Services.AddScoped<IOrgAssignmentService, OrgAssignmentService>();
 builder.Services.AddScoped<IOrgChartService, OrgChartService>();
+builder.Services.AddScoped<IUserProfileService, UserProfileService>();
+builder.Services.AddScoped<IUserPreferencesService, UserPreferencesService>();
+builder.Services.AddScoped<ICompanyService, CompanyService>();
+
+// Регистрация сервисов Portal (FR-PORTAL-01)
+builder.Services.AddScoped<IPortalDashboardService, PortalDashboardService>();
+builder.Services.AddScoped<IPortalBrandingService, PortalBrandingService>();
+builder.Services.AddScoped<IPortalMenuService, PortalMenuService>();
 
 // Регистрация сервисов BPM (бизнес-процессы)
 builder.Services.AddScoped<IBpmProcessService, BpmProcessService>();

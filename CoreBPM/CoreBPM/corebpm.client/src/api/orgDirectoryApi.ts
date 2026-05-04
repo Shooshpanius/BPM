@@ -32,6 +32,13 @@ export interface DirectoryEmployeeDto {
     departmentName?: string;
 }
 
+export interface DirectoryEmployeesPagedDto {
+    items: DirectoryEmployeeDto[];
+    total: number;
+    page: number;
+    pageSize: number;
+}
+
 async function fetchJson<T>(url: string, token: string): Promise<T> {
     const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
@@ -54,13 +61,48 @@ export const getDirectoryOrganizations = (token: string): Promise<DirectoryOrgan
 export const getDirectoryDepartmentTree = (token: string, organizationId: string): Promise<DirectoryDepartmentTreeDto[]> =>
     fetchJson(`/api/org/directory/departments/tree?organizationId=${organizationId}`, token);
 
+export interface GetEmployeesParams {
+    organizationId?: string;
+    departmentId?: string;
+    search?: string;
+    position?: string;
+    sortBy?: string;
+    sortDir?: 'asc' | 'desc';
+    page?: number;
+    pageSize?: number;
+}
+
 export const getDirectoryEmployees = (
     token: string,
-    params: { organizationId?: string; departmentId?: string; search?: string }
-): Promise<DirectoryEmployeeDto[]> => {
+    params: GetEmployeesParams
+): Promise<DirectoryEmployeesPagedDto> => {
     const qs = new URLSearchParams();
     if (params.organizationId) qs.set('organizationId', params.organizationId);
     if (params.departmentId) qs.set('departmentId', params.departmentId);
     if (params.search) qs.set('search', params.search);
+    if (params.position) qs.set('position', params.position);
+    if (params.sortBy) qs.set('sortBy', params.sortBy);
+    if (params.sortDir) qs.set('sortDir', params.sortDir);
+    if (params.page) qs.set('page', String(params.page));
+    if (params.pageSize) qs.set('pageSize', String(params.pageSize));
     return fetchJson(`/api/org/directory/employees?${qs.toString()}`, token);
 };
+
+export const exportDirectoryEmployees = (
+    token: string,
+    params: Omit<GetEmployeesParams, 'page' | 'pageSize' | 'sortDir'>
+): Promise<Blob> => {
+    const qs = new URLSearchParams();
+    if (params.organizationId) qs.set('organizationId', params.organizationId);
+    if (params.departmentId) qs.set('departmentId', params.departmentId);
+    if (params.search) qs.set('search', params.search);
+    if (params.position) qs.set('position', params.position);
+    if (params.sortBy) qs.set('sortBy', params.sortBy);
+    return fetch(`/api/org/directory/employees/export?${qs.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+    }).then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.blob();
+    });
+};
+

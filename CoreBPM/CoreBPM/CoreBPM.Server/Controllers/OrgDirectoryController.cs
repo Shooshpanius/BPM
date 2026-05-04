@@ -1,3 +1,4 @@
+using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using CoreBPM.Server.Application.Org.DTOs;
@@ -33,15 +34,70 @@ public class OrgDirectoryController : ControllerBase
         => Ok(await _service.GetDepartmentTreeAsync(organizationId, ct));
 
     /// <summary>
-    /// Возвращает сотрудников адресной книги.
-    /// Параметры фильтрации: departmentId, organizationId, search (поиск по имени / email / должности).
+    /// Возвращает страницу сотрудников адресной книги.
+    /// Параметры: departmentId, organizationId, search, position, sortBy (name/position/department),
+    /// sortDir (asc/desc), page, pageSize.
     /// </summary>
     [HttpGet("employees")]
-    [ProducesResponseType(typeof(IReadOnlyList<DirectoryEmployeeDto>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IReadOnlyList<DirectoryEmployeeDto>>> GetEmployees(
+    [ProducesResponseType(typeof(DirectoryEmployeesPagedDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<DirectoryEmployeesPagedDto>> GetEmployees(
         [FromQuery] Guid? organizationId,
         [FromQuery] Guid? departmentId,
         [FromQuery] string? search,
+        [FromQuery] string? position,
+        [FromQuery] string? sortBy,
+        [FromQuery] string? sortDir,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50,
+        CancellationToken ct = default)
+        => Ok(await _service.GetEmployeesAsync(
+            organizationId, departmentId, search, position, sortBy, sortDir, page, pageSize, ct));
+
+    /// <summary>
+    /// Экспортирует список сотрудников в формате CSV (без пагинации).
+    /// </summary>
+    [HttpGet("employees/export")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ExportEmployees(
+        [FromQuery] Guid? organizationId,
+        [FromQuery] Guid? departmentId,
+        [FromQuery] string? search,
+        [FromQuery] string? position,
+        [FromQuery] string? sortBy,
         CancellationToken ct)
-        => Ok(await _service.GetEmployeesAsync(organizationId, departmentId, search, ct));
+    {
+        var employees = await _service.GetEmployeesForExportAsync(
+            organizationId, departmentId, search, position, sortBy, ct);
+
+        var csv = BuildCsv(employees);
+        var bytes = Encoding.UTF8.GetBytes(csv);
+        return File(bytes, "text/csv; charset=utf-8", "employees.csv");
+    }
+
+    // ── Вспомогательный метод ────────────────────────────────────────────────
+
+    private static string BuildCsv(IReadOnlyList<DirectoryEmployeeDto> items)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("ФИО;Должность;Подразделение;Организация;Email;Телефон");
+        foreach (var e in items)
+        {
+            var name = CsvEscape(e.DisplayName);
+            var pos  = CsvEscape(e.Position ?? string.Empty);
+            var dept = CsvEscape(e.DepartmentName ?? string.Empty);
+            var org  = CsvEscape(e.OrganizationName);
+            var mail = CsvEscape(e.WorkEmail);
+            var phone = CsvEscape(e.Phone ?? string.Empty);
+            sb.AppendLine($"{name};{pos};{dept};{org};{mail};{phone}");
+        }
+        return sb.ToString();
+    }
+
+    private static string CsvEscape(string value)
+    {
+        if (value.Contains(';') || value.Contains('"') || value.Contains('\n'))
+            return $"\"{value.Replace("\"", "\"\"")}\"";
+        return value;
+    }
 }
+

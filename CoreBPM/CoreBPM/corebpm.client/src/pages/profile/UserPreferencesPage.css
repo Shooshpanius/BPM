@@ -1,0 +1,125 @@
+.prefs-root {
+    max-width: 520px;
+    margin: 0 auto;
+    padding: 24px 16px;
+}
+
+.prefs-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 20px;
+    color: var(--text-primary, #1a1a2e);
+}
+
+.prefs-status {
+    padding: 32px;
+    text-align: center;
+    color: var(--text-secondary, #6b7280);
+}
+
+.prefs-error {
+    color: var(--error, #dc2626);
+}
+
+.prefs-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.prefs-section-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary, #6b7280);
+    margin: 8px 0 4px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border, #e5e7eb);
+}
+
+.prefs-row {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    align-items: center;
+    gap: 12px;
+}
+
+.prefs-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary, #6b7280);
+    text-align: right;
+}
+
+.prefs-select,
+.prefs-input {
+    padding: 7px 10px;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 6px;
+    font-size: 0.875rem;
+    background: #fff;
+    color: var(--text-primary, #1a1a2e);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.prefs-select:focus,
+.prefs-input:focus {
+    outline: 2px solid var(--accent, #4f46e5);
+    outline-offset: -1px;
+}
+
+.prefs-save-error {
+    margin-top: 12px;
+    padding: 8px 12px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 6px;
+    color: #dc2626;
+    font-size: 0.875rem;
+}
+
+.prefs-save-ok {
+    margin-top: 12px;
+    padding: 8px 12px;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 6px;
+    color: #16a34a;
+    font-size: 0.875rem;
+}
+
+.prefs-actions {
+    margin-top: 20px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.prefs-save-btn {
+    background: var(--accent, #4f46e5);
+    color: #fff;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.prefs-save-btn:hover:not(:disabled) {
+    background: var(--accent-dark, #4338ca);
+}
+
+.prefs-save-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+@media (max-width: 480px) {
+    .prefs-row {
+        grid-template-columns: 1fr;
+    }
+    .prefs-label {
+        text-align: left;
+    }
+}

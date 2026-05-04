@@ -12,14 +12,27 @@ public interface IOrgDirectoryService
     Task<IReadOnlyList<DirectoryDepartmentTreeDto>> GetDepartmentTreeAsync(Guid organizationId, CancellationToken ct = default);
 
     /// <summary>
-    /// Возвращает список сотрудников.
-    /// Если передан <paramref name="departmentId"/> — фильтрует по подразделению.
-    /// Если передан <paramref name="organizationId"/> — фильтрует по организации.
-    /// Если передан <paramref name="search"/> — текстовый поиск по имени, email, должности.
+    /// Возвращает страницу сотрудников с поддержкой фильтрации, сортировки и пагинации.
     /// </summary>
-    Task<IReadOnlyList<DirectoryEmployeeDto>> GetEmployeesAsync(
+    Task<DirectoryEmployeesPagedDto> GetEmployeesAsync(
         Guid? organizationId,
         Guid? departmentId,
         string? search,
+        string? position = null,
+        string? sortBy = null,
+        string? sortDir = null,
+        int page = 1,
+        int pageSize = 50,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Возвращает всех сотрудников для экспорта (без пагинации).
+    /// </summary>
+    Task<IReadOnlyList<DirectoryEmployeeDto>> GetEmployeesForExportAsync(
+        Guid? organizationId,
+        Guid? departmentId,
+        string? search,
+        string? position = null,
+        string? sortBy = null,
         CancellationToken ct = default);
 }

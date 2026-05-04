@@ -1,0 +1,281 @@
+.company-root {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 24px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.company-status {
+    padding: 32px;
+    text-align: center;
+    color: var(--text-secondary, #6b7280);
+}
+
+.company-error {
+    color: var(--error, #dc2626);
+}
+
+/* Карточка */
+.company-card {
+    background: #fff;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 10px;
+    padding: 20px;
+}
+
+.company-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.company-card-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary, #1a1a2e);
+    margin: 0;
+}
+
+/* Информация о компании */
+.company-info-view {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.company-logo {
+    max-height: 64px;
+    object-fit: contain;
+    margin-bottom: 4px;
+}
+
+.company-name {
+    font-size: 1.375rem;
+    font-weight: 700;
+    color: var(--text-primary, #1a1a2e);
+    margin: 0;
+}
+
+.company-description {
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.9rem;
+    margin: 0;
+    white-space: pre-wrap;
+}
+
+.company-contacts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 6px;
+    font-size: 0.875rem;
+    color: var(--text-secondary, #6b7280);
+}
+
+.company-contacts a {
+    color: var(--accent, #4f46e5);
+    text-decoration: none;
+}
+
+.company-contacts a:hover {
+    text-decoration: underline;
+}
+
+/* Ссылки */
+.company-links-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.company-link {
+    color: var(--accent, #4f46e5);
+    font-size: 0.9rem;
+    text-decoration: none;
+}
+
+.company-link:hover {
+    text-decoration: underline;
+}
+
+/* Форма */
+.company-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.company-form-row {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    align-items: center;
+    gap: 12px;
+}
+
+.company-form-row--checkbox {
+    align-items: center;
+}
+
+.company-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary, #6b7280);
+    text-align: right;
+}
+
+.company-input,
+.company-textarea {
+    padding: 7px 10px;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 6px;
+    font-size: 0.875rem;
+    background: #fff;
+    color: var(--text-primary, #1a1a2e);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.company-textarea {
+    resize: vertical;
+}
+
+.company-input:focus,
+.company-textarea:focus {
+    outline: 2px solid var(--accent, #4f46e5);
+    outline-offset: -1px;
+}
+
+.company-form-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+/* Новости */
+.company-news-form {
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.company-news-item {
+    border-top: 1px solid var(--border, #e5e7eb);
+    padding: 14px 0;
+}
+
+.company-news-item--draft {
+    opacity: 0.65;
+}
+
+.company-news-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+    flex-wrap: wrap;
+}
+
+.company-news-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text-primary, #1a1a2e);
+}
+
+.company-news-date {
+    font-size: 0.8rem;
+    color: var(--text-secondary, #6b7280);
+    margin-left: auto;
+}
+
+.company-news-draft {
+    font-size: 0.75rem;
+    background: #fef9c3;
+    color: #92400e;
+    padding: 1px 6px;
+    border-radius: 4px;
+}
+
+.company-news-content {
+    font-size: 0.875rem;
+    color: var(--text-secondary, #6b7280);
+    margin: 0 0 8px;
+    white-space: pre-wrap;
+}
+
+.company-news-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.company-empty {
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.875rem;
+    text-align: center;
+    padding: 16px 0;
+}
+
+/* Кнопки */
+.company-btn {
+    padding: 7px 14px;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid transparent;
+}
+
+.company-btn--primary {
+    background: var(--accent, #4f46e5);
+    color: #fff;
+    border-color: var(--accent, #4f46e5);
+}
+
+.company-btn--primary:hover:not(:disabled) {
+    background: var(--accent-dark, #4338ca);
+}
+
+.company-btn--primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.company-btn--ghost {
+    background: none;
+    color: var(--text-secondary, #6b7280);
+    border-color: var(--border, #e5e7eb);
+}
+
+.company-btn--ghost:hover {
+    background: var(--hover, #f3f4f6);
+}
+
+.company-btn--danger {
+    background: none;
+    color: var(--error, #dc2626);
+    border-color: #fecaca;
+}
+
+.company-btn--danger:hover {
+    background: #fef2f2;
+}
+
+.company-btn--sm {
+    padding: 4px 10px;
+    font-size: 0.8125rem;
+}
+
+@media (max-width: 480px) {
+    .company-form-row {
+        grid-template-columns: 1fr;
+    }
+    .company-label {
+        text-align: left;
+    }
+}

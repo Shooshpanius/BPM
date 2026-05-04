@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using CoreBPM.Server.Domain.Auth;
 using CoreBPM.Server.Domain.Bpm;
 using CoreBPM.Server.Domain.Org;
+using CoreBPM.Server.Domain.Portal;
 using CoreBPM.Server.Domain.Rules;
 using CoreBPM.Server.Domain.Tasks;
 
@@ -79,6 +80,13 @@ public class AppDbContext : DbContext
     public DbSet<AuthSession> AuthSessions => Set<AuthSession>();
     public DbSet<AuthRole> AuthRoles => Set<AuthRole>();
     public DbSet<AuthUserRole> AuthUserRoles => Set<AuthUserRole>();
+    public DbSet<OrgUserPreference> OrgUserPreferences => Set<OrgUserPreference>();
+    public DbSet<OrgCompanyInfo> OrgCompanyInfos => Set<OrgCompanyInfo>();
+    public DbSet<OrgCompanyNews> OrgCompanyNews => Set<OrgCompanyNews>();
+    public DbSet<OrgCompanyLink> OrgCompanyLinks => Set<OrgCompanyLink>();
+    public DbSet<PortalDashboardWidget> PortalDashboardWidgets => Set<PortalDashboardWidget>();
+    public DbSet<PortalBranding> PortalBrandings => Set<PortalBranding>();
+    public DbSet<PortalMenuItem> PortalMenuItems => Set<PortalMenuItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -97,6 +105,11 @@ public class AppDbContext : DbContext
             e.Property(u => u.WorkEmail).IsRequired().HasMaxLength(320);
             e.Property(u => u.Phone).HasMaxLength(50);
             e.Property(u => u.AvatarUrl).HasMaxLength(500);
+            e.Property(u => u.MobilePhone).HasMaxLength(50);
+            e.Property(u => u.InternalPhone).HasMaxLength(50);
+            e.Property(u => u.PersonalEmail).HasMaxLength(320);
+            e.Property(u => u.Bio).HasMaxLength(2000);
+            e.Property(u => u.BirthDateVisibility).IsRequired().HasMaxLength(20).HasDefaultValue("all");
         });
 
         // Таблица организаций
@@ -1183,6 +1196,85 @@ public class AppDbContext : DbContext
             e.HasKey(s => s.Id);
             e.HasIndex(s => new { s.UserId, s.EventType }).IsUnique();
             e.Property(s => s.EventType).HasMaxLength(100);
+        });
+
+        // FR-ORG-02.3: Настройки интерфейса пользователя
+        modelBuilder.Entity<OrgUserPreference>(e =>
+        {
+            e.ToTable("org_user_preferences");
+            e.HasKey(p => p.Id);
+            e.HasIndex(p => p.UserId).IsUnique();
+            e.Property(p => p.Language).IsRequired().HasMaxLength(10).HasDefaultValue("ru");
+            e.Property(p => p.TimeZone).HasMaxLength(100);
+            e.Property(p => p.Theme).IsRequired().HasMaxLength(20).HasDefaultValue("system");
+            e.Property(p => p.DateFormat).HasMaxLength(50);
+
+            e.HasOne(p => p.User)
+             .WithMany()
+             .HasForeignKey(p => p.UserId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // FR-ORG-03: Сведения о компании
+        modelBuilder.Entity<OrgCompanyInfo>(e =>
+        {
+            e.ToTable("org_company_info");
+            e.HasKey(c => c.Id);
+            e.Property(c => c.Name).IsRequired().HasMaxLength(300);
+            e.Property(c => c.Description).HasMaxLength(2000);
+            e.Property(c => c.Phone).HasMaxLength(50);
+            e.Property(c => c.Email).HasMaxLength(320);
+            e.Property(c => c.Address).HasMaxLength(500);
+            e.Property(c => c.Website).HasMaxLength(500);
+            e.Property(c => c.LogoUrl).HasMaxLength(500);
+        });
+
+        // FR-ORG-03: Новости компании
+        modelBuilder.Entity<OrgCompanyNews>(e =>
+        {
+            e.ToTable("org_company_news");
+            e.HasKey(n => n.Id);
+            e.Property(n => n.Title).IsRequired().HasMaxLength(500);
+            e.Property(n => n.Content).IsRequired().HasColumnType("text");
+            e.HasIndex(n => n.CreatedAt);
+        });
+
+        // FR-ORG-03: Внутренние ссылки компании
+        modelBuilder.Entity<OrgCompanyLink>(e =>
+        {
+            e.ToTable("org_company_links");
+            e.HasKey(l => l.Id);
+            e.Property(l => l.Title).IsRequired().HasMaxLength(200);
+            e.Property(l => l.Url).IsRequired().HasMaxLength(1000);
+            e.HasIndex(l => l.SortOrder);
+        });
+
+        // FR-PORTAL-01: Виджеты дашборда пользователя
+        modelBuilder.Entity<PortalDashboardWidget>(e =>
+        {
+            e.ToTable("portal_dashboard_widgets");
+            e.HasKey(w => w.Id);
+            e.HasIndex(w => w.UserId);
+            e.Property(w => w.WidgetType).IsRequired().HasMaxLength(100);
+            e.Property(w => w.Title).HasMaxLength(200);
+        });
+
+        // FR-PORTAL-01: Брендинг портала
+        modelBuilder.Entity<PortalBranding>(e =>
+        {
+            e.ToTable("portal_branding");
+            e.HasKey(b => b.Id);
+            e.Property(b => b.SystemName).IsRequired().HasMaxLength(200);
+            e.Property(b => b.GlobalTheme).IsRequired().HasMaxLength(20);
+        });
+
+        // FR-PORTAL-01: Пункты меню навигации
+        modelBuilder.Entity<PortalMenuItem>(e =>
+        {
+            e.ToTable("portal_menu_items");
+            e.HasKey(m => m.Id);
+            e.Property(m => m.Label).IsRequired().HasMaxLength(200);
+            e.HasIndex(m => m.SortOrder);
         });
     }
 }

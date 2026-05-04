@@ -514,3 +514,184 @@
     background: var(--accent-bg);
 }
 
+
+/* ─── Панель инструментов ─── */
+
+.contacts-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.toolbar-position-filter,
+.toolbar-sort,
+.toolbar-page-size {
+    padding: 5px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    background: #fff;
+    color: var(--text-primary, #1a1a2e);
+    height: 30px;
+}
+
+.toolbar-position-filter {
+    flex: 1 1 140px;
+    min-width: 120px;
+}
+
+.toolbar-view-toggle {
+    display: flex;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.view-btn {
+    background: none;
+    border: none;
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 1rem;
+    color: var(--text-secondary, #6b7280);
+    line-height: 1.2;
+}
+
+.view-btn.active {
+    background: var(--accent-bg, #eef2ff);
+    color: var(--accent, #4f46e5);
+}
+
+.toolbar-export-btn {
+    background: none;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    color: var(--text-secondary, #6b7280);
+    white-space: nowrap;
+}
+
+.toolbar-export-btn:hover:not(:disabled) {
+    background: var(--hover, #f3f4f6);
+}
+
+.toolbar-export-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ─── Таблица ─── */
+
+.emp-table-wrap {
+    overflow-x: auto;
+}
+
+.emp-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.emp-table th {
+    text-align: left;
+    padding: 8px 12px;
+    font-weight: 600;
+    font-size: 0.75rem;
+    color: var(--text-secondary, #6b7280);
+    border-bottom: 1px solid var(--border-color);
+    white-space: nowrap;
+}
+
+.emp-table-row {
+    cursor: pointer;
+    transition: background 0.1s;
+}
+
+.emp-table-row:hover {
+    background: var(--hover, #f3f4f6);
+}
+
+.emp-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary, #1a1a2e);
+}
+
+.emp-table td a {
+    color: var(--accent, #4f46e5);
+    text-decoration: none;
+}
+
+.emp-table td a:hover {
+    text-decoration: underline;
+}
+
+.emp-table-name-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.emp-table-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: var(--accent, #4f46e5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.emp-table-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.emp-table-avatar span {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #fff;
+}
+
+/* ─── Пагинация ─── */
+
+.contacts-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 12px;
+    border-top: 1px solid var(--border-color);
+}
+
+.page-btn {
+    background: none;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 1rem;
+    cursor: pointer;
+    color: var(--text-secondary, #6b7280);
+}
+
+.page-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.page-btn:hover:not(:disabled) {
+    background: var(--hover, #f3f4f6);
+}
+
+.page-info {
+    font-size: 0.875rem;
+    color: var(--text-secondary, #6b7280);
+}

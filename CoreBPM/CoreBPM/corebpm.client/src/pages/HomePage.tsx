@@ -31,6 +31,10 @@ import { TasksPage } from './tasks/TasksPage';
 import { TaskDetailPage } from './tasks/TaskDetailPage';
 import { PeriodicTasksPage } from './tasks/PeriodicTasksPage';
 import { TaskDashboardPage } from './tasks/TaskDashboardPage';
+import { CompanyPage } from './company/CompanyPage';
+import { UserProfilePage } from './profile/UserProfilePage';
+import { UserPreferencesPage } from './profile/UserPreferencesPage';
+import { PortalDashboardPage } from './portal/PortalDashboardPage';
 import './HomePage.css';
 
 interface HomePageProps {
@@ -39,10 +43,10 @@ interface HomePageProps {
 
 /** Основная страница приложения: шапка + сайдбар/нижняя навигация + содержимое раздела. */
 export function HomePage({ onAdmin }: HomePageProps) {
-    const { logout, hasRole } = useAuth();
+    const { logout, hasRole, userId } = useAuth();
     const canManageOrg = hasRole('Admin') || hasRole('HR');
     const isMobile = useMobile();
-    const [section, setSection] = useState<SidebarSection>('tasks');
+    const [section, setSection] = useState<SidebarSection>('portal');
     const [designerProcessId, setDesignerProcessId] = useState<string | null>(null);
     const [monitorProcess, setMonitorProcess] = useState<{ id: string; name: string } | null>(null);
     const [openInstanceId, setOpenInstanceId] = useState<string | null>(null);
@@ -114,6 +118,14 @@ export function HomePage({ onAdmin }: HomePageProps) {
             <div className="hp-body">
                 {!isMobile && <Sidebar active={section} onSelect={handleSelect} />}
                 <main className="hp-content">
+                    {/* FR-PORTAL-01: Главная страница */}
+                    {section === 'portal' && (
+                        <PortalDashboardPage
+                            onOpenTask={setOpenTaskId}
+                            onOpenSection={(s) => handleSelect(s as SidebarSection)}
+                            onOpenInstance={handleOpenInstance}
+                        />
+                    )}
                     {section === 'tasks' && (
                         openTaskId
                             ? <TaskDetailPage taskId={openTaskId} onBack={() => setOpenTaskId(null)} />
@@ -135,6 +147,12 @@ export function HomePage({ onAdmin }: HomePageProps) {
                         </div>
                     )}
                     {section === 'org-structure' && <OrgStructurePage />}
+                    {/* FR-ORG-03: Страница компании */}
+                    {section === 'company' && <CompanyPage />}
+                    {/* FR-ORG-02.1: Профиль пользователя */}
+                    {section === 'user-profile' && userId && <UserProfilePage userId={userId} />}
+                    {/* FR-ORG-02.3: Настройки пользователя */}
+                    {section === 'user-preferences' && userId && <UserPreferencesPage userId={userId} />}
                     {section === 'bpm-processes' && (
                         designerProcessId
                             ? <BpmnDesignerPage
