@@ -135,9 +135,9 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
                     </svg>
                 }
             />
-            <div className="sidebar-divider" role="separator" />
 
             {/* Группа: Задачи */}
+            <div className="sidebar-divider" role="separator" />
             <SidebarGroup
                 id="tasks"
                 label="Задачи"
@@ -195,6 +195,7 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
             </SidebarGroup>
 
             {/* Группа: Общение */}
+            <div className="sidebar-divider" role="separator" />
             <SidebarGroup
                 id="communication"
                 label="Общение"
@@ -247,6 +248,7 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
             </SidebarGroup>
 
             {/* Группа: Люди */}
+            <div className="sidebar-divider" role="separator" />
             <SidebarGroup
                 id="org"
                 label="Люди"
@@ -328,6 +330,7 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
             </SidebarGroup>
 
             {/* Группа: BPM */}
+            <div className="sidebar-divider" role="separator" />
             <SidebarGroup
                 id="bpm"
                 label="BPM"
@@ -501,7 +504,9 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
 
             {/* Группа: Управление (Admin + HR) */}
             {(hasRole('Admin') || canManageOrg) && (
-                <SidebarGroup
+                <>
+                    <div className="sidebar-divider" role="separator" />
+                    <SidebarGroup
                     id="admin"
                     label="Управление"
                     expanded={expandedGroups.has('admin')}
@@ -654,6 +659,7 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
                         />
                     )}
                 </SidebarGroup>
+                </>
             )}
 
             <div className="sidebar-version" aria-label="Версия системы">

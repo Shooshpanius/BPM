@@ -67,21 +67,20 @@
     background: rgba(58, 158, 106, 0.10);
 }
 
-/* Заголовок группы, содержащей активный раздел — синеватый оттенок */
-.sidebar-group-header.group-active {
-    color: #4a7fc1;
-    background: rgba(74, 127, 193, 0.10);
-}
-
-/* Подписи заголовков групп — жирнее и светло-синий */
-.sidebar-group-header .sidebar-label {
-    font-weight: 600;
+/* Заголовок группы — иконка и подпись одного цвета (светло-синий) */
+.sidebar-group-header {
     color: #8bb8d8;
 }
 
-/* Активная группа — подпись насыщеннее синяя */
-.sidebar-group-header.group-active .sidebar-label {
+/* Заголовок группы, содержащей активный раздел — насыщенный синий */
+.sidebar-group-header.group-active {
     color: #3a78c9;
+    background: rgba(74, 127, 193, 0.10);
+}
+
+/* Подписи заголовков групп — жирнее; цвет наследуется от родителя */
+.sidebar-group-header .sidebar-label {
+    font-weight: 600;
 }
 
 .sidebar-icon {
