@@ -596,8 +596,8 @@ export function ChannelsPage() {
                             </label>
                         </div>
                         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                            <button onClick={() => setShowNewChannel(false)} className={sc('newChannel') ? 'btn-flash' : undefined} style={{ padding: '8px 16px', border: '1px solid #d1d5db', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 14 }}>Отмена</button>
-                            <button onClick={handleCreateChannel} disabled={!newChannelName.trim()} className={sc('newChannel') ? 'btn-flash' : undefined} style={{ padding: '8px 16px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Создать</button>
+                            <button onClick={() => setShowNewChannel(false)} className={sc('newChannel') || undefined} style={{ padding: '8px 16px', border: '1px solid #d1d5db', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 14 }}>Отмена</button>
+                            <button onClick={handleCreateChannel} disabled={!newChannelName.trim()} className={sc('newChannel') || undefined} style={{ padding: '8px 16px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Создать</button>
                         </div>
                     </div>
                 </div>
@@ -624,8 +624,8 @@ export function ChannelsPage() {
                             style={{ padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, resize: 'vertical', fontFamily: 'inherit' }}
                         />
                         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                            <button onClick={() => setShowNewPost(false)} className={sc('newPost') ? 'btn-flash' : undefined} style={{ padding: '8px 16px', border: '1px solid #d1d5db', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 14 }}>Отмена</button>
-                            <button onClick={handleCreatePost} disabled={!newPostBody.trim()} className={sc('newPost') ? 'btn-flash' : undefined} style={{ padding: '8px 16px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
+                            <button onClick={() => setShowNewPost(false)} className={sc('newPost') || undefined} style={{ padding: '8px 16px', border: '1px solid #d1d5db', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 14 }}>Отмена</button>
+                            <button onClick={handleCreatePost} disabled={!newPostBody.trim()} className={sc('newPost') || undefined} style={{ padding: '8px 16px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
                                 {editingPost ? 'Сохранить' : 'Опубликовать'}
                             </button>
                         </div>
@@ -659,8 +659,8 @@ export function ChannelsPage() {
                             style={{ padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, resize: 'none', fontFamily: 'inherit' }}
                         />
                         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                            <button onClick={() => setEditingChannel(null)} className={sc('editChannel') ? 'btn-flash' : undefined} style={{ padding: '8px 16px', border: '1px solid #d1d5db', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 14 }}>Отмена</button>
-                            <button onClick={handleUpdateChannel} disabled={!editChannelName.trim()} className={sc('editChannel') ? 'btn-flash' : undefined} style={{ padding: '8px 16px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Сохранить</button>
+                            <button onClick={() => setEditingChannel(null)} className={sc('editChannel') || undefined} style={{ padding: '8px 16px', border: '1px solid #d1d5db', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 14 }}>Отмена</button>
+                            <button onClick={handleUpdateChannel} disabled={!editChannelName.trim()} className={sc('editChannel') || undefined} style={{ padding: '8px 16px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Сохранить</button>
                         </div>
                     </div>
                 </div>
@@ -672,7 +672,7 @@ export function ChannelsPage() {
                     <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 420, maxHeight: '70vh', display: 'flex', flexDirection: 'column', gap: 12 }} onClick={e => e.stopPropagation()}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Подписчики канала</h3>
-                            <button onClick={() => setShowSubscribers(false)} className={sc('subscribers') ? 'btn-flash' : undefined} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#6b7280' }}>×</button>
+                            <button onClick={() => setShowSubscribers(false)} className={sc('subscribers') || undefined} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#6b7280' }}>×</button>
                         </div>
                         <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
                             {subscribers.length === 0 && (
@@ -710,7 +710,7 @@ export function ChannelsPage() {
                     <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 460, maxHeight: '70vh', display: 'flex', flexDirection: 'column', gap: 12 }} onClick={e => e.stopPropagation()}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>📌 Закреплённые публикации</h3>
-                            <button onClick={() => setShowPinnedPosts(false)} className={sc('pinnedPosts') ? 'btn-flash' : undefined} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#6b7280' }}>×</button>
+                            <button onClick={() => setShowPinnedPosts(false)} className={sc('pinnedPosts') || undefined} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#6b7280' }}>×</button>
                         </div>
                         <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
                             {pinnedPosts.length === 0 && (
@@ -744,7 +744,7 @@ export function ChannelsPage() {
                     <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 420, maxHeight: '70vh', display: 'flex', flexDirection: 'column', gap: 12 }} onClick={e => e.stopPropagation()}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Пригласить в канал</h3>
-                            <button onClick={() => setShowInvite(false)} className={sc('invite') ? 'btn-flash' : undefined} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#6b7280' }}>×</button>
+                            <button onClick={() => setShowInvite(false)} className={sc('invite') || undefined} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#6b7280' }}>×</button>
                         </div>
                         <input
                             value={inviteSearch}
