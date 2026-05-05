@@ -621,7 +621,7 @@ function TrendLineChart({ points, color }: { points: TrendPoint[]; color: string
                 </circle>
             ))}
             {/* Подписи X */}
-            {points.filter((_, i) => points.length <= 10 || i % Math.ceil(points.length / 10) === 0).map((p, _i, _arr) => {
+            {points.filter((_, i) => points.length <= 10 || i % Math.ceil(points.length / 10) === 0).map((p) => {
                 const origIdx = points.indexOf(p);
                 return (
                     <text key={origIdx} x={cx(origIdx)} y={H - 2}
