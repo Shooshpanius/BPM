@@ -30,6 +30,7 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
             migrationBuilder.InsertData(
                 table: "task_control_settings",
                 columns: new[] { "id", "default_control_type", "is_effort_required", "is_activity_type_required", "updated_at" },
+                columnTypes: new[] { "integer", "integer", "boolean", "boolean", "timestamp with time zone" },
                 values: new object[] { 1, 0, false, false, new DateTimeOffset(2026, 5, 3, 17, 0, 0, TimeSpan.Zero) });
         }
 
