@@ -1,0 +1,1820 @@
+﻿using System;
+using Microsoft.EntityFrameworkCore.Migrations;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
+
+#nullable disable
+
+namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
+{
+    /// <inheritdoc />
+    public partial class FixPendingChanges : Migration
+    {
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropPrimaryKey(
+                name: "PK_notify_sms_log",
+                table: "notify_sms_log");
+
+            migrationBuilder.DropPrimaryKey(
+                name: "PK_notify_push_subscriptions",
+                table: "notify_push_subscriptions");
+
+            migrationBuilder.DropPrimaryKey(
+                name: "PK_notify_inbox",
+                table: "notify_inbox");
+
+            migrationBuilder.DropPrimaryKey(
+                name: "PK_notify_action_tokens",
+                table: "notify_action_tokens");
+
+            migrationBuilder.DropPrimaryKey(
+                name: "PK_admin_vapid_settings",
+                table: "admin_vapid_settings");
+
+            migrationBuilder.DropPrimaryKey(
+                name: "PK_admin_smtp_settings",
+                table: "admin_smtp_settings");
+
+            migrationBuilder.DropPrimaryKey(
+                name: "PK_admin_sms_settings",
+                table: "admin_sms_settings");
+
+            migrationBuilder.DropPrimaryKey(
+                name: "PK_admin_email_templates",
+                table: "admin_email_templates");
+
+            migrationBuilder.RenameColumn(
+                name: "Status",
+                table: "notify_sms_log",
+                newName: "status");
+
+            migrationBuilder.RenameColumn(
+                name: "Message",
+                table: "notify_sms_log",
+                newName: "message");
+
+            migrationBuilder.RenameColumn(
+                name: "Id",
+                table: "notify_sms_log",
+                newName: "id");
+
+            migrationBuilder.RenameColumn(
+                name: "UserId",
+                table: "notify_sms_log",
+                newName: "user_id");
+
+            migrationBuilder.RenameColumn(
+                name: "SentAt",
+                table: "notify_sms_log",
+                newName: "sent_at");
+
+            migrationBuilder.RenameColumn(
+                name: "ProviderResponse",
+                table: "notify_sms_log",
+                newName: "provider_response");
+
+            migrationBuilder.RenameColumn(
+                name: "PhoneNumber",
+                table: "notify_sms_log",
+                newName: "phone_number");
+
+            migrationBuilder.RenameColumn(
+                name: "EventType",
+                table: "notify_sms_log",
+                newName: "event_type");
+
+            migrationBuilder.RenameColumn(
+                name: "ErrorMessage",
+                table: "notify_sms_log",
+                newName: "error_message");
+
+            migrationBuilder.RenameColumn(
+                name: "P256dh",
+                table: "notify_push_subscriptions",
+                newName: "p256dh");
+
+            migrationBuilder.RenameColumn(
+                name: "Endpoint",
+                table: "notify_push_subscriptions",
+                newName: "endpoint");
+
+            migrationBuilder.RenameColumn(
+                name: "Auth",
+                table: "notify_push_subscriptions",
+                newName: "auth");
+
+            migrationBuilder.RenameColumn(
+                name: "Id",
+                table: "notify_push_subscriptions",
+                newName: "id");
+
+            migrationBuilder.RenameColumn(
+                name: "UserId",
+                table: "notify_push_subscriptions",
+                newName: "user_id");
+
+            migrationBuilder.RenameColumn(
+                name: "UserAgent",
+                table: "notify_push_subscriptions",
+                newName: "user_agent");
+
+            migrationBuilder.RenameColumn(
+                name: "CreatedAt",
+                table: "notify_push_subscriptions",
+                newName: "created_at");
+
+            migrationBuilder.RenameIndex(
+                name: "IX_notify_push_subscriptions_UserId_Endpoint",
+                table: "notify_push_subscriptions",
+                newName: "ix_notify_push_subscriptions_user_id_endpoint");
+
+            migrationBuilder.RenameIndex(
+                name: "ix_notify_post_reactions_post_user_emoji",
+                table: "notify_post_reactions",
+                newName: "ix_notify_post_reactions_post_id_user_id_emoji");
+
+            migrationBuilder.RenameColumn(
+                name: "Type",
+                table: "notify_inbox",
+                newName: "type");
+
+            migrationBuilder.RenameColumn(
+                name: "Title",
+                table: "notify_inbox",
+                newName: "title");
+
+            migrationBuilder.RenameColumn(
+                name: "Link",
+                table: "notify_inbox",
+                newName: "link");
+
+            migrationBuilder.RenameColumn(
+                name: "Body",
+                table: "notify_inbox",
+                newName: "body");
+
+            migrationBuilder.RenameColumn(
+                name: "Id",
+                table: "notify_inbox",
+                newName: "id");
+
+            migrationBuilder.RenameColumn(
+                name: "UserId",
+                table: "notify_inbox",
+                newName: "user_id");
+
+            migrationBuilder.RenameColumn(
+                name: "ReadAt",
+                table: "notify_inbox",
+                newName: "read_at");
+
+            migrationBuilder.RenameColumn(
+                name: "PayloadJson",
+                table: "notify_inbox",
+                newName: "payload_json");
+
+            migrationBuilder.RenameColumn(
+                name: "IsRead",
+                table: "notify_inbox",
+                newName: "is_read");
+
+            migrationBuilder.RenameColumn(
+                name: "CreatedAt",
+                table: "notify_inbox",
+                newName: "created_at");
+
+            migrationBuilder.RenameIndex(
+                name: "IX_notify_inbox_UserId_IsRead",
+                table: "notify_inbox",
+                newName: "ix_notify_inbox_user_id_is_read");
+
+            migrationBuilder.RenameIndex(
+                name: "IX_notify_inbox_CreatedAt",
+                table: "notify_inbox",
+                newName: "ix_notify_inbox_created_at");
+
+            migrationBuilder.RenameColumn(
+                name: "Token",
+                table: "notify_action_tokens",
+                newName: "token");
+
+            migrationBuilder.RenameColumn(
+                name: "Id",
+                table: "notify_action_tokens",
+                newName: "id");
+
+            migrationBuilder.RenameColumn(
+                name: "UserId",
+                table: "notify_action_tokens",
+                newName: "user_id");
+
+            migrationBuilder.RenameColumn(
+                name: "UsedAt",
+                table: "notify_action_tokens",
+                newName: "used_at");
+
+            migrationBuilder.RenameColumn(
+                name: "ExpiresAt",
+                table: "notify_action_tokens",
+                newName: "expires_at");
+
+            migrationBuilder.RenameColumn(
+                name: "EventType",
+                table: "notify_action_tokens",
+                newName: "event_type");
+
+            migrationBuilder.RenameColumn(
+                name: "EntityId",
+                table: "notify_action_tokens",
+                newName: "entity_id");
+
+            migrationBuilder.RenameColumn(
+                name: "CreatedAt",
+                table: "notify_action_tokens",
+                newName: "created_at");
+
+            migrationBuilder.RenameColumn(
+                name: "ActionType",
+                table: "notify_action_tokens",
+                newName: "action_type");
+
+            migrationBuilder.RenameIndex(
+                name: "IX_notify_action_tokens_Token",
+                table: "notify_action_tokens",
+                newName: "ix_notify_action_tokens_token");
+
+            migrationBuilder.RenameColumn(
+                name: "Subject",
+                table: "admin_vapid_settings",
+                newName: "subject");
+
+            migrationBuilder.RenameColumn(
+                name: "Id",
+                table: "admin_vapid_settings",
+                newName: "id");
+
+            migrationBuilder.RenameColumn(
+                name: "PublicKey",
+                table: "admin_vapid_settings",
+                newName: "public_key");
+
+            migrationBuilder.RenameColumn(
+                name: "PrivateKey",
+                table: "admin_vapid_settings",
+                newName: "private_key");
+
+            migrationBuilder.RenameColumn(
+                name: "Username",
+                table: "admin_smtp_settings",
+                newName: "username");
+
+            migrationBuilder.RenameColumn(
+                name: "Port",
+                table: "admin_smtp_settings",
+                newName: "port");
+
+            migrationBuilder.RenameColumn(
+                name: "Password",
+                table: "admin_smtp_settings",
+                newName: "password");
+
+            migrationBuilder.RenameColumn(
+                name: "Host",
+                table: "admin_smtp_settings",
+                newName: "host");
+
+            migrationBuilder.RenameColumn(
+                name: "Id",
+                table: "admin_smtp_settings",
+                newName: "id");
+
+            migrationBuilder.RenameColumn(
+                name: "UseSsl",
+                table: "admin_smtp_settings",
+                newName: "use_ssl");
+
+            migrationBuilder.RenameColumn(
+                name: "UpdatedAt",
+                table: "admin_smtp_settings",
+                newName: "updated_at");
+
+            migrationBuilder.RenameColumn(
+                name: "FromName",
+                table: "admin_smtp_settings",
+                newName: "from_name");
+
+            migrationBuilder.RenameColumn(
+                name: "FromAddress",
+                table: "admin_smtp_settings",
+                newName: "from_address");
+
+            migrationBuilder.RenameColumn(
+                name: "Id",
+                table: "admin_sms_settings",
+                newName: "id");
+
+            migrationBuilder.RenameColumn(
+                name: "ProviderUrl",
+                table: "admin_sms_settings",
+                newName: "provider_url");
+
+            migrationBuilder.RenameColumn(
+                name: "PhoneParamName",
+                table: "admin_sms_settings",
+                newName: "phone_param_name");
+
+            migrationBuilder.RenameColumn(
+                name: "MessageParamName",
+                table: "admin_sms_settings",
+                newName: "message_param_name");
+
+            migrationBuilder.RenameColumn(
+                name: "IsEnabled",
+                table: "admin_sms_settings",
+                newName: "is_enabled");
+
+            migrationBuilder.RenameColumn(
+                name: "FromNumber",
+                table: "admin_sms_settings",
+                newName: "from_number");
+
+            migrationBuilder.RenameColumn(
+                name: "ApiKeyParamName",
+                table: "admin_sms_settings",
+                newName: "api_key_param_name");
+
+            migrationBuilder.RenameColumn(
+                name: "ApiKey",
+                table: "admin_sms_settings",
+                newName: "api_key");
+
+            migrationBuilder.RenameColumn(
+                name: "Subject",
+                table: "admin_email_templates",
+                newName: "subject");
+
+            migrationBuilder.RenameColumn(
+                name: "Id",
+                table: "admin_email_templates",
+                newName: "id");
+
+            migrationBuilder.RenameColumn(
+                name: "UpdatedAt",
+                table: "admin_email_templates",
+                newName: "updated_at");
+
+            migrationBuilder.RenameColumn(
+                name: "IsActive",
+                table: "admin_email_templates",
+                newName: "is_active");
+
+            migrationBuilder.RenameColumn(
+                name: "HtmlTemplate",
+                table: "admin_email_templates",
+                newName: "html_template");
+
+            migrationBuilder.RenameColumn(
+                name: "EventType",
+                table: "admin_email_templates",
+                newName: "event_type");
+
+            migrationBuilder.RenameColumn(
+                name: "CreatedAt",
+                table: "admin_email_templates",
+                newName: "created_at");
+
+            migrationBuilder.RenameIndex(
+                name: "IX_admin_email_templates_EventType",
+                table: "admin_email_templates",
+                newName: "ix_admin_email_templates_event_type");
+
+            migrationBuilder.AlterColumn<bool>(
+                name: "sms",
+                table: "user_task_notification_settings",
+                type: "boolean",
+                nullable: false,
+                oldClrType: typeof(bool),
+                oldType: "boolean",
+                oldDefaultValue: false);
+
+            migrationBuilder.AlterColumn<bool>(
+                name: "push",
+                table: "user_task_notification_settings",
+                type: "boolean",
+                nullable: false,
+                oldClrType: typeof(bool),
+                oldType: "boolean",
+                oldDefaultValue: false);
+
+            migrationBuilder.AddColumn<string>(
+                name: "bio",
+                table: "org_users",
+                type: "character varying(2000)",
+                maxLength: 2000,
+                nullable: true);
+
+            migrationBuilder.AddColumn<DateOnly>(
+                name: "birth_date",
+                table: "org_users",
+                type: "date",
+                nullable: true);
+
+            migrationBuilder.AddColumn<string>(
+                name: "birth_date_visibility",
+                table: "org_users",
+                type: "character varying(20)",
+                maxLength: 20,
+                nullable: false,
+                defaultValue: "all");
+
+            migrationBuilder.AddColumn<string>(
+                name: "internal_phone",
+                table: "org_users",
+                type: "character varying(50)",
+                maxLength: 50,
+                nullable: true);
+
+            migrationBuilder.AddColumn<string>(
+                name: "mobile_phone",
+                table: "org_users",
+                type: "character varying(50)",
+                maxLength: 50,
+                nullable: true);
+
+            migrationBuilder.AddColumn<string>(
+                name: "personal_email",
+                table: "org_users",
+                type: "character varying(320)",
+                maxLength: 320,
+                nullable: true);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "start_hour",
+                table: "notify_dnd_settings",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer",
+                oldDefaultValue: 22);
+
+            migrationBuilder.AlterColumn<bool>(
+                name: "is_enabled",
+                table: "notify_dnd_settings",
+                type: "boolean",
+                nullable: false,
+                oldClrType: typeof(bool),
+                oldType: "boolean",
+                oldDefaultValue: false);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "end_hour",
+                table: "notify_dnd_settings",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer",
+                oldDefaultValue: 8);
+
+            migrationBuilder.AlterColumn<bool>(
+                name: "apply_to_sms",
+                table: "notify_dnd_settings",
+                type: "boolean",
+                nullable: false,
+                oldClrType: typeof(bool),
+                oldType: "boolean",
+                oldDefaultValue: true);
+
+            migrationBuilder.AlterColumn<bool>(
+                name: "apply_to_push",
+                table: "notify_dnd_settings",
+                type: "boolean",
+                nullable: false,
+                oldClrType: typeof(bool),
+                oldType: "boolean",
+                oldDefaultValue: true);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "id",
+                table: "admin_vapid_settings",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer")
+                .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "id",
+                table: "admin_smtp_settings",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer")
+                .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "id",
+                table: "admin_sms_settings",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer")
+                .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<bool>(
+                name: "is_mandatory_sms",
+                table: "admin_notification_templates",
+                type: "boolean",
+                nullable: false,
+                oldClrType: typeof(bool),
+                oldType: "boolean",
+                oldDefaultValue: false);
+
+            migrationBuilder.AlterColumn<bool>(
+                name: "is_mandatory_push",
+                table: "admin_notification_templates",
+                type: "boolean",
+                nullable: false,
+                oldClrType: typeof(bool),
+                oldType: "boolean",
+                oldDefaultValue: false);
+
+            migrationBuilder.AlterColumn<bool>(
+                name: "is_mandatory_in_app",
+                table: "admin_notification_templates",
+                type: "boolean",
+                nullable: false,
+                oldClrType: typeof(bool),
+                oldType: "boolean",
+                oldDefaultValue: false);
+
+            migrationBuilder.AlterColumn<bool>(
+                name: "is_mandatory_email",
+                table: "admin_notification_templates",
+                type: "boolean",
+                nullable: false,
+                oldClrType: typeof(bool),
+                oldType: "boolean",
+                oldDefaultValue: false);
+
+            migrationBuilder.AlterColumn<bool>(
+                name: "is_active",
+                table: "admin_notification_templates",
+                type: "boolean",
+                nullable: false,
+                oldClrType: typeof(bool),
+                oldType: "boolean",
+                oldDefaultValue: true);
+
+            migrationBuilder.AddPrimaryKey(
+                name: "pk_notify_sms_log",
+                table: "notify_sms_log",
+                column: "id");
+
+            migrationBuilder.AddPrimaryKey(
+                name: "pk_notify_push_subscriptions",
+                table: "notify_push_subscriptions",
+                column: "id");
+
+            migrationBuilder.AddPrimaryKey(
+                name: "pk_notify_inbox",
+                table: "notify_inbox",
+                column: "id");
+
+            migrationBuilder.AddPrimaryKey(
+                name: "pk_notify_action_tokens",
+                table: "notify_action_tokens",
+                column: "id");
+
+            migrationBuilder.AddPrimaryKey(
+                name: "pk_admin_vapid_settings",
+                table: "admin_vapid_settings",
+                column: "id");
+
+            migrationBuilder.AddPrimaryKey(
+                name: "pk_admin_smtp_settings",
+                table: "admin_smtp_settings",
+                column: "id");
+
+            migrationBuilder.AddPrimaryKey(
+                name: "pk_admin_sms_settings",
+                table: "admin_sms_settings",
+                column: "id");
+
+            migrationBuilder.AddPrimaryKey(
+                name: "pk_admin_email_templates",
+                table: "admin_email_templates",
+                column: "id");
+
+            migrationBuilder.CreateTable(
+                name: "admin_notification_log_settings",
+                columns: table => new
+                {
+                    id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    retention_days = table.Column<int>(type: "integer", nullable: false),
+                    updated_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_admin_notification_log_settings", x => x.id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "notify_channels",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    description = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: true),
+                    icon_emoji = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                    kind = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    created_by_user_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_notify_channels", x => x.id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "notify_chats",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
+                    kind = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    created_by_user_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    last_message_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_notify_chats", x => x.id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "notify_throttle_log",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    user_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    event_type = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    channel = table.Column<int>(type: "integer", nullable: false),
+                    last_sent_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_notify_throttle_log", x => x.id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "notify_throttle_settings",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    user_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    event_type = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    channel = table.Column<int>(type: "integer", nullable: false),
+                    min_interval_minutes = table.Column<int>(type: "integer", nullable: false),
+                    updated_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_notify_throttle_settings", x => x.id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "notify_user_messaging_prefs",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    user_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    sort_order = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: false),
+                    pinned_chat_ids = table.Column<string>(type: "text", nullable: false),
+                    hidden_chat_ids = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_notify_user_messaging_prefs", x => x.id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "org_company_info",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    name = table.Column<string>(type: "character varying(300)", maxLength: 300, nullable: false),
+                    description = table.Column<string>(type: "character varying(2000)", maxLength: 2000, nullable: true),
+                    phone = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                    email = table.Column<string>(type: "character varying(320)", maxLength: 320, nullable: true),
+                    address = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
+                    website = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
+                    logo_url = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
+                    updated_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_org_company_info", x => x.id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "org_company_links",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    title = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    url = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: false),
+                    sort_order = table.Column<int>(type: "integer", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_org_company_links", x => x.id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "org_company_news",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    title = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
+                    content = table.Column<string>(type: "text", nullable: false),
+                    author_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    is_published = table.Column<bool>(type: "boolean", nullable: false),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    updated_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_org_company_news", x => x.id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "org_user_preferences",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    user_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    language = table.Column<string>(type: "character varying(10)", maxLength: 10, nullable: false, defaultValue: "ru"),
+                    time_zone = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    theme = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false, defaultValue: "system"),
+                    date_format = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                    page_size = table.Column<int>(type: "integer", nullable: false),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    updated_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_org_user_preferences", x => x.id);
+                    table.ForeignKey(
+                        name: "fk_org_user_preferences_org_users_user_id",
+                        column: x => x.user_id,
+                        principalTable: "org_users",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "portal_branding",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    system_name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    logo_url = table.Column<string>(type: "text", nullable: true),
+                    favicon_url = table.Column<string>(type: "text", nullable: true),
+                    primary_color = table.Column<string>(type: "text", nullable: true),
+                    accent_color = table.Column<string>(type: "text", nullable: true),
+                    global_theme = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    updated_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_portal_branding", x => x.id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "portal_dashboard_widgets",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    user_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    widget_type = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    col = table.Column<int>(type: "integer", nullable: false),
+                    row = table.Column<int>(type: "integer", nullable: false),
+                    col_span = table.Column<int>(type: "integer", nullable: false),
+                    row_span = table.Column<int>(type: "integer", nullable: false),
+                    title = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
+                    config_json = table.Column<string>(type: "text", nullable: true),
+                    is_collapsed = table.Column<bool>(type: "boolean", nullable: false),
+                    sort_order = table.Column<int>(type: "integer", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_portal_dashboard_widgets", x => x.id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "portal_menu_items",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    parent_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    label = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    icon = table.Column<string>(type: "text", nullable: true),
+                    section_id = table.Column<string>(type: "text", nullable: true),
+                    external_url = table.Column<string>(type: "text", nullable: true),
+                    sort_order = table.Column<int>(type: "integer", nullable: false),
+                    required_role = table.Column<string>(type: "text", nullable: true),
+                    is_visible = table.Column<bool>(type: "boolean", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_portal_menu_items", x => x.id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "notify_channel_posts",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    channel_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    author_user_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    title = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
+                    body = table.Column<string>(type: "text", nullable: false),
+                    is_edited = table.Column<bool>(type: "boolean", nullable: false),
+                    edited_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_notify_channel_posts", x => x.id);
+                    table.ForeignKey(
+                        name: "fk_notify_channel_posts_notify_channels_channel_id",
+                        column: x => x.channel_id,
+                        principalTable: "notify_channels",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "notify_channel_subscribers",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    channel_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    user_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    is_admin = table.Column<bool>(type: "boolean", nullable: false),
+                    subscribed_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_notify_channel_subscribers", x => x.id);
+                    table.ForeignKey(
+                        name: "fk_notify_channel_subscribers_notify_channels_channel_id",
+                        column: x => x.channel_id,
+                        principalTable: "notify_channels",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "notify_chat_members",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    chat_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    user_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    is_admin = table.Column<bool>(type: "boolean", nullable: false),
+                    is_muted = table.Column<bool>(type: "boolean", nullable: false),
+                    joined_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_notify_chat_members", x => x.id);
+                    table.ForeignKey(
+                        name: "fk_notify_chat_members_notify_chats_chat_id",
+                        column: x => x.chat_id,
+                        principalTable: "notify_chats",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "notify_messages",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    chat_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    author_user_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    text = table.Column<string>(type: "text", nullable: false),
+                    is_edited = table.Column<bool>(type: "boolean", nullable: false),
+                    edited_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    is_deleted = table.Column<bool>(type: "boolean", nullable: false),
+                    reply_to_message_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_notify_messages", x => x.id);
+                    table.ForeignKey(
+                        name: "fk_notify_messages_notify_chats_chat_id",
+                        column: x => x.chat_id,
+                        principalTable: "notify_chats",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "fk_notify_messages_notify_messages_reply_to_message_id",
+                        column: x => x.reply_to_message_id,
+                        principalTable: "notify_messages",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "notify_channel_pinned_posts",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    channel_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    post_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    pinned_by_user_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    pinned_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_notify_channel_pinned_posts", x => x.id);
+                    table.ForeignKey(
+                        name: "fk_notify_channel_pinned_posts_notify_channel_posts_post_id",
+                        column: x => x.post_id,
+                        principalTable: "notify_channel_posts",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "fk_notify_channel_pinned_posts_notify_channels_channel_id",
+                        column: x => x.channel_id,
+                        principalTable: "notify_channels",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "notify_message_reactions",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    message_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    user_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    emoji = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_notify_message_reactions", x => x.id);
+                    table.ForeignKey(
+                        name: "fk_notify_message_reactions_notify_messages_message_id",
+                        column: x => x.message_id,
+                        principalTable: "notify_messages",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "notify_message_reads",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    message_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    user_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    read_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_notify_message_reads", x => x.id);
+                    table.ForeignKey(
+                        name: "fk_notify_message_reads_notify_messages_message_id",
+                        column: x => x.message_id,
+                        principalTable: "notify_messages",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "notify_pinned_messages",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    chat_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    message_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    pinned_by_user_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    pinned_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_notify_pinned_messages", x => x.id);
+                    table.ForeignKey(
+                        name: "fk_notify_pinned_messages_notify_chats_chat_id",
+                        column: x => x.chat_id,
+                        principalTable: "notify_chats",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "fk_notify_pinned_messages_notify_messages_message_id",
+                        column: x => x.message_id,
+                        principalTable: "notify_messages",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateIndex(
+                name: "ix_notify_channel_pinned_posts_channel_id",
+                table: "notify_channel_pinned_posts",
+                column: "channel_id");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_notify_channel_pinned_posts_channel_id_post_id",
+                table: "notify_channel_pinned_posts",
+                columns: new[] { "channel_id", "post_id" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "ix_notify_channel_pinned_posts_post_id",
+                table: "notify_channel_pinned_posts",
+                column: "post_id");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_notify_channel_posts_channel_id",
+                table: "notify_channel_posts",
+                column: "channel_id");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_notify_channel_posts_created_at",
+                table: "notify_channel_posts",
+                column: "created_at");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_notify_channel_subscribers_channel_id_user_id",
+                table: "notify_channel_subscribers",
+                columns: new[] { "channel_id", "user_id" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "ix_notify_chat_members_chat_id_user_id",
+                table: "notify_chat_members",
+                columns: new[] { "chat_id", "user_id" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "ix_notify_chats_last_message_at",
+                table: "notify_chats",
+                column: "last_message_at");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_notify_message_reactions_message_id_user_id_emoji",
+                table: "notify_message_reactions",
+                columns: new[] { "message_id", "user_id", "emoji" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "ix_notify_message_reads_message_id_user_id",
+                table: "notify_message_reads",
+                columns: new[] { "message_id", "user_id" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "ix_notify_messages_chat_id",
+                table: "notify_messages",
+                column: "chat_id");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_notify_messages_created_at",
+                table: "notify_messages",
+                column: "created_at");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_notify_messages_reply_to_message_id",
+                table: "notify_messages",
+                column: "reply_to_message_id");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_notify_pinned_messages_chat_id",
+                table: "notify_pinned_messages",
+                column: "chat_id");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_notify_pinned_messages_message_id",
+                table: "notify_pinned_messages",
+                column: "message_id");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_notify_throttle_log_user_id_event_type_channel",
+                table: "notify_throttle_log",
+                columns: new[] { "user_id", "event_type", "channel" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "ix_notify_throttle_settings_user_id_event_type_channel",
+                table: "notify_throttle_settings",
+                columns: new[] { "user_id", "event_type", "channel" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "ix_notify_user_messaging_prefs_user_id",
+                table: "notify_user_messaging_prefs",
+                column: "user_id",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "ix_org_company_links_sort_order",
+                table: "org_company_links",
+                column: "sort_order");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_org_company_news_created_at",
+                table: "org_company_news",
+                column: "created_at");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_org_user_preferences_user_id",
+                table: "org_user_preferences",
+                column: "user_id",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "ix_portal_dashboard_widgets_user_id",
+                table: "portal_dashboard_widgets",
+                column: "user_id");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_portal_menu_items_sort_order",
+                table: "portal_menu_items",
+                column: "sort_order");
+
+            migrationBuilder.AddForeignKey(
+                name: "fk_notify_post_comments_notify_channel_posts_post_id",
+                table: "notify_post_comments",
+                column: "post_id",
+                principalTable: "notify_channel_posts",
+                principalColumn: "id",
+                onDelete: ReferentialAction.Cascade);
+
+            migrationBuilder.AddForeignKey(
+                name: "fk_notify_post_reactions_notify_channel_posts_post_id",
+                table: "notify_post_reactions",
+                column: "post_id",
+                principalTable: "notify_channel_posts",
+                principalColumn: "id",
+                onDelete: ReferentialAction.Cascade);
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropForeignKey(
+                name: "fk_notify_post_comments_notify_channel_posts_post_id",
+                table: "notify_post_comments");
+
+            migrationBuilder.DropForeignKey(
+                name: "fk_notify_post_reactions_notify_channel_posts_post_id",
+                table: "notify_post_reactions");
+
+            migrationBuilder.DropTable(
+                name: "admin_notification_log_settings");
+
+            migrationBuilder.DropTable(
+                name: "notify_channel_pinned_posts");
+
+            migrationBuilder.DropTable(
+                name: "notify_channel_subscribers");
+
+            migrationBuilder.DropTable(
+                name: "notify_chat_members");
+
+            migrationBuilder.DropTable(
+                name: "notify_message_reactions");
+
+            migrationBuilder.DropTable(
+                name: "notify_message_reads");
+
+            migrationBuilder.DropTable(
+                name: "notify_pinned_messages");
+
+            migrationBuilder.DropTable(
+                name: "notify_throttle_log");
+
+            migrationBuilder.DropTable(
+                name: "notify_throttle_settings");
+
+            migrationBuilder.DropTable(
+                name: "notify_user_messaging_prefs");
+
+            migrationBuilder.DropTable(
+                name: "org_company_info");
+
+            migrationBuilder.DropTable(
+                name: "org_company_links");
+
+            migrationBuilder.DropTable(
+                name: "org_company_news");
+
+            migrationBuilder.DropTable(
+                name: "org_user_preferences");
+
+            migrationBuilder.DropTable(
+                name: "portal_branding");
+
+            migrationBuilder.DropTable(
+                name: "portal_dashboard_widgets");
+
+            migrationBuilder.DropTable(
+                name: "portal_menu_items");
+
+            migrationBuilder.DropTable(
+                name: "notify_channel_posts");
+
+            migrationBuilder.DropTable(
+                name: "notify_messages");
+
+            migrationBuilder.DropTable(
+                name: "notify_channels");
+
+            migrationBuilder.DropTable(
+                name: "notify_chats");
+
+            migrationBuilder.DropPrimaryKey(
+                name: "pk_notify_sms_log",
+                table: "notify_sms_log");
+
+            migrationBuilder.DropPrimaryKey(
+                name: "pk_notify_push_subscriptions",
+                table: "notify_push_subscriptions");
+
+            migrationBuilder.DropPrimaryKey(
+                name: "pk_notify_inbox",
+                table: "notify_inbox");
+
+            migrationBuilder.DropPrimaryKey(
+                name: "pk_notify_action_tokens",
+                table: "notify_action_tokens");
+
+            migrationBuilder.DropPrimaryKey(
+                name: "pk_admin_vapid_settings",
+                table: "admin_vapid_settings");
+
+            migrationBuilder.DropPrimaryKey(
+                name: "pk_admin_smtp_settings",
+                table: "admin_smtp_settings");
+
+            migrationBuilder.DropPrimaryKey(
+                name: "pk_admin_sms_settings",
+                table: "admin_sms_settings");
+
+            migrationBuilder.DropPrimaryKey(
+                name: "pk_admin_email_templates",
+                table: "admin_email_templates");
+
+            migrationBuilder.DropColumn(
+                name: "bio",
+                table: "org_users");
+
+            migrationBuilder.DropColumn(
+                name: "birth_date",
+                table: "org_users");
+
+            migrationBuilder.DropColumn(
+                name: "birth_date_visibility",
+                table: "org_users");
+
+            migrationBuilder.DropColumn(
+                name: "internal_phone",
+                table: "org_users");
+
+            migrationBuilder.DropColumn(
+                name: "mobile_phone",
+                table: "org_users");
+
+            migrationBuilder.DropColumn(
+                name: "personal_email",
+                table: "org_users");
+
+            migrationBuilder.RenameColumn(
+                name: "status",
+                table: "notify_sms_log",
+                newName: "Status");
+
+            migrationBuilder.RenameColumn(
+                name: "message",
+                table: "notify_sms_log",
+                newName: "Message");
+
+            migrationBuilder.RenameColumn(
+                name: "id",
+                table: "notify_sms_log",
+                newName: "Id");
+
+            migrationBuilder.RenameColumn(
+                name: "user_id",
+                table: "notify_sms_log",
+                newName: "UserId");
+
+            migrationBuilder.RenameColumn(
+                name: "sent_at",
+                table: "notify_sms_log",
+                newName: "SentAt");
+
+            migrationBuilder.RenameColumn(
+                name: "provider_response",
+                table: "notify_sms_log",
+                newName: "ProviderResponse");
+
+            migrationBuilder.RenameColumn(
+                name: "phone_number",
+                table: "notify_sms_log",
+                newName: "PhoneNumber");
+
+            migrationBuilder.RenameColumn(
+                name: "event_type",
+                table: "notify_sms_log",
+                newName: "EventType");
+
+            migrationBuilder.RenameColumn(
+                name: "error_message",
+                table: "notify_sms_log",
+                newName: "ErrorMessage");
+
+            migrationBuilder.RenameColumn(
+                name: "p256dh",
+                table: "notify_push_subscriptions",
+                newName: "P256dh");
+
+            migrationBuilder.RenameColumn(
+                name: "endpoint",
+                table: "notify_push_subscriptions",
+                newName: "Endpoint");
+
+            migrationBuilder.RenameColumn(
+                name: "auth",
+                table: "notify_push_subscriptions",
+                newName: "Auth");
+
+            migrationBuilder.RenameColumn(
+                name: "id",
+                table: "notify_push_subscriptions",
+                newName: "Id");
+
+            migrationBuilder.RenameColumn(
+                name: "user_id",
+                table: "notify_push_subscriptions",
+                newName: "UserId");
+
+            migrationBuilder.RenameColumn(
+                name: "user_agent",
+                table: "notify_push_subscriptions",
+                newName: "UserAgent");
+
+            migrationBuilder.RenameColumn(
+                name: "created_at",
+                table: "notify_push_subscriptions",
+                newName: "CreatedAt");
+
+            migrationBuilder.RenameIndex(
+                name: "ix_notify_push_subscriptions_user_id_endpoint",
+                table: "notify_push_subscriptions",
+                newName: "IX_notify_push_subscriptions_UserId_Endpoint");
+
+            migrationBuilder.RenameIndex(
+                name: "ix_notify_post_reactions_post_id_user_id_emoji",
+                table: "notify_post_reactions",
+                newName: "ix_notify_post_reactions_post_user_emoji");
+
+            migrationBuilder.RenameColumn(
+                name: "type",
+                table: "notify_inbox",
+                newName: "Type");
+
+            migrationBuilder.RenameColumn(
+                name: "title",
+                table: "notify_inbox",
+                newName: "Title");
+
+            migrationBuilder.RenameColumn(
+                name: "link",
+                table: "notify_inbox",
+                newName: "Link");
+
+            migrationBuilder.RenameColumn(
+                name: "body",
+                table: "notify_inbox",
+                newName: "Body");
+
+            migrationBuilder.RenameColumn(
+                name: "id",
+                table: "notify_inbox",
+                newName: "Id");
+
+            migrationBuilder.RenameColumn(
+                name: "user_id",
+                table: "notify_inbox",
+                newName: "UserId");
+
+            migrationBuilder.RenameColumn(
+                name: "read_at",
+                table: "notify_inbox",
+                newName: "ReadAt");
+
+            migrationBuilder.RenameColumn(
+                name: "payload_json",
+                table: "notify_inbox",
+                newName: "PayloadJson");
+
+            migrationBuilder.RenameColumn(
+                name: "is_read",
+                table: "notify_inbox",
+                newName: "IsRead");
+
+            migrationBuilder.RenameColumn(
+                name: "created_at",
+                table: "notify_inbox",
+                newName: "CreatedAt");
+
+            migrationBuilder.RenameIndex(
+                name: "ix_notify_inbox_user_id_is_read",
+                table: "notify_inbox",
+                newName: "IX_notify_inbox_UserId_IsRead");
+
+            migrationBuilder.RenameIndex(
+                name: "ix_notify_inbox_created_at",
+                table: "notify_inbox",
+                newName: "IX_notify_inbox_CreatedAt");
+
+            migrationBuilder.RenameColumn(
+                name: "token",
+                table: "notify_action_tokens",
+                newName: "Token");
+
+            migrationBuilder.RenameColumn(
+                name: "id",
+                table: "notify_action_tokens",
+                newName: "Id");
+
+            migrationBuilder.RenameColumn(
+                name: "user_id",
+                table: "notify_action_tokens",
+                newName: "UserId");
+
+            migrationBuilder.RenameColumn(
+                name: "used_at",
+                table: "notify_action_tokens",
+                newName: "UsedAt");
+
+            migrationBuilder.RenameColumn(
+                name: "expires_at",
+                table: "notify_action_tokens",
+                newName: "ExpiresAt");
+
+            migrationBuilder.RenameColumn(
+                name: "event_type",
+                table: "notify_action_tokens",
+                newName: "EventType");
+
+            migrationBuilder.RenameColumn(
+                name: "entity_id",
+                table: "notify_action_tokens",
+                newName: "EntityId");
+
+            migrationBuilder.RenameColumn(
+                name: "created_at",
+                table: "notify_action_tokens",
+                newName: "CreatedAt");
+
+            migrationBuilder.RenameColumn(
+                name: "action_type",
+                table: "notify_action_tokens",
+                newName: "ActionType");
+
+            migrationBuilder.RenameIndex(
+                name: "ix_notify_action_tokens_token",
+                table: "notify_action_tokens",
+                newName: "IX_notify_action_tokens_Token");
+
+            migrationBuilder.RenameColumn(
+                name: "subject",
+                table: "admin_vapid_settings",
+                newName: "Subject");
+
+            migrationBuilder.RenameColumn(
+                name: "id",
+                table: "admin_vapid_settings",
+                newName: "Id");
+
+            migrationBuilder.RenameColumn(
+                name: "public_key",
+                table: "admin_vapid_settings",
+                newName: "PublicKey");
+
+            migrationBuilder.RenameColumn(
+                name: "private_key",
+                table: "admin_vapid_settings",
+                newName: "PrivateKey");
+
+            migrationBuilder.RenameColumn(
+                name: "username",
+                table: "admin_smtp_settings",
+                newName: "Username");
+
+            migrationBuilder.RenameColumn(
+                name: "port",
+                table: "admin_smtp_settings",
+                newName: "Port");
+
+            migrationBuilder.RenameColumn(
+                name: "password",
+                table: "admin_smtp_settings",
+                newName: "Password");
+
+            migrationBuilder.RenameColumn(
+                name: "host",
+                table: "admin_smtp_settings",
+                newName: "Host");
+
+            migrationBuilder.RenameColumn(
+                name: "id",
+                table: "admin_smtp_settings",
+                newName: "Id");
+
+            migrationBuilder.RenameColumn(
+                name: "use_ssl",
+                table: "admin_smtp_settings",
+                newName: "UseSsl");
+
+            migrationBuilder.RenameColumn(
+                name: "updated_at",
+                table: "admin_smtp_settings",
+                newName: "UpdatedAt");
+
+            migrationBuilder.RenameColumn(
+                name: "from_name",
+                table: "admin_smtp_settings",
+                newName: "FromName");
+
+            migrationBuilder.RenameColumn(
+                name: "from_address",
+                table: "admin_smtp_settings",
+                newName: "FromAddress");
+
+            migrationBuilder.RenameColumn(
+                name: "id",
+                table: "admin_sms_settings",
+                newName: "Id");
+
+            migrationBuilder.RenameColumn(
+                name: "provider_url",
+                table: "admin_sms_settings",
+                newName: "ProviderUrl");
+
+            migrationBuilder.RenameColumn(
+                name: "phone_param_name",
+                table: "admin_sms_settings",
+                newName: "PhoneParamName");
+
+            migrationBuilder.RenameColumn(
+                name: "message_param_name",
+                table: "admin_sms_settings",
+                newName: "MessageParamName");
+
+            migrationBuilder.RenameColumn(
+                name: "is_enabled",
+                table: "admin_sms_settings",
+                newName: "IsEnabled");
+
+            migrationBuilder.RenameColumn(
+                name: "from_number",
+                table: "admin_sms_settings",
+                newName: "FromNumber");
+
+            migrationBuilder.RenameColumn(
+                name: "api_key_param_name",
+                table: "admin_sms_settings",
+                newName: "ApiKeyParamName");
+
+            migrationBuilder.RenameColumn(
+                name: "api_key",
+                table: "admin_sms_settings",
+                newName: "ApiKey");
+
+            migrationBuilder.RenameColumn(
+                name: "subject",
+                table: "admin_email_templates",
+                newName: "Subject");
+
+            migrationBuilder.RenameColumn(
+                name: "id",
+                table: "admin_email_templates",
+                newName: "Id");
+
+            migrationBuilder.RenameColumn(
+                name: "updated_at",
+                table: "admin_email_templates",
+                newName: "UpdatedAt");
+
+            migrationBuilder.RenameColumn(
+                name: "is_active",
+                table: "admin_email_templates",
+                newName: "IsActive");
+
+            migrationBuilder.RenameColumn(
+                name: "html_template",
+                table: "admin_email_templates",
+                newName: "HtmlTemplate");
+
+            migrationBuilder.RenameColumn(
+                name: "event_type",
+                table: "admin_email_templates",
+                newName: "EventType");
+
+            migrationBuilder.RenameColumn(
+                name: "created_at",
+                table: "admin_email_templates",
+                newName: "CreatedAt");
+
+            migrationBuilder.RenameIndex(
+                name: "ix_admin_email_templates_event_type",
+                table: "admin_email_templates",
+                newName: "IX_admin_email_templates_EventType");
+
+            migrationBuilder.AlterColumn<bool>(
+                name: "sms",
+                table: "user_task_notification_settings",
+                type: "boolean",
+                nullable: false,
+                defaultValue: false,
+                oldClrType: typeof(bool),
+                oldType: "boolean");
+
+            migrationBuilder.AlterColumn<bool>(
+                name: "push",
+                table: "user_task_notification_settings",
+                type: "boolean",
+                nullable: false,
+                defaultValue: false,
+                oldClrType: typeof(bool),
+                oldType: "boolean");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "start_hour",
+                table: "notify_dnd_settings",
+                type: "integer",
+                nullable: false,
+                defaultValue: 22,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<bool>(
+                name: "is_enabled",
+                table: "notify_dnd_settings",
+                type: "boolean",
+                nullable: false,
+                defaultValue: false,
+                oldClrType: typeof(bool),
+                oldType: "boolean");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "end_hour",
+                table: "notify_dnd_settings",
+                type: "integer",
+                nullable: false,
+                defaultValue: 8,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<bool>(
+                name: "apply_to_sms",
+                table: "notify_dnd_settings",
+                type: "boolean",
+                nullable: false,
+                defaultValue: true,
+                oldClrType: typeof(bool),
+                oldType: "boolean");
+
+            migrationBuilder.AlterColumn<bool>(
+                name: "apply_to_push",
+                table: "notify_dnd_settings",
+                type: "boolean",
+                nullable: false,
+                defaultValue: true,
+                oldClrType: typeof(bool),
+                oldType: "boolean");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "admin_vapid_settings",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer")
+                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "admin_smtp_settings",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer")
+                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "admin_sms_settings",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer")
+                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<bool>(
+                name: "is_mandatory_sms",
+                table: "admin_notification_templates",
+                type: "boolean",
+                nullable: false,
+                defaultValue: false,
+                oldClrType: typeof(bool),
+                oldType: "boolean");
+
+            migrationBuilder.AlterColumn<bool>(
+                name: "is_mandatory_push",
+                table: "admin_notification_templates",
+                type: "boolean",
+                nullable: false,
+                defaultValue: false,
+                oldClrType: typeof(bool),
+                oldType: "boolean");
+
+            migrationBuilder.AlterColumn<bool>(
+                name: "is_mandatory_in_app",
+                table: "admin_notification_templates",
+                type: "boolean",
+                nullable: false,
+                defaultValue: false,
+                oldClrType: typeof(bool),
+                oldType: "boolean");
+
+            migrationBuilder.AlterColumn<bool>(
+                name: "is_mandatory_email",
+                table: "admin_notification_templates",
+                type: "boolean",
+                nullable: false,
+                defaultValue: false,
+                oldClrType: typeof(bool),
+                oldType: "boolean");
+
+            migrationBuilder.AlterColumn<bool>(
+                name: "is_active",
+                table: "admin_notification_templates",
+                type: "boolean",
+                nullable: false,
+                defaultValue: true,
+                oldClrType: typeof(bool),
+                oldType: "boolean");
+
+            migrationBuilder.AddPrimaryKey(
+                name: "PK_notify_sms_log",
+                table: "notify_sms_log",
+                column: "Id");
+
+            migrationBuilder.AddPrimaryKey(
+                name: "PK_notify_push_subscriptions",
+                table: "notify_push_subscriptions",
+                column: "Id");
+
+            migrationBuilder.AddPrimaryKey(
+                name: "PK_notify_inbox",
+                table: "notify_inbox",
+                column: "Id");
+
+            migrationBuilder.AddPrimaryKey(
+                name: "PK_notify_action_tokens",
+                table: "notify_action_tokens",
+                column: "Id");
+
+            migrationBuilder.AddPrimaryKey(
+                name: "PK_admin_vapid_settings",
+                table: "admin_vapid_settings",
+                column: "Id");
+
+            migrationBuilder.AddPrimaryKey(
+                name: "PK_admin_smtp_settings",
+                table: "admin_smtp_settings",
+                column: "Id");
+
+            migrationBuilder.AddPrimaryKey(
+                name: "PK_admin_sms_settings",
+                table: "admin_sms_settings",
+                column: "Id");
+
+            migrationBuilder.AddPrimaryKey(
+                name: "PK_admin_email_templates",
+                table: "admin_email_templates",
+                column: "Id");
+        }
+    }
+}
