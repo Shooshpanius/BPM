@@ -13,11 +13,11 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropPrimaryKey(
-                name: "PK_notify_sms_log",
+                name: "pk_notify_sms_log",
                 table: "notify_sms_log");
 
             migrationBuilder.DropPrimaryKey(
-                name: "PK_notify_push_subscriptions",
+                name: "pk_notify_push_subscriptions",
                 table: "notify_push_subscriptions");
 
             migrationBuilder.DropPrimaryKey(
@@ -25,11 +25,11 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                 table: "notify_inbox");
 
             migrationBuilder.DropPrimaryKey(
-                name: "PK_notify_action_tokens",
+                name: "pk_notify_action_tokens",
                 table: "notify_action_tokens");
 
             migrationBuilder.DropPrimaryKey(
-                name: "PK_admin_vapid_settings",
+                name: "pk_admin_vapid_settings",
                 table: "admin_vapid_settings");
 
             migrationBuilder.DropPrimaryKey(
@@ -37,97 +37,17 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                 table: "admin_smtp_settings");
 
             migrationBuilder.DropPrimaryKey(
-                name: "PK_admin_sms_settings",
+                name: "pk_admin_sms_settings",
                 table: "admin_sms_settings");
 
             migrationBuilder.DropPrimaryKey(
-                name: "PK_admin_email_templates",
+                name: "pk_admin_email_templates",
                 table: "admin_email_templates");
 
             migrationBuilder.RenameColumn(
-                name: "Status",
-                table: "notify_sms_log",
-                newName: "status");
-
-            migrationBuilder.RenameColumn(
-                name: "Message",
-                table: "notify_sms_log",
-                newName: "message");
-
-            migrationBuilder.RenameColumn(
-                name: "Id",
-                table: "notify_sms_log",
-                newName: "id");
-
-            migrationBuilder.RenameColumn(
-                name: "UserId",
-                table: "notify_sms_log",
-                newName: "user_id");
-
-            migrationBuilder.RenameColumn(
-                name: "SentAt",
-                table: "notify_sms_log",
-                newName: "sent_at");
-
-            migrationBuilder.RenameColumn(
-                name: "ProviderResponse",
-                table: "notify_sms_log",
-                newName: "provider_response");
-
-            migrationBuilder.RenameColumn(
-                name: "PhoneNumber",
-                table: "notify_sms_log",
-                newName: "phone_number");
-
-            migrationBuilder.RenameColumn(
-                name: "EventType",
-                table: "notify_sms_log",
-                newName: "event_type");
-
-            migrationBuilder.RenameColumn(
-                name: "ErrorMessage",
-                table: "notify_sms_log",
-                newName: "error_message");
-
-            migrationBuilder.RenameColumn(
-                name: "P256dh",
+                name: "p256_dh",
                 table: "notify_push_subscriptions",
                 newName: "p256dh");
-
-            migrationBuilder.RenameColumn(
-                name: "Endpoint",
-                table: "notify_push_subscriptions",
-                newName: "endpoint");
-
-            migrationBuilder.RenameColumn(
-                name: "Auth",
-                table: "notify_push_subscriptions",
-                newName: "auth");
-
-            migrationBuilder.RenameColumn(
-                name: "Id",
-                table: "notify_push_subscriptions",
-                newName: "id");
-
-            migrationBuilder.RenameColumn(
-                name: "UserId",
-                table: "notify_push_subscriptions",
-                newName: "user_id");
-
-            migrationBuilder.RenameColumn(
-                name: "UserAgent",
-                table: "notify_push_subscriptions",
-                newName: "user_agent");
-
-            migrationBuilder.RenameColumn(
-                name: "CreatedAt",
-                table: "notify_push_subscriptions",
-                newName: "created_at");
-
-            migrationBuilder.RenameIndex(
-                name: "IX_notify_push_subscriptions_UserId_Endpoint",
-                table: "notify_push_subscriptions",
-                newName: "ix_notify_push_subscriptions_user_id_endpoint");
 
             migrationBuilder.RenameIndex(
                 name: "ix_notify_post_reactions_post_user_emoji",
@@ -195,76 +115,6 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                 newName: "ix_notify_inbox_created_at");
 
             migrationBuilder.RenameColumn(
-                name: "Token",
-                table: "notify_action_tokens",
-                newName: "token");
-
-            migrationBuilder.RenameColumn(
-                name: "Id",
-                table: "notify_action_tokens",
-                newName: "id");
-
-            migrationBuilder.RenameColumn(
-                name: "UserId",
-                table: "notify_action_tokens",
-                newName: "user_id");
-
-            migrationBuilder.RenameColumn(
-                name: "UsedAt",
-                table: "notify_action_tokens",
-                newName: "used_at");
-
-            migrationBuilder.RenameColumn(
-                name: "ExpiresAt",
-                table: "notify_action_tokens",
-                newName: "expires_at");
-
-            migrationBuilder.RenameColumn(
-                name: "EventType",
-                table: "notify_action_tokens",
-                newName: "event_type");
-
-            migrationBuilder.RenameColumn(
-                name: "EntityId",
-                table: "notify_action_tokens",
-                newName: "entity_id");
-
-            migrationBuilder.RenameColumn(
-                name: "CreatedAt",
-                table: "notify_action_tokens",
-                newName: "created_at");
-
-            migrationBuilder.RenameColumn(
-                name: "ActionType",
-                table: "notify_action_tokens",
-                newName: "action_type");
-
-            migrationBuilder.RenameIndex(
-                name: "IX_notify_action_tokens_Token",
-                table: "notify_action_tokens",
-                newName: "ix_notify_action_tokens_token");
-
-            migrationBuilder.RenameColumn(
-                name: "Subject",
-                table: "admin_vapid_settings",
-                newName: "subject");
-
-            migrationBuilder.RenameColumn(
-                name: "Id",
-                table: "admin_vapid_settings",
-                newName: "id");
-
-            migrationBuilder.RenameColumn(
-                name: "PublicKey",
-                table: "admin_vapid_settings",
-                newName: "public_key");
-
-            migrationBuilder.RenameColumn(
-                name: "PrivateKey",
-                table: "admin_vapid_settings",
-                newName: "private_key");
-
-            migrationBuilder.RenameColumn(
                 name: "Username",
                 table: "admin_smtp_settings",
                 newName: "username");
@@ -308,86 +158,6 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                 name: "FromAddress",
                 table: "admin_smtp_settings",
                 newName: "from_address");
-
-            migrationBuilder.RenameColumn(
-                name: "Id",
-                table: "admin_sms_settings",
-                newName: "id");
-
-            migrationBuilder.RenameColumn(
-                name: "ProviderUrl",
-                table: "admin_sms_settings",
-                newName: "provider_url");
-
-            migrationBuilder.RenameColumn(
-                name: "PhoneParamName",
-                table: "admin_sms_settings",
-                newName: "phone_param_name");
-
-            migrationBuilder.RenameColumn(
-                name: "MessageParamName",
-                table: "admin_sms_settings",
-                newName: "message_param_name");
-
-            migrationBuilder.RenameColumn(
-                name: "IsEnabled",
-                table: "admin_sms_settings",
-                newName: "is_enabled");
-
-            migrationBuilder.RenameColumn(
-                name: "FromNumber",
-                table: "admin_sms_settings",
-                newName: "from_number");
-
-            migrationBuilder.RenameColumn(
-                name: "ApiKeyParamName",
-                table: "admin_sms_settings",
-                newName: "api_key_param_name");
-
-            migrationBuilder.RenameColumn(
-                name: "ApiKey",
-                table: "admin_sms_settings",
-                newName: "api_key");
-
-            migrationBuilder.RenameColumn(
-                name: "Subject",
-                table: "admin_email_templates",
-                newName: "subject");
-
-            migrationBuilder.RenameColumn(
-                name: "Id",
-                table: "admin_email_templates",
-                newName: "id");
-
-            migrationBuilder.RenameColumn(
-                name: "UpdatedAt",
-                table: "admin_email_templates",
-                newName: "updated_at");
-
-            migrationBuilder.RenameColumn(
-                name: "IsActive",
-                table: "admin_email_templates",
-                newName: "is_active");
-
-            migrationBuilder.RenameColumn(
-                name: "HtmlTemplate",
-                table: "admin_email_templates",
-                newName: "html_template");
-
-            migrationBuilder.RenameColumn(
-                name: "EventType",
-                table: "admin_email_templates",
-                newName: "event_type");
-
-            migrationBuilder.RenameColumn(
-                name: "CreatedAt",
-                table: "admin_email_templates",
-                newName: "created_at");
-
-            migrationBuilder.RenameIndex(
-                name: "IX_admin_email_templates_EventType",
-                table: "admin_email_templates",
-                newName: "ix_admin_email_templates_event_type");
 
             migrationBuilder.AlterColumn<bool>(
                 name: "sms",
@@ -1149,6 +919,16 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                 table: "portal_menu_items",
                 column: "sort_order");
 
+            // Удаляем старые FK с короткими именами, созданными вручную в AddChannelPostReactionsAndComments,
+            // перед тем как добавить FK с полными EF-именами.
+            migrationBuilder.DropForeignKey(
+                name: "fk_notify_post_comments_post",
+                table: "notify_post_comments");
+
+            migrationBuilder.DropForeignKey(
+                name: "fk_notify_post_reactions_post",
+                table: "notify_post_reactions");
+
             migrationBuilder.AddForeignKey(
                 name: "fk_notify_post_comments_notify_channel_posts_post_id",
                 table: "notify_post_comments",
@@ -1297,89 +1077,9 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                 table: "org_users");
 
             migrationBuilder.RenameColumn(
-                name: "status",
-                table: "notify_sms_log",
-                newName: "Status");
-
-            migrationBuilder.RenameColumn(
-                name: "message",
-                table: "notify_sms_log",
-                newName: "Message");
-
-            migrationBuilder.RenameColumn(
-                name: "id",
-                table: "notify_sms_log",
-                newName: "Id");
-
-            migrationBuilder.RenameColumn(
-                name: "user_id",
-                table: "notify_sms_log",
-                newName: "UserId");
-
-            migrationBuilder.RenameColumn(
-                name: "sent_at",
-                table: "notify_sms_log",
-                newName: "SentAt");
-
-            migrationBuilder.RenameColumn(
-                name: "provider_response",
-                table: "notify_sms_log",
-                newName: "ProviderResponse");
-
-            migrationBuilder.RenameColumn(
-                name: "phone_number",
-                table: "notify_sms_log",
-                newName: "PhoneNumber");
-
-            migrationBuilder.RenameColumn(
-                name: "event_type",
-                table: "notify_sms_log",
-                newName: "EventType");
-
-            migrationBuilder.RenameColumn(
-                name: "error_message",
-                table: "notify_sms_log",
-                newName: "ErrorMessage");
-
-            migrationBuilder.RenameColumn(
                 name: "p256dh",
                 table: "notify_push_subscriptions",
-                newName: "P256dh");
-
-            migrationBuilder.RenameColumn(
-                name: "endpoint",
-                table: "notify_push_subscriptions",
-                newName: "Endpoint");
-
-            migrationBuilder.RenameColumn(
-                name: "auth",
-                table: "notify_push_subscriptions",
-                newName: "Auth");
-
-            migrationBuilder.RenameColumn(
-                name: "id",
-                table: "notify_push_subscriptions",
-                newName: "Id");
-
-            migrationBuilder.RenameColumn(
-                name: "user_id",
-                table: "notify_push_subscriptions",
-                newName: "UserId");
-
-            migrationBuilder.RenameColumn(
-                name: "user_agent",
-                table: "notify_push_subscriptions",
-                newName: "UserAgent");
-
-            migrationBuilder.RenameColumn(
-                name: "created_at",
-                table: "notify_push_subscriptions",
-                newName: "CreatedAt");
-
-            migrationBuilder.RenameIndex(
-                name: "ix_notify_push_subscriptions_user_id_endpoint",
-                table: "notify_push_subscriptions",
-                newName: "IX_notify_push_subscriptions_UserId_Endpoint");
+                newName: "p256_dh");
 
             migrationBuilder.RenameIndex(
                 name: "ix_notify_post_reactions_post_id_user_id_emoji",
@@ -1446,201 +1146,6 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                 table: "notify_inbox",
                 newName: "IX_notify_inbox_CreatedAt");
 
-            migrationBuilder.RenameColumn(
-                name: "token",
-                table: "notify_action_tokens",
-                newName: "Token");
-
-            migrationBuilder.RenameColumn(
-                name: "id",
-                table: "notify_action_tokens",
-                newName: "Id");
-
-            migrationBuilder.RenameColumn(
-                name: "user_id",
-                table: "notify_action_tokens",
-                newName: "UserId");
-
-            migrationBuilder.RenameColumn(
-                name: "used_at",
-                table: "notify_action_tokens",
-                newName: "UsedAt");
-
-            migrationBuilder.RenameColumn(
-                name: "expires_at",
-                table: "notify_action_tokens",
-                newName: "ExpiresAt");
-
-            migrationBuilder.RenameColumn(
-                name: "event_type",
-                table: "notify_action_tokens",
-                newName: "EventType");
-
-            migrationBuilder.RenameColumn(
-                name: "entity_id",
-                table: "notify_action_tokens",
-                newName: "EntityId");
-
-            migrationBuilder.RenameColumn(
-                name: "created_at",
-                table: "notify_action_tokens",
-                newName: "CreatedAt");
-
-            migrationBuilder.RenameColumn(
-                name: "action_type",
-                table: "notify_action_tokens",
-                newName: "ActionType");
-
-            migrationBuilder.RenameIndex(
-                name: "ix_notify_action_tokens_token",
-                table: "notify_action_tokens",
-                newName: "IX_notify_action_tokens_Token");
-
-            migrationBuilder.RenameColumn(
-                name: "subject",
-                table: "admin_vapid_settings",
-                newName: "Subject");
-
-            migrationBuilder.RenameColumn(
-                name: "id",
-                table: "admin_vapid_settings",
-                newName: "Id");
-
-            migrationBuilder.RenameColumn(
-                name: "public_key",
-                table: "admin_vapid_settings",
-                newName: "PublicKey");
-
-            migrationBuilder.RenameColumn(
-                name: "private_key",
-                table: "admin_vapid_settings",
-                newName: "PrivateKey");
-
-            migrationBuilder.RenameColumn(
-                name: "username",
-                table: "admin_smtp_settings",
-                newName: "Username");
-
-            migrationBuilder.RenameColumn(
-                name: "port",
-                table: "admin_smtp_settings",
-                newName: "Port");
-
-            migrationBuilder.RenameColumn(
-                name: "password",
-                table: "admin_smtp_settings",
-                newName: "Password");
-
-            migrationBuilder.RenameColumn(
-                name: "host",
-                table: "admin_smtp_settings",
-                newName: "Host");
-
-            migrationBuilder.RenameColumn(
-                name: "id",
-                table: "admin_smtp_settings",
-                newName: "Id");
-
-            migrationBuilder.RenameColumn(
-                name: "use_ssl",
-                table: "admin_smtp_settings",
-                newName: "UseSsl");
-
-            migrationBuilder.RenameColumn(
-                name: "updated_at",
-                table: "admin_smtp_settings",
-                newName: "UpdatedAt");
-
-            migrationBuilder.RenameColumn(
-                name: "from_name",
-                table: "admin_smtp_settings",
-                newName: "FromName");
-
-            migrationBuilder.RenameColumn(
-                name: "from_address",
-                table: "admin_smtp_settings",
-                newName: "FromAddress");
-
-            migrationBuilder.RenameColumn(
-                name: "id",
-                table: "admin_sms_settings",
-                newName: "Id");
-
-            migrationBuilder.RenameColumn(
-                name: "provider_url",
-                table: "admin_sms_settings",
-                newName: "ProviderUrl");
-
-            migrationBuilder.RenameColumn(
-                name: "phone_param_name",
-                table: "admin_sms_settings",
-                newName: "PhoneParamName");
-
-            migrationBuilder.RenameColumn(
-                name: "message_param_name",
-                table: "admin_sms_settings",
-                newName: "MessageParamName");
-
-            migrationBuilder.RenameColumn(
-                name: "is_enabled",
-                table: "admin_sms_settings",
-                newName: "IsEnabled");
-
-            migrationBuilder.RenameColumn(
-                name: "from_number",
-                table: "admin_sms_settings",
-                newName: "FromNumber");
-
-            migrationBuilder.RenameColumn(
-                name: "api_key_param_name",
-                table: "admin_sms_settings",
-                newName: "ApiKeyParamName");
-
-            migrationBuilder.RenameColumn(
-                name: "api_key",
-                table: "admin_sms_settings",
-                newName: "ApiKey");
-
-            migrationBuilder.RenameColumn(
-                name: "subject",
-                table: "admin_email_templates",
-                newName: "Subject");
-
-            migrationBuilder.RenameColumn(
-                name: "id",
-                table: "admin_email_templates",
-                newName: "Id");
-
-            migrationBuilder.RenameColumn(
-                name: "updated_at",
-                table: "admin_email_templates",
-                newName: "UpdatedAt");
-
-            migrationBuilder.RenameColumn(
-                name: "is_active",
-                table: "admin_email_templates",
-                newName: "IsActive");
-
-            migrationBuilder.RenameColumn(
-                name: "html_template",
-                table: "admin_email_templates",
-                newName: "HtmlTemplate");
-
-            migrationBuilder.RenameColumn(
-                name: "event_type",
-                table: "admin_email_templates",
-                newName: "EventType");
-
-            migrationBuilder.RenameColumn(
-                name: "created_at",
-                table: "admin_email_templates",
-                newName: "CreatedAt");
-
-            migrationBuilder.RenameIndex(
-                name: "ix_admin_email_templates_event_type",
-                table: "admin_email_templates",
-                newName: "IX_admin_email_templates_EventType");
-
             migrationBuilder.AlterColumn<bool>(
                 name: "sms",
                 table: "user_task_notification_settings",
@@ -1705,7 +1210,7 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                 oldType: "boolean");
 
             migrationBuilder.AlterColumn<int>(
-                name: "Id",
+                name: "id",
                 table: "admin_vapid_settings",
                 type: "integer",
                 nullable: false,
@@ -1723,7 +1228,7 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                 .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
 
             migrationBuilder.AlterColumn<int>(
-                name: "Id",
+                name: "id",
                 table: "admin_sms_settings",
                 type: "integer",
                 nullable: false,
@@ -1777,14 +1282,14 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                 oldType: "boolean");
 
             migrationBuilder.AddPrimaryKey(
-                name: "PK_notify_sms_log",
+                name: "pk_notify_sms_log",
                 table: "notify_sms_log",
-                column: "Id");
+                column: "id");
 
             migrationBuilder.AddPrimaryKey(
-                name: "PK_notify_push_subscriptions",
+                name: "pk_notify_push_subscriptions",
                 table: "notify_push_subscriptions",
-                column: "Id");
+                column: "id");
 
             migrationBuilder.AddPrimaryKey(
                 name: "PK_notify_inbox",
@@ -1792,14 +1297,14 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                 column: "Id");
 
             migrationBuilder.AddPrimaryKey(
-                name: "PK_notify_action_tokens",
+                name: "pk_notify_action_tokens",
                 table: "notify_action_tokens",
-                column: "Id");
+                column: "id");
 
             migrationBuilder.AddPrimaryKey(
-                name: "PK_admin_vapid_settings",
+                name: "pk_admin_vapid_settings",
                 table: "admin_vapid_settings",
-                column: "Id");
+                column: "id");
 
             migrationBuilder.AddPrimaryKey(
                 name: "PK_admin_smtp_settings",
@@ -1807,14 +1312,14 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                 column: "Id");
 
             migrationBuilder.AddPrimaryKey(
-                name: "PK_admin_sms_settings",
+                name: "pk_admin_sms_settings",
                 table: "admin_sms_settings",
-                column: "Id");
+                column: "id");
 
             migrationBuilder.AddPrimaryKey(
-                name: "PK_admin_email_templates",
+                name: "pk_admin_email_templates",
                 table: "admin_email_templates",
-                column: "Id");
+                column: "id");
         }
     }
 }
