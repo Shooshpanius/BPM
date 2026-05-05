@@ -22,6 +22,295 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("CoreBPM.Server.Domain.Admin.AdminEmailTemplate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("event_type");
+
+                    b.Property<string>("HtmlTemplate")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("html_template");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("subject");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_admin_email_templates");
+
+                    b.HasIndex("EventType")
+                        .IsUnique()
+                        .HasDatabaseName("ix_admin_email_templates_event_type");
+
+                    b.ToTable("admin_email_templates", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Admin.AdminNotificationLogSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("RetentionDays")
+                        .HasColumnType("integer")
+                        .HasColumnName("retention_days");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_admin_notification_log_settings");
+
+                    b.ToTable("admin_notification_log_settings", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Admin.AdminNotificationTemplate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("EmailBodyTemplate")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("email_body_template");
+
+                    b.Property<string>("EmailSubjectTemplate")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("email_subject_template");
+
+                    b.Property<string>("EventLabel")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("event_label");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("event_type");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsMandatoryEmail")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_mandatory_email");
+
+                    b.Property<bool>("IsMandatoryInApp")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_mandatory_in_app");
+
+                    b.Property<bool>("IsMandatoryPush")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_mandatory_push");
+
+                    b.Property<bool>("IsMandatorySms")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_mandatory_sms");
+
+                    b.Property<string>("ShortTemplate")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("short_template");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_admin_notification_templates");
+
+                    b.HasIndex("EventType")
+                        .IsUnique()
+                        .HasDatabaseName("ix_admin_notification_templates_event_type");
+
+                    b.ToTable("admin_notification_templates", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Admin.AdminSmsSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ApiKey")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("api_key");
+
+                    b.Property<string>("ApiKeyParamName")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasDefaultValue("api_id")
+                        .HasColumnName("api_key_param_name");
+
+                    b.Property<string>("FromNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("from_number");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_enabled");
+
+                    b.Property<string>("MessageParamName")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasDefaultValue("msg")
+                        .HasColumnName("message_param_name");
+
+                    b.Property<string>("PhoneParamName")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasDefaultValue("to")
+                        .HasColumnName("phone_param_name");
+
+                    b.Property<string>("ProviderUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("provider_url");
+
+                    b.HasKey("Id")
+                        .HasName("pk_admin_sms_settings");
+
+                    b.ToTable("admin_sms_settings", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Admin.AdminSmtpSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("FromAddress")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("from_address");
+
+                    b.Property<string>("FromName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("from_name");
+
+                    b.Property<string>("Host")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("host");
+
+                    b.Property<string>("Password")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("password");
+
+                    b.Property<int>("Port")
+                        .HasColumnType("integer")
+                        .HasColumnName("port");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<bool>("UseSsl")
+                        .HasColumnType("boolean")
+                        .HasColumnName("use_ssl");
+
+                    b.Property<string>("Username")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("username");
+
+                    b.HasKey("Id")
+                        .HasName("pk_admin_smtp_settings");
+
+                    b.ToTable("admin_smtp_settings", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Admin.AdminVapidSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("PrivateKey")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("private_key");
+
+                    b.Property<string>("PublicKey")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("public_key");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("subject");
+
+                    b.HasKey("Id")
+                        .HasName("pk_admin_vapid_settings");
+
+                    b.ToTable("admin_vapid_settings", (string)null);
+                });
+
             modelBuilder.Entity("CoreBPM.Server.Domain.Auth.AuthAccount", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2054,6 +2343,1040 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                     b.ToTable("bpm_version_migration_packages", (string)null);
                 });
 
+            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyActionToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ActionType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("action_type");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("EntityId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("entity_id");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("event_type");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<Guid>("Token")
+                        .HasColumnType("uuid")
+                        .HasColumnName("token");
+
+                    b.Property<DateTimeOffset?>("UsedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("used_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notify_action_tokens");
+
+                    b.HasIndex("Token")
+                        .IsUnique()
+                        .HasDatabaseName("ix_notify_action_tokens_token");
+
+                    b.ToTable("notify_action_tokens", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyChannel", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("IconEmoji")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("icon_emoji");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notify_channels");
+
+                    b.ToTable("notify_channels", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyChannelPinnedPost", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ChannelId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("channel_id");
+
+                    b.Property<DateTimeOffset>("PinnedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("pinned_at");
+
+                    b.Property<Guid>("PinnedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("pinned_by_user_id");
+
+                    b.Property<Guid>("PostId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("post_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notify_channel_pinned_posts");
+
+                    b.HasIndex("ChannelId")
+                        .HasDatabaseName("ix_notify_channel_pinned_posts_channel_id");
+
+                    b.HasIndex("PostId")
+                        .HasDatabaseName("ix_notify_channel_pinned_posts_post_id");
+
+                    b.HasIndex("ChannelId", "PostId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_notify_channel_pinned_posts_channel_id_post_id");
+
+                    b.ToTable("notify_channel_pinned_posts", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyChannelPost", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AuthorUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("author_user_id");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("body");
+
+                    b.Property<Guid>("ChannelId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("channel_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset?>("EditedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("edited_at");
+
+                    b.Property<bool>("IsEdited")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_edited");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("title");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notify_channel_posts");
+
+                    b.HasIndex("ChannelId")
+                        .HasDatabaseName("ix_notify_channel_posts_channel_id");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_notify_channel_posts_created_at");
+
+                    b.ToTable("notify_channel_posts", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyChannelSubscriber", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ChannelId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("channel_id");
+
+                    b.Property<bool>("IsAdmin")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_admin");
+
+                    b.Property<DateTimeOffset>("SubscribedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("subscribed_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notify_channel_subscribers");
+
+                    b.HasIndex("ChannelId", "UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_notify_channel_subscribers_channel_id_user_id");
+
+                    b.ToTable("notify_channel_subscribers", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyChat", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("kind");
+
+                    b.Property<DateTimeOffset?>("LastMessageAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_message_at");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notify_chats");
+
+                    b.HasIndex("LastMessageAt")
+                        .HasDatabaseName("ix_notify_chats_last_message_at");
+
+                    b.ToTable("notify_chats", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyChatMember", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ChatId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("chat_id");
+
+                    b.Property<bool>("IsAdmin")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_admin");
+
+                    b.Property<bool>("IsMuted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_muted");
+
+                    b.Property<DateTimeOffset>("JoinedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("joined_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notify_chat_members");
+
+                    b.HasIndex("ChatId", "UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_notify_chat_members_chat_id_user_id");
+
+                    b.ToTable("notify_chat_members", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyDeliveryLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("Channel")
+                        .HasColumnType("integer")
+                        .HasColumnName("channel");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("error");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("event_type");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notify_delivery_log");
+
+                    b.HasIndex("UserId", "CreatedAt")
+                        .HasDatabaseName("ix_notify_delivery_log_user_id_created_at");
+
+                    b.HasIndex("EventType", "Channel", "Status")
+                        .HasDatabaseName("ix_notify_delivery_log_event_type_channel_status");
+
+                    b.ToTable("notify_delivery_log", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyDndSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("ApplyToPush")
+                        .HasColumnType("boolean")
+                        .HasColumnName("apply_to_push");
+
+                    b.Property<bool>("ApplyToSms")
+                        .HasColumnType("boolean")
+                        .HasColumnName("apply_to_sms");
+
+                    b.Property<string>("DisabledDays")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("")
+                        .HasColumnName("disabled_days");
+
+                    b.Property<int>("EndHour")
+                        .HasColumnType("integer")
+                        .HasColumnName("end_hour");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_enabled");
+
+                    b.Property<int>("StartHour")
+                        .HasColumnType("integer")
+                        .HasColumnName("start_hour");
+
+                    b.Property<string>("TimeZone")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasDefaultValue("UTC")
+                        .HasColumnName("time_zone");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notify_dnd_settings");
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_notify_dnd_settings_user_id");
+
+                    b.ToTable("notify_dnd_settings", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyInboxEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("body");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_read");
+
+                    b.Property<string>("Link")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("link");
+
+                    b.Property<string>("PayloadJson")
+                        .HasColumnType("text")
+                        .HasColumnName("payload_json");
+
+                    b.Property<DateTimeOffset?>("ReadAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("read_at");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("title");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("type");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notify_inbox");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_notify_inbox_created_at");
+
+                    b.HasIndex("UserId", "IsRead")
+                        .HasDatabaseName("ix_notify_inbox_user_id_is_read");
+
+                    b.ToTable("notify_inbox", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AuthorUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("author_user_id");
+
+                    b.Property<Guid?>("ChatId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("chat_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset?>("EditedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("edited_at");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<bool>("IsEdited")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_edited");
+
+                    b.Property<Guid?>("ReplyToMessageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reply_to_message_id");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("text");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notify_messages");
+
+                    b.HasIndex("ChatId")
+                        .HasDatabaseName("ix_notify_messages_chat_id");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_notify_messages_created_at");
+
+                    b.HasIndex("ReplyToMessageId")
+                        .HasDatabaseName("ix_notify_messages_reply_to_message_id");
+
+                    b.ToTable("notify_messages", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyMessageReaction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Emoji")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("emoji");
+
+                    b.Property<Guid>("MessageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("message_id");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notify_message_reactions");
+
+                    b.HasIndex("MessageId", "UserId", "Emoji")
+                        .IsUnique()
+                        .HasDatabaseName("ix_notify_message_reactions_message_id_user_id_emoji");
+
+                    b.ToTable("notify_message_reactions", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyMessageRead", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("MessageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("message_id");
+
+                    b.Property<DateTimeOffset>("ReadAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("read_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notify_message_reads");
+
+                    b.HasIndex("MessageId", "UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_notify_message_reads_message_id_user_id");
+
+                    b.ToTable("notify_message_reads", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyPinnedMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ChatId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("chat_id");
+
+                    b.Property<Guid>("MessageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("message_id");
+
+                    b.Property<DateTimeOffset>("PinnedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("pinned_at");
+
+                    b.Property<Guid>("PinnedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("pinned_by_user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notify_pinned_messages");
+
+                    b.HasIndex("ChatId")
+                        .HasDatabaseName("ix_notify_pinned_messages_chat_id");
+
+                    b.HasIndex("MessageId")
+                        .HasDatabaseName("ix_notify_pinned_messages_message_id");
+
+                    b.ToTable("notify_pinned_messages", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyPostComment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AuthorUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("author_user_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<Guid>("PostId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("post_id");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("text");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notify_post_comments");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_notify_post_comments_created_at");
+
+                    b.HasIndex("PostId")
+                        .HasDatabaseName("ix_notify_post_comments_post_id");
+
+                    b.ToTable("notify_post_comments", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyPostReaction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Emoji")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("emoji");
+
+                    b.Property<Guid>("PostId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("post_id");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notify_post_reactions");
+
+                    b.HasIndex("PostId", "UserId", "Emoji")
+                        .IsUnique()
+                        .HasDatabaseName("ix_notify_post_reactions_post_id_user_id_emoji");
+
+                    b.ToTable("notify_post_reactions", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyPushSubscription", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Auth")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("auth");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Endpoint")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("endpoint");
+
+                    b.Property<string>("P256dh")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("p256dh");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("user_agent");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notify_push_subscriptions");
+
+                    b.HasIndex("UserId", "Endpoint")
+                        .IsUnique()
+                        .HasDatabaseName("ix_notify_push_subscriptions_user_id_endpoint");
+
+                    b.ToTable("notify_push_subscriptions", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifySmsLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("error_message");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("event_type");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("message");
+
+                    b.Property<string>("PhoneNumber")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("phone_number");
+
+                    b.Property<string>("ProviderResponse")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("provider_response");
+
+                    b.Property<DateTimeOffset>("SentAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("sent_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notify_sms_log");
+
+                    b.ToTable("notify_sms_log", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyThrottleLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("Channel")
+                        .HasColumnType("integer")
+                        .HasColumnName("channel");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("event_type");
+
+                    b.Property<DateTimeOffset>("LastSentAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_sent_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notify_throttle_log");
+
+                    b.HasIndex("UserId", "EventType", "Channel")
+                        .IsUnique()
+                        .HasDatabaseName("ix_notify_throttle_log_user_id_event_type_channel");
+
+                    b.ToTable("notify_throttle_log", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyThrottleSetting", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("Channel")
+                        .HasColumnType("integer")
+                        .HasColumnName("channel");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("event_type");
+
+                    b.Property<int>("MinIntervalMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("min_interval_minutes");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notify_throttle_settings");
+
+                    b.HasIndex("UserId", "EventType", "Channel")
+                        .IsUnique()
+                        .HasDatabaseName("ix_notify_throttle_settings_user_id_event_type_channel");
+
+                    b.ToTable("notify_throttle_settings", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyUserMessagingPrefs", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("HiddenChatIds")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("hidden_chat_ids");
+
+                    b.Property<string>("PinnedChatIds")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("pinned_chat_ids");
+
+                    b.Property<string>("SortOrder")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("sort_order");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notify_user_messaging_prefs");
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_notify_user_messaging_prefs_user_id");
+
+                    b.ToTable("notify_user_messaging_prefs", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Org.OrgCompanyInfo", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("address");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)")
+                        .HasColumnName("email");
+
+                    b.Property<string>("LogoUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("logo_url");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("phone");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("Website")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("website");
+
+                    b.HasKey("Id")
+                        .HasName("pk_org_company_info");
+
+                    b.ToTable("org_company_info", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Org.OrgCompanyLink", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("url");
+
+                    b.HasKey("Id")
+                        .HasName("pk_org_company_links");
+
+                    b.HasIndex("SortOrder")
+                        .HasDatabaseName("ix_org_company_links_sort_order");
+
+                    b.ToTable("org_company_links", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Org.OrgCompanyNews", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AuthorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("author_id");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("content");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("IsPublished")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_published");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_org_company_news");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_org_company_news_created_at");
+
+                    b.ToTable("org_company_news", (string)null);
+                });
+
             modelBuilder.Entity("CoreBPM.Server.Domain.Org.OrgDepartment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2479,6 +3802,23 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(500)")
                         .HasColumnName("avatar_url");
 
+                    b.Property<string>("Bio")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("bio");
+
+                    b.Property<DateOnly?>("BirthDate")
+                        .HasColumnType("date")
+                        .HasColumnName("birth_date");
+
+                    b.Property<string>("BirthDateVisibility")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("all")
+                        .HasColumnName("birth_date_visibility");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -2495,6 +3835,11 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("first_name");
 
+                    b.Property<string>("InternalPhone")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("internal_phone");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");
@@ -2509,6 +3854,16 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
                         .HasColumnName("middle_name");
+
+                    b.Property<string>("MobilePhone")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("mobile_phone");
+
+                    b.Property<string>("PersonalEmail")
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)")
+                        .HasColumnName("personal_email");
 
                     b.Property<string>("Phone")
                         .HasMaxLength(50)
@@ -2533,6 +3888,219 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_org_users_work_email");
 
                     b.ToTable("org_users", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Org.OrgUserPreference", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("DateFormat")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("date_format");
+
+                    b.Property<string>("Language")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasDefaultValue("ru")
+                        .HasColumnName("language");
+
+                    b.Property<int>("PageSize")
+                        .HasColumnType("integer")
+                        .HasColumnName("page_size");
+
+                    b.Property<string>("Theme")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("system")
+                        .HasColumnName("theme");
+
+                    b.Property<string>("TimeZone")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("time_zone");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_org_user_preferences");
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_org_user_preferences_user_id");
+
+                    b.ToTable("org_user_preferences", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Portal.PortalBranding", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AccentColor")
+                        .HasColumnType("text")
+                        .HasColumnName("accent_color");
+
+                    b.Property<string>("FaviconUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("favicon_url");
+
+                    b.Property<string>("GlobalTheme")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("global_theme");
+
+                    b.Property<string>("LogoUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("logo_url");
+
+                    b.Property<string>("PrimaryColor")
+                        .HasColumnType("text")
+                        .HasColumnName("primary_color");
+
+                    b.Property<string>("SystemName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("system_name");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_portal_branding");
+
+                    b.ToTable("portal_branding", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Portal.PortalDashboardWidget", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("Col")
+                        .HasColumnType("integer")
+                        .HasColumnName("col");
+
+                    b.Property<int>("ColSpan")
+                        .HasColumnType("integer")
+                        .HasColumnName("col_span");
+
+                    b.Property<string>("ConfigJson")
+                        .HasColumnType("text")
+                        .HasColumnName("config_json");
+
+                    b.Property<bool>("IsCollapsed")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_collapsed");
+
+                    b.Property<int>("Row")
+                        .HasColumnType("integer")
+                        .HasColumnName("row");
+
+                    b.Property<int>("RowSpan")
+                        .HasColumnType("integer")
+                        .HasColumnName("row_span");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<string>("WidgetType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("widget_type");
+
+                    b.HasKey("Id")
+                        .HasName("pk_portal_dashboard_widgets");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_portal_dashboard_widgets_user_id");
+
+                    b.ToTable("portal_dashboard_widgets", (string)null);
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Portal.PortalMenuItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ExternalUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("external_url");
+
+                    b.Property<string>("Icon")
+                        .HasColumnType("text")
+                        .HasColumnName("icon");
+
+                    b.Property<bool>("IsVisible")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_visible");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("label");
+
+                    b.Property<Guid?>("ParentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("parent_id");
+
+                    b.Property<string>("RequiredRole")
+                        .HasColumnType("text")
+                        .HasColumnName("required_role");
+
+                    b.Property<string>("SectionId")
+                        .HasColumnType("text")
+                        .HasColumnName("section_id");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.HasKey("Id")
+                        .HasName("pk_portal_menu_items");
+
+                    b.HasIndex("SortOrder")
+                        .HasDatabaseName("ix_portal_menu_items_sort_order");
+
+                    b.ToTable("portal_menu_items", (string)null);
                 });
 
             modelBuilder.Entity("CoreBPM.Server.Domain.Rules.DmnCell", b =>
@@ -3482,15 +5050,13 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("in_app");
 
-                    b.Property<bool>("Sms")
-                        .HasColumnType("boolean")
-                        .HasColumnName("sms")
-                        .HasDefaultValue(false);
-
                     b.Property<bool>("Push")
                         .HasColumnType("boolean")
-                        .HasColumnName("push")
-                        .HasDefaultValue(false);
+                        .HasColumnName("push");
+
+                    b.Property<bool>("Sms")
+                        .HasColumnType("boolean")
+                        .HasColumnName("sms");
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid")
@@ -3504,195 +5070,6 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_user_task_notification_settings_user_id_event_type");
 
                     b.ToTable("user_task_notification_settings", (string)null);
-                });
-
-            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyDndSettings", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("user_id");
-
-                    b.Property<bool>("IsEnabled")
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("is_enabled");
-
-                    b.Property<int>("StartHour")
-                        .HasColumnType("integer")
-                        .HasDefaultValue(22)
-                        .HasColumnName("start_hour");
-
-                    b.Property<int>("EndHour")
-                        .HasColumnType("integer")
-                        .HasDefaultValue(8)
-                        .HasColumnName("end_hour");
-
-                    b.Property<string>("DisabledDays")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasDefaultValue("")
-                        .HasColumnName("disabled_days");
-
-                    b.Property<string>("TimeZone")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasDefaultValue("UTC")
-                        .HasColumnName("time_zone");
-
-                    b.Property<bool>("ApplyToPush")
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(true)
-                        .HasColumnName("apply_to_push");
-
-                    b.Property<bool>("ApplyToSms")
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(true)
-                        .HasColumnName("apply_to_sms");
-
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id")
-                        .HasName("pk_notify_dnd_settings");
-
-                    b.HasIndex("UserId")
-                        .IsUnique()
-                        .HasDatabaseName("ix_notify_dnd_settings_user_id");
-
-                    b.ToTable("notify_dnd_settings", (string)null);
-                });
-
-            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyDeliveryLog", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("user_id");
-
-                    b.Property<string>("EventType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("event_type");
-
-                    b.Property<int>("Channel")
-                        .HasColumnType("integer")
-                        .HasColumnName("channel");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer")
-                        .HasColumnName("status");
-
-                    b.Property<string>("Error")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)")
-                        .HasColumnName("error");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.HasKey("Id")
-                        .HasName("pk_notify_delivery_log");
-
-                    b.HasIndex("UserId", "CreatedAt")
-                        .HasDatabaseName("ix_notify_delivery_log_user_id_created_at");
-
-                    b.HasIndex("EventType", "Channel", "Status")
-                        .HasDatabaseName("ix_notify_delivery_log_event_type_channel_status");
-
-                    b.ToTable("notify_delivery_log", (string)null);
-                });
-
-            modelBuilder.Entity("CoreBPM.Server.Domain.Admin.AdminNotificationTemplate", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<string>("EventType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("event_type");
-
-                    b.Property<string>("EventLabel")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("event_label");
-
-                    b.Property<string>("EmailSubjectTemplate")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("email_subject_template");
-
-                    b.Property<string>("EmailBodyTemplate")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("email_body_template");
-
-                    b.Property<string>("ShortTemplate")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("short_template");
-
-                    b.Property<bool>("IsMandatoryInApp")
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("is_mandatory_in_app");
-
-                    b.Property<bool>("IsMandatoryEmail")
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("is_mandatory_email");
-
-                    b.Property<bool>("IsMandatorySms")
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("is_mandatory_sms");
-
-                    b.Property<bool>("IsMandatoryPush")
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("is_mandatory_push");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(true)
-                        .HasColumnName("is_active");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id")
-                        .HasName("pk_admin_notification_templates");
-
-                    b.HasIndex("EventType")
-                        .IsUnique()
-                        .HasDatabaseName("ix_admin_notification_templates_event_type");
-
-                    b.ToTable("admin_notification_templates", (string)null);
                 });
 
             modelBuilder.Entity("CoreBPM.Server.Domain.Auth.AuthAccount", b =>
@@ -4086,6 +5463,151 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                     b.Navigation("TargetVersion");
                 });
 
+            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyChannelPinnedPost", b =>
+                {
+                    b.HasOne("CoreBPM.Server.Domain.Notify.NotifyChannel", "Channel")
+                        .WithMany()
+                        .HasForeignKey("ChannelId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_notify_channel_pinned_posts_notify_channels_channel_id");
+
+                    b.HasOne("CoreBPM.Server.Domain.Notify.NotifyChannelPost", "Post")
+                        .WithMany()
+                        .HasForeignKey("PostId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_notify_channel_pinned_posts_notify_channel_posts_post_id");
+
+                    b.Navigation("Channel");
+
+                    b.Navigation("Post");
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyChannelPost", b =>
+                {
+                    b.HasOne("CoreBPM.Server.Domain.Notify.NotifyChannel", "Channel")
+                        .WithMany("Posts")
+                        .HasForeignKey("ChannelId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_notify_channel_posts_notify_channels_channel_id");
+
+                    b.Navigation("Channel");
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyChannelSubscriber", b =>
+                {
+                    b.HasOne("CoreBPM.Server.Domain.Notify.NotifyChannel", "Channel")
+                        .WithMany("Subscribers")
+                        .HasForeignKey("ChannelId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_notify_channel_subscribers_notify_channels_channel_id");
+
+                    b.Navigation("Channel");
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyChatMember", b =>
+                {
+                    b.HasOne("CoreBPM.Server.Domain.Notify.NotifyChat", "Chat")
+                        .WithMany("Members")
+                        .HasForeignKey("ChatId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_notify_chat_members_notify_chats_chat_id");
+
+                    b.Navigation("Chat");
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyMessage", b =>
+                {
+                    b.HasOne("CoreBPM.Server.Domain.Notify.NotifyChat", "Chat")
+                        .WithMany("Messages")
+                        .HasForeignKey("ChatId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("fk_notify_messages_notify_chats_chat_id");
+
+                    b.HasOne("CoreBPM.Server.Domain.Notify.NotifyMessage", "ReplyToMessage")
+                        .WithMany()
+                        .HasForeignKey("ReplyToMessageId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_notify_messages_notify_messages_reply_to_message_id");
+
+                    b.Navigation("Chat");
+
+                    b.Navigation("ReplyToMessage");
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyMessageReaction", b =>
+                {
+                    b.HasOne("CoreBPM.Server.Domain.Notify.NotifyMessage", "Message")
+                        .WithMany("Reactions")
+                        .HasForeignKey("MessageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_notify_message_reactions_notify_messages_message_id");
+
+                    b.Navigation("Message");
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyMessageRead", b =>
+                {
+                    b.HasOne("CoreBPM.Server.Domain.Notify.NotifyMessage", "Message")
+                        .WithMany("Reads")
+                        .HasForeignKey("MessageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_notify_message_reads_notify_messages_message_id");
+
+                    b.Navigation("Message");
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyPinnedMessage", b =>
+                {
+                    b.HasOne("CoreBPM.Server.Domain.Notify.NotifyChat", "Chat")
+                        .WithMany("PinnedMessages")
+                        .HasForeignKey("ChatId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_notify_pinned_messages_notify_chats_chat_id");
+
+                    b.HasOne("CoreBPM.Server.Domain.Notify.NotifyMessage", "Message")
+                        .WithMany()
+                        .HasForeignKey("MessageId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_notify_pinned_messages_notify_messages_message_id");
+
+                    b.Navigation("Chat");
+
+                    b.Navigation("Message");
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyPostComment", b =>
+                {
+                    b.HasOne("CoreBPM.Server.Domain.Notify.NotifyChannelPost", "Post")
+                        .WithMany()
+                        .HasForeignKey("PostId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_notify_post_comments_notify_channel_posts_post_id");
+
+                    b.Navigation("Post");
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyPostReaction", b =>
+                {
+                    b.HasOne("CoreBPM.Server.Domain.Notify.NotifyChannelPost", "Post")
+                        .WithMany()
+                        .HasForeignKey("PostId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_notify_post_reactions_notify_channel_posts_post_id");
+
+                    b.Navigation("Post");
+                });
+
             modelBuilder.Entity("CoreBPM.Server.Domain.Org.OrgDepartment", b =>
                 {
                     b.HasOne("CoreBPM.Server.Domain.Org.OrgOrganization", "Organization")
@@ -4227,6 +5749,18 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_org_position_role_mappings_org_positions_position_id");
 
                     b.Navigation("Position");
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Org.OrgUserPreference", b =>
+                {
+                    b.HasOne("CoreBPM.Server.Domain.Org.OrgUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_org_user_preferences_org_users_user_id");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("CoreBPM.Server.Domain.Rules.DmnCell", b =>
@@ -4468,6 +6002,29 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                     b.Navigation("Items");
                 });
 
+            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyChannel", b =>
+                {
+                    b.Navigation("Posts");
+
+                    b.Navigation("Subscribers");
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyChat", b =>
+                {
+                    b.Navigation("Members");
+
+                    b.Navigation("Messages");
+
+                    b.Navigation("PinnedMessages");
+                });
+
+            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyMessage", b =>
+                {
+                    b.Navigation("Reactions");
+
+                    b.Navigation("Reads");
+                });
+
             modelBuilder.Entity("CoreBPM.Server.Domain.Org.OrgDepartment", b =>
                 {
                     b.Navigation("Children");
@@ -4536,399 +6093,6 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
 
                     b.Navigation("TimeLogs");
                 });
-            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyPostComment", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<Guid>("PostId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("post_id");
-
-                    b.Property<Guid>("AuthorUserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("author_user_id");
-
-                    b.Property<string>("Text")
-                        .IsRequired()
-                        .HasMaxLength(4000)
-                        .HasColumnType("character varying(4000)")
-                        .HasColumnName("text");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_deleted");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.HasKey("Id")
-                        .HasName("pk_notify_post_comments");
-
-                    b.HasIndex("PostId")
-                        .HasDatabaseName("ix_notify_post_comments_post_id");
-
-                    b.HasIndex("CreatedAt")
-                        .HasDatabaseName("ix_notify_post_comments_created_at");
-
-                    b.ToTable("notify_post_comments", (string)null);
-                });
-
-            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyPostReaction", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<Guid>("PostId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("post_id");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("user_id");
-
-                    b.Property<string>("Emoji")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("emoji");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.HasKey("Id")
-                        .HasName("pk_notify_post_reactions");
-
-                    b.HasIndex("PostId", "UserId", "Emoji")
-                        .IsUnique()
-                        .HasDatabaseName("ix_notify_post_reactions_post_user_emoji");
-
-                    b.ToTable("notify_post_reactions", (string)null);
-                });
-
-            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyInboxEntry", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Body")
-                        .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("IsRead")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Link")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
-
-                    b.Property<string>("PayloadJson")
-                        .HasColumnType("text");
-
-                    b.Property<DateTimeOffset?>("ReadAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedAt");
-
-                    b.HasIndex("UserId", "IsRead");
-
-                    b.ToTable("notify_inbox", (string)null);
-                });
-
-            modelBuilder.Entity("CoreBPM.Server.Domain.Admin.AdminSmtpSettings", b =>
-                {
-                    b.Property<int>("Id")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("FromAddress")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<string>("FromName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("Host")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<string>("Password")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<int>("Port")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("UseSsl")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Username")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("admin_smtp_settings", (string)null);
-                });
-
-            modelBuilder.Entity("CoreBPM.Server.Domain.Admin.AdminEmailTemplate", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("EventType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("HtmlTemplate")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<bool>("IsActive")
-                        .HasDefaultValue(true)
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Subject")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EventType")
-                        .IsUnique();
-
-                    b.ToTable("admin_email_templates", (string)null);
-                });
-
-            modelBuilder.Entity("CoreBPM.Server.Domain.Admin.AdminSmsSettings", b =>
-                {
-                    b.Property<int>("Id")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("ApiKey")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("ApiKeyParamName")
-                        .IsRequired()
-                        .HasDefaultValue("api_id")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("FromNumber")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<bool>("IsEnabled")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("MessageParamName")
-                        .IsRequired()
-                        .HasDefaultValue("msg")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("PhoneParamName")
-                        .IsRequired()
-                        .HasDefaultValue("to")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("ProviderUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("admin_sms_settings", (string)null);
-                });
-
-            modelBuilder.Entity("CoreBPM.Server.Domain.Admin.AdminVapidSettings", b =>
-                {
-                    b.Property<int>("Id")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("PrivateKey")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("PublicKey")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("Subject")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("admin_vapid_settings", (string)null);
-                });
-
-            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyActionToken", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ActionType")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("EntityId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("EventType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<DateTimeOffset>("ExpiresAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("Token")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("UsedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Token")
-                        .IsUnique();
-
-                    b.ToTable("notify_action_tokens", (string)null);
-                });
-
-            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifyPushSubscription", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Auth")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Endpoint")
-                        .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
-
-                    b.Property<string>("P256dh")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("UserAgent")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId", "Endpoint")
-                        .IsUnique();
-
-                    b.ToTable("notify_push_subscriptions", (string)null);
-                });
-
-            modelBuilder.Entity("CoreBPM.Server.Domain.Notify.NotifySmsLog", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ErrorMessage")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<string>("EventType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("Message")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<string>("PhoneNumber")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("ProviderResponse")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<DateTimeOffset>("SentAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<Guid?>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("notify_sms_log", (string)null);
-                });
-
 #pragma warning restore 612, 618
         }
     }
