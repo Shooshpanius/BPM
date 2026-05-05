@@ -59,6 +59,8 @@
 .sidebar-item.active {
     background: var(--accent-bg);
     color: var(--accent);
+    outline: 1px solid var(--accent);
+    outline-offset: -1px;
 }
 
 /* Активный пункт навигации — зеленоватый оттенок */
@@ -76,6 +78,8 @@
 .sidebar-group-header.group-active {
     color: #3a78c9;
     background: rgba(74, 127, 193, 0.10);
+    outline: 2px solid #3a78c9;
+    outline-offset: -2px;
 }
 
 /* Подписи заголовков групп — жирнее; цвет наследуется от родителя */
