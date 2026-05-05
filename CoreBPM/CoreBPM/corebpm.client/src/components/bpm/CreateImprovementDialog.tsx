@@ -62,7 +62,7 @@ export function CreateImprovementDialog({
         }
         try {
             const emps = await getDirectoryEmployees(token, {});
-            setEmployees(emps);
+            setEmployees(emps.items);
         } catch {
             // необязательно
         }
