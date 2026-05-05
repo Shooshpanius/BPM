@@ -40,17 +40,20 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
     const [unreadMessages, setUnreadMessages] = useState(0);
     const { notifications, unreadCount: inboxUnread } = useBpmNotifications();
 
-    // Все группы раскрыты по умолчанию — пользователь может сворачивать по одной независимо
-    const [expandedGroups, setExpandedGroups] = useState<Set<GroupId>>(
-        () => new Set<GroupId>(['tasks', 'communication', 'org', 'bpm', 'admin'])
-    );
+    // По умолчанию все группы свёрнуты; при открытии одной — остальные закрываются (accordion)
+    const [expandedGroups, setExpandedGroups] = useState<Set<GroupId>>(() => {
+        const initial = SECTION_GROUP[active as SidebarSection];
+        return initial ? new Set<GroupId>([initial]) : new Set<GroupId>();
+    });
 
     const toggleGroup = (groupId: GroupId) => {
         setExpandedGroups(prev => {
-            const next = new Set(prev);
-            if (next.has(groupId)) next.delete(groupId);
-            else next.add(groupId);
-            return next;
+            if (prev.has(groupId)) {
+                // закрываем текущую
+                return new Set<GroupId>();
+            }
+            // открываем только эту, все остальные закрываем
+            return new Set<GroupId>([groupId]);
         });
     };
 
@@ -64,14 +67,11 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
         getUnreadCount(accessToken).then(r => setUnreadMessages(r.totalUnread)).catch(() => {});
     }, [accessToken]);
 
-    // Автоматически раскрываем группу при смене активного раздела
+    // При смене активного раздела — раскрываем только его группу (accordion)
     useEffect(() => {
         const group = SECTION_GROUP[active];
         if (group) {
-            setExpandedGroups(prev => {
-                if (prev.has(group)) return prev;
-                return new Set([...prev, group]);
-            });
+            setExpandedGroups(new Set<GroupId>([group]));
         }
     }, [active]);
 
@@ -665,7 +665,7 @@ function SidebarGroup({ id: _id, label, expanded, onToggle, hasActive, badge, ic
     return (
         <div className={`sidebar-group${expanded ? ' expanded' : ''}${hasActive && !expanded ? ' has-active' : ''}`}>
             <button
-                className={`sidebar-item sidebar-group-header${hasActive && !expanded ? ' active' : ''}`}
+                className={`sidebar-item sidebar-group-header${hasActive ? ' group-active' : ''}`}
                 onClick={onToggle}
                 title={label}
                 aria-label={label}

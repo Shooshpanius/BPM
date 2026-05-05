@@ -61,6 +61,18 @@
     color: var(--accent);
 }
 
+/* Активный пункт навигации — зеленоватый оттенок */
+.sidebar-group-children .sidebar-item.active {
+    color: #3a9e6a;
+    background: rgba(58, 158, 106, 0.10);
+}
+
+/* Заголовок группы, содержащей активный раздел — синеватый оттенок */
+.sidebar-group-header.group-active {
+    color: #4a7fc1;
+    background: rgba(74, 127, 193, 0.10);
+}
+
 .sidebar-icon {
     width: 22px;
     height: 22px;
