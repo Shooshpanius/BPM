@@ -269,7 +269,7 @@ function getDefaultSubject(eventType: string) {
   return map[eventType] ?? eventType;
 }
 
-function getDefaultTemplate(eventType: string): string {
+function getDefaultTemplate(_eventType: string): string {
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"/></head>

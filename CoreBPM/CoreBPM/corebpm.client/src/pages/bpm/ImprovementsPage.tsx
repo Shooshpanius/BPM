@@ -118,7 +118,7 @@ export function ImprovementsPage() {
     useEffect(() => {
         if (!acceptItem || !token) return;
         getDirectoryEmployees(token, {})
-            .then(setEmployees)
+            .then(data => setEmployees(data.items))
             .catch(() => setEmployees([]));
     }, [acceptItem, token]);
 

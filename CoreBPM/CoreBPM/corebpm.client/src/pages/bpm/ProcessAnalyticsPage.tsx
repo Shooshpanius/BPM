@@ -69,7 +69,7 @@ export function ProcessAnalyticsPage({ processId, processName, onBack }: Props) 
         if (!token) return;
         bpmApi.getProcessVersions(token, processId)
             .then(vs => {
-                const published = vs.filter(v => v.status === 'Published');
+                const published = vs.filter(v => v.status === 'Active');
                 setVersions(published);
                 if (published.length >= 2) {
                     setCompareVAId(published[published.length - 2].id);
@@ -621,7 +621,7 @@ function TrendLineChart({ points, color }: { points: TrendPoint[]; color: string
                 </circle>
             ))}
             {/* Подписи X */}
-            {points.filter((_, i) => points.length <= 10 || i % Math.ceil(points.length / 10) === 0).map((p, _, arr) => {
+            {points.filter((_, i) => points.length <= 10 || i % Math.ceil(points.length / 10) === 0).map((p, _i, _arr) => {
                 const origIdx = points.indexOf(p);
                 return (
                     <text key={origIdx} x={cx(origIdx)} y={H - 2}

@@ -74,7 +74,7 @@ function TaskKindIcon({ kind, scheduledAt, openQuestionCount }: { kind: string; 
 
 /** Страница списка задач (FR-TASK-01.1, FR-TASK-02.2, FR-TASK-02.3). */
 export function TasksPage({ onOpenTask }: TasksPageProps) {
-    const { accessToken: token, userId } = useAuth();
+    const { accessToken: token } = useAuth();
 
     const [group, setGroup] = useState<GroupId>('incoming');
     // ─── Быстрые sub-фильтры внутри группы (FR-TASK-02.2)
@@ -205,14 +205,14 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
     useEffect(() => {
         if (!token || employees.length > 0) return;
         if (showAdvanced) {
-            getDirectoryEmployees(token, {}).then(setEmployees).catch(() => { /* игнорируем */ });
+            getDirectoryEmployees(token, {}).then(data => setEmployees(data.items)).catch(() => { /* игнорируем */ });
         }
     }, [token, showAdvanced, employees.length]);
 
     const handleOpenCreate = async () => {
         setShowCreate(true);
         if (employees.length === 0 && token) {
-            try { setEmployees(await getDirectoryEmployees(token, {})); } catch { /* игнорируем */ }
+            try { setEmployees((await getDirectoryEmployees(token, {})).items); } catch { /* игнорируем */ }
         }
     };
 

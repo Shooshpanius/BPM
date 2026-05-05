@@ -181,7 +181,7 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
 
     const loadEmployees = useCallback(async () => {
         if (employees.length === 0 && token) {
-            try { setEmployees(await getDirectoryEmployees(token, {})); } catch { /* игнорируем */ }
+            try { setEmployees((await getDirectoryEmployees(token, {})).items); } catch { /* игнорируем */ }
         }
     }, [employees.length, token]);
 

@@ -4,7 +4,7 @@ import {
     listTasks, createPeriodicTask, getSeriesItems, stopSeries,
     TASK_STATUS_LABELS,
 } from '../../api/tasksApi';
-import type { TaskSummaryDto, TaskDto, PeriodicSeriesItemDto, CreatePeriodicTaskRequest } from '../../api/tasksApi';
+import type { TaskSummaryDto, PeriodicSeriesItemDto, CreatePeriodicTaskRequest } from '../../api/tasksApi';
 import { getDirectoryEmployees } from '../../api/orgDirectoryApi';
 import type { DirectoryEmployeeDto } from '../../api/orgDirectoryApi';
 
@@ -195,7 +195,6 @@ export function PeriodicTasksPage({ onOpenTask }: PeriodicTasksPageProps) {
                                     style={{
                                         display: 'flex', alignItems: 'center', padding: '8px 0',
                                         borderBottom: '1px solid #f5f5f5', cursor: 'pointer',
-                                        ':hover': { background: '#fafafa' } as any,
                                     }}>
                                     <span style={{ color: '#888', fontSize: '12px', minWidth: '50px' }}>T-{item.number}</span>
                                     <span style={{ flex: 1, fontSize: '14px' }}>{item.subject}</span>
@@ -266,7 +265,7 @@ function CreatePeriodicTaskDialog({ token, userId, onClose, onCreated }: CreateP
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        getDirectoryEmployees(token, {}).then(setEmployees).catch(() => {});
+        getDirectoryEmployees(token, {}).then(data => setEmployees(data.items)).catch(() => {});
     }, [token]);
 
     const handleSubmit = async () => {
