@@ -177,47 +177,6 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                 oldType: "boolean",
                 oldDefaultValue: false);
 
-            migrationBuilder.AddColumn<string>(
-                name: "bio",
-                table: "org_users",
-                type: "character varying(2000)",
-                maxLength: 2000,
-                nullable: true);
-
-            migrationBuilder.AddColumn<DateOnly>(
-                name: "birth_date",
-                table: "org_users",
-                type: "date",
-                nullable: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "birth_date_visibility",
-                table: "org_users",
-                type: "character varying(20)",
-                maxLength: 20,
-                nullable: false,
-                defaultValue: "all");
-
-            migrationBuilder.AddColumn<string>(
-                name: "internal_phone",
-                table: "org_users",
-                type: "character varying(50)",
-                maxLength: 50,
-                nullable: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "mobile_phone",
-                table: "org_users",
-                type: "character varying(50)",
-                maxLength: 50,
-                nullable: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "personal_email",
-                table: "org_users",
-                type: "character varying(320)",
-                maxLength: 320,
-                nullable: true);
 
             migrationBuilder.AlterColumn<int>(
                 name: "start_hour",
@@ -1052,29 +1011,6 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                 name: "pk_admin_email_templates",
                 table: "admin_email_templates");
 
-            migrationBuilder.DropColumn(
-                name: "bio",
-                table: "org_users");
-
-            migrationBuilder.DropColumn(
-                name: "birth_date",
-                table: "org_users");
-
-            migrationBuilder.DropColumn(
-                name: "birth_date_visibility",
-                table: "org_users");
-
-            migrationBuilder.DropColumn(
-                name: "internal_phone",
-                table: "org_users");
-
-            migrationBuilder.DropColumn(
-                name: "mobile_phone",
-                table: "org_users");
-
-            migrationBuilder.DropColumn(
-                name: "personal_email",
-                table: "org_users");
 
             migrationBuilder.RenameColumn(
                 name: "p256dh",
