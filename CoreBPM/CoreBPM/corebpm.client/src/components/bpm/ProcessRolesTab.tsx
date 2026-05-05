@@ -88,7 +88,7 @@ export function ProcessRolesTab({ processId, token }: Props) {
             try {
                 if (searchMode === 'User') {
                     const emps = await getDirectoryEmployees(token, { search: searchQuery });
-                    setSearchResults(emps.map(empToResult));
+                    setSearchResults(emps.items.map(empToResult));
                 } else {
                     const positions = await getPositions(token, undefined, 'Active');
                     const q = searchQuery.toLowerCase();

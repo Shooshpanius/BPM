@@ -1195,7 +1195,7 @@ function UserSearch({ token, value, onSelect, placeholder }: UserSearchProps) {
         timerRef.current = setTimeout(async () => {
             try {
                 const emps = await getDirectoryEmployees(token, { search: query });
-                setResults(emps.map(e => ({ id: e.userId, name: e.displayName })));
+                setResults(emps.items.map(e => ({ id: e.userId, name: e.displayName })));
                 setOpen(true);
             } catch { setResults([]); }
         }, 300);

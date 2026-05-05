@@ -6,6 +6,9 @@ declare module 'bpmn-js/lib/Modeler' {
     interface SaveXMLResult {
         xml: string;
     }
+    interface SaveSVGResult {
+        svg: string;
+    }
     interface BpmnModelerOptions {
         container: HTMLElement;
         additionalModules?: unknown[];
@@ -16,6 +19,7 @@ declare module 'bpmn-js/lib/Modeler' {
         constructor(options: BpmnModelerOptions);
         importXML(xml: string): Promise<ImportXMLResult>;
         saveXML(options?: { format?: boolean }): Promise<SaveXMLResult>;
+        saveSVG(): Promise<SaveSVGResult>;
         get<T = unknown>(name: string): T;
         on(event: string, callback: (e: unknown) => void): void;
         off(event: string, callback?: (e: unknown) => void): void;
