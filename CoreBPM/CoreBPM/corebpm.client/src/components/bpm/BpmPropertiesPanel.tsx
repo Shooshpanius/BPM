@@ -246,7 +246,8 @@ export function BpmPropertiesPanel({ modeler, processId, token }: Props) {
                     return <ServiceTaskTab processId={processId} token={token} elementId={elId} />;
                 }
                 if (elType === 'bpmn:SendTask' || elType === 'bpmn:ReceiveTask') {
-                    const ext = bo?.extensionElements?.values?.[0];
+                    const extEl = bo?.extensionElements as { values?: Record<string, string>[] } | undefined;
+                    const ext = extEl?.values?.[0];
                     return (
                         <SendReceiveTaskTab
                             taskType={elType as 'bpmn:SendTask' | 'bpmn:ReceiveTask'}
@@ -255,7 +256,9 @@ export function BpmPropertiesPanel({ modeler, processId, token }: Props) {
                             messageBody={ext?.messageBody ?? ''}
                             timeoutSeconds={parseInt(ext?.timeoutSeconds ?? '0', 10)}
                             onChange={(field, value) => {
-                                const modeling = modeler?.get?.('modeling');
+                                const modeling = modeler?.get?.('modeling') as
+                                    | { updateModdleProperties: (el: unknown, obj: unknown, props: Record<string, unknown>) => void }
+                                    | undefined;
                                 if (modeling) {
                                     modeling.updateModdleProperties(selectedElement, ext ?? bo, { [field]: String(value) });
                                 }
