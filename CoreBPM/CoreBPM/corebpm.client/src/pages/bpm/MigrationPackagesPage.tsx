@@ -10,6 +10,7 @@ import {
     type CreateMigrationPackageRequest,
 } from '../../api/migrationApi';
 import { getProcesses, getInstances, getProcessVersions, type BpmProcessListItemDto, type BpmInstanceListItemDto } from '../../api/bpmApi';
+import { useModalShake } from '../../hooks/useModalShake';
 import './MigrationPackagesPage.css';
 
 // ─── Вспомогательные утилиты ─────────────────────────────────────────────────
@@ -70,6 +71,7 @@ function CreateMigrationDialog({ token, onCreated, onClose }: CreateDialogProps)
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [scheduledAt, setScheduledAt] = useState('');
+    const { shaking, shake } = useModalShake();
 
     useEffect(() => {
         // Получаем список процессов (используем пустой organizationId — сервер вернёт все доступные)
@@ -126,11 +128,11 @@ function CreateMigrationDialog({ token, onCreated, onClose }: CreateDialogProps)
     };
 
     return (
-        <div className="mp-dialog-overlay" onClick={onClose}>
+        <div className="mp-dialog-overlay" onClick={(e) => { if (e.target === e.currentTarget) shake(); }}>
             <div className="mp-dialog" onClick={e => e.stopPropagation()}>
                 <div className="mp-dialog-header">
                     <h2 className="mp-dialog-title">Создание пакета миграции</h2>
-                    <button className="mp-dialog-close" onClick={onClose} aria-label="Закрыть">✕</button>
+                    <button className={`mp-dialog-close${shaking ? ' btn-flash' : ''}`} onClick={onClose} aria-label="Закрыть">✕</button>
                 </div>
 
                 {/* Шаг 1: Наименование и выбор процесса */}
@@ -156,7 +158,7 @@ function CreateMigrationDialog({ token, onCreated, onClose }: CreateDialogProps)
                         </select>
                         {error && <p className="mp-dialog-error">{error}</p>}
                         <div className="mp-dialog-actions">
-                            <button className="mp-btn mp-btn--secondary" onClick={onClose}>Отмена</button>
+                            <button className={`mp-btn mp-btn--secondary${shaking ? ' btn-flash' : ''}`} onClick={onClose}>Отмена</button>
                             <button
                                 className="mp-btn mp-btn--primary"
                                 onClick={() => { if (!name.trim() || !selectedProcessId) { setError('Заполните наименование и выберите процесс'); return; } setError(null); setStep(2); }}
@@ -222,7 +224,7 @@ function CreateMigrationDialog({ token, onCreated, onClose }: CreateDialogProps)
                         {error && <p className="mp-dialog-error">{error}</p>}
                         <div className="mp-dialog-actions">
                             <button className="mp-btn mp-btn--secondary" onClick={() => { setError(null); setStep(2); }}>← Назад</button>
-                            <button className="mp-btn mp-btn--primary" onClick={handleCreate} disabled={saving}>
+                            <button className={`mp-btn mp-btn--primary${shaking ? ' btn-flash' : ''}`} onClick={handleCreate} disabled={saving}>
                                 {saving ? 'Создание...' : 'Создать пакет'}
                             </button>
                         </div>

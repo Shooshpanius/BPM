@@ -1,4 +1,5 @@
 import type { DirectoryEmployeeDto } from '../api/orgDirectoryApi';
+import { useModalShake } from '../hooks/useModalShake';
 import './EmployeeCardModal.css';
 
 interface EmployeeCardModalProps {
@@ -8,18 +9,15 @@ interface EmployeeCardModalProps {
 
 /** Модальное окно — карточка сотрудника (FR-ORG-04.2). */
 export function EmployeeCardModal({ employee, onClose }: EmployeeCardModalProps) {
+    const { shaking, shake } = useModalShake();
     const initials = (
         (employee.firstName?.[0] ?? '') + (employee.lastName?.[0] ?? '')
     ).toUpperCase() || employee.displayName[0].toUpperCase();
 
-    const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
-        if (e.target === e.currentTarget) onClose();
-    };
-
     return (
-        <div className="ecm-backdrop" onClick={handleBackdropClick} role="dialog" aria-modal="true">
+        <div className="ecm-backdrop" onClick={(e) => { if (e.target === e.currentTarget) shake(); }} role="dialog" aria-modal="true">
             <div className="ecm-modal">
-                <button className="ecm-close" onClick={onClose} aria-label="Закрыть">✕</button>
+                <button className={`ecm-close${shaking ? ' btn-flash' : ''}`} onClick={onClose} aria-label="Закрыть">✕</button>
 
                 <div className="ecm-avatar">
                     {employee.avatarUrl

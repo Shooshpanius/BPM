@@ -22,6 +22,7 @@ import type {
     UpdateAssignmentRequest,
 } from '../../api/adminApi';
 import './AdminPage.css';
+import { useModalShake } from '../../hooks/useModalShake';
 
 type Tab = 'organizations' | 'positions' | 'assignments' | 'users';
 
@@ -40,14 +41,15 @@ interface ConfirmModalProps {
 }
 
 function ConfirmModal({ message, onConfirm, onCancel }: ConfirmModalProps) {
+    const { shaking, shake } = useModalShake();
     return (
-        <div className="modal-overlay" onClick={onCancel}>
+        <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) shake(); }}>
             <div className="modal" style={{ width: 380 }} onClick={e => e.stopPropagation()}>
                 <h3>Подтверждение</h3>
                 <p style={{ margin: '0 0 20px', color: '#374151', fontSize: '0.9rem' }}>{message}</p>
                 <div className="modal-actions">
-                    <button className="btn-secondary" onClick={onCancel}>Отмена</button>
-                    <button className="btn-danger" onClick={onConfirm}>Подтвердить</button>
+                    <button className={`btn-secondary${shaking ? ' btn-flash' : ''}`} onClick={onCancel}>Отмена</button>
+                    <button className={`btn-danger${shaking ? ' btn-flash' : ''}`} onClick={onConfirm}>Подтвердить</button>
                 </div>
             </div>
         </div>
@@ -258,6 +260,7 @@ function OrganizationFormModal({ org, token, onClose, onSaved }: OrgFormProps) {
     const [isActive, setIsActive] = useState(org?.isActive ?? true);
     const [error, setError] = useState('');
     const [saving, setSaving] = useState(false);
+    const { shaking, shake } = useModalShake();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -281,7 +284,7 @@ function OrganizationFormModal({ org, token, onClose, onSaved }: OrgFormProps) {
     };
 
     return (
-        <div className="modal-overlay" onClick={onClose}>
+        <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) shake(); }}>
             <div className="modal" onClick={e => e.stopPropagation()}>
                 <h3>{org ? 'Редактировать организацию' : 'Создать организацию'}</h3>
                 {error && <div className="error-msg">{error}</div>}
@@ -307,8 +310,8 @@ function OrganizationFormModal({ org, token, onClose, onSaved }: OrgFormProps) {
                         </label>
                     </div>
                     <div className="modal-actions">
-                        <button type="button" className="btn-secondary" onClick={onClose}>Отмена</button>
-                        <button type="submit" className="btn-primary" disabled={saving}>
+                        <button type="button" className={`btn-secondary${shaking ? ' btn-flash' : ''}`} onClick={onClose}>Отмена</button>
+                        <button type="submit" className={`btn-primary${shaking ? ' btn-flash' : ''}`} disabled={saving}>
                             {saving ? 'Сохранение…' : 'Сохранить'}
                         </button>
                     </div>
@@ -1058,6 +1061,8 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
 
     useEffect(() => { load(); }, [load]);
 
+    const { shaking: empShaking, shake: empShake } = useModalShake();
+
     const openEdit = (emp: EmployeeDto) => {
         setEditEmployee(emp);
         setEditIsActive(emp.isActive);
@@ -1116,7 +1121,7 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
     const availableOrgs = orgs.filter(o => !employees.some(e => e.organizationId === o.id));
 
     return (
-        <div className="modal-overlay" onClick={onClose}>
+        <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) empShake(); }}>
             <div className="modal" style={{ width: 560 }} onClick={e => e.stopPropagation()}>
                 <h3>Сотрудник: {userName}</h3>
                 {error && <div className="error-msg">{error}</div>}
@@ -1184,8 +1189,8 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
                                         </label>
                                     </div>
                                     <div className="modal-actions">
-                                        <button type="button" className="btn-secondary" onClick={() => setEditEmployee(null)}>Отмена</button>
-                                        <button type="submit" className="btn-primary" disabled={saving}>
+                                        <button type="button" className={`btn-secondary${empShaking ? ' btn-flash' : ''}`} onClick={() => setEditEmployee(null)}>Отмена</button>
+                                        <button type="submit" className={`btn-primary${empShaking ? ' btn-flash' : ''}`} disabled={saving}>
                                             {saving ? 'Сохранение…' : 'Сохранить'}
                                         </button>
                                     </div>
@@ -1211,8 +1216,8 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
                                         </select>
                                     </div>
                                     <div className="modal-actions">
-                                        <button type="button" className="btn-secondary" onClick={onClose}>Закрыть</button>
-                                        <button type="submit" className="btn-primary" disabled={adding}>
+                                        <button type="button" className={`btn-secondary${empShaking ? ' btn-flash' : ''}`} onClick={onClose}>Закрыть</button>
+                                        <button type="submit" className={`btn-primary${empShaking ? ' btn-flash' : ''}`} disabled={adding}>
                                             {adding ? 'Добавление…' : 'Добавить'}
                                         </button>
                                     </div>
@@ -1222,7 +1227,7 @@ function EmployeeModal({ userId, userName, token, onClose }: EmployeeModalProps)
 
                         {!editEmployee && availableOrgs.length === 0 && (
                             <div className="modal-actions">
-                                <button className="btn-secondary" onClick={onClose}>Закрыть</button>
+                                <button className={`btn-secondary${empShaking ? ' btn-flash' : ''}`} onClick={onClose}>Закрыть</button>
                             </div>
                         )}
                     </>
@@ -1539,9 +1544,10 @@ function AssignmentFormModal({ assignment, organizationId, token, onClose, onSav
     };
 
     const isEdit = !!assignment;
+    const { shaking: asgShaking, shake: asgShake } = useModalShake();
 
     return (
-        <div className="modal-overlay" onClick={onClose}>
+        <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) asgShake(); }}>
             <div className="modal" onClick={e => e.stopPropagation()}>
                 <h3>{isEdit ? 'Изменить назначение' : 'Назначить на должность'}</h3>
                 {error && <div className="error-msg">{error}</div>}
@@ -1623,8 +1629,8 @@ function AssignmentFormModal({ assignment, organizationId, token, onClose, onSav
                             />
                         </div>
                         <div className="modal-actions">
-                            <button type="button" className="btn-secondary" onClick={onClose}>Отмена</button>
-                            <button type="submit" className="btn-primary" disabled={saving}>
+                            <button type="button" className={`btn-secondary${asgShaking ? ' btn-flash' : ''}`} onClick={onClose}>Отмена</button>
+                            <button type="submit" className={`btn-primary${asgShaking ? ' btn-flash' : ''}`} disabled={saving}>
                                 {saving ? 'Сохранение…' : 'Сохранить'}
                             </button>
                         </div>

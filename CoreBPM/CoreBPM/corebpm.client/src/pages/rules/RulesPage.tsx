@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import * as api from '../../api/rulesApi';
 import type { DmnTableListItemDto, DmnHitPolicy } from '../../api/rulesApi';
@@ -43,6 +43,15 @@ export function RulesPage({ onOpenEditor }: RulesPageProps) {
     // Подтверждение удаления
     const [deleteId, setDeleteId] = useState<string | null>(null);
     const [deleting, setDeleting] = useState(false);
+
+    const [shakeTarget, setShakeTarget] = useState<string | null>(null);
+    const shakeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const triggerShake = (target: string) => {
+        if (shakeTimerRef.current) clearTimeout(shakeTimerRef.current);
+        setShakeTarget(target);
+        shakeTimerRef.current = setTimeout(() => setShakeTarget(null), 900);
+    };
+    const sc = (target: string) => shakeTarget === target ? ' btn-flash' : '';
 
     const loadTables = useCallback(async () => {
         if (!token) return;
@@ -204,7 +213,7 @@ export function RulesPage({ onOpenEditor }: RulesPageProps) {
 
             {/* Модальное окно создания/редактирования */}
             {showForm && (
-                <div className="rp-modal-overlay" onClick={() => setShowForm(false)}>
+                <div className="rp-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) triggerShake('form'); }}>
                     <div className="rp-modal" onClick={e => e.stopPropagation()}>
                         <h2 className="rp-modal-title">
                             {editTable ? 'Редактировать таблицу' : 'Новая таблица правил'}
@@ -243,10 +252,10 @@ export function RulesPage({ onOpenEditor }: RulesPageProps) {
                             </select>
                         </div>
                         <div className="rp-modal-actions">
-                            <button className="rp-btn-secondary" onClick={() => setShowForm(false)} disabled={saving}>
+                            <button className={`rp-btn-secondary${sc('form')}`} onClick={() => setShowForm(false)} disabled={saving}>
                                 Отмена
                             </button>
-                            <button className="rp-btn-primary" onClick={handleSave} disabled={saving}>
+                            <button className={`rp-btn-primary${sc('form')}`} onClick={handleSave} disabled={saving}>
                                 {saving ? 'Сохранение…' : 'Сохранить'}
                             </button>
                         </div>
@@ -256,17 +265,17 @@ export function RulesPage({ onOpenEditor }: RulesPageProps) {
 
             {/* Подтверждение удаления */}
             {deleteId && (
-                <div className="rp-modal-overlay" onClick={() => setDeleteId(null)}>
+                <div className="rp-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) triggerShake('delete'); }}>
                     <div className="rp-modal rp-modal--confirm" onClick={e => e.stopPropagation()}>
                         <h2 className="rp-modal-title">Удалить таблицу?</h2>
                         <p className="rp-modal-text">
                             Это действие необратимо. Таблица с опубликованными версиями не может быть удалена.
                         </p>
                         <div className="rp-modal-actions">
-                            <button className="rp-btn-secondary" onClick={() => setDeleteId(null)} disabled={deleting}>
+                            <button className={`rp-btn-secondary${sc('delete')}`} onClick={() => setDeleteId(null)} disabled={deleting}>
                                 Отмена
                             </button>
-                            <button className="rp-btn-danger" onClick={handleDelete} disabled={deleting}>
+                            <button className={`rp-btn-danger${sc('delete')}`} onClick={handleDelete} disabled={deleting}>
                                 {deleting ? 'Удаление…' : 'Удалить'}
                             </button>
                         </div>

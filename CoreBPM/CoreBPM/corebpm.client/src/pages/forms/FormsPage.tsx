@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import * as api from '../../api/formsApi';
 import type { FormListItemDto } from '../../api/formsApi';
@@ -34,6 +34,15 @@ export function FormsPage({ onOpenBuilder }: FormsPageProps) {
     // Подтверждение удаления
     const [deleteId, setDeleteId] = useState<string | null>(null);
     const [deleting, setDeleting] = useState(false);
+
+    const [shakeTarget, setShakeTarget] = useState<string | null>(null);
+    const shakeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const triggerShake = (target: string) => {
+        if (shakeTimerRef.current) clearTimeout(shakeTimerRef.current);
+        setShakeTarget(target);
+        shakeTimerRef.current = setTimeout(() => setShakeTarget(null), 900);
+    };
+    const sc = (target: string) => shakeTarget === target ? ' btn-flash' : '';
 
     const loadForms = useCallback(async () => {
         if (!token) return;
@@ -215,7 +224,7 @@ export function FormsPage({ onOpenBuilder }: FormsPageProps) {
 
             {/* Модальное окно создания/редактирования */}
             {showForm && (
-                <div className="fp-modal-overlay" onClick={() => setShowForm(false)}>
+                <div className="fp-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) triggerShake('form'); }}>
                     <div className="fp-modal" onClick={e => e.stopPropagation()}>
                         <h2 className="fp-modal-title">
                             {editForm ? 'Редактировать форму' : 'Новая форма задачи'}
@@ -242,10 +251,10 @@ export function FormsPage({ onOpenBuilder }: FormsPageProps) {
                             />
                         </div>
                         <div className="fp-modal-actions">
-                            <button className="fp-btn-secondary" onClick={() => setShowForm(false)} disabled={saving}>
+                            <button className={`fp-btn-secondary${sc('form')}`} onClick={() => setShowForm(false)} disabled={saving}>
                                 Отмена
                             </button>
-                            <button className="fp-btn-primary" onClick={handleSave} disabled={saving}>
+                            <button className={`fp-btn-primary${sc('form')}`} onClick={handleSave} disabled={saving}>
                                 {saving ? 'Сохранение…' : editForm ? 'Сохранить' : 'Создать и открыть'}
                             </button>
                         </div>
@@ -255,17 +264,17 @@ export function FormsPage({ onOpenBuilder }: FormsPageProps) {
 
             {/* Подтверждение удаления */}
             {deleteId && (
-                <div className="fp-modal-overlay" onClick={() => setDeleteId(null)}>
+                <div className="fp-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) triggerShake('delete'); }}>
                     <div className="fp-modal fp-modal--confirm" onClick={e => e.stopPropagation()}>
                         <h2 className="fp-modal-title">Удалить форму?</h2>
                         <p className="fp-modal-text">
                             Это действие необратимо. Форма с опубликованными версиями не может быть удалена.
                         </p>
                         <div className="fp-modal-actions">
-                            <button className="fp-btn-secondary" onClick={() => setDeleteId(null)} disabled={deleting}>
+                            <button className={`fp-btn-secondary${sc('delete')}`} onClick={() => setDeleteId(null)} disabled={deleting}>
                                 Отмена
                             </button>
-                            <button className="fp-btn-danger" onClick={handleDelete} disabled={deleting}>
+                            <button className={`fp-btn-danger${sc('delete')}`} onClick={handleDelete} disabled={deleting}>
                                 {deleting ? 'Удаление…' : 'Удалить'}
                             </button>
                         </div>

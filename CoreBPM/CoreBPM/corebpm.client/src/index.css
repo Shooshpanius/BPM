@@ -107,3 +107,15 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+/* ── Анимация подсветки кнопок при клике мимо модального окна ── */
+@keyframes btn-flash-anim {
+    0%   { box-shadow: none; transform: scale(1); }
+    25%  { box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.55); transform: scale(1.04); }
+    75%  { box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.55); transform: scale(1.04); }
+    100% { box-shadow: none; transform: scale(1); }
+}
+
+.btn-flash {
+    animation: btn-flash-anim 0.9s ease forwards;
+}

@@ -12,6 +12,7 @@ import {
     type MigrationPackageStatus,
     type ManualMigrateItemRequest,
 } from '../../api/migrationApi';
+import { useModalShake } from '../../hooks/useModalShake';
 import './MigrationPackageDetailPage.css';
 
 // ─── Вспомогательные утилиты ─────────────────────────────────────────────────
@@ -87,6 +88,7 @@ function ManualMigrateDialog({ item, onSave, onClose }: ManualDialogProps) {
     const [url, setUrl] = useState(item.manualChangeUrl ?? '');
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const { shaking, shake } = useModalShake();
 
     const handleSave = async () => {
         setSaving(true);
@@ -102,11 +104,11 @@ function ManualMigrateDialog({ item, onSave, onClose }: ManualDialogProps) {
     };
 
     return (
-        <div className="mpd-dialog-overlay" onClick={onClose}>
+        <div className="mpd-dialog-overlay" onClick={(e) => { if (e.target === e.currentTarget) shake(); }}>
             <div className="mpd-dialog" onClick={e => e.stopPropagation()}>
                 <div className="mpd-dialog-header">
                     <h2 className="mpd-dialog-title">Ручная обработка</h2>
-                    <button className="mpd-dialog-close" onClick={onClose} aria-label="Закрыть">✕</button>
+                    <button className={`mpd-dialog-close${shaking ? ' btn-flash' : ''}`} onClick={onClose} aria-label="Закрыть">✕</button>
                 </div>
                 <div className="mpd-dialog-body">
                     <p className="mpd-dialog-hint">
@@ -124,8 +126,8 @@ function ManualMigrateDialog({ item, onSave, onClose }: ManualDialogProps) {
                     />
                     {error && <p className="mpd-dialog-error">{error}</p>}
                     <div className="mpd-dialog-actions">
-                        <button className="mpd-btn mpd-btn--secondary" onClick={onClose}>Отмена</button>
-                        <button className="mpd-btn mpd-btn--primary" onClick={handleSave} disabled={saving}>
+                        <button className={`mpd-btn mpd-btn--secondary${shaking ? ' btn-flash' : ''}`} onClick={onClose}>Отмена</button>
+                        <button className={`mpd-btn mpd-btn--primary${shaking ? ' btn-flash' : ''}`} onClick={handleSave} disabled={saving}>
                             {saving ? 'Сохранение...' : 'Отметить как выполненное'}
                         </button>
                     </div>

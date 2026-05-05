@@ -8,6 +8,7 @@ import {
     type ChatSummaryDto, type MessageDto, type MessageSearchResultDto,
 } from '../../api/messagesApi';
 import { getDirectoryEmployees, type DirectoryEmployeeDto } from '../../api/orgDirectoryApi';
+import { useModalShake } from '../../hooks/useModalShake';
 
 interface MessagesPageProps {
     /** Открыть чат с конкретным пользователем (из адресной книги / задачи) */
@@ -41,6 +42,10 @@ export function MessagesPage({ openChatWithUserId }: MessagesPageProps) {
     const [forwardingMsg, setForwardingMsg] = useState<MessageDto | null>(null);
     const [forwardTargetChatId, setForwardTargetChatId] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    const { shaking: groupShaking, shake: groupShake } = useModalShake();
+    const { shaking: renameShaking, shake: renameShake } = useModalShake();
+    const { shaking: forwardShaking, shake: forwardShake } = useModalShake();
 
     const selectedChat = chats.find(c => c.id === selectedChatId);
 
@@ -507,8 +512,8 @@ export function MessagesPage({ openChatWithUserId }: MessagesPageProps) {
                 <div style={{
                     position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000,
                     display: 'flex', alignItems: 'center', justifyContent: 'center'
-                }}>
-                    <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 400, maxHeight: '70vh', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                }} onClick={(e) => { if (e.target === e.currentTarget) groupShake(); }}>
+                    <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 400, maxHeight: '70vh', display: 'flex', flexDirection: 'column', gap: 12 }} onClick={e => e.stopPropagation()}>
                         <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Новый групповой чат</h3>
                         <input
                             value={newGroupName}
@@ -535,8 +540,8 @@ export function MessagesPage({ openChatWithUserId }: MessagesPageProps) {
                             {allUsers.length === 0 && <div style={{ padding: 12, color: '#9ca3af', fontSize: 13 }}>Загрузка...</div>}
                         </div>
                         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                            <button onClick={() => setShowNewGroupDialog(false)} style={{ padding: '8px 16px', border: '1px solid #d1d5db', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 14 }}>Отмена</button>
-                            <button onClick={handleCreateGroup} disabled={!newGroupName.trim()} style={{ padding: '8px 16px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Создать</button>
+                            <button onClick={() => setShowNewGroupDialog(false)} className={groupShaking ? 'btn-flash' : undefined} style={{ padding: '8px 16px', border: '1px solid #d1d5db', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 14 }}>Отмена</button>
+                            <button onClick={handleCreateGroup} disabled={!newGroupName.trim()} className={groupShaking ? 'btn-flash' : undefined} style={{ padding: '8px 16px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Создать</button>
                         </div>
                     </div>
                 </div>
@@ -547,8 +552,8 @@ export function MessagesPage({ openChatWithUserId }: MessagesPageProps) {
                 <div style={{
                     position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000,
                     display: 'flex', alignItems: 'center', justifyContent: 'center'
-                }}>
-                    <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 360, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                }} onClick={(e) => { if (e.target === e.currentTarget) renameShake(); }}>
+                    <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 360, display: 'flex', flexDirection: 'column', gap: 12 }} onClick={e => e.stopPropagation()}>
                         <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Переименовать чат</h3>
                         <input
                             value={renameChatName}
@@ -559,8 +564,8 @@ export function MessagesPage({ openChatWithUserId }: MessagesPageProps) {
                             style={{ padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14 }}
                         />
                         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                            <button onClick={() => setShowRenameDialog(false)} style={{ padding: '8px 16px', border: '1px solid #d1d5db', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 14 }}>Отмена</button>
-                            <button onClick={handleRenameChat} disabled={!renameChatName.trim()} style={{ padding: '8px 16px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Сохранить</button>
+                            <button onClick={() => setShowRenameDialog(false)} className={renameShaking ? 'btn-flash' : undefined} style={{ padding: '8px 16px', border: '1px solid #d1d5db', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 14 }}>Отмена</button>
+                            <button onClick={handleRenameChat} disabled={!renameChatName.trim()} className={renameShaking ? 'btn-flash' : undefined} style={{ padding: '8px 16px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Сохранить</button>
                         </div>
                     </div>
                 </div>
@@ -571,8 +576,8 @@ export function MessagesPage({ openChatWithUserId }: MessagesPageProps) {
                 <div style={{
                     position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000,
                     display: 'flex', alignItems: 'center', justifyContent: 'center'
-                }}>
-                    <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 400, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                }} onClick={(e) => { if (e.target === e.currentTarget) forwardShake(); }}>
+                    <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 400, display: 'flex', flexDirection: 'column', gap: 12 }} onClick={e => e.stopPropagation()}>
                         <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Переслать сообщение</h3>
                         <div style={{ padding: '8px 12px', background: '#f3f4f6', borderRadius: 8, fontSize: 13, color: '#374151', maxHeight: 80, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {forwardingMsg.text.slice(0, 120)}{forwardingMsg.text.length > 120 ? '…' : ''}
@@ -597,8 +602,8 @@ export function MessagesPage({ openChatWithUserId }: MessagesPageProps) {
                             {chats.length <= 1 && <div style={{ padding: 12, color: '#9ca3af', fontSize: 13 }}>Нет других чатов</div>}
                         </div>
                         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                            <button onClick={() => { setForwardingMsg(null); setForwardTargetChatId(''); }} style={{ padding: '8px 16px', border: '1px solid #d1d5db', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 14 }}>Отмена</button>
-                            <button onClick={handleForwardMessage} disabled={!forwardTargetChatId} style={{ padding: '8px 16px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600, opacity: !forwardTargetChatId ? 0.5 : 1 }}>Переслать</button>
+                            <button onClick={() => { setForwardingMsg(null); setForwardTargetChatId(''); }} className={forwardShaking ? 'btn-flash' : undefined} style={{ padding: '8px 16px', border: '1px solid #d1d5db', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 14 }}>Отмена</button>
+                            <button onClick={handleForwardMessage} disabled={!forwardTargetChatId} className={forwardShaking ? 'btn-flash' : undefined} style={{ padding: '8px 16px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600, opacity: !forwardTargetChatId ? 0.5 : 1 }}>Переслать</button>
                         </div>
                     </div>
                 </div>

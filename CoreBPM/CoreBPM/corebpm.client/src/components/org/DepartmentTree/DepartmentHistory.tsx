@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { UnitHistoryDto } from '../../../api/unitsApi';
 import { getUnitHistory, CHANGE_TYPE_LABELS } from '../../../api/unitsApi';
+import { useModalShake } from '../../../hooks/useModalShake';
 import './DepartmentHistory.css';
 
 interface DepartmentHistoryProps {
@@ -29,6 +30,7 @@ export function DepartmentHistory({ unitId, unitName, token, onClose }: Departme
     const [items, setItems] = useState<UnitHistoryDto[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const { shaking, shake } = useModalShake();
 
     useEffect(() => {
         setLoading(true);
@@ -46,14 +48,14 @@ export function DepartmentHistory({ unitId, unitName, token, onClose }: Departme
     }, [onClose]);
 
     return (
-        <div className="hist-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+        <div className="hist-overlay" onClick={(e) => { if (e.target === e.currentTarget) shake(); }}>
             <div className="hist-panel" role="dialog" aria-modal="true" aria-label="История изменений">
                 <div className="hist-header">
                     <div>
                         <div className="hist-title">История изменений</div>
                         <div className="hist-subtitle">{unitName}</div>
                     </div>
-                    <button className="hist-close" onClick={onClose} aria-label="Закрыть">×</button>
+                    <button className={`hist-close${shaking ? ' btn-flash' : ''}`} onClick={onClose} aria-label="Закрыть">×</button>
                 </div>
 
                 <div className="hist-body">

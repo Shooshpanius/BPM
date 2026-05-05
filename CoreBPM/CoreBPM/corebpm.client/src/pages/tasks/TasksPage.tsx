@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import {
     listTasks, createTask, exportTasksCsv, exportTasksExcel, bulkVerifyTasks,
@@ -128,6 +128,16 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
     // ─── Выбор для массовых операций
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [bulkVerifyMsg, setBulkVerifyMsg] = useState<string | null>(null);
+
+    // ─── Подсветка кнопок при клике мимо модального окна
+    const [shakeTarget, setShakeTarget] = useState<string | null>(null);
+    const shakeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const triggerShake = (target: string) => {
+        if (shakeTimerRef.current) clearTimeout(shakeTimerRef.current);
+        setShakeTarget(target);
+        shakeTimerRef.current = setTimeout(() => setShakeTarget(null), 900);
+    };
+    const sc = (target: string) => shakeTarget === target ? ' btn-flash' : '';
 
     // ─── Форма создания задачи
     const [showCreate, setShowCreate] = useState(false);
@@ -742,7 +752,7 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
 
             {/* ── Диалог сохранения фильтра */}
             {showSaveFilter && (
-                <div className="tasks-page__overlay" onClick={() => setShowSaveFilter(false)}>
+                <div className="tasks-page__overlay" onClick={(e) => { if (e.target === e.currentTarget) triggerShake('saveFilter'); }}>
                     <div className="tasks-page__dialog" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
                         <h3 className="tasks-page__dialog-title">Сохранить фильтр</h3>
                         <label className="tasks-page__label">
@@ -757,13 +767,13 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
                         </label>
                         <div className="tasks-page__dialog-footer">
                             <button
-                                className="tasks-page__btn tasks-page__btn--primary"
+                                className={`tasks-page__btn tasks-page__btn--primary${sc('saveFilter')}`}
                                 onClick={handleSaveFilter}
                                 disabled={savingFilter || !newFilterName.trim()}
                             >
                                 {savingFilter ? 'Сохранение...' : 'Сохранить'}
                             </button>
-                            <button className="tasks-page__btn" onClick={() => setShowSaveFilter(false)}>Отмена</button>
+                            <button className={`tasks-page__btn${sc('saveFilter')}`} onClick={() => setShowSaveFilter(false)}>Отмена</button>
                         </div>
                     </div>
                 </div>
@@ -771,7 +781,7 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
 
             {/* ── Диалог создания задачи */}
             {showCreate && (
-                <div className="tasks-page__overlay" onClick={() => { setShowCreate(false); resetForm(); }}>
+                <div className="tasks-page__overlay" onClick={(e) => { if (e.target === e.currentTarget) triggerShake('create'); }}>
                     <div className="tasks-page__dialog" onClick={e => e.stopPropagation()}>
                         <h3 className="tasks-page__dialog-title">Создать задачу</h3>
 
@@ -832,10 +842,10 @@ export function TasksPage({ onOpenTask }: TasksPageProps) {
                         {saveError && <div className="tasks-page__error">{saveError}</div>}
 
                         <div className="tasks-page__dialog-footer">
-                            <button className="tasks-page__btn tasks-page__btn--primary" onClick={handleCreate} disabled={saving}>
+                            <button className={`tasks-page__btn tasks-page__btn--primary${sc('create')}`} onClick={handleCreate} disabled={saving}>
                                 {saving ? 'Сохранение...' : 'Сохранить'}
                             </button>
-                            <button className="tasks-page__btn" onClick={() => { setShowCreate(false); resetForm(); }}>Отмена</button>
+                            <button className={`tasks-page__btn${sc('create')}`} onClick={() => { setShowCreate(false); resetForm(); }}>Отмена</button>
                         </div>
                     </div>
                 </div>
