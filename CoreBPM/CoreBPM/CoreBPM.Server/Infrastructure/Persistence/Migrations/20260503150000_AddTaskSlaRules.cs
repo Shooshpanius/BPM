@@ -12,7 +12,7 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
-                name: "task_sla",
+                name: "task_sla_rules",
                 columns: table => new
                 {
                     id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -24,14 +24,14 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("pk_task_sla", x => x.id);
+                    table.PrimaryKey("pk_task_sla_rules", x => x.id);
                 });
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(name: "task_sla");
+            migrationBuilder.DropTable(name: "task_sla_rules");
         }
     }
 }
