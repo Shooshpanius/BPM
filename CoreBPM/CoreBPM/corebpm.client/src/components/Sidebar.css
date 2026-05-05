@@ -73,6 +73,17 @@
     background: rgba(74, 127, 193, 0.10);
 }
 
+/* Подписи заголовков групп — жирнее и светло-синий */
+.sidebar-group-header .sidebar-label {
+    font-weight: 600;
+    color: #8bb8d8;
+}
+
+/* Активная группа — подпись насыщеннее синяя */
+.sidebar-group-header.group-active .sidebar-label {
+    color: #3a78c9;
+}
+
 .sidebar-icon {
     width: 22px;
     height: 22px;

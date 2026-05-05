@@ -46,15 +46,32 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
         return initial ? new Set<GroupId>([initial]) : new Set<GroupId>();
     });
 
+    /** Первый пункт каждой группы с учётом ролей текущего пользователя */
+    const getGroupFirstItem = useCallback((groupId: GroupId): SidebarSection | null => {
+        switch (groupId) {
+            case 'tasks':         return 'tasks';
+            case 'communication': return 'messages';
+            case 'org':           return 'contacts';
+            case 'bpm':           return 'bpm-processes';
+            case 'admin':
+                if (canManageOrg) return 'org-structure';
+                if (hasRole('Admin')) return 'task-control-settings';
+                return null;
+            default:              return null;
+        }
+    }, [canManageOrg, hasRole]);
+
     const toggleGroup = (groupId: GroupId) => {
-        setExpandedGroups(prev => {
-            if (prev.has(groupId)) {
-                // закрываем текущую
-                return new Set<GroupId>();
-            }
-            // открываем только эту, все остальные закрываем
-            return new Set<GroupId>([groupId]);
-        });
+        if (expandedGroups.has(groupId)) {
+            // закрываем текущую
+            setExpandedGroups(new Set<GroupId>());
+        } else {
+            // открываем только эту, остальные закрываем
+            setExpandedGroups(new Set<GroupId>([groupId]));
+            // переходим на первый пункт группы
+            const firstItem = getGroupFirstItem(groupId);
+            if (firstItem) onSelect(firstItem);
+        }
     };
 
     const loadCounters = useCallback(() => {
