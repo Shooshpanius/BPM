@@ -10,7 +10,13 @@
     background: var(--bg);
     border-right: 1px solid var(--border);
     gap: 2px;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-width: none;
+}
+
+.sidebar::-webkit-scrollbar {
+    display: none;
 }
 
 /* На мобильных устройствах сайдбар скрывается (заменяется нижней навигацией) */
@@ -120,4 +126,45 @@
     padding: 0 3px;
     pointer-events: none;
     z-index: 1;
+}
+
+/* Коллапсируемые группы навигации */
+.sidebar-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+}
+
+.sidebar-group-header {
+    position: relative;
+}
+
+/* Треугольный индикатор раскрытия группы */
+.sidebar-group-chevron {
+    position: absolute;
+    bottom: 3px;
+    right: 4px;
+    width: 0;
+    height: 0;
+    border-left: 3px solid transparent;
+    border-right: 3px solid transparent;
+    border-top: 4px solid currentColor;
+    opacity: 0.4;
+    transition: transform 0.2s ease;
+}
+
+.sidebar-group.expanded > .sidebar-group-header .sidebar-group-chevron {
+    transform: rotate(180deg);
+}
+
+/* Контейнер дочерних пунктов группы */
+.sidebar-group-children {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    padding: 0 0 4px;
+    border-left: 2px solid var(--accent-bg, rgba(0,0,0,0.06));
+    margin-bottom: 2px;
 }
