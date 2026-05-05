@@ -64,6 +64,7 @@ public partial class AddNotificationThrottleAndStats : Migration
         migrationBuilder.InsertData(
             table: "admin_notification_log_settings",
             columns: ["id", "retention_days", "updated_at"],
+            columnTypes: ["integer", "integer", "timestamp with time zone"],
             values: [1, 90, DateTimeOffset.UtcNow]);
     }
 
