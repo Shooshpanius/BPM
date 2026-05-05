@@ -164,7 +164,24 @@
     flex-direction: column;
     align-items: center;
     width: 100%;
-    padding: 0 0 4px;
+    padding: 2px 0 4px;
     border-left: 2px solid var(--accent-bg, rgba(0,0,0,0.06));
     margin-bottom: 2px;
+}
+
+/* Иконки дочерних пунктов меньше иконок заголовков групп */
+.sidebar-group-children .sidebar-icon,
+.sidebar-group-children .sidebar-icon svg {
+    width: 18px;
+    height: 18px;
+}
+
+.sidebar-group-children .sidebar-item {
+    padding: 6px 0 5px;
+    opacity: 0.85;
+}
+
+.sidebar-group-children .sidebar-item:hover,
+.sidebar-group-children .sidebar-item.active {
+    opacity: 1;
 }

@@ -40,10 +40,10 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
     const [unreadMessages, setUnreadMessages] = useState(0);
     const { notifications, unreadCount: inboxUnread } = useBpmNotifications();
 
-    const [expandedGroups, setExpandedGroups] = useState<Set<GroupId>>(() => {
-        const initial = SECTION_GROUP[active as SidebarSection];
-        return initial ? new Set([initial]) : new Set<GroupId>();
-    });
+    // Все группы раскрыты по умолчанию — пользователь может сворачивать по одной независимо
+    const [expandedGroups, setExpandedGroups] = useState<Set<GroupId>>(
+        () => new Set<GroupId>(['tasks', 'communication', 'org', 'bpm', 'admin'])
+    );
 
     const toggleGroup = (groupId: GroupId) => {
         setExpandedGroups(prev => {
