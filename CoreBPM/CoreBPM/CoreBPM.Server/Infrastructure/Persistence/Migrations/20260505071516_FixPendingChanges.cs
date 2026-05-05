@@ -919,6 +919,16 @@ namespace CoreBPM.Server.Infrastructure.Persistence.Migrations
                 table: "portal_menu_items",
                 column: "sort_order");
 
+            // Удаляем старые FK с короткими именами, созданными вручную в AddChannelPostReactionsAndComments,
+            // перед тем как добавить FK с полными EF-именами.
+            migrationBuilder.DropForeignKey(
+                name: "fk_notify_post_comments_post",
+                table: "notify_post_comments");
+
+            migrationBuilder.DropForeignKey(
+                name: "fk_notify_post_reactions_post",
+                table: "notify_post_reactions");
+
             migrationBuilder.AddForeignKey(
                 name: "fk_notify_post_comments_notify_channel_posts_post_id",
                 table: "notify_post_comments",
