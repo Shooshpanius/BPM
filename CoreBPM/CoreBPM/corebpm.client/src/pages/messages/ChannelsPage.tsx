@@ -12,7 +12,6 @@ import {
     type ChannelSubscriberDto, type ChannelPinnedPostDto,
 } from '../../api/messagesApi';
 import { getDirectoryEmployees, type DirectoryEmployeeDto } from '../../api/orgDirectoryApi';
-import { useModalShake } from '../../hooks/useModalShake';
 
 /** Страница информационных каналов (FR-MSG-01.2). */
 export function ChannelsPage() {
