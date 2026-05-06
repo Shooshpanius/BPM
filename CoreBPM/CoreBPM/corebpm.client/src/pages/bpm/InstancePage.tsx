@@ -159,6 +159,16 @@ export function InstancePage({ instanceId, onBack, onOpenTask }: Props) {
     const [completeDialogVars, setCompleteDialogVars] = useState<Record<string, string>>({});
     const [processVarDefs, setProcessVarDefs] = useState<api.BpmProcessVariableDto[]>([]);
 
+    // ─── Подсветка кнопок при клике мимо модального окна ─────────────────────
+    const [shakeTarget, setShakeTarget] = useState<string | null>(null);
+    const shakeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const triggerShake = (target: string) => {
+        if (shakeTimerRef.current) clearTimeout(shakeTimerRef.current);
+        setShakeTarget(target);
+        shakeTimerRef.current = setTimeout(() => setShakeTarget(null), 900);
+    };
+    const sc = (target: string) => shakeTarget === target ? ' btn-flash' : '';
+
     const isActive = instance?.state === 'Active';
     const isSuspended = instance?.state === 'Suspended';
     const canManage = instance?.state !== 'Cancelled' && instance?.state !== 'Completed';
@@ -542,7 +552,7 @@ export function InstancePage({ instanceId, onBack, onOpenTask }: Props) {
 
             {/* Диалог прерывания */}
             {showCancel && (
-                <div className="inst-modal-overlay" onClick={() => setShowCancel(false)}>
+                <div className="inst-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) triggerShake('cancel'); }}>
                     <div className="inst-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
                         <h2 className="inst-modal-title">Прервать экземпляр</h2>
                         <div className="inst-modal-field">
@@ -560,8 +570,8 @@ export function InstancePage({ instanceId, onBack, onOpenTask }: Props) {
                         </div>
                         {cancelError && <div className="inst-error">{cancelError}</div>}
                         <div className="inst-modal-actions">
-                            <button className="inst-btn-secondary" onClick={() => setShowCancel(false)} disabled={cancelling}>Отмена</button>
-                            <button className="inst-btn-danger" onClick={handleCancel} disabled={cancelling || !cancelReason.trim()}>
+                            <button className={`inst-btn-secondary${sc('cancel')}`} onClick={() => setShowCancel(false)} disabled={cancelling}>Отмена</button>
+                            <button className={`inst-btn-danger${sc('cancel')}`} onClick={handleCancel} disabled={cancelling || !cancelReason.trim()}>
                                 {cancelling ? 'Прерывание…' : 'Прервать'}
                             </button>
                         </div>
@@ -571,7 +581,7 @@ export function InstancePage({ instanceId, onBack, onOpenTask }: Props) {
 
             {/* Диалог смены ответственного */}
             {showResponsible && (
-                <div className="inst-modal-overlay" onClick={() => setShowResponsible(false)}>
+                <div className="inst-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) triggerShake('responsible'); }}>
                     <div className="inst-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
                         <h2 className="inst-modal-title">Изменить ответственного</h2>
                         <div className="inst-modal-field">
@@ -586,9 +596,9 @@ export function InstancePage({ instanceId, onBack, onOpenTask }: Props) {
                             )}
                         </div>
                         <div className="inst-modal-actions">
-                            <button className="inst-btn-secondary" onClick={() => setShowResponsible(false)} disabled={responsibleSaving}>Отмена</button>
+                            <button className={`inst-btn-secondary${sc('responsible')}`} onClick={() => setShowResponsible(false)} disabled={responsibleSaving}>Отмена</button>
                             <button
-                                className="inst-btn-primary"
+                                className={`inst-btn-primary${sc('responsible')}`}
                                 onClick={handleChangeResponsible}
                                 disabled={responsibleSaving || !newResponsibleId}
                             >
@@ -601,7 +611,7 @@ export function InstancePage({ instanceId, onBack, onOpenTask }: Props) {
 
             {/* Диалог переключения версии */}
             {showSwitchVersion && (
-                <div className="inst-modal-overlay" onClick={() => setShowSwitchVersion(false)}>
+                <div className="inst-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) triggerShake('switchVersion'); }}>
                     <div className="inst-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
                         <h2 className="inst-modal-title">Переключить версию процесса</h2>
                         {versions.length === 0 ? (
@@ -634,12 +644,12 @@ export function InstancePage({ instanceId, onBack, onOpenTask }: Props) {
                         )}
                         {switchVersionError && <div className="inst-error">{switchVersionError}</div>}
                         <div className="inst-modal-actions">
-                            <button className="inst-btn-secondary" onClick={() => setShowSwitchVersion(false)} disabled={switchingVersion}>
+                            <button className={`inst-btn-secondary${sc('switchVersion')}`} onClick={() => setShowSwitchVersion(false)} disabled={switchingVersion}>
                                 Отмена
                             </button>
                             {versions.length > 0 && (
                                 <button
-                                    className="inst-btn-primary"
+                                    className={`inst-btn-primary${sc('switchVersion')}`}
                                     onClick={handleSwitchVersion}
                                     disabled={switchingVersion || !selectedVersionId}
                                 >
@@ -653,7 +663,7 @@ export function InstancePage({ instanceId, onBack, onOpenTask }: Props) {
 
             {/* Диалог завершения UserTask с выходными переменными */}
             {completeDialogElementId && (
-                <div className="inst-modal-overlay" onClick={handleCancelCompleteDialog}>
+                <div className="inst-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) triggerShake('completeDialog'); }}>
                     <div className="inst-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
                         <h2 className="inst-modal-title">Выполнить задачу</h2>
                         {processVarDefs.length === 0 ? (
@@ -682,14 +692,14 @@ export function InstancePage({ instanceId, onBack, onOpenTask }: Props) {
                         )}
                         <div className="inst-modal-actions">
                             <button
-                                className="inst-btn-secondary"
+                                className={`inst-btn-secondary${sc('completeDialog')}`}
                                 onClick={handleCancelCompleteDialog}
                                 disabled={completingToken === completeDialogElementId}
                             >
                                 Отмена
                             </button>
                             <button
-                                className="inst-btn-primary"
+                                className={`inst-btn-primary${sc('completeDialog')}`}
                                 onClick={handleConfirmCompleteToken}
                                 disabled={completingToken === completeDialogElementId}
                             >

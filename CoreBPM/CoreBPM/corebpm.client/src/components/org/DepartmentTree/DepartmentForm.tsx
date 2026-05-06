@@ -7,6 +7,7 @@ import {
     type UpdateUnitRequest,
     type DepartmentStatus,
 } from '../../../api/unitsApi';
+import { useModalShake } from '../../../hooks/useModalShake';
 import './DepartmentForm.css';
 
 interface DepartmentFormProps {
@@ -55,6 +56,7 @@ export function DepartmentForm({
     );
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const { shaking, shake } = useModalShake();
 
     // Плоский список узлов для выбора родителя (исключаем себя и своих потомков при редактировании)
     const editPathPrefix = editUnit ? `${editUnit.path}/` : null;
@@ -102,13 +104,13 @@ export function DepartmentForm({
     };
 
     return (
-        <div className="dept-form-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+        <div className="dept-form-overlay" onClick={(e) => { if (e.target === e.currentTarget) shake(); }}>
             <div className="dept-form-modal" role="dialog" aria-modal="true" aria-label={isEdit ? 'Редактировать подразделение' : 'Новое подразделение'}>
                 <div className="dept-form-header">
                     <h2 className="dept-form-title">
                         {isEdit ? 'Редактировать подразделение' : 'Новое подразделение'}
                     </h2>
-                    <button className="dept-form-close" onClick={onClose} aria-label="Закрыть">×</button>
+                    <button className={`dept-form-close${shaking ? ' btn-flash' : ''}`} onClick={onClose} aria-label="Закрыть">×</button>
                 </div>
 
                 <form className="dept-form-body" onSubmit={handleSubmit} noValidate>
@@ -199,10 +201,10 @@ export function DepartmentForm({
                     {error && <div className="dept-form-error">{error}</div>}
 
                     <div className="dept-form-footer">
-                        <button type="button" className="dept-form-btn dept-form-btn--secondary" onClick={onClose}>
+                        <button type="button" className={`dept-form-btn dept-form-btn--secondary${shaking ? ' btn-flash' : ''}`} onClick={onClose}>
                             Отмена
                         </button>
-                        <button type="submit" className="dept-form-btn dept-form-btn--primary" disabled={saving}>
+                        <button type="submit" className={`dept-form-btn dept-form-btn--primary${shaking ? ' btn-flash' : ''}`} disabled={saving}>
                             {saving ? 'Сохранение…' : 'Сохранить'}
                         </button>
                     </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import * as api from '../../api/bpmApi';
 import type { BpmProcessListItemDto } from '../../api/bpmApi';
@@ -55,6 +55,16 @@ export function ProcessesPage({ onOpenDesigner, onOpenMonitor }: ProcessesPagePr
 
     // Диалог предложения по улучшению
     const [improveProcess, setImproveProcess] = useState<BpmProcessListItemDto | null>(null);
+
+    // Подсветка кнопок при клике мимо модального окна
+    const [shakeTarget, setShakeTarget] = useState<string | null>(null);
+    const shakeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const triggerShake = (target: string) => {
+        if (shakeTimerRef.current) clearTimeout(shakeTimerRef.current);
+        setShakeTarget(target);
+        shakeTimerRef.current = setTimeout(() => setShakeTarget(null), 900);
+    };
+    const sc = (target: string) => shakeTarget === target ? ' btn-flash' : '';
 
     // Загрузка организаций
     useEffect(() => {
@@ -402,7 +412,7 @@ export function ProcessesPage({ onOpenDesigner, onOpenMonitor }: ProcessesPagePr
 
             {/* Диалог создания */}
             {showCreate && (
-                <div className="pp-modal-overlay" onClick={() => setShowCreate(false)}>
+                <div className="pp-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) triggerShake('create'); }}>
                     <div className="pp-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="pp-create-title">
                         <h2 id="pp-create-title" className="pp-modal-title">Новый бизнес-процесс</h2>
                         <div className="pp-modal-field">
@@ -453,11 +463,11 @@ export function ProcessesPage({ onOpenDesigner, onOpenMonitor }: ProcessesPagePr
                         </div>
                         {createError && <div className="pp-modal-error">{createError}</div>}
                         <div className="pp-modal-actions">
-                            <button className="pp-btn-secondary" onClick={() => setShowCreate(false)} disabled={creating}>
+                            <button className={`pp-btn-secondary${sc('create')}`} onClick={() => setShowCreate(false)} disabled={creating}>
                                 Отмена
                             </button>
                             <button
-                                className="pp-btn-primary"
+                                className={`pp-btn-primary${sc('create')}`}
                                 onClick={handleCreate}
                                 disabled={creating || !createName.trim()}
                             >
@@ -470,7 +480,7 @@ export function ProcessesPage({ onOpenDesigner, onOpenMonitor }: ProcessesPagePr
 
             {/* Диалог создания из шаблона */}
             {fromTemplateId && (
-                <div className="pp-modal-overlay" onClick={() => setFromTemplateId(null)}>
+                <div className="pp-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) triggerShake('fromTemplate'); }}>
                     <div className="pp-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
                         <h2 className="pp-modal-title">Создать процесс из шаблона</h2>
                         <p className="pp-modal-text" style={{ marginBottom: 12, fontSize: 13 }}>
@@ -500,11 +510,11 @@ export function ProcessesPage({ onOpenDesigner, onOpenMonitor }: ProcessesPagePr
                         </div>
                         {fromTemplateError && <div className="pp-modal-error">{fromTemplateError}</div>}
                         <div className="pp-modal-actions">
-                            <button className="pp-btn-secondary" onClick={() => setFromTemplateId(null)} disabled={fromTemplateCreating}>
+                            <button className={`pp-btn-secondary${sc('fromTemplate')}`} onClick={() => setFromTemplateId(null)} disabled={fromTemplateCreating}>
                                 Отмена
                             </button>
                             <button
-                                className="pp-btn-primary"
+                                className={`pp-btn-primary${sc('fromTemplate')}`}
                                 onClick={handleCreateFromTemplate}
                                 disabled={fromTemplateCreating || !fromTemplateName.trim()}
                             >
@@ -517,17 +527,17 @@ export function ProcessesPage({ onOpenDesigner, onOpenMonitor }: ProcessesPagePr
 
             {/* Диалог подтверждения удаления */}
             {deleteId && (
-                <div className="pp-modal-overlay" onClick={() => setDeleteId(null)}>
+                <div className="pp-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) triggerShake('delete'); }}>
                     <div className="pp-modal pp-modal--confirm" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
                         <h2 className="pp-modal-title">Удалить?</h2>
                         <p className="pp-modal-text">
                             «{[...processes, ...templates].find(p => p.id === deleteId)?.name}» и все версии будут удалены.
                         </p>
                         <div className="pp-modal-actions">
-                            <button className="pp-btn-secondary" onClick={() => setDeleteId(null)} disabled={deleting}>
+                            <button className={`pp-btn-secondary${sc('delete')}`} onClick={() => setDeleteId(null)} disabled={deleting}>
                                 Отмена
                             </button>
-                            <button className="pp-btn-danger" onClick={handleDelete} disabled={deleting}>
+                            <button className={`pp-btn-danger${sc('delete')}`} onClick={handleDelete} disabled={deleting}>
                                 {deleting ? 'Удаление...' : 'Удалить'}
                             </button>
                         </div>

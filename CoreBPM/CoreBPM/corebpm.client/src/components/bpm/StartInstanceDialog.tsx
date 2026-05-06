@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import * as api from '../../api/bpmApi';
 import type { BpmProcessListItemDto } from '../../api/bpmApi';
+import { useModalShake } from '../../hooks/useModalShake';
 
 interface Props {
     process: BpmProcessListItemDto;
@@ -38,6 +39,7 @@ export function StartInstanceDialog({ process, token, onLaunched, onClose }: Pro
     const [varValues, setVarValues] = useState<Record<string, string>>({});
     const [launching, setLaunching] = useState(false);
     const [launchError, setLaunchError] = useState<string | null>(null);
+    const { shaking, shake } = useModalShake();
 
     const load = useCallback(async () => {
         try {
@@ -93,7 +95,7 @@ export function StartInstanceDialog({ process, token, onLaunched, onClose }: Pro
     };
 
     return (
-        <div className="pp-modal-overlay" onClick={onClose}>
+        <div className="pp-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) shake(); }}>
             <div
                 className="pp-modal"
                 style={{ maxWidth: 520 }}
@@ -210,11 +212,11 @@ export function StartInstanceDialog({ process, token, onLaunched, onClose }: Pro
 
                 {/* Кнопки */}
                 <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
-                    <button className="pp-btn-secondary" onClick={onClose} disabled={launching}>
+                    <button className={`pp-btn-secondary${shaking ? ' btn-flash' : ''}`} onClick={onClose} disabled={launching}>
                         Отмена
                     </button>
                     <button
-                        className="pp-btn-primary"
+                        className={`pp-btn-primary${shaking ? ' btn-flash' : ''}`}
                         onClick={handleLaunch}
                         disabled={launching || !process.activeVersionNumber}
                     >

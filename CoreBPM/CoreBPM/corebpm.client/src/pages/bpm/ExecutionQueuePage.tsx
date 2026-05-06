@@ -12,6 +12,7 @@ import {
     type BpmJobStatus,
     type QueueStatsDto,
 } from '../../api/bpmApi';
+import { useModalShake } from '../../hooks/useModalShake';
 import './ExecutionQueuePage.css';
 
 // ─── Вспомогательные утилиты ─────────────────────────────────────────────────
@@ -90,6 +91,7 @@ export function ExecutionQueuePage() {
     const [rescheduleModal, setRescheduleModal] = useState<BpmExecutionJobDto | null>(null);
     const [rescheduleValue, setRescheduleValue] = useState('');
     const importPoliciesRef = useRef<HTMLInputElement>(null);
+    const { shaking, shake } = useModalShake();
 
     // ─── Загрузка данных ──────────────────────────────────────────────────────
 
@@ -385,7 +387,7 @@ export function ExecutionQueuePage() {
 
             {/* Модальное окно переноса таймера */}
             {rescheduleModal && (
-                <div className="eq-modal-overlay" onClick={() => setRescheduleModal(null)}>
+                <div className="eq-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) shake(); }}>
                     <div className="eq-modal" onClick={e => e.stopPropagation()}>
                         <h3 className="eq-modal-title">Перенести таймер</h3>
                         <p className="eq-modal-sub">{rescheduleModal.operationName ?? rescheduleModal.elementId}</p>
@@ -396,8 +398,8 @@ export function ExecutionQueuePage() {
                             onChange={e => setRescheduleValue(e.target.value)}
                         />
                         <div className="eq-modal-actions">
-                            <button className="eq-modal-cancel" onClick={() => setRescheduleModal(null)}>Отмена</button>
-                            <button className="eq-modal-ok" onClick={handleReschedule}>Перенести</button>
+                            <button className={`eq-modal-cancel${shaking ? ' btn-flash' : ''}`} onClick={() => setRescheduleModal(null)}>Отмена</button>
+                            <button className={`eq-modal-ok${shaking ? ' btn-flash' : ''}`} onClick={handleReschedule}>Перенести</button>
                         </div>
                     </div>
                 </div>

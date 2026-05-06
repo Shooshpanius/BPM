@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import {
     getTask, markTaskRead, addTaskComment, getTaskComments,
@@ -178,6 +178,16 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
     const [sendApprovalComment, setSendApprovalComment] = useState('');
     const [approvalSaving, setApprovalSaving] = useState(false);
     const [approvalError, setApprovalError] = useState<string | null>(null);
+
+    // ─── Подсветка кнопок при клике мимо модального окна ─────────────────────
+    const [shakeTarget, setShakeTarget] = useState<string | null>(null);
+    const shakeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const triggerShake = (target: string) => {
+        if (shakeTimerRef.current) clearTimeout(shakeTimerRef.current);
+        setShakeTarget(target);
+        shakeTimerRef.current = setTimeout(() => setShakeTarget(null), 900);
+    };
+    const sc = (target: string) => shakeTarget === target ? ' btn-flash' : '';
 
     const loadEmployees = useCallback(async () => {
         if (employees.length === 0 && token) {
@@ -1323,7 +1333,7 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
 
             {/* Диалог переназначения */}
             {showReassign && (
-                <div className="task-detail__overlay" onClick={() => setShowReassign(false)}>
+                <div className="task-detail__overlay" onClick={(e) => { if (e.target === e.currentTarget) triggerShake('reassign'); }}>
                     <div className="task-detail__dialog" onClick={e => e.stopPropagation()}>
                         <h3>Переназначить исполнителя</h3>
                         <input className="task-detail__input" placeholder="Поиск сотрудника..." value={reassignSearch} onChange={e => setReassignSearch(e.target.value)} />
@@ -1339,10 +1349,10 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                         )}
                         <textarea className="task-detail__input" placeholder="Комментарий (необязательно)" value={reassignComment} onChange={e => setReassignComment(e.target.value)} rows={2} />
                         <div className="task-detail__dialog-footer">
-                            <button className="task-detail__btn task-detail__btn--primary" onClick={handleReassign} disabled={reassignSaving || !reassignUserId}>
+                            <button className={`task-detail__btn task-detail__btn--primary${sc('reassign')}`} onClick={handleReassign} disabled={reassignSaving || !reassignUserId}>
                                 {reassignSaving ? 'Сохранение...' : 'Переназначить'}
                             </button>
-                            <button className="task-detail__btn" onClick={() => setShowReassign(false)}>Отмена</button>
+                            <button className={`task-detail__btn${sc('reassign')}`} onClick={() => setShowReassign(false)}>Отмена</button>
                         </div>
                     </div>
                 </div>
@@ -1350,7 +1360,7 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
 
             {/* Диалог добавления участника */}
             {showAddParticipant && (
-                <div className="task-detail__overlay" onClick={() => setShowAddParticipant(false)}>
+                <div className="task-detail__overlay" onClick={(e) => { if (e.target === e.currentTarget) triggerShake('addParticipant'); }}>
                     <div className="task-detail__dialog" onClick={e => e.stopPropagation()}>
                         <h3>Добавить участника</h3>
                         <select className="task-detail__input" value={participantRole} onChange={e => setParticipantRole(e.target.value)}>
@@ -1371,10 +1381,10 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                             </div>
                         )}
                         <div className="task-detail__dialog-footer">
-                            <button className="task-detail__btn task-detail__btn--primary" onClick={handleAddParticipant} disabled={participantSaving || !participantUserId}>
+                            <button className={`task-detail__btn task-detail__btn--primary${sc('addParticipant')}`} onClick={handleAddParticipant} disabled={participantSaving || !participantUserId}>
                                 {participantSaving ? 'Добавление...' : 'Добавить'}
                             </button>
-                            <button className="task-detail__btn" onClick={() => setShowAddParticipant(false)}>Отмена</button>
+                            <button className={`task-detail__btn${sc('addParticipant')}`} onClick={() => setShowAddParticipant(false)}>Отмена</button>
                         </div>
                     </div>
                 </div>
@@ -1382,7 +1392,7 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
 
             {/* Диалог добавления связи */}
             {showAddRelation && (
-                <div className="task-detail__overlay" onClick={() => setShowAddRelation(false)}>
+                <div className="task-detail__overlay" onClick={(e) => { if (e.target === e.currentTarget) triggerShake('addRelation'); }}>
                     <div className="task-detail__dialog" onClick={e => e.stopPropagation()}>
                         <h3>Добавить связь</h3>
                         <select className="task-detail__input" value={relationType} onChange={e => setRelationType(e.target.value)}>
@@ -1393,10 +1403,10 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                         <input className="task-detail__input" type="number" placeholder="Номер задачи (например, 42)" value={relationTargetNumber} onChange={e => setRelationTargetNumber(e.target.value)} />
                         {relationError && <div className="task-detail__error">{relationError}</div>}
                         <div className="task-detail__dialog-footer">
-                            <button className="task-detail__btn task-detail__btn--primary" onClick={handleAddRelation} disabled={relationSaving || !relationTargetNumber}>
+                            <button className={`task-detail__btn task-detail__btn--primary${sc('addRelation')}`} onClick={handleAddRelation} disabled={relationSaving || !relationTargetNumber}>
                                 {relationSaving ? 'Добавление...' : 'Добавить'}
                             </button>
-                            <button className="task-detail__btn" onClick={() => { setShowAddRelation(false); setRelationError(null); }}>Отмена</button>
+                            <button className={`task-detail__btn${sc('addRelation')}`} onClick={() => { setShowAddRelation(false); setRelationError(null); }}>Отмена</button>
                         </div>
                     </div>
                 </div>
@@ -1404,7 +1414,7 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
 
             {/* Диалог создания подзадачи */}
             {showCreateSubtask && (
-                <div className="task-detail__overlay" onClick={() => setShowCreateSubtask(false)}>
+                <div className="task-detail__overlay" onClick={(e) => { if (e.target === e.currentTarget) triggerShake('createSubtask'); }}>
                     <div className="task-detail__dialog" onClick={e => e.stopPropagation()}>
                         <h3>Создать подзадачу</h3>
                         <label className="task-detail__field-label">Тема *</label>
@@ -1435,17 +1445,17 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                         <label className="task-detail__field-label">Описание</label>
                         <textarea className="task-detail__input" placeholder="Необязательно" value={subtaskDescription} onChange={e => setSubtaskDescription(e.target.value)} rows={2} />
                         <div className="task-detail__dialog-footer">
-                            <button className="task-detail__btn task-detail__btn--primary" onClick={handleCreateSubtask} disabled={subtaskSaving || !subtaskSubject.trim() || !subtaskAssigneeId}>
+                            <button className={`task-detail__btn task-detail__btn--primary${sc('createSubtask')}`} onClick={handleCreateSubtask} disabled={subtaskSaving || !subtaskSubject.trim() || !subtaskAssigneeId}>
                                 {subtaskSaving ? 'Создание...' : 'Создать'}
                             </button>
-                            <button className="task-detail__btn" onClick={() => setShowCreateSubtask(false)}>Отмена</button>
+                            <button className={`task-detail__btn${sc('createSubtask')}`} onClick={() => setShowCreateSubtask(false)}>Отмена</button>
                         </div>
                     </div>
                 </div>
             )}
             {/* FR-TASK-01.3: диалог отправки на согласование */}
             {showSendForApproval && (
-                <div className="task-detail__overlay" onClick={() => setShowSendForApproval(false)}>
+                <div className="task-detail__overlay" onClick={(e) => { if (e.target === e.currentTarget) triggerShake('sendForApproval'); }}>
                     <div className="task-detail__dialog" onClick={e => e.stopPropagation()}>
                         <h3>Отправить на согласование</h3>
                         <input className="task-detail__input" placeholder="Поиск согласующего..." value={sendApprovalApproverQuery}
@@ -1464,10 +1474,10 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                             value={sendApprovalComment} onChange={e => setSendApprovalComment(e.target.value)} rows={3} />
                         {approvalError && <p className="task-detail__error">{approvalError}</p>}
                         <div className="task-detail__dialog-footer">
-                            <button className="task-detail__btn task-detail__btn--primary" onClick={handleSendForApproval} disabled={approvalSaving}>
+                            <button className={`task-detail__btn task-detail__btn--primary${sc('sendForApproval')}`} onClick={handleSendForApproval} disabled={approvalSaving}>
                                 {approvalSaving ? 'Отправка...' : 'Отправить'}
                             </button>
-                            <button className="task-detail__btn" onClick={() => { setShowSendForApproval(false); setApprovalError(null); }}>Отмена</button>
+                            <button className={`task-detail__btn${sc('sendForApproval')}`} onClick={() => { setShowSendForApproval(false); setApprovalError(null); }}>Отмена</button>
                         </div>
                     </div>
                 </div>
@@ -1485,7 +1495,7 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
 
             {/* FR-TASK-01.4: Диалог добавления трудозатрат */}
             {showAddTimeLog && (
-                <div className="task-detail__overlay" onClick={() => setShowAddTimeLog(false)}>
+                <div className="task-detail__overlay" onClick={(e) => { if (e.target === e.currentTarget) triggerShake('addTimeLog'); }}>
                     <div className="task-detail__dialog" onClick={e => e.stopPropagation()}>
                         <h3>Добавить трудозатраты</h3>
                         <label className="task-detail__field-label">Длительность (мин.) *</label>
@@ -1499,11 +1509,11 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                         <textarea className="task-detail__input" placeholder="Необязательно"
                             value={timeLogComment} onChange={e => setTimeLogComment(e.target.value)} rows={2} />
                         <div className="task-detail__dialog-footer">
-                            <button className="task-detail__btn task-detail__btn--primary" onClick={handleAddTimeLog}
+                            <button className={`task-detail__btn task-detail__btn--primary${sc('addTimeLog')}`} onClick={handleAddTimeLog}
                                 disabled={timeLogSaving || !timeLogDuration}>
                                 {timeLogSaving ? 'Сохранение...' : 'Добавить'}
                             </button>
-                            <button className="task-detail__btn" onClick={() => setShowAddTimeLog(false)}>Отмена</button>
+                            <button className={`task-detail__btn${sc('addTimeLog')}`} onClick={() => setShowAddTimeLog(false)}>Отмена</button>
                         </div>
                     </div>
                 </div>
@@ -1513,7 +1523,7 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
 
             {/* Диалог: Начать работу */}
             {showStartDialog && (
-                <div className="task-detail__overlay" onClick={() => setShowStartDialog(false)}>
+                <div className="task-detail__overlay" onClick={(e) => { if (e.target === e.currentTarget) triggerShake('start'); }}>
                     <div className="task-detail__dialog" onClick={e => e.stopPropagation()}>
                         <h3>▶ Начать работу</h3>
                         <label className="task-detail__field-label">Комментарий</label>
@@ -1524,10 +1534,10 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                         </label>
                         {actionError && <p className="task-detail__error">{actionError}</p>}
                         <div className="task-detail__dialog-footer">
-                            <button className="task-detail__btn task-detail__btn--primary" onClick={handleStartWork} disabled={startSaving}>
+                            <button className={`task-detail__btn task-detail__btn--primary${sc('start')}`} onClick={handleStartWork} disabled={startSaving}>
                                 {startSaving ? 'Обновление...' : 'Начать работу'}
                             </button>
-                            <button className="task-detail__btn" onClick={() => { setShowStartDialog(false); setActionError(null); }}>Отмена</button>
+                            <button className={`task-detail__btn${sc('start')}`} onClick={() => { setShowStartDialog(false); setActionError(null); }}>Отмена</button>
                         </div>
                     </div>
                 </div>
@@ -1535,7 +1545,7 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
 
             {/* Диалог: Сделано */}
             {showDoneDialog && (
-                <div className="task-detail__overlay" onClick={() => setShowDoneDialog(false)}>
+                <div className="task-detail__overlay" onClick={(e) => { if (e.target === e.currentTarget) triggerShake('done'); }}>
                     <div className="task-detail__dialog" onClick={e => e.stopPropagation()}>
                         <h3>✓ Отметить выполненной</h3>
                         <label className="task-detail__field-label">Комментарий</label>
@@ -1552,10 +1562,10 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                         </label>
                         {actionError && <p className="task-detail__error">{actionError}</p>}
                         <div className="task-detail__dialog-footer">
-                            <button className="task-detail__btn task-detail__btn--success" onClick={handleMarkDone} disabled={doneSaving}>
+                            <button className={`task-detail__btn task-detail__btn--success${sc('done')}`} onClick={handleMarkDone} disabled={doneSaving}>
                                 {doneSaving ? 'Обновление...' : 'Подтвердить'}
                             </button>
-                            <button className="task-detail__btn" onClick={() => { setShowDoneDialog(false); setActionError(null); }}>Отмена</button>
+                            <button className={`task-detail__btn${sc('done')}`} onClick={() => { setShowDoneDialog(false); setActionError(null); }}>Отмена</button>
                         </div>
                     </div>
                 </div>
@@ -1563,7 +1573,7 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
 
             {/* Диалог: Невозможно выполнить */}
             {showCannotDoDialog && (
-                <div className="task-detail__overlay" onClick={() => setShowCannotDoDialog(false)}>
+                <div className="task-detail__overlay" onClick={(e) => { if (e.target === e.currentTarget) triggerShake('cannotDo'); }}>
                     <div className="task-detail__dialog" onClick={e => e.stopPropagation()}>
                         <h3>✗ Невозможно выполнить</h3>
                         <label className="task-detail__field-label">Комментарий (причина)</label>
@@ -1574,10 +1584,10 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                         </label>
                         {actionError && <p className="task-detail__error">{actionError}</p>}
                         <div className="task-detail__dialog-footer">
-                            <button className="task-detail__btn task-detail__btn--danger" onClick={handleMarkCannotDo} disabled={cannotDoSaving}>
+                            <button className={`task-detail__btn task-detail__btn--danger${sc('cannotDo')}`} onClick={handleMarkCannotDo} disabled={cannotDoSaving}>
                                 {cannotDoSaving ? 'Обновление...' : 'Подтвердить'}
                             </button>
-                            <button className="task-detail__btn" onClick={() => { setShowCannotDoDialog(false); setActionError(null); }}>Отмена</button>
+                            <button className={`task-detail__btn${sc('cannotDo')}`} onClick={() => { setShowCannotDoDialog(false); setActionError(null); }}>Отмена</button>
                         </div>
                     </div>
                 </div>
@@ -1585,7 +1595,7 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
 
             {/* Диалог: Закрыть задачу */}
             {showCloseDialog && (
-                <div className="task-detail__overlay" onClick={() => setShowCloseDialog(false)}>
+                <div className="task-detail__overlay" onClick={(e) => { if (e.target === e.currentTarget) triggerShake('closeDialog'); }}>
                     <div className="task-detail__dialog" onClick={e => e.stopPropagation()}>
                         <h3>🚫 Закрыть задачу</h3>
                         <label className="task-detail__field-label">Комментарий (причина)</label>
@@ -1596,10 +1606,10 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                         </label>
                         {actionError && <p className="task-detail__error">{actionError}</p>}
                         <div className="task-detail__dialog-footer">
-                            <button className="task-detail__btn task-detail__btn--danger" onClick={handleCloseTask} disabled={closeSaving}>
+                            <button className={`task-detail__btn task-detail__btn--danger${sc('closeDialog')}`} onClick={handleCloseTask} disabled={closeSaving}>
                                 {closeSaving ? 'Обновление...' : 'Закрыть'}
                             </button>
-                            <button className="task-detail__btn" onClick={() => { setShowCloseDialog(false); setActionError(null); }}>Отмена</button>
+                            <button className={`task-detail__btn${sc('closeDialog')}`} onClick={() => { setShowCloseDialog(false); setActionError(null); }}>Отмена</button>
                         </div>
                     </div>
                 </div>
@@ -1607,7 +1617,7 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
 
             {/* Диалог: Перенести срок */}
             {showRescheduleDialog && (
-                <div className="task-detail__overlay" onClick={() => setShowRescheduleDialog(false)}>
+                <div className="task-detail__overlay" onClick={(e) => { if (e.target === e.currentTarget) triggerShake('reschedule'); }}>
                     <div className="task-detail__dialog" onClick={e => e.stopPropagation()}>
                         <h3>📅 Перенести срок</h3>
                         <label className="task-detail__field-label">Новый срок *</label>
@@ -1618,11 +1628,11 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                         <textarea className="task-detail__input" placeholder="Необязательно" value={rescheduleComment} onChange={e => setRescheduleComment(e.target.value)} rows={2} />
                         {actionError && <p className="task-detail__error">{actionError}</p>}
                         <div className="task-detail__dialog-footer">
-                            <button className="task-detail__btn task-detail__btn--primary" onClick={handleReschedule}
+                            <button className={`task-detail__btn task-detail__btn--primary${sc('reschedule')}`} onClick={handleReschedule}
                                 disabled={rescheduleSaving || !rescheduleDate}>
                                 {rescheduleSaving ? 'Сохранение...' : 'Перенести'}
                             </button>
-                            <button className="task-detail__btn" onClick={() => { setShowRescheduleDialog(false); setActionError(null); }}>Отмена</button>
+                            <button className={`task-detail__btn${sc('reschedule')}`} onClick={() => { setShowRescheduleDialog(false); setActionError(null); }}>Отмена</button>
                         </div>
                     </div>
                 </div>
@@ -1630,7 +1640,7 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
 
             {/* Диалог: Добавить наблюдателя */}
             {showAddWatcher && (
-                <div className="task-detail__overlay" onClick={() => setShowAddWatcher(false)}>
+                <div className="task-detail__overlay" onClick={(e) => { if (e.target === e.currentTarget) triggerShake('addWatcher'); }}>
                     <div className="task-detail__dialog" onClick={e => e.stopPropagation()}>
                         <h3>👁 Добавить наблюдателя</h3>
                         <input className="task-detail__input" placeholder="Поиск сотрудника..." value={watcherSearch} onChange={e => { setWatcherSearch(e.target.value); setWatcherUserId(''); }} />
@@ -1645,10 +1655,10 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                             </div>
                         )}
                         <div className="task-detail__dialog-footer">
-                            <button className="task-detail__btn task-detail__btn--primary" onClick={handleAddWatcher} disabled={watcherSaving || !watcherUserId}>
+                            <button className={`task-detail__btn task-detail__btn--primary${sc('addWatcher')}`} onClick={handleAddWatcher} disabled={watcherSaving || !watcherUserId}>
                                 {watcherSaving ? 'Добавление...' : 'Добавить'}
                             </button>
-                            <button className="task-detail__btn" onClick={() => setShowAddWatcher(false)}>Отмена</button>
+                            <button className={`task-detail__btn${sc('addWatcher')}`} onClick={() => setShowAddWatcher(false)}>Отмена</button>
                         </div>
                     </div>
                 </div>
@@ -1656,7 +1666,7 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
 
             {/* Диалог: Задать вопрос */}
             {showAskQuestion && (
-                <div className="task-detail__overlay" onClick={() => setShowAskQuestion(false)}>
+                <div className="task-detail__overlay" onClick={(e) => { if (e.target === e.currentTarget) triggerShake('askQuestion'); }}>
                     <div className="task-detail__dialog" onClick={e => e.stopPropagation()}>
                         <h3>❓ Задать вопрос</h3>
                         <label className="task-detail__field-label">Получатель *</label>
@@ -1675,11 +1685,11 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                         <label className="task-detail__field-label">Текст вопроса *</label>
                         <textarea className="task-detail__input" placeholder="Введите вопрос..." value={questionText} onChange={e => setQuestionText(e.target.value)} rows={3} />
                         <div className="task-detail__dialog-footer">
-                            <button className="task-detail__btn task-detail__btn--primary" onClick={handleAskQuestion}
+                            <button className={`task-detail__btn task-detail__btn--primary${sc('askQuestion')}`} onClick={handleAskQuestion}
                                 disabled={questionSaving || !questionText.trim() || !questionRecipientId}>
                                 {questionSaving ? 'Отправка...' : 'Задать вопрос'}
                             </button>
-                            <button className="task-detail__btn" onClick={() => setShowAskQuestion(false)}>Отмена</button>
+                            <button className={`task-detail__btn${sc('askQuestion')}`} onClick={() => setShowAskQuestion(false)}>Отмена</button>
                         </div>
                     </div>
                 </div>
@@ -1687,16 +1697,16 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
 
             {/* Диалог: Ответить на вопрос */}
             {showAnswerDialog && (
-                <div className="task-detail__overlay" onClick={() => setShowAnswerDialog(null)}>
+                <div className="task-detail__overlay" onClick={(e) => { if (e.target === e.currentTarget) triggerShake('answerDialog'); }}>
                     <div className="task-detail__dialog" onClick={e => e.stopPropagation()}>
                         <h3>✏️ Ответить на вопрос</h3>
                         <textarea className="task-detail__input" placeholder="Введите ответ..." value={answerText} onChange={e => setAnswerText(e.target.value)} rows={4} />
                         <div className="task-detail__dialog-footer">
-                            <button className="task-detail__btn task-detail__btn--primary" onClick={() => handleAnswerQuestion(showAnswerDialog)}
+                            <button className={`task-detail__btn task-detail__btn--primary${sc('answerDialog')}`} onClick={() => handleAnswerQuestion(showAnswerDialog)}
                                 disabled={answerSaving || !answerText.trim()}>
                                 {answerSaving ? 'Отправка...' : 'Ответить'}
                             </button>
-                            <button className="task-detail__btn" onClick={() => setShowAnswerDialog(null)}>Отмена</button>
+                            <button className={`task-detail__btn${sc('answerDialog')}`} onClick={() => setShowAnswerDialog(null)}>Отмена</button>
                         </div>
                     </div>
                 </div>
@@ -1704,7 +1714,7 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
 
             {/* ─── FR-TASK-02.1: Диалог редактирования задачи ─── */}
             {showEditDialog && (
-                <div className="task-detail__overlay" onClick={() => setShowEditDialog(false)}>
+                <div className="task-detail__overlay" onClick={(e) => { if (e.target === e.currentTarget) triggerShake('editDialog'); }}>
                     <div className="task-detail__dialog" onClick={e => e.stopPropagation()}>
                         <h3>✏️ Изменить задачу</h3>
                         <label className="task-detail__field-label">Тема *</label>
@@ -1729,11 +1739,11 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                             value={editPlannedEffort} onChange={e => setEditPlannedEffort(e.target.value)} />
                         {editError && <p className="task-detail__error">{editError}</p>}
                         <div className="task-detail__dialog-footer">
-                            <button className="task-detail__btn task-detail__btn--primary" onClick={handleEdit}
+                            <button className={`task-detail__btn task-detail__btn--primary${sc('editDialog')}`} onClick={handleEdit}
                                 disabled={editSaving || !editSubject.trim()}>
                                 {editSaving ? 'Сохранение...' : 'Сохранить'}
                             </button>
-                            <button className="task-detail__btn" onClick={() => setShowEditDialog(false)}>Отмена</button>
+                            <button className={`task-detail__btn${sc('editDialog')}`} onClick={() => setShowEditDialog(false)}>Отмена</button>
                         </div>
                     </div>
                 </div>
@@ -1741,7 +1751,7 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
 
             {/* FR-TASK-02.3: Диалог добавления напоминания */}
             {showAddReminder && (
-                <div className="task-detail__overlay" onClick={() => setShowAddReminder(false)}>
+                <div className="task-detail__overlay" onClick={(e) => { if (e.target === e.currentTarget) triggerShake('addReminder'); }}>
                     <div className="task-detail__dialog" onClick={e => e.stopPropagation()}>
                         <h3>⏰ Добавить напоминание</h3>
                         <label className="task-detail__field-label">Дата и время</label>
@@ -1751,7 +1761,7 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                         <input className="task-detail__input" type="text" placeholder="Например, позвонить заказчику" value={reminderNote}
                             onChange={e => setReminderNote(e.target.value)} />
                         <div className="task-detail__dialog-footer">
-                            <button className="task-detail__btn task-detail__btn--primary"
+                            <button className={`task-detail__btn task-detail__btn--primary${sc('addReminder')}`}
                                 disabled={reminderSaving || !reminderDate}
                                 onClick={async () => {
                                     if (!token || !reminderDate) return;
@@ -1764,7 +1774,7 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                                 }}>
                                 {reminderSaving ? 'Сохранение...' : 'Добавить'}
                             </button>
-                            <button className="task-detail__btn" onClick={() => setShowAddReminder(false)}>Отмена</button>
+                            <button className={`task-detail__btn${sc('addReminder')}`} onClick={() => setShowAddReminder(false)}>Отмена</button>
                         </div>
                     </div>
                 </div>
@@ -1772,14 +1782,14 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
 
             {/* FR-TASK-02.3: Диалог планирования задачи */}
             {showScheduleDialog && (
-                <div className="task-detail__overlay" onClick={() => setShowScheduleDialog(false)}>
+                <div className="task-detail__overlay" onClick={(e) => { if (e.target === e.currentTarget) triggerShake('schedule'); }}>
                     <div className="task-detail__dialog" onClick={e => e.stopPropagation()}>
                         <h3>📅 Запланировать задачу</h3>
                         <label className="task-detail__field-label">Дата и время</label>
                         <input className="task-detail__input" type="datetime-local" value={scheduleDate}
                             onChange={e => setScheduleDate(e.target.value)} />
                         <div className="task-detail__dialog-footer">
-                            <button className="task-detail__btn task-detail__btn--primary"
+                            <button className={`task-detail__btn task-detail__btn--primary${sc('schedule')}`}
                                 disabled={scheduleSaving || !scheduleDate}
                                 onClick={async () => {
                                     if (!token || !scheduleDate) return;
@@ -1792,7 +1802,7 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                                 }}>
                                 {scheduleSaving ? 'Сохранение...' : 'Запланировать'}
                             </button>
-                            <button className="task-detail__btn" onClick={() => setShowScheduleDialog(false)}>Отмена</button>
+                            <button className={`task-detail__btn${sc('schedule')}`} onClick={() => setShowScheduleDialog(false)}>Отмена</button>
                         </div>
                     </div>
                 </div>

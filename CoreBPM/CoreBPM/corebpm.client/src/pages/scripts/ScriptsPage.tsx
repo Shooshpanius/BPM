@@ -335,6 +335,15 @@ function ExtensionsTab({ orgId }: ExtensionsTabProps) {
     const [actionMsg, setActionMsg] = useState<string | null>(null);
     const extensionImportRef = useRef<HTMLInputElement>(null);
 
+    const [shakeTarget, setShakeTarget] = useState<string | null>(null);
+    const shakeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const triggerShake = (target: string) => {
+        if (shakeTimerRef.current) clearTimeout(shakeTimerRef.current);
+        setShakeTarget(target);
+        shakeTimerRef.current = setTimeout(() => setShakeTarget(null), 900);
+    };
+    const sc = (target: string) => shakeTarget === target ? ' btn-flash' : '';
+
     const load = useCallback(async () => {
         if (!token) return;
         setLoading(true);
@@ -541,7 +550,7 @@ function ExtensionsTab({ orgId }: ExtensionsTabProps) {
 
             {/* Модальная форма создания/редактирования */}
             {showForm && (
-                <div className="scripts-modal-overlay" onClick={() => setShowForm(false)}>
+                <div className="scripts-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) triggerShake('form'); }}>
                     <div className="scripts-modal" onClick={e => e.stopPropagation()}>
                         <h2 className="scripts-modal-title">
                             {formMode === 'create' ? 'Создать расширение' : 'Редактировать расширение'}
@@ -577,10 +586,10 @@ function ExtensionsTab({ orgId }: ExtensionsTabProps) {
                         />
                         {formError && <p className="scripts-error">{formError}</p>}
                         <div className="scripts-modal-actions">
-                            <button className="scripts-btn-primary" onClick={handleSave} disabled={saving}>
+                            <button className={`scripts-btn-primary${sc('form')}`} onClick={handleSave} disabled={saving}>
                                 {saving ? 'Сохранение…' : 'Сохранить'}
                             </button>
-                            <button className="scripts-btn-cancel" onClick={() => setShowForm(false)}>Отмена</button>
+                            <button className={`scripts-btn-cancel${sc('form')}`} onClick={() => setShowForm(false)}>Отмена</button>
                         </div>
                     </div>
                 </div>
@@ -588,15 +597,15 @@ function ExtensionsTab({ orgId }: ExtensionsTabProps) {
 
             {/* Подтверждение удаления */}
             {deleteId && (
-                <div className="scripts-modal-overlay" onClick={() => setDeleteId(null)}>
+                <div className="scripts-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) triggerShake('delete'); }}>
                     <div className="scripts-modal" onClick={e => e.stopPropagation()}>
                         <h2 className="scripts-modal-title">Удалить расширение?</h2>
                         <p>Это действие нельзя отменить.</p>
                         <div className="scripts-modal-actions">
-                            <button className="scripts-btn-danger" onClick={handleDelete} disabled={deleting}>
+                            <button className={`scripts-btn-danger${sc('delete')}`} onClick={handleDelete} disabled={deleting}>
                                 {deleting ? 'Удаление…' : 'Удалить'}
                             </button>
-                            <button className="scripts-btn-cancel" onClick={() => setDeleteId(null)}>Отмена</button>
+                            <button className={`scripts-btn-cancel${sc('delete')}`} onClick={() => setDeleteId(null)}>Отмена</button>
                         </div>
                     </div>
                 </div>
@@ -637,6 +646,15 @@ function GlobalModulesTab({ orgId }: GlobalModulesTabProps) {
     const [deleteFileId, setDeleteFileId] = useState<string | null>(null);
     const [deletingFile, setDeletingFile] = useState(false);
     const moduleImportRef = useRef<HTMLInputElement>(null);
+
+    const [shakeTarget2, setShakeTarget2] = useState<string | null>(null);
+    const shakeTimerRef2 = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const triggerShake2 = (target: string) => {
+        if (shakeTimerRef2.current) clearTimeout(shakeTimerRef2.current);
+        setShakeTarget2(target);
+        shakeTimerRef2.current = setTimeout(() => setShakeTarget2(null), 900);
+    };
+    const sc2 = (target: string) => shakeTarget2 === target ? ' btn-flash' : '';
 
     const loadModules = useCallback(async () => {
         if (!token) return;
@@ -950,7 +968,7 @@ function GlobalModulesTab({ orgId }: GlobalModulesTabProps) {
 
             {/* Форма модуля */}
             {showModuleForm && (
-                <div className="scripts-modal-overlay" onClick={() => setShowModuleForm(false)}>
+                <div className="scripts-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) triggerShake2('moduleForm'); }}>
                     <div className="scripts-modal" onClick={e => e.stopPropagation()}>
                         <h2 className="scripts-modal-title">
                             {moduleFormMode === 'create' ? 'Создать глобальный модуль' : 'Переименовать модуль'}
@@ -961,10 +979,10 @@ function GlobalModulesTab({ orgId }: GlobalModulesTabProps) {
                         <input className="scripts-input" value={moduleDesc} onChange={e => setModuleDesc(e.target.value)} placeholder="Описание" />
                         {moduleFormError && <p className="scripts-error">{moduleFormError}</p>}
                         <div className="scripts-modal-actions">
-                            <button className="scripts-btn-primary" onClick={handleSaveModule} disabled={savingModule}>
+                            <button className={`scripts-btn-primary${sc2('moduleForm')}`} onClick={handleSaveModule} disabled={savingModule}>
                                 {savingModule ? 'Сохранение…' : 'Сохранить'}
                             </button>
-                            <button className="scripts-btn-cancel" onClick={() => setShowModuleForm(false)}>Отмена</button>
+                            <button className={`scripts-btn-cancel${sc2('moduleForm')}`} onClick={() => setShowModuleForm(false)}>Отмена</button>
                         </div>
                     </div>
                 </div>
@@ -972,15 +990,15 @@ function GlobalModulesTab({ orgId }: GlobalModulesTabProps) {
 
             {/* Подтверждение удаления модуля */}
             {deleteModuleId && (
-                <div className="scripts-modal-overlay" onClick={() => setDeleteModuleId(null)}>
+                <div className="scripts-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) triggerShake2('deleteModule'); }}>
                     <div className="scripts-modal" onClick={e => e.stopPropagation()}>
                         <h2 className="scripts-modal-title">Удалить глобальный модуль?</h2>
                         <p>Все файлы модуля будут удалены. Действие нельзя отменить.</p>
                         <div className="scripts-modal-actions">
-                            <button className="scripts-btn-danger" onClick={handleDeleteModule} disabled={deletingModule}>
+                            <button className={`scripts-btn-danger${sc2('deleteModule')}`} onClick={handleDeleteModule} disabled={deletingModule}>
                                 {deletingModule ? 'Удаление…' : 'Удалить'}
                             </button>
-                            <button className="scripts-btn-cancel" onClick={() => setDeleteModuleId(null)}>Отмена</button>
+                            <button className={`scripts-btn-cancel${sc2('deleteModule')}`} onClick={() => setDeleteModuleId(null)}>Отмена</button>
                         </div>
                     </div>
                 </div>
@@ -988,14 +1006,14 @@ function GlobalModulesTab({ orgId }: GlobalModulesTabProps) {
 
             {/* Подтверждение удаления файла */}
             {deleteFileId && (
-                <div className="scripts-modal-overlay" onClick={() => setDeleteFileId(null)}>
+                <div className="scripts-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) triggerShake2('deleteFile'); }}>
                     <div className="scripts-modal" onClick={e => e.stopPropagation()}>
                         <h2 className="scripts-modal-title">Удалить файл?</h2>
                         <div className="scripts-modal-actions">
-                            <button className="scripts-btn-danger" onClick={handleDeleteFile} disabled={deletingFile}>
+                            <button className={`scripts-btn-danger${sc2('deleteFile')}`} onClick={handleDeleteFile} disabled={deletingFile}>
                                 {deletingFile ? 'Удаление…' : 'Удалить'}
                             </button>
-                            <button className="scripts-btn-cancel" onClick={() => setDeleteFileId(null)}>Отмена</button>
+                            <button className={`scripts-btn-cancel${sc2('deleteFile')}`} onClick={() => setDeleteFileId(null)}>Отмена</button>
                         </div>
                     </div>
                 </div>
